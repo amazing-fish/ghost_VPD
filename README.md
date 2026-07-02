@@ -1,2 +1,1 @@
-# ghost_VPD
-幽灵计划
+# vpd-service
