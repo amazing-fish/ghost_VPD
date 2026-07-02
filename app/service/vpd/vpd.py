@@ -2470,4 +2470,19 @@ class AppLoginCar:
 
             self.driver.click(**self.app_config.get(confirm_key))
             sleep(1)
- 
+            if self.app_type == "#01":
+                self.driver.swipe(x1=0.50, y1=0.20, x2=0.50, y2=0.70)
+                sleep(2)
+            std_logger.info("[通用登出] 账户登出完成")
+        except Exception as e:
+            std_logger.error(f"[通用登出] 账户登出失败：{str(e)}")
+
+    def run(self):
+        try:
+            self.vpd.app_start()
+            self._login()
+            self._select_car()
+        except Exception as e:
+            std_logger.error(f"{self.tag} 执行失败：{str(e)}, {traceback.format_exc()}")
+        finally:
+            self.vpd.app_stop()
