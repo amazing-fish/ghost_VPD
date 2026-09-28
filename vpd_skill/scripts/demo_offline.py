@@ -60,6 +60,8 @@ s = read_json(states)
 s["interrupts"]["update_dialog"]["review"] = "reviewed"
 write_json(states, s)
 cli("弹窗经评审后恢复", "run", "TC-MOTOR-HM-001", "--device", "replay:motor_hm_popup.json")
+cli("小直板（360 vp，「设置」被底部导航遮住）", "run", "TC-MOTOR-HM-001", "--device", "replay:motor_hm_compact.json")
+cli("折叠屏展开（733 vp，左右分栏）", "run", "TC-MOTOR-HM-001", "--device", "replay:motor_hm_fold.json")
 drift = cli("页面变化（定位漂移）", "run", "TC-MOTOR-HM-001", "--device", D)
 xid = drift["experience_candidates"][0]
 cli("经验验证（3 用例 × 2 世界）", "experience", "validate", xid, "--suite", "motor_hm_smoke", "--device", B, "--device", D)
