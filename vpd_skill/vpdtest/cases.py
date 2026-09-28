@@ -13,12 +13,15 @@ from .util import now_iso, read_json, sha256_obj, write_json
 
 REQUIRED = ("purpose", "preconditions", "test_data", "steps", "assertions", "cleanup", "sources")
 CONTENT_KEYS = ("app", "preconditions", "env_requirements", "test_data", "steps", "assertions", "cleanup")
+OPTIONAL_CONTENT_KEYS = ("layout_requirements",)  # 只在声明时计入，避免改变既有用例的内容哈希
 NEXT = {"exploration_record": "candidate", "draft": "candidate", "candidate": "replay_verified",
         "replay_verified": "regression"}
 
 
 def content_hash(case: dict) -> str:
-    return sha256_obj({k: case.get(k) for k in CONTENT_KEYS})[:12]
+    body = {k: case.get(k) for k in CONTENT_KEYS}
+    body.update({k: case[k] for k in OPTIONAL_CONTENT_KEYS if case.get(k)})
+    return sha256_obj(body)[:12]
 
 
 def lint(case: dict, app, knowledge) -> list:
@@ -36,8 +39,17 @@ def lint(case: dict, app, knowledge) -> list:
                 issues.append({"field": f"steps.{s['id']}", "problem": f"目标 {t} 未登记"})
         if s.get("expect_state_unresolved"):
             issues.append({"field": f"steps.{s['id']}", "problem": "终点是未声明状态，缺少可判定的后置条件"})
+        if s.get("point") is not None or (isinstance(s.get("target"), dict) and any(
+                st.get("kind") == "point" for st in s["target"].get("strategies", []))):
+            issues.append({"field": f"steps.{s['id']}", "problem": "用例中不能写像素坐标：屏幕尺寸/密度/折叠状态不同坐标就失效，"
+                                                                   "请登记为 targets.json 中的文本/xpath/id/模板目标"})
         if s["action"] == "ensure_state" and s.get("state") not in app.states.recipes:
             issues.append({"field": f"steps.{s['id']}", "problem": f"没有到达 {s.get('state')} 的 recipe"})
+    from .layout import REQUIREMENT_KEYS
+    for k in case.get("layout_requirements", {}):
+        if k not in REQUIREMENT_KEYS:
+            issues.append({"field": "layout_requirements", "problem": f"{k} 不能在启动前判定，可用 {list(REQUIREMENT_KEYS)}；"
+                                                                     "是否分栏请写成步骤后的断言"})
     real = [a for a in case.get("assertions", []) if not a.get("advisory")]
     if not real and case.get("assertions"):
         issues.append({"field": "assertions", "problem": "没有非建议类断言"})

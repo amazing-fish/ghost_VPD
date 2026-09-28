@@ -12,6 +12,17 @@ from typing import Optional
 
 _BOUNDS_RE = re.compile(r"\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]")
 _ATTR_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.-]*$")
+# 这些容器会裁剪子节点：滚出列表边界的条目在树里仍有 bounds，但实际不可见，也点不到
+CLIP_TYPES = {"List", "Scroll", "Grid", "WaterFlow", "Swiper", "Refresh"}
+# 横向翻页容器不作为"上下滑动查找"的滚动容器
+HORIZONTAL_SCROLL_TYPES = {"Swiper", "Tabs", "TabBar"}
+
+
+def intersect(a: Optional[tuple], b: Optional[tuple]) -> Optional[tuple]:
+    if a is None or b is None:
+        return None
+    r = (max(a[0], b[0]), max(a[1], b[1]), min(a[2], b[2]), min(a[3], b[3]))
+    return r if r[2] > r[0] and r[3] > r[1] else None
 
 
 def parse_bounds(raw: str) -> Optional[tuple]:
@@ -33,6 +44,7 @@ class Node:
     enabled: bool
     selected: bool
     visible: bool
+    scrollable: bool = False
     attrs: dict = field(repr=False, default_factory=dict)
     children: list = field(default_factory=list)
 
@@ -70,6 +82,7 @@ class UiTree:
         self.raw = raw or {}
         self.nodes: list = []
         self._xml = None
+        self._vis = None
         self._flatten(self.raw, None, 0)
 
     def _flatten(self, raw: dict, parent: Optional[int], depth: int) -> None:
@@ -82,7 +95,7 @@ class UiTree:
             bounds=b, clickable=_flag(attrs, "clickable", False), enabled=_flag(attrs, "enabled", True),
             selected=_flag(attrs, "selected", False),
             visible=_flag(attrs, "visible", True) and b is not None and (b[2] - b[0]) > 0 and (b[3] - b[1]) > 0,
-            attrs=attrs)
+            scrollable=_flag(attrs, "scrollable", False), attrs=attrs)
         self.nodes.append(node)
         if parent is not None:
             self.nodes[parent].children.append(node.idx)
@@ -146,10 +159,71 @@ class UiTree:
             self._xml = build(self.raw)
         return self._xml
 
+    # ---- 窗口与可见区域（全部相对当前 UI 树现算，不记像素位置）----
+    def window_rect(self) -> Optional[tuple]:
+        best = max((n for n in self.nodes if n.bounds), key=lambda n: n.area, default=None)
+        return best.bounds if best and best.area else None
+
+    def _visibility(self) -> list:
+        """每个节点的可见矩形 = 自身 bounds ∩ 窗口 ∩ 祖先中裁剪型容器（List/Scroll 等）的可见区域。"""
+        if self._vis is None:
+            win = self.window_rect()
+            vis, clip = [None] * len(self.nodes), [None] * len(self.nodes)
+            for n in self.nodes:  # nodes 为先序，父节点先于子节点
+                inherited = win if n.parent is None else clip[n.parent]
+                vis[n.idx] = intersect(n.bounds, inherited) if n.visible else None
+                clip[n.idx] = (vis[n.idx] if n.type in CLIP_TYPES or n.scrollable else inherited)
+            self._vis = vis
+        return self._vis
+
+    def visible_rect(self, node: Node) -> Optional[tuple]:
+        return self._visibility()[node.idx]
+
+    def visibility(self, node: Node) -> dict:
+        r = self.visible_rect(node)
+        frac = round(((r[2] - r[0]) * (r[3] - r[1])) / node.area, 3) if (r and node.area) else 0.0
+        return {"rect": r, "fraction": frac, "center": ((r[0] + r[2]) // 2, (r[1] + r[3]) // 2) if r else None}
+
     def node_at(self, x: int, y: int) -> Optional[Node]:
-        hits = [n for n in self.nodes if n.visible and n.bounds and
-                n.bounds[0] <= x < n.bounds[2] and n.bounds[1] <= y < n.bounds[3]]
+        """点击点实际落在哪个节点：只看可见矩形，被列表裁掉的条目不算（否则会把底部导航上的点击
+        误判为列表项）。"""
+        vis = self._visibility()
+        hits = [n for n in self.nodes if vis[n.idx] and vis[n.idx][0] <= x < vis[n.idx][2]
+                and vis[n.idx][1] <= y < vis[n.idx][3]]
         return max(hits, key=lambda n: (n.depth, -n.area), default=None)
+
+    def is_within(self, node: Node, scope: Node) -> bool:
+        cur = node.idx
+        while cur is not None:
+            if cur == scope.idx:
+                return True
+            cur = self.nodes[cur].parent
+        return False
+
+    def in_scope(self, node: Node, scope: Optional[list]) -> bool:
+        return scope is None or any(self.is_within(node, s) for s in scope)
+
+    def texts_in(self, scope: Optional[list]) -> list:
+        if scope is None:
+            return self.visible_texts()
+        return [t for n in self.nodes if n.visible and self.in_scope(n, scope)
+                for t in (n.text.strip(), n.description.strip()) if t]
+
+    def scroll_container(self, scope: Optional[list] = None) -> Optional[Node]:
+        """上下滑动查找用的容器：范围内可见面积最大的可滚动节点（排除横向翻页容器）。"""
+        cands = [n for n in self.nodes if n.scrollable and n.type not in HORIZONTAL_SCROLL_TYPES
+                 and self.visible_rect(n) and self.in_scope(n, scope)]
+
+        def area(n):
+            r = self.visible_rect(n)
+            return (r[2] - r[0]) * (r[3] - r[1])
+        return max(cands, key=area, default=None)
+
+    def fingerprint(self) -> str:
+        """可见内容指纹：滑动前后相同说明已到底或滑动没有生效。"""
+        from .util import short_hash
+        vis = self._visibility()
+        return short_hash([(n.text, vis[n.idx]) for n in self.nodes if vis[n.idx] and n.text], 12)
 
     def ancestors(self, node: Node) -> list:
         out, cur = [], node.parent
@@ -173,11 +247,12 @@ class UiTree:
         return out
 
     def region_box(self, region: list) -> Optional[tuple]:
-        size = self.screen_size()
-        if not size or not region:
+        """region 是相对当前窗口的比例 [x1, y1, x2, y2]，不是像素。"""
+        win = self.window_rect()
+        if not win or not region:
             return None
-        w, h = size
-        return int(region[0] * w), int(region[1] * h), int(region[2] * w), int(region[3] * h)
+        x0, y0, w, h = win[0], win[1], win[2] - win[0], win[3] - win[1]
+        return (int(x0 + region[0] * w), int(y0 + region[1] * h), int(x0 + region[2] * w), int(y0 + region[3] * h))
 
 
 def in_box(point: tuple, box: Optional[tuple]) -> bool:

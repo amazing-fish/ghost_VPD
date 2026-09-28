@@ -9,13 +9,17 @@ from __future__ import annotations
 import time
 
 from .devices import DeviceResult
+from .layout import key as layout_key
+from .layout import resolve_scope
 from .locate import resolve
 from .util import now_iso
 
-ENV_ERRORS = {"screen_locked", "screen_off", "device_offline", "app_missing", "tool_missing"}
+ENV_ERRORS = {"screen_locked", "screen_off", "device_offline", "app_missing", "tool_missing", "transport_unavailable"}
 STATUS_MAP = {
+    "observation_failed": ("blocked", "environment", "观测查询失败（设备连接/通道异常），未执行动作"),
     "target_unresolved": ("blocked", "tool", "目标未能可靠定位（已重新观察）"),
     "target_ambiguous": ("blocked", "tool", "目标匹配到多个元素，拒绝盲点"),
+    "target_partially_visible": ("blocked", "tool", "目标只露出一小部分（被裁剪/遮挡或已滑到底），不点边缘"),
     "policy_denied": ("blocked", "tool", "动作被安全策略拒绝"),
     "unobservable": ("blocked", "tool", "动作后无法取得可判定的观测（无 UI 树或解析失败）"),
     "budget_exhausted": ("blocked", "tool", "动作预算耗尽"),
@@ -70,16 +74,20 @@ class Executor:
             return att
         obs, tree = ctx.observe(f"{step['id']}#{n}:before")
         att.update(obs_before=obs["obs_id"], state_before=obs["page"]["state"])
+        if obs["page"].get("observation_error") and kind in ("tap", "input", "swipe"):
+            # 观测本身失败时不定位、不下发：否则会把连接问题记成"目标找不到"
+            att.update(status="observation_failed", error_class=obs["page"]["observation_error"])
+            return att
         res = None
         if kind == "tap":
             tid, target = ctx.app.target(step["target"])
             loc, obs, tree = self._locate(tid, target, obs, tree, step)
             att["locate"] = loc
             if loc["status"] != "found":
-                att["status"] = "target_ambiguous" if loc["status"] == "ambiguous" else "target_unresolved"
+                att["status"] = _unresolved(loc)
                 return att
             pol = ctx.policy.check_tap(tree, loc["point"], loc["basis"], target,
-                                       ctx.app.states.deny_for(obs["page"]["state"]))
+                                       ctx.app.states.deny_for_page(obs["page"]))
             att["policy"] = pol
             if not pol["allowed"]:
                 att["status"] = "policy_denied"
@@ -90,7 +98,7 @@ class Executor:
         elif kind in ("back", "home"):
             res = ctx.device.key(kind)
         elif kind == "swipe":
-            res = self._swipe(step.get("direction", "up"))
+            res, att["swipe"] = self._swipe(step.get("direction", "up"), tree, obs.get("layout"), step.get("within"))
         elif kind == "stop_app":
             res = ctx.device.stop(ctx.app.bundle)
         elif kind == "input":
@@ -103,7 +111,7 @@ class Executor:
             loc, obs, tree = self._locate(tid, target, obs, tree, step)
             att["locate"] = loc
             if loc["status"] != "found":
-                att["status"] = "target_unresolved"
+                att["status"] = _unresolved(loc)
                 return att
             res = ctx.device.input_text(*loc["point"], step.get("text", ""))
         elif kind != "wait":
@@ -125,30 +133,68 @@ class Executor:
     # ---- 定位（可含声明过的滚动查找）----
     def _locate(self, tid, target, obs, tree, step) -> tuple:
         ctx = self.ctx
-        pref = ctx.overlay.locator_pref(tid) if ctx.overlay else None
-        point = step.get("point") if ctx.mode == "agent" else None
-        loc = resolve(tid, target, tree, ctx.observer.screenshot_abs(obs), ctx.app.dir, pref, point)
+        lay = obs.get("layout")
+        pref = ctx.overlay.locator_pref(tid, layout_key(lay)) if ctx.overlay else None
+        point, note = (step.get("point") if ctx.mode == "agent" else None), None
+        if point is not None and step.get("point_window") and lay and lay.get("window_px") \
+                and list(step["point_window"]) != list(lay["window_px"]):
+            # 像素坐标只在提出它的那个窗口尺寸下有意义；旋转/折叠/分屏后必须重新观察再提议
+            note = f"坐标来自 {step['point_window']} 的窗口，当前窗口为 {lay['window_px']}，已丢弃"
+            point = None
+        loc = resolve(tid, target, tree, ctx.observer.screenshot_abs(obs), ctx.app.dir, pref, point, lay)
         scroll = target.get("scroll")
-        swipes = 0
-        while loc["status"] == "not_found" and scroll and swipes < int(scroll.get("max", 3)):
+        swipes, trail = 0, []
+        while loc["status"] in ("not_found", "partially_visible") and scroll and swipes < int(scroll.get("max", 3)):
             swipes += 1
-            r = self._swipe(scroll.get("direction", "up"))
-            ctx.actions += 1
-            ctx.store.event("scroll_search", target=tid, n=swipes, ok=r.ok)
+            before = tree.fingerprint() if (tree is not None and tree.status == "ok") else None
+            r, info = self._swipe(scroll.get("direction", "up"), tree, lay, scroll.get("within"))
+            if r.sent:
+                ctx.actions += 1
             obs, tree = ctx.observe(f"{step['id']}:scroll{swipes}")
-            loc = resolve(tid, target, tree, ctx.observer.screenshot_abs(obs), ctx.app.dir, pref, point)
+            lay = obs.get("layout")
+            after = tree.fingerprint() if (tree is not None and tree.status == "ok") else None
+            info.update(n=swipes, ok=r.ok, error=r.error, content_changed=before != after if before else None)
+            trail.append(info)
+            ctx.store.event("scroll_search", target=tid, **info)
+            loc = resolve(tid, target, tree, ctx.observer.screenshot_abs(obs), ctx.app.dir, pref, point, lay)
+            if not r.ok or (before and before == after):
+                if r.ok:
+                    loc["scroll_end"] = True  # 滑动后内容没有变化：已到底或滑动未生效，不再继续
+                break
         if swipes:
-            loc["scroll_swipes"] = swipes
+            loc["scroll_swipes"], loc["scroll"] = swipes, trail
+        if note:
+            loc["point_rejected"] = note
         loc["obs"] = obs["obs_id"]
+        loc["layout_key"] = layout_key(lay)
         return loc, obs, tree
 
-    def _swipe(self, direction: str) -> DeviceResult:
-        size = self.ctx.observer.last_size
-        if not size:
-            return DeviceResult("swipe", False, False, "screen_size_unknown", "未知屏幕尺寸，无法计算滑动坐标")
-        w, h = size
-        y1, y2 = (int(h * 0.7), int(h * 0.3)) if direction == "up" else (int(h * 0.3), int(h * 0.7))
-        return self.ctx.device.swipe(w // 2, y1, w // 2, y2)
+    def _swipe(self, direction: str, tree=None, lay=None, within=None) -> tuple:
+        """在可滚动容器内滑动：起止点取容器可见区域的 75%/25% 高度，而不是整屏比例。
+        折叠屏分栏时列表可能只在左栏，按整屏中线滑会滑到右栏上。"""
+        info, rect = {"direction": direction}, None
+        if tree is not None and tree.status == "ok":
+            scope = resolve_scope(within, tree, lay)
+            if scope is not None and not scope:
+                return DeviceResult("swipe", False, False, "scroll_scope_missing",
+                                    f"滚动范围 {within} 在当前页面不存在"), {**info, "container": None}
+            node = tree.scroll_container(scope)
+            if node is not None:
+                rect = tree.visible_rect(node)
+                info["container"] = {"type": node.type, "id": node.id, "visible": list(rect)}
+            else:
+                rect = tree.window_rect()
+                info["container"] = None
+                info["fallback"] = "window"
+        elif self.ctx.observer.last_window:
+            rect, info["fallback"] = self.ctx.observer.last_window, "last_window"
+        if not rect:
+            return DeviceResult("swipe", False, False, "screen_size_unknown", "未知窗口尺寸，无法计算滑动坐标"), info
+        x = (rect[0] + rect[2]) // 2
+        top, bottom = rect[1] + int((rect[3] - rect[1]) * 0.25), rect[1] + int((rect[3] - rect[1]) * 0.75)
+        y1, y2 = (bottom, top) if direction == "up" else (top, bottom)
+        info["from"], info["to"] = [x, y1], [x, y2]
+        return self.ctx.device.swipe(x, y1, x, y2), info
 
     # ---- 后置条件 ----
     def _post(self, step: dict, n: int, case_id: str, was_in_app: bool = True) -> dict:
@@ -178,6 +224,8 @@ class Executor:
             if interval <= 0 or elapsed >= timeout:
                 if page.get("interrupts"):
                     status = "interrupted"
+                elif page.get("observation_error"):
+                    status = "observation_failed"
                 elif page["state"] == "undetermined":
                     status = "unobservable"
                 else:
@@ -204,10 +252,13 @@ class Executor:
             return {"action": "dismiss_interrupt", "performed": "dispatch" in r, "interrupt": ints[0]["id"],
                     "reason": "关闭已评审的良性中断后重新判定后置条件", "attempt": r, "post": r.get("post"),
                     "status": r["status"]}
-        if st == "target_unresolved":
+        if st in ("target_unresolved", "target_partially_visible"):
             time.sleep(min(1.0, ctx.device.poll_interval))
             return {"action": "reobserve_and_retry", "performed": True, "reason": "等待后重新观察并完整重试定位"}
-        if st == "device_error" and att.get("error_class") in ("timeout", "command_failed"):
+        if st == "observation_failed":
+            time.sleep(min(3.0, 3 * ctx.device.poll_interval))  # hdc 通道重建通常几秒内恢复
+            return {"action": "reobserve_and_retry", "performed": True, "reason": "观测查询失败，等待后重新观察"}
+        if st == "device_error" and att.get("error_class") in ("timeout", "command_failed", "transport_unavailable"):
             return {"action": "redispatch", "performed": True, "reason": "执行器瞬时错误，重发"}
         if st == "postcondition_not_met" and step.get("idempotent"):
             return {"action": "redispatch", "performed": True, "reason": "步骤声明为幂等，允许重发一次"}
@@ -263,6 +314,11 @@ class Executor:
         return {**base, "outcome": outcome, "sub_steps": subs, "attempts": [a for x in subs for a in x["attempts"]],
                 "adapted": any(s["adapted"] for s in subs), "first_failure": ff,
                 "recoveries": [r for s in subs for r in s["recoveries"]], "final_obs": subs[-1].get("final_obs")}
+
+
+def _unresolved(loc: dict) -> str:
+    return {"ambiguous": "target_ambiguous", "partially_visible": "target_partially_visible"}.get(
+        loc["status"], "target_unresolved")
 
 
 def _failure_detail(att: dict) -> dict:

@@ -10,6 +10,12 @@
     1320,
     2848
   ],
+  "display": {
+    "density": 3.375,
+    "fold_status": "unknown",
+    "device_form": "bar",
+    "source": "2026-09-29 真机 SGT-AL10 hidumper -s DisplayManagerService：VirtualPixelRatio 3.375，PhysicalFoldStatus UNKNOWN"
+  },
   "initial": {
     "locked": false,
     "screen_on": true,

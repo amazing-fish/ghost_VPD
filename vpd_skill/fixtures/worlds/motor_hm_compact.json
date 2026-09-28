@@ -1,0 +1,32 @@
+{
+  "extends": "motor_hm_base.json",
+  "note": "变体：较小的直板机（1080×2400，密度 3.0 → 360 vp，仍是窄屏 sm）。继承的页面按宽高分别等比压缩；「我的」页改为可滚动列表，「设置」一行只露出上沿、其余被底部导航挡住——按原始 bounds 中心点击会点到底部导航的「发现」。合成数据，不是真机抓取。",
+  "rescale": [1080, 2400],
+  "device": {"model": "REPLAY-COMPACT-BAR", "os": "OpenHarmony (replay)"},
+  "display": {"density": 3.0, "fold_status": "unknown", "device_form": "bar", "source": "合成：常见 1080×2400 直板机参数"},
+  "patch_screens": {
+    "my_tab": {"tab": true, "on_swipe_up": "my_tab_scrolled", "root": {"t": "Column", "b": [0, 0, 1080, 2400], "children": [
+      {"t": "List", "scroll": true, "b": [0, 110, 1080, 2225], "children": [
+        {"t": "Column", "b": [30, 140, 1050, 360], "click": true, "children": [
+          {"t": "Image", "b": [50, 170, 190, 310], "icon": "avatar"},
+          {"t": "Text", "text": "注册/登录", "b": [220, 210, 600, 280]}]},
+        {"t": "Column", "b": [30, 400, 1050, 1200], "children": [
+          {"t": "Text", "text": "服务卡片占位", "b": [60, 440, 500, 500]}]},
+        {"t": "Column", "b": [30, 1240, 1050, 1960], "children": [
+          {"t": "Text", "text": "活动卡片占位", "b": [60, 1280, 500, 1340]}]},
+        {"t": "Row", "b": [30, 2000, 1050, 2120], "click": true, "go": "help_page", "children": [
+          {"t": "Text", "text": "帮助与反馈", "b": [60, 2030, 400, 2090]}]},
+        {"t": "Row", "b": [30, 2170, 1050, 2290], "click": true, "go": "settings", "children": [
+          {"t": "Text", "text": "设置", "b": [60, 2200, 240, 2260]}]}]},
+      {"use": "tabbar", "sel": "我的"}]}},
+    "my_tab_scrolled": {"tab": true, "on_swipe_down": "my_tab", "root": {"t": "Column", "b": [0, 0, 1080, 2400], "children": [
+      {"t": "List", "scroll": true, "b": [0, 110, 1080, 2225], "children": [
+        {"t": "Column", "b": [30, 140, 1050, 860], "children": [
+          {"t": "Text", "text": "活动卡片占位", "b": [60, 180, 500, 240]}]},
+        {"t": "Row", "b": [30, 900, 1050, 1020], "click": true, "go": "help_page", "children": [
+          {"t": "Text", "text": "帮助与反馈", "b": [60, 930, 400, 990]}]},
+        {"t": "Row", "b": [30, 1060, 1050, 1180], "click": true, "go": "settings", "children": [
+          {"t": "Text", "text": "设置", "b": [60, 1090, 240, 1150]}]}]},
+      {"use": "tabbar", "sel": "我的"}]}}
+  }
+}

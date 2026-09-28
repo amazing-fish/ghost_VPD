@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Optional
 
 from . import DeviceResult
+from ..tree import CLIP_TYPES, intersect
 from ..util import read_json, write_json
 
 LAUNCHER = "com.ohos.sceneboard"
@@ -37,7 +38,7 @@ def expand(spec: dict, bundle: str = "") -> dict:
                   "description": spec.get("desc", ""), "bounds": f"[{b[0]},{b[1]}][{b[2]},{b[3]}]",
                   "clickable": "true" if spec.get("click") or spec.get("go") else "false",
                   "selected": "true" if spec.get("sel") else "false", "enabled": "true", "visible": "true",
-                  "bundleName": bundle})
+                  "scrollable": "true" if spec.get("scroll") else "false", "bundleName": bundle})
     attrs.update({k: str(v) for k, v in spec.get("attrs", {}).items()})
     kids = [expand(c, bundle) for c in spec.get("children", []) if not c.get("hidden_from_tree")]
     return {"attributes": attrs, "children": kids}
@@ -48,10 +49,16 @@ def load_world(path) -> dict:
     world = read_json(p)
     if "extends" in world:
         base = load_world(p.parent / world["extends"])
+        if "rescale" in world:  # 先把继承来的屏幕按比例换算到新分辨率，再应用本 world 的覆盖（覆盖用新坐标）
+            _rescale(base, world["rescale"])
         for k, v in world.items():
+            if k == "rescale":
+                continue
             if k == "patch_screens":  # 整屏替换
                 for sid, scr in v.items():
                     base["screens"][sid] = scr
+            elif k == "fragments":  # 片段合并（新增片段不覆盖继承来的片段）
+                base.setdefault("fragments", {}).update(v)
             elif k == "insert_children":  # 在屏幕根节点最前面插入子节点
                 for sid, kids in v.items():
                     root = base["screens"][sid]["root"]
@@ -89,6 +96,36 @@ def _walk(spec: dict, parents=()):
     yield spec, parents
     for c in spec.get("children", []):
         yield from _walk(c, parents + (spec,))
+
+
+def _hits(root: dict, x: int, y: int, screen) -> list:
+    """点击命中：与真机一致，滚动容器外被裁掉的部分点不到（会落到其上层/相邻的底部导航等控件）。"""
+    out = []
+
+    def rec(spec, parents, clip):
+        b = spec.get("b")
+        vis = intersect(tuple(b), clip) if b else None
+        if vis and vis[0] <= x < vis[2] and vis[1] <= y < vis[3]:
+            out.append((spec, parents))
+        child_clip = (vis if b else clip) if (spec.get("scroll") or spec.get("t") in CLIP_TYPES) else clip
+        for c in spec.get("children", []):
+            rec(c, parents + (spec,), child_clip)
+    rec(root, (), (0, 0, screen[0], screen[1]))
+    return out
+
+
+def _rescale(world: dict, to: list) -> None:
+    """按宽高分别缩放所有 bounds，模拟"直板机不同分辨率/比例主要是压缩"。这只是近似：
+    真实 APP 按 vp 布局，窄屏上是重排而不是等比缩小，需要逐屏覆盖的地方用 patch_screens。"""
+    fw, fh = world["screen"]
+    sx, sy = to[0] / fw, to[1] / fh
+    roots = [s["root"] for s in world["screens"].values()] + list(world.get("fragments", {}).values())
+    for root in roots:
+        for node, _ in _walk(root):
+            if node.get("b"):
+                b = node["b"]
+                node["b"] = [round(b[0] * sx), round(b[1] * sy), round(b[2] * sx), round(b[3] * sy)]
+    world["screen"] = list(to)
 
 
 class ReplayDevice:
@@ -152,6 +189,13 @@ class ReplayDevice:
     def env_facts(self) -> dict:
         return dict(self.world.get("env_facts", {}))
 
+    def display_info(self) -> dict:
+        d = self.world.get("display", {})
+        w, h = self.world["screen"]
+        return {"width_px": w, "height_px": h, "density": d.get("density"), "rotation": d.get("rotation", "0"),
+                "fold_status": d.get("fold_status"), "device_form": d.get("device_form"),
+                "device_form_basis": "回放 world 声明", "source": "replay world"}
+
     def preflight(self, bundle: str) -> dict:
         s = self.state
         checks = [{"check": "device_online", "ok": True, "error_class": None},
@@ -162,7 +206,8 @@ class ReplayDevice:
         ver = self.app_version(bundle)
         checks.append({"check": "app_installed", "ok": ver is not None, "value": ver,
                        "error_class": None if ver else "app_missing"})
-        return {"ok": all(c["ok"] for c in checks), "checks": checks, "device": self.info(), "app_version": ver}
+        return {"ok": all(c["ok"] for c in checks), "checks": checks, "device": self.info(), "app_version": ver,
+                "display": self.display_info()}
 
     def foreground(self) -> Optional[str]:
         return LAUNCHER if self.state["locked"] else self.state["foreground"]
@@ -195,8 +240,7 @@ class ReplayDevice:
         if not self._in_app():
             return self._res("tap", raw="tap outside target app")
         sid = self.current_screen()
-        hits = [(s, p) for s, p in _walk(self._screen_spec(sid)["root"])
-                if s.get("b") and s["b"][0] <= x < s["b"][2] and s["b"][1] <= y < s["b"][3]]
+        hits = _hits(self._screen_spec(sid)["root"], x, y, self.world["screen"])
         if hits:
             spec, parents = max(hits, key=lambda sp: len(sp[1]))
             for node in (spec,) + tuple(reversed(parents)):
@@ -234,8 +278,12 @@ class ReplayDevice:
 
     def swipe(self, x1, y1, x2, y2, speed: int = 2000) -> DeviceResult:
         if self._in_app() and not self.state["popup"]:
-            nxt = self._screen_spec(self.state["stack"][-1]).get("on_swipe_" + ("up" if y2 < y1 else "down"))
-            if nxt:
+            spec = self._screen_spec(self.state["stack"][-1])
+            nxt = spec.get("on_swipe_" + ("up" if y2 < y1 else "down"))
+            scrollers = [s["b"] for s, _ in _walk(spec["root"]) if s.get("scroll") and s.get("b")]
+            # 声明了滚动容器的屏幕：起点必须落在容器内才会滚动（和真机一样，滑到别的栏上不会滚这个列表）
+            inside = not scrollers or any(b[0] <= x1 < b[2] and b[1] <= y1 < b[3] for b in scrollers)
+            if nxt and inside:
                 self.state["stack"][-1] = nxt
         return self._res("swipe", raw="swipe")
 

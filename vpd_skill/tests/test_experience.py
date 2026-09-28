@@ -25,7 +25,7 @@ def test_drift_adaptation_creates_traceable_candidate(ws):
     assert run["experience_candidates"]
     xs = ExperienceStore(ws.root, "motor_hm")
     item = xs.get(run["experience_candidates"][0])
-    assert item["status"] == "candidate" and item["change"] == {"target": "tab_my", "prefer_strategy_index": 1,
+    assert item["status"] == "candidate" and item["change"] == {"target": "tab_my", "prefer_strategy_index": 1, "layout_key": "sm/portrait",
                                                                "strategy_kind": "text"}
     ev = item["evidence"][0]
     assert ev["run_id"] == run["run_id"] and ev["step"] == "S2"

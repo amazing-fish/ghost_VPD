@@ -46,6 +46,9 @@ class Workspace:
     def policy(self) -> Policy:
         return Policy(read_json(self.root / "policy.json"))
 
+    def layout_config(self) -> dict:
+        return read_json(self.root / "layout.json", {})
+
     def app(self, app_id: str) -> App:
         return App(self.root, app_id)
 
@@ -76,10 +79,11 @@ class Workspace:
 class RunContext:
     """一次运行共享的上下文：设备、APP、policy、观测器、经验 overlay 与动作预算。"""
 
-    def __init__(self, ws: Workspace, app: App, device, store, overlay, mode: str = "regression"):
+    def __init__(self, ws: Workspace, app: App, device, store, overlay, mode: str = "regression",
+                 display: Optional[dict] = None):
         self.ws, self.app, self.device, self.store, self.overlay, self.mode = ws, app, device, store, overlay, mode
         self.policy = ws.policy()
-        self.observer = Observer(device, app.bundle, self.policy, app.states, store)
+        self.observer = Observer(device, app.bundle, self.policy, app.states, store, ws.layout_config(), display)
         self.actions = 0
         self.last_obs, self.last_tree = None, None
 

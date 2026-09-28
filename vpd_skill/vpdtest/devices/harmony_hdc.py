@@ -19,6 +19,8 @@ from . import DeviceResult
 KEYS = {"back": "Back", "home": "Home"}
 _FAIL_MARKERS = ("[fail]", "error:", "error code:")
 _LOCKED_MARKERS = ("10106102", "screen is locked")
+# 2026-09-29 真机运行中出现：hdc 通道重建期间所有命令都返回该错误，几秒后自行恢复
+_TRANSPORT_MARKERS = ("e000004", "communication channel is being established")
 
 
 def classify_output(text: str) -> Optional[str]:
@@ -26,6 +28,8 @@ def classify_output(text: str) -> Optional[str]:
     low = (text or "").lower()
     if any(m in low for m in _LOCKED_MARKERS):
         return "screen_locked"
+    if any(m in low for m in _TRANSPORT_MARKERS):
+        return "transport_unavailable"
     if "not match target" in low or "connect-key" in low:
         return "device_offline"
     if any(m in low for m in _FAIL_MARKERS):
@@ -60,6 +64,59 @@ def parse_version(dump: str) -> Optional[str]:
     return None
 
 
+_SECTION_RE = re.compile(r"^-+\s*(Screen|Display) ID:\s*(\d+)\s*-+$")
+_KV_RE = re.compile(r"^([A-Za-z][\w<>, ]*?):?\s{2,}(.+?)\s*,?\s*$")
+_FOLD_MAP = {"EXPAND": "expanded", "FOLDED": "folded", "HALF_FOLD": "half_folded", "UNKNOWN": "unknown"}
+
+
+def parse_display(dump: str) -> dict:
+    """解析 `hidumper -s DisplayManagerService -a -a`，只读 Screen ID / Display ID 段（该输出的其他段含
+    后台进程列表，不读取、不保存）。字段按 2026-09-29 Mate 80 Pro Max（直板）真机输出校准；
+    折叠屏上的多屏与折叠状态字段未经真机验证。"""
+    sections, cur = {}, None
+    for raw in (dump or "").splitlines():
+        line = raw.strip()
+        m = _SECTION_RE.match(line)
+        if m:
+            cur = sections.setdefault(f"{m.group(1).lower()}:{m.group(2)}", {})
+            continue
+        if line.startswith("-----"):  # 其他分隔行结束当前段
+            cur = None
+            continue
+        if cur is None:
+            continue
+        kv = _KV_RE.match(line)
+        if kv and kv.group(1) not in cur:  # 同段内重复的键取第一次出现
+            cur[kv.group(1).strip()] = kv.group(2).strip()
+    disp = sections.get("display:0", {})
+    screens = [v for k, v in sections.items() if k.startswith("screen:")]
+    screen = next((s for s in screens if disp.get("Width") and
+                   (s.get("Bounds<L,T,W,H>") or "").replace(" ", "").split(",")[2:4] == [disp["Width"], disp.get("Height")]),
+                  screens[0] if screens else {})
+
+    def num(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+    w = num(disp.get("Width")) or num(screen.get("Width"))
+    h = num(disp.get("Height")) or num(screen.get("Height"))
+    density = num(screen.get("VirtualPixelRatio")) or num(screen.get("Density"))
+    fold_raw = screen.get("DisplayFoldStatus") or screen.get("PhysicalFoldStatus")
+    return {"width_px": int(w) if w else None, "height_px": int(h) if h else None, "density": density,
+            "rotation": screen.get("Rotation"), "fold_status": _FOLD_MAP.get(fold_raw, fold_raw.lower() if fold_raw else None),
+            "fold_status_raw": fold_raw, "screens": len(screens)}
+
+
+def infer_device_form(fold_param: Optional[str], fold_status: Optional[str]) -> tuple:
+    """直板/折叠是设备属性，只用于记录与分组；布局判断看窗口 vp 宽度。"""
+    if fold_param or fold_status in ("expanded", "folded", "half_folded"):
+        return "foldable", "const.window.foldscreen.type 存在或折叠状态为已知值"
+    if fold_status in (None, "unknown"):
+        return "bar", "无 const.window.foldscreen.type 且折叠状态 UNKNOWN（直板机真机观测）"
+    return None, "无法判断"
+
+
 class HdcDevice:
     kind = "hdc"
 
@@ -68,6 +125,7 @@ class HdcDevice:
         self.serial = serial or self._first_target()
         self.poll_interval = 1.0
         self.spec = f"hdc:{self.serial}"
+        self.last_query_error = None
 
     # ---- 基础执行 ----
     def _run(self, args: list, op: str, timeout: Optional[float] = None, with_target: bool = True) -> DeviceResult:
@@ -94,13 +152,28 @@ class HdcDevice:
         return lines[0] if r.ok and lines else None
 
     # ---- 状态采集 ----
+    def _param(self, prop: str) -> Optional[str]:
+        r = self._shell("param", "get", prop, op="param_get")
+        v = r.raw.strip() if r.ok else ""
+        return None if (not v or "fail" in v.lower()) else v  # 不存在的参数输出 "Get parameter ... fail!"
+
     def info(self) -> dict:
         out = {"serial": self.serial, "kind": self.kind}
-        for key, prop in (("model", "const.product.model"), ("os", "const.ohos.fullname"),
-                          ("software", "const.product.software.version")):
-            r = self._shell("param", "get", prop, op="param_get")
-            out[key] = r.raw.strip() if r.ok else None
+        for key, prop in (("model", "const.product.model"), ("name", "const.product.name"),
+                          ("os", "const.ohos.fullname"), ("software", "const.product.software.version")):
+            out[key] = self._param(prop)
         return out
+
+    def display_info(self) -> dict:
+        r = self._shell("hidumper", "-s", "DisplayManagerService", "-a", "-a", op="display_dump")
+        if not r.ok:
+            return {"source": "hidumper DisplayManagerService", "error_class": r.error_class, "error": r.error,
+                    "density": None}
+        d = parse_display(r.raw)
+        fold_param = self._param("const.window.foldscreen.type")
+        d["device_form"], d["device_form_basis"] = infer_device_form(fold_param, d.get("fold_status"))
+        d.update(foldscreen_type=fold_param, source="hidumper DisplayManagerService")
+        return d
 
     def app_version(self, bundle: str) -> Optional[str]:
         r = self._shell("bm", "dump", "-n", bundle, op="bm_dump")
@@ -126,10 +199,13 @@ class HdcDevice:
         ver = self.app_version(bundle)
         checks.append({"check": "app_installed", "ok": ver is not None, "value": ver,
                        "error_class": None if ver else "app_missing"})
-        return {"ok": all(c["ok"] for c in checks), "checks": checks, "device": self.info(), "app_version": ver}
+        return {"ok": all(c["ok"] for c in checks), "checks": checks, "device": self.info(), "app_version": ver,
+                "display": self.display_info()}
 
     def foreground(self) -> Optional[str]:
+        """查询失败时返回 None 并在 last_query_error 记录原因，避免把"查不到"当成"不在 APP 内"。"""
         r = self._shell("aa", "dump", "-l", op="aa_dump")
+        self.last_query_error = None if r.ok else (r.error_class or "command_failed")
         return parse_foreground(r.raw) if r.ok else None
 
     def process_alive(self, bundle: str) -> Optional[bool]:

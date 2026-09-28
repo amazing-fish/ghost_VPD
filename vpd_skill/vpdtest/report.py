@@ -10,6 +10,17 @@ def _esc(v) -> str:
     return str(v if v is not None else "").replace("|", "\\|").replace("\n", " ")
 
 
+def _layout_line(lay: dict) -> str:
+    p, d = lay.get("profile") or {}, lay.get("display") or {}
+    if not p.get("width_vp"):
+        return "未知（未取得像素密度）"
+    form = {"bar": "直板", "foldable": "折叠屏"}.get(d.get("device_form"), d.get("device_form") or "?")
+    seen = "、".join(f"`{k}`" for k in (lay.get("seen") or {})) or "无"
+    return (f"{form}，{p['window_px'][0]}×{p['window_px'][1]} px ÷ 密度 {p['density']} = {p['width_vp']} vp 宽"
+            f"（{p['width_class']}，{'宽屏' if p.get('wide') else '窄屏'}，折叠状态 {_esc(d.get('fold_status'))}）；"
+            f"运行中出现的形态：{seen}")
+
+
 def render_run(run: dict) -> str:
     v, c = run["verdict"], run["case"]
     lvl = "离线回放（替身设备，不代表真实产品行为）" if run["validation_level"] == "offline_replay" else "真机"
@@ -24,6 +35,7 @@ def render_run(run: dict) -> str:
             f"| 运行 | `{run['run_id']}` |", f"| 验证级别 | {lvl} |",
             f"| 设备 | {_esc(run['device'].get('model'))} / {_esc(run['device'].get('os'))} (`{run['device_spec']}`) |",
             f"| APP | `{run['app']['bundle']}` {_esc(run['app'].get('version'))} |",
+            f"| 窗口形态 | {_layout_line(run.get('layout') or {})} |",
             f"| 用例版本 | v{c.get('version')} hash `{c['hash']}` |",
             f"| policy / 经验 overlay | {run['policy']['version']} / v{run['overlay']['version']}"
             + (f"（试验 {run['overlay']['trial']}）" if run["overlay"].get("trial") else "") + " |",
@@ -39,7 +51,8 @@ def render_run(run: dict) -> str:
                 out.append(f"  - 前置检查 `{ch['check']}` 未通过：{_esc(ch.get('error_class'))} {_esc(ch.get('value'))}")
     if not run["env"]["ok"]:
         for u in run["env"]["unmet"]:
-            out.append(f"  - 环境要求 `{u['key']}` 需为 `{u['required']}`，实际 `{u['actual']}`（可用 --env 声明）")
+            hint = "换用满足该形态的设备或窗口状态" if u["key"].startswith("layout.") else "可用 --env 声明"
+            out.append(f"  - 环境要求 `{u['key']}` 需为 `{u['required']}`，实际 `{u['actual']}`（{hint}）")
 
     fa = v.get("first_anomaly")
     out += ["", "## 首次异常", ""]

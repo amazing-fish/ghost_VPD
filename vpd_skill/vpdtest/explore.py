@@ -18,11 +18,15 @@ from .workspace import RunContext, Workspace
 DISCLAIMER = "覆盖仅相对于 states.json 已声明的状态与本次实际观察，不代表 APP 的完整覆盖"
 
 
-def _candidates(ctx, tree, state: str) -> list:
+def _candidates(ctx, tree, page: dict, layout: dict) -> list:
     out, seen = [], set()
+    min_vis = (layout or {}).get("min_visible_fraction", 0.5)
     for n in tree.nodes:
-        if not (n.visible and n.clickable and n.center):
+        if not (n.visible and n.clickable):
             continue
+        vis = tree.visibility(n)
+        if not vis["center"] or vis["fraction"] < min_vis:
+            continue  # 滚出可视区或只露出边缘：不作为本次候选（记录中的点只作证据，不写入用例）
         texts = [t for t in tree.subtree_texts(n) if t.strip()]
         label = texts[0] if texts else ""
         if label in seen:
@@ -30,13 +34,14 @@ def _candidates(ctx, tree, state: str) -> list:
         seen.add(label)
         ref = None
         for tid, t in ctx.app.targets.items():
-            loc = resolve(tid, t, tree, None, ctx.app.dir)
+            loc = resolve(tid, t, tree, None, ctx.app.dir, layout=layout)
             if loc["status"] == "found" and n.bounds[0] <= loc["point"][0] <= n.bounds[2] and \
                     n.bounds[1] <= loc["point"][1] <= n.bounds[3]:
                 ref = tid
                 break
-        pol = ctx.policy.check_tap(tree, n.center, "tree", ctx.app.targets.get(ref), ctx.app.states.deny_for(state))
-        out.append({"label": label, "point": list(n.center), "target": ref or {
+        pol = ctx.policy.check_tap(tree, vis["center"], "tree", ctx.app.targets.get(ref),
+                                   ctx.app.states.deny_for_page(page))
+        out.append({"label": label, "point": list(vis["center"]), "target": ref or {
             "label": label, "strategies": [{"kind": "text", "value": label}], "side_effect": "navigation"},
                     "policy": pol, "selected": any(tree.nodes[c].selected for c in n.children) or n.selected})
     return out
@@ -66,7 +71,7 @@ def explore(ws: Workspace, app_id: str, start: str, device_spec: Optional[str], 
             break
         obs, tree = ctx.observe(f"explore:{state}:enumerate")
         exp["states"].setdefault(state, {"declared": True, "obs": obs["obs_id"], "texts": obs["texts"][:20]})
-        cands = _candidates(ctx, tree, state)
+        cands = _candidates(ctx, tree, obs["page"], obs.get("layout"))
         cands.sort(key=lambda c: (0 if prefer and any(p in c["label"] for p in prefer) else 1))
         for c in cands:
             key = (state, c["label"])
@@ -98,6 +103,8 @@ def explore(ws: Workspace, app_id: str, start: str, device_spec: Optional[str], 
                 exp["states"].setdefault(to, {"declared": False, "obs": obs_after, "texts": ctx.last_obs["texts"][:20]})
             if page.get("interrupts") or page.get("suspected_crash"):
                 exp["anomalies"].append(f"{state} 点击「{c['label']}」后：中断 {page.get('interrupts')} 崩溃疑似 {page.get('suspected_crash')}")
+            # 分栏时 to 可能是组合状态（如 my_tab+settings）：各部分都已声明也只记录迁移，不作为新的展开起点，
+            # 因为 recipe 只能到达单一状态
             declared = to in app.states.states
             exp["transitions"].append({"id": f"T{len(exp['transitions']) + 1}", "from": state, "label": c["label"],
                                        "target": c["target"], "to": to, "to_declared": declared,

@@ -7,6 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
+from . import layout as layout_mod
 from .tree import UiTree
 from .util import append_jsonl, new_id, now_iso, sha256_file, write_json
 
@@ -35,16 +36,35 @@ class RunStore:
 
 
 class Observer:
-    def __init__(self, device, bundle: str, policy, states, store: RunStore):
+    def __init__(self, device, bundle: str, policy, states, store: RunStore, layout_cfg: Optional[dict] = None,
+                 display: Optional[dict] = None):
         self.device, self.bundle, self.policy, self.states, self.store = device, bundle, policy, states, store
+        self.layout_cfg = layout_mod.config(layout_cfg)
+        self.display = display          # 显示参数（像素密度、折叠状态）；窗口尺寸变化时重新读取
         self.last_size = None
+        self.last_window = None
+        self.last_layout_key = None
+        self.layouts_seen: dict = {}    # layout key -> 首次出现的 obs_id
+
+    def _display_for(self, tree: Optional[UiTree]) -> Optional[dict]:
+        win = tree.window_rect() if (tree is not None and tree.status == "ok") else None
+        size = [win[2] - win[0], win[3] - win[1]] if win else None
+        stale = self.display is None or (size and self.last_size and list(size) != list(self.last_size))
+        if stale and hasattr(self.device, "display_info"):
+            self.display = self.device.display_info()
+            if size and self.last_size:
+                self.store.event("display_requery", reason="窗口尺寸变化（旋转/折叠/分屏）", size=size)
+        return self.display
 
     def observe(self, label: str = "", screenshot: bool = True) -> tuple:
         oid, d = self.store.next_obs_dir()
         fg = self.device.foreground()
+        fg_err = getattr(self.device, "last_query_error", None)
         alive = self.device.process_alive(self.bundle)
         obs = {"obs_id": oid, "ts": now_iso(), "label": label, "device": self.device.serial,
                "source": self.device.kind, "foreground": fg, "process_alive": alive}
+        if fg_err:
+            obs["foreground_error"] = fg_err
         tree = None
         if fg == self.bundle:
             r = self.device.dump_tree(self.bundle, d / "tree.json")
@@ -69,14 +89,27 @@ class Observer:
             else:
                 obs["screenshot"] = {"status": "error", "error_class": r.error_class, "error": r.error}
 
-        if tree is not None and tree.screen_size():
-            self.last_size = tree.screen_size()
+        display = self._display_for(tree)
+        lay = layout_mod.profile(tree, display, self.layout_cfg)
+        win = tree.window_rect() if (tree is not None and tree.status == "ok") else None
+        if win:
+            self.last_window = win
+            self.last_size = (win[2] - win[0], win[3] - win[1])
         obs["screen_size"] = list(self.last_size) if self.last_size else None
-        obs["page"] = self.states.identify(tree, fg, alive)
+        obs["layout"] = lay
+        lk = layout_mod.key(lay)
+        if lk:
+            self.layouts_seen.setdefault(lk, oid)
+            if self.last_layout_key and lk != self.last_layout_key:
+                # 旋转/折叠/展开：记录为事件而不是异常，后续定位都按新形态现算
+                self.store.event("layout_changed", obs_id=oid, frm=self.last_layout_key, to=lk)
+            self.last_layout_key = lk
+        obs["page"] = self.states.identify(tree, fg, alive, lay, fg_err)
         obs["texts"] = tree.visible_texts()[:60] if tree else []
         write_json(d / "observation.json", obs, exclusive=True)
         self.store.event("observe", obs_id=oid, label=label, state=obs["page"]["state"],
-                         tree=obs["tree"]["status"], screenshot=obs["screenshot"]["status"])
+                         tree=obs["tree"]["status"], screenshot=obs["screenshot"]["status"], layout=lk,
+                         panes=len(lay["panes"]))
         return obs, tree
 
     def screenshot_abs(self, obs: dict) -> Optional[str]:

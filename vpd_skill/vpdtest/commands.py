@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
+from typing import Optional
 
 from . import __version__, cases as case_mod
 from .execute import Executor
@@ -45,13 +46,23 @@ def cmd_observe(ws: Workspace, a) -> dict:
     clickable = []
     if tree is not None and tree.status == "ok":
         for n in tree.nodes:
-            if n.visible and n.clickable and n.center:
+            vis = tree.visibility(n) if (n.visible and n.clickable) else None
+            if vis and vis["center"]:  # 中心取可见部分；被列表裁掉的条目不列出
                 texts = tree.subtree_texts(n)
-                pol = ctx.policy.check_tap(tree, n.center, "tree", None, app.states.deny_for(obs["page"]["state"]))
-                clickable.append({"label": (texts[0] if texts else "")[:30], "center": list(n.center),
-                                  "allowed": pol["allowed"], "why": pol["reason"]})
+                pol = ctx.policy.check_tap(tree, vis["center"], "tree", None, app.states.deny_for_page(obs["page"]))
+                clickable.append({"label": (texts[0] if texts else "")[:30], "center": list(vis["center"]),
+                                  "visible_fraction": vis["fraction"], "allowed": pol["allowed"], "why": pol["reason"]})
     return {"session": store.run_id, "obs_dir": str(store.dir / "obs" / obs["obs_id"]), "observation": obs,
             "clickable": clickable[:40]}
+
+
+def _last_window(store) -> Optional[list]:
+    for d in sorted((store.dir / "obs").iterdir(), reverse=True):
+        obs = read_json(d / "observation.json", {})
+        win = (obs.get("layout") or {}).get("window_px")
+        if win:
+            return win
+    return None
 
 
 def cmd_act(ws: Workspace, a) -> dict:
@@ -65,9 +76,13 @@ def cmd_act(ws: Workspace, a) -> dict:
         if a.point:
             if not a.basis:
                 raise ValueError("--point 必须同时给出 --basis（依据，例如截图中看到的文字/图标）")
+            win = _last_window(store)
+            if not win:
+                raise ValueError("--point 需要先在同一 session 内 observe：坐标只对观测时的窗口尺寸有效")
             step["point"] = [int(v) for v in a.point.split(",")]
+            step["point_window"] = win  # 执行前窗口尺寸若已变化（旋转/折叠/分屏），执行器会丢弃该坐标
             step["target"] = {"label": f"agent:{a.basis}", "strategies": [], "side_effect": "navigation"}
-            store.event("agent_proposal", point=step["point"], basis=a.basis)
+            store.event("agent_proposal", point=step["point"], basis=a.basis, window=win)
         else:
             step["target"] = a.target
         step["text"] = a.text

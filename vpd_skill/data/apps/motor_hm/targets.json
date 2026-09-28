@@ -2,19 +2,21 @@
   "note": "定位目标。strategies 按顺序尝试；repo 来源的策略保留原样，skill 追加的后备策略标注 source=skill 且未经真机验证。经验 overlay 只能调整顺序。",
   "targets": {
     "tab_car": {
-      "desc": "底部导航「爱车」",
+      "desc": "导航「爱车」（窄屏在底部，宽屏可能在侧边）",
       "side_effect": "navigation",
       "strategies": [
         {"kind": "xpath", "value": "//*[@text=\"爱车\"]", "source": "app/config/motor_config.py:315-317 MOTOR_HARMONY_CONFIG.car"},
-        {"kind": "text", "value": "爱车", "region": [0, 0.85, 1, 1], "source": "skill：限定底部导航区域的后备策略（未经真机验证）"}
+        {"kind": "text", "value": "爱车", "within": {"type": "TabBar"}, "source": "skill：限定在 TabBar 容器内（TabBar 类型按 2026-09-29 真机布局确认，与导航在底部还是侧边无关）"},
+        {"kind": "text", "value": "爱车", "region": [0, 0.85, 1, 1], "when": {"wide": false}, "source": "skill：窄屏底部区域后备策略（真机 TabBar 位于窗口 90%–100% 高度，与该区域一致；宽屏导航可能在侧边，故限定窄屏）"}
       ]
     },
     "tab_my": {
-      "desc": "底部导航「我的」",
+      "desc": "导航「我的」（窄屏在底部，宽屏可能在侧边）",
       "side_effect": "navigation",
       "strategies": [
         {"kind": "text", "value": "我的", "source": "app/config/motor_config.py:295-297 MOTOR_HARMONY_CONFIG.my（elements text=我的）"},
-        {"kind": "text", "value": "我的", "region": [0, 0.85, 1, 1], "source": "skill：限定底部导航区域的后备策略（未经真机验证）"}
+        {"kind": "text", "value": "我的", "within": {"type": "TabBar"}, "source": "skill：限定在 TabBar 容器内（TabBar 类型按 2026-09-29 真机布局确认，与导航在底部还是侧边无关）"},
+        {"kind": "text", "value": "我的", "region": [0, 0.85, 1, 1], "when": {"wide": false}, "source": "skill：窄屏底部区域后备策略（真机 TabBar 位于窗口 90%–100% 高度，与该区域一致；宽屏导航可能在侧边，故限定窄屏）"}
       ]
     },
     "settings_entry": {

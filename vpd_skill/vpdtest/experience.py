@@ -24,11 +24,14 @@ class Overlay:
         for it in items + ([trial] if trial else []):
             ch = it["change"]
             if it["kind"] == "locator_preference":
-                self.locator[ch["target"]] = ch["prefer_strategy_index"]
+                # 按窗口形态分组：直板窄屏上学到的偏好不带到折叠屏展开态（旧条目无 layout_key 时对所有形态生效）
+                self.locator[_pref_key(ch["target"], ch.get("layout_key"))] = ch["prefer_strategy_index"]
             elif it["kind"] == "wait_timeout":
                 self.waits[ch["key"]] = float(ch["timeout_s"])
 
-    def locator_pref(self, target_id: str) -> Optional[int]:
+    def locator_pref(self, target_id: str, layout_key: Optional[str] = None) -> Optional[int]:
+        if layout_key and _pref_key(target_id, layout_key) in self.locator:
+            return self.locator[_pref_key(target_id, layout_key)]
         return self.locator.get(target_id)
 
     def wait_for(self, key: str, default: float, cap: float) -> float:
@@ -78,10 +81,13 @@ class ExperienceStore:
             for att in step.get("attempts", []):
                 loc = att.get("locate") or {}
                 if loc.get("status") == "found" and loc.get("adapted") and loc.get("strategy_index") is not None:
-                    created.append(self._upsert("locator_preference", {
-                        "target": loc["target"], "prefer_strategy_index": loc["strategy_index"],
-                        "strategy_kind": loc["strategy_kind"]},
-                        f"目标 {loc['target']} 的首选策略失败，第 {loc['strategy_index']} 号策略（{loc['strategy_kind']}）成功",
+                    change = {"target": loc["target"], "prefer_strategy_index": loc["strategy_index"],
+                              "strategy_kind": loc["strategy_kind"]}
+                    if loc.get("layout_key"):
+                        change["layout_key"] = loc["layout_key"]
+                    created.append(self._upsert("locator_preference", change,
+                        f"目标 {loc['target']} 的首选策略失败，第 {loc['strategy_index']} 号策略（{loc['strategy_kind']}）成功"
+                        + (f"（窗口形态 {loc['layout_key']}）" if loc.get("layout_key") else ""),
                         run, step, att))
                 post = att.get("post") or {}
                 if post.get("met") and post.get("timeout_s") and post.get("elapsed_s", 0) > 0.7 * post["timeout_s"]:
@@ -110,7 +116,7 @@ class ExperienceStore:
         """run_case(case_id, device_spec, overlay) -> run dict。基线 = 当前已采纳 overlay；试验 = 基线 + 该候选。"""
         from .verdict import RANK
         item = self.get(xid)
-        target = item["change"].get("target")
+        target, lkey = item["change"].get("target"), item["change"].get("layout_key")
         rows, regress, improved, exercised = [], False, False, set()
         for dev in devices:
             for cid in case_ids:
@@ -118,7 +124,7 @@ class ExperienceStore:
                 trial = run_case(cid, dev, self.overlay(trial=xid))
                 b_rank, t_rank = RANK[base["verdict"]["verdict"]], RANK[trial["verdict"]["verdict"]]
                 b_ad, t_ad = _adaptations(base), _adaptations(trial)
-                if target and _touches(trial, target):
+                if target and _touches(trial, target, lkey):
                     exercised.add(cid)
                 row = {"case": cid, "device": dev, "baseline": base["verdict"]["verdict"], "trial": trial["verdict"]["verdict"],
                        "baseline_run": base["run_id"], "trial_run": trial["run_id"],
@@ -188,5 +194,12 @@ def _adaptations(run: dict) -> int:
     return sum(1 for s in run.get("steps", []) for a in s.get("attempts", []) if (a.get("locate") or {}).get("adapted"))
 
 
-def _touches(run: dict, target: str) -> bool:
-    return any((a.get("locate") or {}).get("target") == target for s in run.get("steps", []) for a in s.get("attempts", []))
+def _touches(run: dict, target: str, layout_key: Optional[str] = None) -> bool:
+    """该运行是否真正用到了这条偏好：同一目标，且（偏好限定形态时）在同一窗口形态下定位。"""
+    return any((a.get("locate") or {}).get("target") == target
+               and (layout_key is None or (a.get("locate") or {}).get("layout_key") == layout_key)
+               for s in run.get("steps", []) for a in s.get("attempts", []))
+
+
+def _pref_key(target: str, layout_key: Optional[str]) -> str:
+    return f"{target}@{layout_key}" if layout_key else target

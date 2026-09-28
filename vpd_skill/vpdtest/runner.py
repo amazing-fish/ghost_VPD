@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Optional
 
 from . import __version__
+from . import layout as layout_mod
 from .cases import content_hash
 from .execute import Executor
 from .experience import ExperienceStore
@@ -38,8 +39,15 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
 
     pre = device.preflight(app.bundle)
     store.event("preflight", ok=pre["ok"], checks=pre["checks"])
+    ctx.observer.display = pre.get("display")  # 复用前置检查读到的显示参数，不重复查询
     facts = {**device.env_facts(), **(env or {})}
     envc = _env_check(case, facts)
+    # 形态要求（例如只适用于折叠屏展开态的用例）：启动前按显示参数判定，不满足记为环境阻塞而不是失败
+    pre_layout = layout_mod.profile(None, pre.get("display"), ctx.observer.layout_cfg)
+    lay_unmet = layout_mod.check_requirements(case.get("layout_requirements", {}), pre_layout)
+    if lay_unmet:
+        envc = {**envc, "ok": False, "unmet": envc["unmet"] + lay_unmet}
+    envc["layout"] = {"required": case.get("layout_requirements", {}), "display_profile": pre_layout}
     steps, cleanup = [], []
     if pre["ok"] and envc["ok"]:
         ex = Executor(ctx)
@@ -80,6 +88,8 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
            "app": {"id": app.id, "bundle": app.bundle, "version": pre.get("app_version")},
            "device": pre.get("device") or device.info(), "device_spec": device.spec,
            "policy": {"version": ctx.policy.version, "hash": ctx.policy.hash}, "overlay": overlay.describe(),
+           "layout": {"display": pre.get("display"), "profile": pre_layout,
+                      "seen": ctx.observer.layouts_seen},
            "env": envc, "preflight": pre, "steps": steps, "cleanup": cleanup, "assertions": assertions,
            "knowledge_snapshot": knowledge.oracle_status(refs)["items"] if refs else [],
            "verdict": verdict, "actions": ctx.actions}

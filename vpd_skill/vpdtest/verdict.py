@@ -23,9 +23,11 @@ def _check(a: dict, obs: dict, tree: UiTree, app) -> tuple:
     ev = {"obs": obs["obs_id"], "tree": obs.get("tree", {}).get("path"), "screenshot": obs.get("screenshot", {}).get("path")}
     if t == "state_is":
         st = obs["page"]["state"]
+        ev.update(observed_state=st, active=obs["page"].get("active"))
         if st in ("undetermined", "ambiguous"):
-            return None, {**ev, "observed_state": st}
-        return st == a["state"], {**ev, "observed_state": st}
+            return None, ev
+        # 分栏时 active 可能同时含多个状态（左栏列表 + 右栏详情），期望状态在其中即成立
+        return (st == a["state"] or a["state"] in (obs["page"].get("active") or [])), ev
     if tree is None or tree.status != "ok":
         return None, {**ev, "reason": f"UI 树不可用（{tree.status if tree else 'missing'}），不能据此判断有无"}
     if t in ("text_present", "text_absent"):
@@ -35,9 +37,10 @@ def _check(a: dict, obs: dict, tree: UiTree, app) -> tuple:
     if t in ("target_present", "target_absent", "target_text_equals", "node_selected"):
         from .locate import resolve
         tid, target = app.target(a["target"])
-        loc = resolve(tid, target, tree, None, app.dir)
-        ev["locate"] = {"status": loc["status"], "strategy": loc.get("strategy_kind"), "bounds": loc.get("bounds")}
-        if loc["status"] in ("ambiguous", "error"):
+        loc = resolve(tid, target, tree, None, app.dir, layout=obs.get("layout"))
+        ev["locate"] = {"status": loc["status"], "strategy": loc.get("strategy_kind"), "bounds": loc.get("bounds"),
+                        "visible_fraction": loc.get("visible_fraction")}
+        if loc["status"] in ("ambiguous", "error", "partially_visible"):
             return None, ev
         found = loc["status"] == "found"
         if t == "target_present":
@@ -47,7 +50,7 @@ def _check(a: dict, obs: dict, tree: UiTree, app) -> tuple:
         if not found:
             return None, ev
         hit = next((x for x in loc["attempts"] if x.get("status") == "found" and x.get("node")), None)
-        node = tree.nodes[hit["node"]["idx"]] if hit else tree.node_at(*loc["point"])
+        node = tree.nodes[hit["node"]["idx"]] if hit else (tree.node_at(*loc["point"]) if loc.get("point") else None)
         if t == "node_selected":
             from .states import is_selected
             sel = is_selected(tree, node) if node else False
