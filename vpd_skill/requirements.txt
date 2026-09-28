@@ -1,0 +1,7 @@
+# vpd_skill 运行依赖（版本固定）。hdc 需单独安装并加入 PATH（DevEco Studio / OpenHarmony SDK toolchains）。
+lxml==5.4.0
+# 与原工程 requirements.txt 保持一致；仅模板定位与回放截图需要
+opencv-python==4.11.0.86
+numpy==2.5.2
+# 测试
+pytest==9.1.1

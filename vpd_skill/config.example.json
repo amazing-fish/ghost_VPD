@@ -1,0 +1,5 @@
+{
+  "_note": "复制为 config.local.json 后按本机修改（config.local.json 已在 .gitignore 中）。命令行 --device 会覆盖这里的 device。",
+  "device": "replay:motor_hm_base.json",
+  "app": "motor_hm"
+}

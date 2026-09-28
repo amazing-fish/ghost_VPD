@@ -1,0 +1,8 @@
+.venv/
+runs/
+config.local.json
+__pycache__/
+*.pyc
+.pytest_cache/
+# 回放世界中的会话状态
+fixtures/**/replay_state.json

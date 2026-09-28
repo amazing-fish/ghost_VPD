@@ -1,0 +1,309 @@
+"""离线替身设备：按 world.json 回放 Harmony 风格 UI 树，用于在没有真机时验证协议与闭环。
+
+回放结果只证明执行器/判定逻辑，不代表真实产品行为；run.json 会标记 device.kind=replay。
+world 支持 "extends" 继承与 "patch_screens" 覆盖，方便构造漂移、弹窗、锁屏、崩溃等变体。
+"""
+from __future__ import annotations
+
+import copy
+import hashlib
+from pathlib import Path
+from typing import Optional
+
+from . import DeviceResult
+from ..util import read_json, write_json
+
+LAUNCHER = "com.ohos.sceneboard"
+PLACEHOLDER_ATTRS = ("accessibilityId", "backgroundColor", "backgroundImage", "blur", "bounds", "checkable", "checked",
+                     "clickable", "clip", "description", "displayId", "enabled", "focused", "hitTestBehavior",
+                     "hostWindowId", "id", "key", "longClickable", "opacity", "origBounds", "originalText",
+                     "scrollable", "selected", "text", "type", "zIndex")
+# 2026-09-29 在 SGT-AL10 / OpenHarmony-7.0.0.105 锁屏状态下执行 aa start 的真实输出
+LOCKED_LAUNCH_OUTPUT = ("error: failed to start ability.\nError Code:10106102  Error Message:The device screen is locked "
+                        "during the application launch, unlock screen failed.")
+
+
+def placeholder_tree() -> dict:
+    """真机在目标窗口不在前台时，dumpLayout -b 返回的就是这种全空占位根节点。"""
+    attrs = {k: "" for k in PLACEHOLDER_ATTRS}
+    attrs["bounds"] = "[0,0][0,0]"
+    return {"attributes": attrs, "children": []}
+
+
+def expand(spec: dict, bundle: str = "") -> dict:
+    attrs = {k: "" for k in PLACEHOLDER_ATTRS}
+    b = spec.get("b", [0, 0, 0, 0])
+    attrs.update({"type": spec.get("t", "Column"), "text": spec.get("text", ""), "id": spec.get("id", ""),
+                  "description": spec.get("desc", ""), "bounds": f"[{b[0]},{b[1]}][{b[2]},{b[3]}]",
+                  "clickable": "true" if spec.get("click") or spec.get("go") else "false",
+                  "selected": "true" if spec.get("sel") else "false", "enabled": "true", "visible": "true",
+                  "bundleName": bundle})
+    attrs.update({k: str(v) for k, v in spec.get("attrs", {}).items()})
+    kids = [expand(c, bundle) for c in spec.get("children", []) if not c.get("hidden_from_tree")]
+    return {"attributes": attrs, "children": kids}
+
+
+def load_world(path) -> dict:
+    p = Path(path)
+    world = read_json(p)
+    if "extends" in world:
+        base = load_world(p.parent / world["extends"])
+        for k, v in world.items():
+            if k == "patch_screens":  # 整屏替换
+                for sid, scr in v.items():
+                    base["screens"][sid] = scr
+            elif k == "insert_children":  # 在屏幕根节点最前面插入子节点
+                for sid, kids in v.items():
+                    root = base["screens"][sid]["root"]
+                    root["children"] = list(kids) + root.get("children", [])
+            elif k == "replace_text":  # 替换屏幕内的文案
+                for sid, mapping in v.items():
+                    for node, _ in _walk(base["screens"][sid]["root"]):
+                        if node.get("text") in mapping:
+                            node["text"] = mapping[node["text"]]
+            elif k not in ("extends",):
+                base[k] = v
+        world = base
+    for scr in world.get("screens", {}).values():
+        scr["root"] = _use_fragments(scr["root"], world.get("fragments", {}))
+    world["_path"] = str(p)
+    return world
+
+
+def _use_fragments(spec: dict, frags: dict) -> dict:
+    """{"use": "tabbar", "sel": "我的"}：复用片段，并把文字为 sel 的节点标为选中。"""
+    if "use" in spec:
+        out = copy.deepcopy(frags[spec["use"]])
+        for node, parents in _walk(out):
+            if spec.get("sel") and node.get("text") == spec["sel"]:
+                # 与真机一致：选中态标在最近的可点击容器上
+                holder = next((p for p in reversed(parents) if p.get("click") or p.get("go")), node)
+                holder["sel"] = True
+        return out
+    if spec.get("children"):
+        spec = {**spec, "children": [_use_fragments(c, frags) for c in spec["children"]]}
+    return spec
+
+
+def _walk(spec: dict, parents=()):
+    yield spec, parents
+    for c in spec.get("children", []):
+        yield from _walk(c, parents + (spec,))
+
+
+class ReplayDevice:
+    kind = "replay"
+
+    def __init__(self, world_path, state_path=None):
+        self.world = load_world(world_path)
+        self.world_path = str(world_path)
+        self.spec = f"replay:{world_path}"
+        self.serial = f"replay-{Path(world_path).stem}"
+        self.poll_interval = 0.0
+        self.bundle = self.world["bundle"]
+        self.state_path = Path(state_path) if state_path else None
+        if self.state_path and self.state_path.exists():
+            self.state = read_json(self.state_path)
+        else:
+            init = self.world.get("initial", {})
+            self.state = {"locked": init.get("locked", False), "screen_on": init.get("screen_on", True),
+                          "foreground": init.get("foreground", LAUNCHER), "alive": False, "stack": [],
+                          "popup": None, "installed": init.get("installed", True), "events": 0}
+
+    def _save(self):
+        self.state["events"] += 1
+        if self.state_path:
+            write_json(self.state_path, self.state)
+
+    def _res(self, op, ok=True, err=None, msg=None, raw="", data=None) -> DeviceResult:
+        self._save()
+        return DeviceResult(op, True, ok, err, msg, raw, 0, data or {})
+
+    def current_screen(self) -> Optional[str]:
+        if self.state["popup"]:
+            return self.state["popup"]
+        return self.state["stack"][-1] if self.state["stack"] else None
+
+    def _in_app(self) -> bool:
+        return (not self.state["locked"]) and self.state["foreground"] == self.bundle and self.state["alive"]
+
+    def _screen_spec(self, sid: str) -> dict:
+        return self.world["screens"][sid]
+
+    def _composed(self) -> Optional[dict]:
+        """当前屏幕 + 弹窗（弹窗与底层页面在同一窗口树，真机 Dialog 也是这样出现在布局中）。"""
+        base = self.state["stack"][-1] if self.state["stack"] else None
+        if base is None:
+            return None
+        root = copy.deepcopy(self._screen_spec(base)["root"])
+        if self.state["popup"]:
+            root.setdefault("children", []).append(copy.deepcopy(self._screen_spec(self.state["popup"])["root"]))
+        return root
+
+    # ---- 状态采集 ----
+    def info(self) -> dict:
+        d = self.world.get("device", {})
+        return {"serial": self.serial, "kind": self.kind, "model": d.get("model"), "os": d.get("os"),
+                "world": self.world_path}
+
+    def app_version(self, bundle: str) -> Optional[str]:
+        return self.world.get("app_version") if bundle == self.bundle and self.state["installed"] else None
+
+    def env_facts(self) -> dict:
+        return dict(self.world.get("env_facts", {}))
+
+    def preflight(self, bundle: str) -> dict:
+        s = self.state
+        checks = [{"check": "device_online", "ok": True, "error_class": None},
+                  {"check": "screen_awake", "ok": s["screen_on"], "value": "AWAKE" if s["screen_on"] else "SLEEP",
+                   "error_class": None if s["screen_on"] else "screen_off"},
+                  {"check": "screen_unlocked", "ok": not s["locked"], "value": str(s["locked"]).lower(),
+                   "error_class": "screen_locked" if s["locked"] else None}]
+        ver = self.app_version(bundle)
+        checks.append({"check": "app_installed", "ok": ver is not None, "value": ver,
+                       "error_class": None if ver else "app_missing"})
+        return {"ok": all(c["ok"] for c in checks), "checks": checks, "device": self.info(), "app_version": ver}
+
+    def foreground(self) -> Optional[str]:
+        return LAUNCHER if self.state["locked"] else self.state["foreground"]
+
+    def process_alive(self, bundle: str) -> Optional[bool]:
+        return self.state["alive"] if bundle == self.bundle else None
+
+    def dump_tree(self, bundle: str, local_path) -> DeviceResult:
+        if not self._in_app() or bundle != self.bundle:
+            tree = placeholder_tree()
+        else:
+            if self._screen_spec(self.state["stack"][-1]).get("tree") == "unavailable":
+                return self._res("dump_tree", False, "tree_unavailable", "该页面不提供 UI 树（模拟 XComponent/自绘页面）")
+            tree = {"attributes": {"type": "orgRoot", "bounds": "[0,0][%d,%d]" % tuple(self.world["screen"])},
+                    "children": [expand(self._composed(), self.bundle)]}
+        write_json(local_path, tree)
+        return self._res("dump_tree", raw="DumpLayout saved", data={"tree": tree})
+
+    def screenshot(self, local_path) -> DeviceResult:
+        try:
+            import cv2  # noqa: F401
+        except ImportError:
+            return self._res("screenshot", False, "unsupported", "未安装 opencv-python，回放设备无法渲染截图")
+        render(self._composed() if self._in_app() else None, self.world["screen"], local_path,
+               popup=self.state["popup"] is not None)
+        return self._res("screenshot", raw="ScreenCap saved")
+
+    # ---- 动作 ----
+    def tap(self, x: int, y: int) -> DeviceResult:
+        if not self._in_app():
+            return self._res("tap", raw="tap outside target app")
+        sid = self.current_screen()
+        hits = [(s, p) for s, p in _walk(self._screen_spec(sid)["root"])
+                if s.get("b") and s["b"][0] <= x < s["b"][2] and s["b"][1] <= y < s["b"][3]]
+        if hits:
+            spec, parents = max(hits, key=lambda sp: len(sp[1]))
+            for node in (spec,) + tuple(reversed(parents)):
+                if node.get("go"):
+                    self._go(node["go"])
+                    break
+        return self._res("tap", raw=f"click {x} {y}")
+
+    def _go(self, go: str) -> None:
+        s = self.state
+        if go == "@back":
+            self._back()
+        elif go == "@dismiss":
+            s["popup"] = None
+        elif go == "@crash":
+            s.update(alive=False, foreground=LAUNCHER, stack=[], popup=None)
+        elif go in self.world["screens"]:
+            target = self._screen_spec(go)
+            if target.get("kind") == "popup":
+                s["popup"] = go
+            elif target.get("tab") and s["stack"]:
+                s["stack"][-1] = go
+            else:
+                s["stack"].append(go)
+
+    def _back(self) -> None:
+        s = self.state
+        if s["popup"]:
+            if self.world.get("popup_back", "dismiss") == "dismiss":
+                s["popup"] = None
+        elif len(s["stack"]) > 1:
+            s["stack"].pop()
+        else:
+            s.update(stack=[], foreground=LAUNCHER)
+
+    def swipe(self, x1, y1, x2, y2, speed: int = 2000) -> DeviceResult:
+        if self._in_app() and not self.state["popup"]:
+            nxt = self._screen_spec(self.state["stack"][-1]).get("on_swipe_" + ("up" if y2 < y1 else "down"))
+            if nxt:
+                self.state["stack"][-1] = nxt
+        return self._res("swipe", raw="swipe")
+
+    def input_text(self, x: int, y: int, text: str) -> DeviceResult:
+        return self._res("input_text", raw="inputText")
+
+    def key(self, name: str) -> DeviceResult:
+        if name == "back" and self._in_app():
+            self._back()
+        elif name == "home":
+            self.state["foreground"] = LAUNCHER
+        elif name != "back":
+            return self._res(f"key_{name}", False, "unsupported", f"不支持的按键 {name}")
+        return self._res(f"key_{name}", raw="keyEvent")
+
+    def launch(self, bundle: str, ability: str) -> DeviceResult:
+        s = self.state
+        if s["locked"]:
+            return self._res("launch", False, "screen_locked", LOCKED_LAUNCH_OUTPUT, LOCKED_LAUNCH_OUTPUT)
+        if bundle != self.bundle or not s["installed"]:
+            return self._res("launch", False, "command_failed", "error: bundle not found", "error: bundle not found")
+        s["foreground"] = bundle
+        if not s["alive"] or not s["stack"]:
+            s.update(alive=True, stack=[self.world["launch_screen"]], popup=self.world.get("launch_popup"))
+        return self._res("launch", raw="start ability successfully.")
+
+    def stop(self, bundle: str) -> DeviceResult:
+        if bundle == self.bundle:
+            self.state.update(alive=False, stack=[], popup=None)
+            if self.state["foreground"] == bundle:
+                self.state["foreground"] = LAUNCHER
+        return self._res("stop", raw="force stop process successfully.")
+
+
+def _draw(img, root: dict) -> None:
+    import cv2
+    import numpy as np
+    for spec, _ in _walk(root):
+        b = spec.get("b")
+        if not b:
+            continue
+        x1, y1, x2, y2 = b
+        if spec.get("t") == "Dialog":
+            cv2.rectangle(img, (x1, y1), (x2, y2), (250, 250, 250), -1)
+        cv2.rectangle(img, (x1, y1), (x2 - 1, y2 - 1), (205, 205, 205), 2)
+        if spec.get("icon"):
+            rng = np.random.default_rng(int(hashlib.md5(spec["icon"].encode()).hexdigest()[:8], 16))
+            cells = rng.integers(0, 255, (8, 8, 3), dtype=np.uint8)
+            img[y1:y2, x1:x2] = cv2.resize(cells, (x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
+        elif spec.get("text"):
+            seed = int(hashlib.md5(spec["text"].encode("utf-8")).hexdigest()[:6], 16)
+            tw, cy = min(x2 - x1 - 8, 24 * len(spec["text"])), (y1 + y2) // 2
+            cv2.rectangle(img, (x1 + 4, cy - 10), (x1 + 4 + tw, cy + 10),
+                          (seed & 255, (seed >> 8) & 255, (seed >> 16) & 255), -1)
+
+
+def render(root: Optional[dict], size, path, popup: bool = False) -> None:
+    """合成截图：文本渲染为按文字哈希着色的色块，图标渲染为确定性纹理，便于模板匹配测试。"""
+    import cv2
+    import numpy as np
+    w, h = size
+    img = np.full((h, w, 3), 255 if root else 60, np.uint8)
+    if root:
+        base = copy.deepcopy(root)
+        top = base["children"].pop() if popup and base.get("children") else None
+        _draw(img, base)
+        if top:
+            img[:] = (img * 0.5).astype(np.uint8)
+            _draw(img, top)
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    cv2.imencode(".png", img)[1].tofile(str(path))
