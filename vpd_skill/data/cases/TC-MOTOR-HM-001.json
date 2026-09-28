@@ -1,0 +1,34 @@
+{
+  "id": "TC-MOTOR-HM-001",
+  "version": 1,
+  "status": "draft",
+  "app": "motor_hm",
+  "title": "我的页进入设置并返回",
+  "purpose": "验证底部导航切换到「我的」、进入「设置」并返回的导航流程与页面状态。",
+  "preconditions": ["手机已解锁", "APP 已安装", "不涉及车辆操作"],
+  "env_requirements": {},
+  "test_data": {},
+  "test_data_none": true,
+  "steps": [
+    {"id": "S1", "action": "ensure_state", "state": "car_tab"},
+    {"id": "S2", "action": "tap", "target": "tab_my", "expect_state": "my_tab", "timeout_s": 8, "retry": 1,
+     "critical": true, "oracle_refs": ["K-MOT-001"]},
+    {"id": "S3", "action": "tap", "target": "settings_entry", "expect_state": "settings", "timeout_s": 8, "retry": 1,
+     "critical": true, "oracle_refs": ["K-MOT-002"]},
+    {"id": "S4", "action": "back", "expect_state": "my_tab", "timeout_s": 8, "retry": 0, "critical": true,
+     "oracle_refs": ["K-MOT-001"]}
+  ],
+  "assertions": [
+    {"id": "A1", "at": "S2", "type": "node_selected", "target": "tab_my", "expected": true,
+     "desc": "点击后「我的」为选中态", "oracle_refs": ["K-MOT-001"]},
+    {"id": "A2", "at": "S3", "type": "target_present", "target": "logout_entry",
+     "desc": "设置页可见「退出登录」（不点击）", "oracle_refs": ["K-MOT-002"]},
+    {"id": "A3", "at": "S4", "type": "state_is", "state": "my_tab", "desc": "返回后回到我的页", "oracle_refs": ["K-MOT-001"]},
+    {"id": "A4", "at": "S3", "type": "visual_review", "advisory": true, "desc": "设置页布局与文案可读性",
+     "prompt": "检查截图中设置页文字是否截断、重叠或对比度不足；只给建议，不作为缺陷结论"}
+  ],
+  "cleanup": [{"action": "stop_app"}],
+  "sources": [{"type": "text_case", "ref": "data/knowledge/text_cases/TC-MOTOR-HM-001.md（Skill 种子样例，非既有用例）"},
+              {"type": "repo_code", "ref": "app/service/vpd/vpd.py:2458-2471", "commit": "90545b9"}],
+  "history": [{"ts": "2026-09-29T00:00:00+08:00", "to": "draft", "why": "由种子文字用例转换；判据尚未确认"}]
+}

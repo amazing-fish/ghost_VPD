@@ -1,0 +1,23 @@
+{
+  "version": "policy-0.1",
+  "note": "运行边界。Skill/经验/模型都不能修改本文件；变更需人工评审并单独提交。",
+  "allowed_packages": ["app.huawei.hmos.motor"],
+  "denied_side_effects": ["vehicle_control", "vehicle_motion", "account_state", "app_update", "payment", "data_clear"],
+  "deny_text": [
+    {"pattern": "泊车代驾|召唤|代客|挪车|遥控|开始泊车|开始$|继续$|去这里|泊入|泊出|靠边停车", "reason": "可能触发车辆运动（v0.1 无实车执行授权）", "class": "vehicle_motion"},
+    {"pattern": "解锁|闭锁|上锁|开锁|车锁|车窗|天窗|尾门|后备箱|空调|鸣笛|闪灯|寻车|座椅|加热|通风|哨兵|充电|电源|上电|下电|启动车辆", "reason": "车辆控制类操作", "class": "vehicle_control"},
+    {"pattern": "退出登录|注销|登录|登陆|注册|切换账号|解绑|删除车辆|授权|安全码", "reason": "改变账号或车辆绑定状态", "class": "account_state"},
+    {"pattern": "^更新$|立即更新|立即升级|下载安装", "reason": "会改变被测 APP 版本", "class": "app_update"},
+    {"pattern": "支付|购买|充值|开通|续费|下单", "reason": "付费操作", "class": "payment"},
+    {"pattern": "清除缓存|清除数据|恢复出厂", "reason": "清除数据", "class": "data_clear"}
+  ],
+  "deny_node_types": ["Toggle", "Switch", "Checkbox", "Radio", "Slider", "Rating"],
+  "allow_point_tap_without_tree": false,
+  "allow_text_input": false,
+  "max_actions_per_run": 60,
+  "max_wait_s": 30,
+  "privacy": {
+    "screenshot_only_when_target_foreground": true,
+    "dump_layout_scoped_to_bundle": true
+  }
+}

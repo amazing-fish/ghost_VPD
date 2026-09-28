@@ -1,0 +1,17 @@
+{
+  "id": "motor_hm",
+  "name": "鸿蒙智行（HarmonyOS）",
+  "platform": "harmony",
+  "bundle": "app.huawei.hmos.motor",
+  "ability": "EntryAbility",
+  "sources": [
+    {"ref": "app/config/motor_config.py:288-290 MOTOR_HARMONY_CONFIG.package", "commit": "90545b9"},
+    {"ref": "app/drivers/harmony/harmony_driver.py:106 app_start(package, 'EntryAbility')", "commit": "90545b9"},
+    {"ref": "设备探测 2026-09-29 SGT-AL10 / OpenHarmony-7.0.0.105：bm dump mainAbility=EntryAbility, versionName=3.0.3.200"}
+  ],
+  "vehicle_boundary": "v0.1 只做不触发车辆运动、可恢复的导航类切片；车控与车辆运动类文本由 policy.json 拒绝。",
+  "extension_points": {
+    "android": "新增 devices/android_u2.py 实现同一 Device 接口（复用 uiautomator2 与 app/config/*_ANDROID_CONFIG），再新增 apps/<id>/",
+    "other_apps": "按 apps/motor_hm 的结构新增 app.json / targets.json / states.json，选择器可用 knowledge import-repo 从原工程导入"
+  }
+}

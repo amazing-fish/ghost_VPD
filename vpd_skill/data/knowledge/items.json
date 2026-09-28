@@ -1,0 +1,62 @@
+{
+  "items": [
+    {
+      "id": "K-GEN-001",
+      "kind": "generic_invariant",
+      "subject": "generic.no_crash_during_navigation",
+      "statement": "测试操作过程中，被测 APP 不应崩溃退出或弹出应用无响应提示。",
+      "expected": "no_crash",
+      "applies_to": {"app": "*"},
+      "source": {"type": "skill_policy", "ref": "vpd_skill/SKILL.md 判定规则 v0.1"},
+      "status": "confirmed",
+      "confirmed_by": "skill_policy_v0.1（随 Skill 评审，用户可撤销）",
+      "history": [{"ts": "2026-09-29T00:00:00+08:00", "to": "confirmed", "why": "通用质量不变量，随 Skill 版本评审"}]
+    },
+    {
+      "id": "K-MOT-001",
+      "kind": "product_rule",
+      "subject": "motor_hm.bottom_nav.switch",
+      "statement": "底部导航有「爱车」「我的」入口，点击后切换到对应页面且该入口呈选中态。",
+      "expected": {"tabs": ["爱车", "我的"], "selected_on_tap": true},
+      "applies_to": {"app": "motor_hm", "app_version": "3.0.3.200"},
+      "source": {"type": "repo_code", "ref": "app/config/motor_config.py:295-297, 315-317; app/service/vpd/vpd.py:2269, 2354", "commit": "90545b9"},
+      "status": "unconfirmed",
+      "note": "来自原工程自动化脚本的导航方式，只说明脚本曾这样操作；“选中态”是 Skill 的推断，需求来源未核实。",
+      "history": [{"ts": "2026-09-29T00:00:00+08:00", "to": "unconfirmed", "why": "从仓库代码提取"}]
+    },
+    {
+      "id": "K-MOT-002",
+      "kind": "product_rule",
+      "subject": "motor_hm.my.settings_logout",
+      "statement": "「我的」页（上滑后）有「设置」入口，设置页中有「退出登录」。",
+      "expected": {"settings_entry": "设置", "logout_entry": "退出登录"},
+      "applies_to": {"app": "motor_hm", "app_version": "3.0.3.200"},
+      "source": {"type": "repo_code", "ref": "app/service/vpd/vpd.py:2458-2471 _account_logout; app/config/motor_config.py:522-527", "commit": "90545b9"},
+      "status": "unconfirmed",
+      "history": [{"ts": "2026-09-29T00:00:00+08:00", "to": "unconfirmed", "why": "从仓库代码提取"}]
+    },
+    {
+      "id": "K-MOT-003",
+      "kind": "ui_copy",
+      "subject": "motor_hm.my.logged_out_entry_copy",
+      "statement": "未登录时「我的」页账号区显示文案「注册/登录」。",
+      "expected": "注册/登录",
+      "applies_to": {"app": "motor_hm", "account_state": "logged_out"},
+      "source": {"type": "repo_code", "ref": "app/service/vpd/vpd.py:2380-2390 _get_login_status logout_text_map['#01']", "commit": "90545b9"},
+      "status": "unconfirmed",
+      "note": "原代码用于判断登录态，#01 在 Android/Harmony 共用该文案；Harmony 版本是否一致未核实。",
+      "history": [{"ts": "2026-09-29T00:00:00+08:00", "to": "unconfirmed", "why": "从仓库代码提取"}]
+    },
+    {
+      "id": "K-MOT-004",
+      "kind": "domain_note",
+      "subject": "motor_hm.popup.update",
+      "statement": "启动后可能出现版本更新弹窗，可通过「下次再说」关闭而不升级。",
+      "expected": {"dismiss": "下次再说"},
+      "applies_to": {"app": "motor_hm"},
+      "source": {"type": "repo_code", "ref": "app/config/motor_config.py:511-513, 546-548; app/service/vpd/vpd.py:2403-2412", "commit": "90545b9"},
+      "status": "unconfirmed",
+      "history": [{"ts": "2026-09-29T00:00:00+08:00", "to": "unconfirmed", "why": "从仓库代码提取"}]
+    }
+  ]
+}

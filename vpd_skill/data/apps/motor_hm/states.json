@@ -1,0 +1,117 @@
+{
+  "note": "页面状态签名与到达方式（定位/识别经验，不是产品规则）。review=pending 表示尚未在真机上核对。",
+  "states": {
+    "car_tab": {
+      "desc": "底部导航「爱车」选中",
+      "require_selected_text": [
+        "爱车"
+      ],
+      "deny_text": [
+        "车架号"
+      ],
+      "deny_reason": "点击车辆卡片可能切换当前车辆",
+      "source": "app/config/motor_config.py 选择器「爱车」；选中态判定按 2026-09-29 真机校准：selected=true 在 TabBar > Column(clickable) 上（run-20260929-015629-e441 obs-0011）",
+      "review": "calibrated_on_device",
+      "review_note": "真机确认：冷启动默认落在「爱车」；底部导航只有 发现/爱车/我的 三项"
+    },
+    "my_tab": {
+      "desc": "底部导航「我的」选中",
+      "require_selected_text": [
+        "我的"
+      ],
+      "source": "app/config/motor_config.py 选择器「我的」；选中态判定按 2026-09-29 真机校准：selected=true 在 TabBar > Column(clickable) 上（run-20260929-015629-e441 obs-0011）",
+      "review": "calibrated_on_device"
+    },
+    "settings": {
+      "desc": "设置页",
+      "require_text": [
+        "退出登录"
+      ],
+      "forbid_text": [
+        "爱车"
+      ],
+      "source": "app/service/vpd/vpd.py:2465-2468 进入设置后点击退出登录",
+      "review": "pending"
+    }
+  },
+  "interrupts": {
+    "update_dialog": {
+      "desc": "版本更新弹窗",
+      "class": "benign",
+      "require_text": [
+        "下次再说"
+      ],
+      "dismiss_target": "update_later",
+      "source": "app/config/motor_config.py:546 next_btn「下次再说」；知识 K-MOT-004",
+      "review": "pending",
+      "review_note": "真机未见过该弹窗；评审确认其为良性后改为 reviewed，恢复流程才会自动关闭它"
+    },
+    "app_error_dialog": {
+      "desc": "应用异常/无响应提示",
+      "class": "anomaly",
+      "require_any_text": [
+        "应用无响应",
+        "已停止运行",
+        "程序异常"
+      ],
+      "source": "skill 通用规则；文本为推测，需在真机上校准",
+      "review": "pending"
+    }
+  },
+  "recipes": {
+    "car_tab": [
+      {
+        "action": "stop_app"
+      },
+      {
+        "action": "launch",
+        "expect_state": "@in_app",
+        "timeout_s": 15
+      },
+      {
+        "action": "tap",
+        "target": "tab_car",
+        "expect_state": "car_tab",
+        "timeout_s": 8
+      }
+    ],
+    "my_tab": [
+      {
+        "action": "stop_app"
+      },
+      {
+        "action": "launch",
+        "expect_state": "@in_app",
+        "timeout_s": 15
+      },
+      {
+        "action": "tap",
+        "target": "tab_my",
+        "expect_state": "my_tab",
+        "timeout_s": 8
+      }
+    ],
+    "settings": [
+      {
+        "action": "stop_app"
+      },
+      {
+        "action": "launch",
+        "expect_state": "@in_app",
+        "timeout_s": 15
+      },
+      {
+        "action": "tap",
+        "target": "tab_my",
+        "expect_state": "my_tab",
+        "timeout_s": 8
+      },
+      {
+        "action": "tap",
+        "target": "settings_entry",
+        "expect_state": "settings",
+        "timeout_s": 8
+      }
+    ]
+  }
+}

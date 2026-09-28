@@ -1,0 +1,5 @@
+{
+  "extends": "motor_hm_base.json",
+  "note": "变体：锁屏。对应 2026-09-29 真机探测到的 aa start 错误 10106102。",
+  "initial": {"locked": true, "screen_on": false, "foreground": "com.ohos.sceneboard", "installed": true}
+}

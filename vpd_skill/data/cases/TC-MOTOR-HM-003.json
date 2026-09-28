@@ -1,0 +1,24 @@
+{
+  "id": "TC-MOTOR-HM-003",
+  "version": 1,
+  "status": "draft",
+  "app": "motor_hm",
+  "title": "未登录时我的页账号区文案",
+  "purpose": "验证未登录状态下账号区入口文案符合 UI 文案规则。",
+  "preconditions": ["手机已解锁", "APP 已安装", "账号未登录（由测试人员声明：--env account_state=logged_out）"],
+  "env_requirements": {"account_state": "logged_out"},
+  "test_data": {},
+  "test_data_none": true,
+  "steps": [
+    {"id": "S1", "action": "ensure_state", "state": "my_tab"}
+  ],
+  "assertions": [
+    {"id": "A1", "at": "S1", "type": "text_present", "text": "注册/登录", "desc": "账号区显示「注册/登录」",
+     "oracle_refs": ["K-MOT-003"]},
+    {"id": "A2", "at": "S1", "type": "visual_review", "advisory": true, "desc": "登录入口是否醒目",
+     "prompt": "主观建议：登录入口在首屏是否足够醒目；不作为缺陷结论"}
+  ],
+  "cleanup": [{"action": "stop_app"}],
+  "sources": [{"type": "repo_code", "ref": "app/service/vpd/vpd.py:2380-2390", "commit": "90545b9"}],
+  "history": [{"ts": "2026-09-29T00:00:00+08:00", "to": "draft", "why": "Skill 种子用例；判据尚未确认"}]
+}

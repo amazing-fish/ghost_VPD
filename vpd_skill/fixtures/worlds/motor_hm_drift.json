@@ -1,0 +1,15 @@
+{
+  "extends": "motor_hm_base.json",
+  "note": "变体：页面变化——新版本在爱车页顶部增加「我的」快捷卡片、在我的页增加页面标题「我的」，底部导航的纯文本定位出现多个匹配。",
+  "app_version": "3.0.4.100-replay",
+  "screens_note": "my_services 为卡片跳转目标，回放中应不会被点击到",
+  "insert_children": {
+    "car_tab": [{"t": "Row", "b": [900, 140, 1280, 230], "click": true, "go": "my_services", "children": [
+      {"t": "Text", "text": "我的", "b": [960, 150, 1100, 220]}]}],
+    "my_tab": [{"t": "Text", "text": "我的", "b": [580, 60, 740, 130]}]
+  },
+  "patch_screens": {
+    "my_services": {"root": {"t": "Column", "b": [0, 0, 1320, 2848], "children": [
+      {"t": "Text", "text": "我的服务占位", "b": [60, 200, 700, 280]}]}}
+  }
+}
