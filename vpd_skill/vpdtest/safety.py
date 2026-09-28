@@ -1,0 +1,118 @@
+"""车辆运动的运行时安全：运动计时（看门狗）、安全停止序列、用例 safety 声明检查。
+
+控车不是禁止项，但必须满足三件事：
+1. 有人在场监护（run/act 的 --supervisor），自动探索永远不带运动授权；
+2. 用例声明 safety.safe_stop（暂停/退出等安全停止步骤）和 max_motion_s（运动时长上限）；
+3. 运行时一旦"运动已触发"后出现关键失败、异常、超时或用例结束仍未停，立刻执行安全停止，
+   并把它单独记录为 safety_stop —— 不覆盖、不掩盖首次失败。
+
+"运动已触发"只表示点击了 side_effect=vehicle_motion 的控件并下发成功，不代表车真的在动；
+是否在动以观测到的页面状态为准（stopped_states 表示已停/已暂停/已结束）。
+"""
+from __future__ import annotations
+
+from typing import Optional
+
+from .util import now_iso
+
+
+def problems(safety: Optional[dict], app, policy) -> list:
+    """用例 safety 声明的静态检查（lint 与运行前都用）。"""
+    out = []
+    if not safety:
+        return [{"field": "safety", "problem": "申请 vehicle_motion 的用例必须声明 safety（safe_stop / max_motion_s / stopped_states）"}]
+    steps = safety.get("safe_stop") or []
+    if not steps:
+        out.append({"field": "safety.safe_stop", "problem": "缺少安全停止序列"})
+    for i, s in enumerate(steps):
+        if s.get("action") not in ("tap", "back", "resume", "wait"):
+            out.append({"field": f"safety.safe_stop[{i}]", "problem": f"安全停止只允许 tap/back/resume/wait，不允许 {s.get('action')}"})
+        if s.get("action") == "tap":
+            t = app.targets.get(s.get("target")) if isinstance(s.get("target"), str) else None
+            if t is None:
+                out.append({"field": f"safety.safe_stop[{i}]", "problem": f"目标 {s.get('target')} 未登记（安全停止不能用临时目标）"})
+            elif t.get("side_effect") != "safe_stop":
+                out.append({"field": f"safety.safe_stop[{i}]", "problem": f"目标 {s.get('target')} 的 side_effect 不是 safe_stop"})
+    cap = float(policy.supervision.get("max_motion_s", 600))
+    m = safety.get("max_motion_s")
+    if not isinstance(m, (int, float)) or m <= 0 or m > cap:
+        out.append({"field": "safety.max_motion_s", "problem": f"须为 0 < x <= {cap} 的秒数"})
+    for s in safety.get("stopped_states", []):
+        if s not in app.states.states:
+            out.append({"field": "safety.stopped_states", "problem": f"状态 {s} 未在 states.json 声明"})
+    if not safety.get("stopped_states"):
+        out.append({"field": "safety.stopped_states", "problem": "需声明哪些状态表示已停/已暂停/已结束，用于确认安全停止生效"})
+    return out
+
+
+class MotionGuard:
+    """运动看门狗。armed 表示"运动类控件已点击且尚未观测到停止状态"。"""
+
+    def __init__(self, safety: Optional[dict], clock, store):
+        self.safety = safety or {}
+        self.clock, self.store = clock, store
+        self.max_s = float(self.safety.get("max_motion_s", 0) or 0)
+        self.stopped = set(self.safety.get("stopped_states", []))
+        self.armed: Optional[dict] = None
+        self.history: list = []
+
+    def arm(self, step_id: str, label: str, state_at_arm: Optional[str] = None) -> None:
+        if self.armed is None:
+            self.armed = {"step": step_id, "label": label, "t0": self.clock(), "ts": now_iso(),
+                          "state_at_arm": state_at_arm, "left_arm_state": False}
+            self.history.append({"event": "armed", "step": step_id, "label": label, "ts": now_iso()})
+            self.store.event("motion_armed", step=step_id, label=label, max_motion_s=self.max_s)
+
+    def elapsed(self) -> Optional[float]:
+        return round(self.clock() - self.armed["t0"], 2) if self.armed else None
+
+    def over(self) -> bool:
+        return bool(self.armed and self.max_s and self.elapsed() > self.max_s)
+
+    def on_observation(self, obs: dict) -> None:
+        if not self.armed:
+            return
+        page = obs.get("page") or {}
+        parts = set(page.get("active") or [page.get("state")])
+        arm_state = self.armed["state_at_arm"]
+        # 点击"开始泊车"后第一帧往往还是原页面：原页面本身若也在 stopped_states 里，不能据此认为已停。
+        # 只有"到了与点击时不同的停止状态"，或"离开过原页面后再出现停止状态"才解除
+        if page.get("state") not in ("out_of_app", "undetermined") and arm_state not in parts and not parts & self.stopped:
+            self.armed["left_arm_state"] = True
+        if parts & self.stopped and (self.armed["left_arm_state"] or arm_state not in parts):
+            self.history.append({"event": "stopped_observed", "state": page.get("state"), "obs": obs["obs_id"],
+                                 "after_s": self.elapsed(), "ts": now_iso()})
+            self.store.event("motion_stopped_observed", state=page.get("state"), obs=obs["obs_id"], after_s=self.elapsed())
+            self.armed = None
+        elif page.get("state") == "out_of_app":
+            # 运动中 APP 退到后台/被杀：记录，不自动判错（这正是要观察的场景之一），计时继续
+            self.store.event("motion_app_left", obs=obs["obs_id"], after_s=self.elapsed())
+
+
+def safe_stop(executor, trigger: str, detail: Optional[dict] = None) -> dict:
+    """执行用例声明的安全停止序列。逐步尽力执行（某个按钮不在了就继续下一步），
+    最后以观测状态确认是否已停；未确认时报告里要求人工立即接管。"""
+    ctx = executor.ctx
+    guard = ctx.motion
+    rec = {"trigger": trigger, "detail": detail or {}, "ts": now_iso(), "armed_since": guard.armed and guard.armed["step"],
+           "elapsed_s": guard.elapsed(), "steps": []}
+    ctx.store.event("safety_stop_start", trigger=trigger, elapsed_s=rec["elapsed_s"])
+    seq = list(guard.safety.get("safe_stop", []))
+    if ctx.last_obs and (ctx.last_obs.get("page") or {}).get("state") == "out_of_app":
+        seq = [{"action": "resume", "desc": "APP 在后台，先拉回前台再停止"}] + seq
+    for i, s in enumerate(seq):
+        if guard.armed is None:
+            rec["steps"].append({"id": f"SAFE{i + 1}", "skipped": "已观测到停止状态"})
+            continue
+        r = executor.run_step({"retry": 1, "timeout_s": 6, **s, "id": f"SAFE{i + 1}", "critical": False,
+                               "_safety": True}, "safety")
+        rec["steps"].append({"id": r["step_id"], "action": r["action"], "outcome": r["outcome"],
+                             "reason": r.get("reason"), "final_obs": r.get("final_obs")})
+    if guard.armed is not None:
+        obs, _ = ctx.observe("safety:confirm")
+        rec["confirm_obs"] = obs["obs_id"]
+    rec["confirmed_stopped"] = guard.armed is None
+    if not rec["confirmed_stopped"]:
+        rec["action_required"] = "未能通过观测确认车辆已停止：请现场监护人立即人工接管"
+    ctx.store.event("safety_stop_end", confirmed=rec["confirmed_stopped"])
+    return rec

@@ -1,17 +1,80 @@
 {
-  "version": "policy-0.1",
+  "version": "policy-0.3",
   "note": "运行边界。Skill/经验/模型都不能修改本文件；变更需人工评审并单独提交。",
-  "allowed_packages": ["app.huawei.hmos.motor"],
-  "denied_side_effects": ["vehicle_control", "vehicle_motion", "account_state", "app_update", "payment", "data_clear"],
-  "deny_text": [
-    {"pattern": "泊车代驾|召唤|代客|挪车|遥控|开始泊车|开始$|继续$|去这里|泊入|泊出|靠边停车", "reason": "可能触发车辆运动（v0.1 无实车执行授权）", "class": "vehicle_motion"},
-    {"pattern": "解锁|闭锁|上锁|开锁|车锁|车窗|天窗|尾门|后备箱|空调|鸣笛|闪灯|寻车|座椅|加热|通风|哨兵|充电|电源|上电|下电|启动车辆", "reason": "车辆控制类操作", "class": "vehicle_control"},
-    {"pattern": "退出登录|注销|登录|登陆|注册|切换账号|解绑|删除车辆|授权|安全码", "reason": "改变账号或车辆绑定状态", "class": "account_state"},
-    {"pattern": "^更新$|立即更新|立即升级|下载安装", "reason": "会改变被测 APP 版本", "class": "app_update"},
-    {"pattern": "支付|购买|充值|开通|续费|下单", "reason": "付费操作", "class": "payment"},
-    {"pattern": "清除缓存|清除数据|恢复出厂", "reason": "清除数据", "class": "data_clear"}
+  "allowed_packages": [
+    "app.huawei.hmos.motor"
   ],
-  "deny_node_types": ["Toggle", "Switch", "Checkbox", "Radio", "Slider", "Rating"],
+  "denied_side_effects": [
+    "account_destructive",
+    "app_update",
+    "payment",
+    "data_clear"
+  ],
+  "deny_text": [
+    {
+      "class": "vehicle_motion",
+      "pattern": "召唤|挪车|遥控|开始泊车|开始代驾|启动代驾|一键泊车|激活|开始$|继续$|去这里|泊入|泊出|靠边停车",
+      "reason": "可能触发真实车辆运动，任何授权下都不点击"
+    },
+    {
+      "class": "vehicle_control",
+      "pattern": "解锁|闭锁|上锁|开锁|车锁|车窗|天窗|尾门|后备箱|空调|鸣笛|闪灯|寻车|座椅|加热|通风|哨兵|充电|电源|上电|下电|启动车辆",
+      "reason": "车控指令"
+    },
+    {
+      "class": "account_destructive",
+      "pattern": "注销|解绑|删除车辆|安全码",
+      "reason": "不可逆的账号/车辆绑定变更"
+    },
+    {
+      "class": "account_state",
+      "pattern": "退出登录|登录|登陆|注册|切换账号|授权",
+      "reason": "改变账号状态（需授权）"
+    },
+    {
+      "class": "vehicle_selection",
+      "pattern": "切换车辆|选择车辆|设为当前",
+      "reason": "切换当前车辆（需授权）"
+    },
+    {
+      "class": "vpd_entry",
+      "pattern": "泊车代驾|代客泊车",
+      "reason": "进入泊车代驾页面（需授权）"
+    },
+    {
+      "class": "route_planning",
+      "pattern": "算路|规划路线|路线规划|导航到",
+      "reason": "发起算路（需授权）"
+    },
+    {
+      "class": "user_data",
+      "pattern": "收藏|重命名|标签|^删除$",
+      "reason": "改变账号下的用户数据（需授权）"
+    },
+    {
+      "class": "app_update",
+      "pattern": "^更新$|立即更新|立即升级|下载安装",
+      "reason": "会升级被测 APP"
+    },
+    {
+      "class": "payment",
+      "pattern": "支付|购买|充值|开通|续费|下单",
+      "reason": "支付"
+    },
+    {
+      "class": "data_clear",
+      "pattern": "清除缓存|清除数据|恢复出厂",
+      "reason": "清除数据"
+    }
+  ],
+  "deny_node_types": [
+    "Toggle",
+    "Switch",
+    "Checkbox",
+    "Radio",
+    "Slider",
+    "Rating"
+  ],
   "allow_point_tap_without_tree": false,
   "allow_text_input": false,
   "max_actions_per_run": 60,
@@ -19,5 +82,32 @@
   "privacy": {
     "screenshot_only_when_target_foreground": true,
     "dump_layout_scoped_to_bundle": true
-  }
+  },
+  "gated_side_effects": {
+    "account_state": "登录/登出/切换账号：改变账号状态，只在本次运行 --authorize account_state 时允许，且目标须声明同一副作用",
+    "vehicle_selection": "切换当前车辆：影响后续所有车辆相关页面",
+    "vpd_entry": "进入泊车代驾（VPD）页面：只是导航，但页面内有会触发车辆运动的按钮",
+    "route_planning": "发起算路：可能向车端/云端下发路线请求，未确认是否会唤醒车辆",
+    "user_data": "收藏/重命名/设置标签/删除自建收藏：改变账号下的用户数据，用例须带清理步骤"
+  },
+  "gated_note": "gated 类只能由人在单次运行上显式授权（run --authorize），用例声明 authorizations 只是申请；explore 和经验永远不带授权。denied_side_effects 任何情况下都拒绝。",
+  "supervised_side_effects": {
+    "vehicle_motion": "激活/开始泊车/继续/泊入/泊出/召唤等会让车辆运动的操作：只在有人在场监护的回归运行中允许",
+    "vehicle_control": "解锁/车窗/空调/鸣笛等车控：会改变车辆物理状态，同样要求在场监护"
+  },
+  "supervision": {
+    "note": "supervised 类不是禁止，而是换一种门槛：本次运行 --authorize <类> 且 --supervisor <在场监护人>，vehicle_motion 还要求用例声明 safety（safe_stop 安全停止序列、max_motion_s 运动时长上限）。自动探索（explore）永远不带 supervised 授权：无人值守时可能挡路、终点不对卡住，只记录这些入口；由人监护的 act 单步或回归用例去执行。",
+    "requires_supervisor": [
+      "vehicle_motion",
+      "vehicle_control"
+    ],
+    "requires_safety": [
+      "vehicle_motion"
+    ],
+    "max_motion_s": 600,
+    "max_monitor_s": 600,
+    "explore_allows": []
+  },
+  "safe_stop_text": "暂停|停止|结束|退出|取消|中止|终止|急停|返回",
+  "safe_stop_note": "side_effect=safe_stop 的目标（暂停/退出泊车等）在任何授权下都可点击、不占动作预算：安全停止不应被门槛挡住。但点击点所在可点击容器里必须有停止类文字，且不能同时含有其他会触发运动/车控的文字。"
 }

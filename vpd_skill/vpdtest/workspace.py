@@ -28,6 +28,7 @@ class App:
         self.bundle, self.ability = self.meta["bundle"], self.meta["ability"]
         self.targets = read_json(self.dir / "targets.json")["targets"]
         self.states = StateModel(read_json(self.dir / "states.json"), self.bundle)
+        self.flows = read_json(self.dir / "flows.json", {"flows": {}})["flows"]
 
     def target(self, ref) -> tuple:
         if isinstance(ref, dict):
@@ -84,10 +85,31 @@ class RunContext:
         self.ws, self.app, self.device, self.store, self.overlay, self.mode = ws, app, device, store, overlay, mode
         self.policy = ws.policy()
         self.observer = Observer(device, app.bundle, self.policy, app.states, store, ws.layout_config(), display)
+        self.params = None        # 用例参数（含密钥引用），由 runner 设置
+        self.authorized = set()   # 本次运行由人显式授予的 gated/supervised 副作用
+        self.supervisor = None    # 在场监护人（supervised 类授权的前提），记入证据
+        self.seed = store.run_id  # 随机动作的默认种子，记入证据以便复现
         self.actions = 0
         self.last_obs, self.last_tree = None, None
+        self._virtual_s = 0.0     # 回放设备不真等待：等待/监视时长累加到虚拟时钟，保证离线可复现
+        from .safety import MotionGuard
+        self.motion = MotionGuard(None, self.clock, store)
+
+    def clock(self) -> float:
+        import time
+        return time.monotonic() + self._virtual_s
+
+    def sleep(self, seconds: float) -> None:
+        import time
+        if seconds <= 0:
+            return
+        if self.device.poll_interval > 0:
+            time.sleep(seconds)
+        else:
+            self._virtual_s += seconds
 
     def observe(self, label: str = "", screenshot: bool = True) -> tuple:
         obs, tree = self.observer.observe(label, screenshot)
         self.last_obs, self.last_tree = obs, tree
+        self.motion.on_observation(obs)
         return obs, tree

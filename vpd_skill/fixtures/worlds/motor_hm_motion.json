@@ -1,0 +1,316 @@
+{
+ "note": "合成回放世界（测试运动安全机制用）：泊车过程的页面与文案全部是占位，不是真实 APP 抓取。用于验证 monitor 时间线、TOR 提示捕获、后台/返回、暂停/继续、运动超时后安全停止等执行器逻辑。",
+ "extends": "motor_hm_base.json",
+ "patch_screens": {
+  "vpd_home": {
+   "root": {
+    "t": "Column",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "Button",
+      "b": [
+       20,
+       120,
+       140,
+       240
+      ],
+      "click": true,
+      "go": "@back",
+      "children": [
+       {
+        "t": "Text",
+        "text": "返回",
+        "b": [
+         30,
+         150,
+         130,
+         210
+        ]
+       }
+      ]
+     },
+     {
+      "t": "Text",
+      "text": "代客泊车（占位）",
+      "b": [
+       360,
+       140,
+       960,
+       220
+      ]
+     },
+     {
+      "t": "Text",
+      "text": "目标车位：占位车位A",
+      "b": [
+       60,
+       1800,
+       900,
+       1880
+      ]
+     },
+     {
+      "t": "Button",
+      "b": [
+       60,
+       2400,
+       1260,
+       2560
+      ],
+      "click": true,
+      "go": "parking_in",
+      "children": [
+       {
+        "t": "Text",
+        "text": "开始泊车",
+        "b": [
+         520,
+         2450,
+         800,
+         2510
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "parking_in": {
+   "stage": true,
+   "after_obs": {
+    "n": 3,
+    "go": "parking_tor"
+   },
+   "on_background": "parking_paused",
+   "root": {
+    "t": "Column",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "Text",
+      "text": "正在泊入（占位）",
+      "b": [
+       60,
+       200,
+       900,
+       280
+      ]
+     },
+     {
+      "t": "Text",
+      "text": "车速 3km/h（占位）",
+      "b": [
+       60,
+       320,
+       900,
+       400
+      ]
+     },
+     {
+      "t": "Button",
+      "b": [
+       60,
+       2400,
+       1260,
+       2560
+      ],
+      "click": true,
+      "go": "parking_paused",
+      "children": [
+       {
+        "t": "Text",
+        "text": "暂停",
+        "b": [
+         600,
+         2450,
+         720,
+         2510
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "parking_tor": {
+   "stage": true,
+   "after_obs": {
+    "n": 2,
+    "go": "parking_done"
+   },
+   "on_background": "parking_paused",
+   "root": {
+    "t": "Column",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "Text",
+      "text": "前方有障碍，请立即接管车辆（占位）",
+      "b": [
+       60,
+       200,
+       1260,
+       280
+      ]
+     },
+     {
+      "t": "Button",
+      "b": [
+       60,
+       2400,
+       1260,
+       2560
+      ],
+      "click": true,
+      "go": "parking_paused",
+      "children": [
+       {
+        "t": "Text",
+        "text": "暂停",
+        "b": [
+         600,
+         2450,
+         720,
+         2510
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "parking_paused": {
+   "stage": true,
+   "root": {
+    "t": "Column",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "Text",
+      "text": "泊车已暂停（占位）",
+      "b": [
+       60,
+       200,
+       900,
+       280
+      ]
+     },
+     {
+      "t": "Button",
+      "b": [
+       60,
+       2200,
+       1260,
+       2360
+      ],
+      "click": true,
+      "go": "parking_in",
+      "children": [
+       {
+        "t": "Text",
+        "text": "继续",
+        "b": [
+         600,
+         2250,
+         720,
+         2310
+        ]
+       }
+      ]
+     },
+     {
+      "t": "Button",
+      "b": [
+       60,
+       2400,
+       1260,
+       2560
+      ],
+      "click": true,
+      "go": "@back",
+      "children": [
+       {
+        "t": "Text",
+        "text": "退出泊车",
+        "b": [
+         500,
+         2450,
+         820,
+         2510
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "parking_done": {
+   "stage": true,
+   "root": {
+    "t": "Column",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "Text",
+      "text": "泊车完成（占位）",
+      "b": [
+       60,
+       200,
+       900,
+       280
+      ]
+     },
+     {
+      "t": "Button",
+      "b": [
+       60,
+       2400,
+       1260,
+       2560
+      ],
+      "click": true,
+      "go": "@back",
+      "children": [
+       {
+        "t": "Text",
+        "text": "完成",
+        "b": [
+         600,
+         2450,
+         720,
+         2510
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  }
+ }
+}

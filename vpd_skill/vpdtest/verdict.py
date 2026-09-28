@@ -6,7 +6,7 @@
 """
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Optional
 
 from .tree import UiTree
 
@@ -30,11 +30,16 @@ def _check(a: dict, obs: dict, tree: UiTree, app) -> tuple:
         return (st == a["state"] or a["state"] in (obs["page"].get("active") or [])), ev
     if tree is None or tree.status != "ok":
         return None, {**ev, "reason": f"UI 树不可用（{tree.status if tree else 'missing'}），不能据此判断有无"}
+    if t == "text_present_any":
+        # 任一文本（子串）出现即成立，例如故障提示的几种可能措辞；措辞本身须来自已确认判据
+        hits = [x for x in a["any"] for n in tree.nodes if n.visible and x in (n.text or "")]
+        ev["matched"] = sorted(set(hits))
+        return bool(hits), ev
     if t in ("text_present", "text_absent"):
         hits = tree.find_text(a["text"], exact=a.get("exact", True))
         ev["matches"] = [n.brief() for n in hits[:3]]
         return (bool(hits) if t == "text_present" else not hits), ev
-    if t in ("target_present", "target_absent", "target_text_equals", "node_selected"):
+    if t in ("target_present", "target_absent", "target_text_equals", "node_selected", "target_enabled"):
         from .locate import resolve
         tid, target = app.target(a["target"])
         loc = resolve(tid, target, tree, None, app.dir, layout=obs.get("layout"))
@@ -51,6 +56,11 @@ def _check(a: dict, obs: dict, tree: UiTree, app) -> tuple:
             return None, ev
         hit = next((x for x in loc["attempts"] if x.get("status") == "found" and x.get("node")), None)
         node = tree.nodes[hit["node"]["idx"]] if hit else (tree.node_at(*loc["point"]) if loc.get("point") else None)
+        if t == "target_enabled":
+            # 不点击，只读 enabled：例如"有故障时激活按钮不可用"。节点或其可点击容器任一为 false 即视为不可用
+            enabled = bool(node and node.enabled and tree.clickable_container(node).enabled)
+            ev["enabled"] = enabled
+            return enabled == a.get("expected", True), ev
         if t == "node_selected":
             from .states import is_selected
             sel = is_selected(tree, node) if node else False
@@ -62,12 +72,65 @@ def _check(a: dict, obs: dict, tree: UiTree, app) -> tuple:
     raise ValueError(f"未知断言类型 {t}")
 
 
+def _monitors(step: dict) -> list:
+    out = [step["monitor"]] if step.get("monitor") else []
+    for s in step.get("sub_steps", []):
+        out += _monitors(s)
+    return out
+
+
+def _seen(a: dict, step: dict, load: Callable) -> tuple:
+    """text_seen：pattern 是否在监视时间线里出现过（至少 min_count 次采样）；state_seen：某状态是否出现过。
+    expected=false 表示"整个窗口内都不应出现"。没有监视记录时退回到步骤终态观测。"""
+    import re
+    mons = _monitors(step)
+    expected = a.get("expected", True)
+    if a["type"] == "state_seen":
+        states = [s for m in mons for s in m["states"]] or [load(step["final_obs"])[0]["page"]["state"]]
+        holds = any(s == a["state"] or a["state"] in s.split("+") for s in states)
+        return holds == expected, {"states": states, "expected_state": a["state"], "seen": holds}
+    rx = re.compile(a["pattern"])
+    samples = []
+    for m in mons:
+        samples += [{"t": e["t"], "obs": e["obs"], "text": x} for e in m["timeline"] for x in e.get("new_texts", [])
+                    if rx.search(x)]
+    if not mons:
+        obs, _ = load(step["final_obs"])
+        if obs is None:
+            return None, {"reason": "没有监视记录也没有终态观测"}
+        samples = [{"t": None, "obs": obs["obs_id"], "text": x} for x in obs.get("texts", []) if rx.search(x)]
+    seen = len({s["obs"] for s in samples}) >= int(a.get("min_count", 1))
+    return seen == expected, {"pattern": a["pattern"], "seen": seen, "matches": samples[:10],
+                              "windows": len(mons), "source": "monitor_timeline" if mons else "final_obs"}
+
+
 def evaluate_assertion(a: dict, steps: dict, load: Callable, knowledge, app) -> dict:
     out = {"id": a["id"], "type": a["type"], "desc": a.get("desc", ""), "advisory": bool(a.get("advisory")),
            "oracle_refs": a.get("oracle_refs", []), "severity": a.get("severity", "major")}
     step = steps.get(a.get("at"))
     if step is None or step["outcome"] not in PASSED:
         return {**out, "result": "not_run", "reason": f"关联步骤 {a.get('at')} 未成功执行"}
+    if a["type"] == "value_present":
+        # 读数类：步骤 read 取到的值存在且符合格式；读数本身作为测量结果输出，不与任何"期望距离"比较
+        import re
+        m = step.get("measurement") or {}
+        holds = m.get("value") is not None and (not a.get("pattern") or bool(re.fullmatch(a["pattern"], str(m["value"]))))
+        oracle = knowledge.oracle_status(a.get("oracle_refs", []))
+        out.update(evidence={"measurement": m}, oracle=oracle)
+        if oracle["status"] != "confirmed":
+            return {**out, "result": "pending", "observed_holds": holds, "reason": f"读数{'有效' if holds else '无效'}，但{oracle['reason']}"}
+        return {**out, "result": "pass" if holds else "fail"}
+    if a["type"] in ("text_seen", "state_seen"):
+        # 时间窗口类：在 monitor 时间线里找（运动中信息、TOR 接管提示、异常显示往往一闪而过，终态里看不到）
+        holds, ev = _seen(a, step, load)
+        oracle = knowledge.oracle_status(a.get("oracle_refs", []))
+        out.update(evidence=ev, oracle=oracle)
+        if holds is None:
+            return {**out, "result": "undeterminable", "reason": ev.get("reason", "证据不足以判定")}
+        if oracle["status"] != "confirmed":
+            return {**out, "result": "pending", "observed_holds": holds,
+                    "reason": f"观测{'符合' if holds else '不符合'}预期，但{oracle['reason']}"}
+        return {**out, "result": "pass" if holds else "fail"}
     obs, tree = load(step["final_obs"])
     if a["type"] == "visual_review":
         return {**out, "result": "pending", "evidence": {"obs": obs["obs_id"], "screenshot": obs.get("screenshot", {}).get("path")},
@@ -83,8 +146,14 @@ def evaluate_assertion(a: dict, steps: dict, load: Callable, knowledge, app) -> 
     return {**out, "result": "pass" if holds else "fail"}
 
 
-def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list, knowledge) -> dict:
+def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list, knowledge,
+                 safety_stops: Optional[list] = None) -> dict:
     findings, suggestions = [], []
+    for s in safety_stops or []:
+        if not s.get("confirmed_stopped"):
+            # 安全停止没能被观测确认：这是现场安全问题，优先于任何产品判定
+            findings.append({"kind": "safety_stop", "result": "blocked", "attribution": "environment",
+                             "reason": f"安全停止（触发：{s['trigger']}）未能通过观测确认车辆已停止，需现场人工接管"})
     if not preflight.get("ok"):
         bad = [c for c in preflight.get("checks", []) if not c["ok"]]
         return _final("blocked", "environment", [{"kind": "preflight", "result": "blocked", "attribution": "environment",

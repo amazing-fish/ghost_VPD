@@ -51,8 +51,33 @@ def render_run(run: dict) -> str:
                 out.append(f"  - 前置检查 `{ch['check']}` 未通过：{_esc(ch.get('error_class'))} {_esc(ch.get('value'))}")
     if not run["env"]["ok"]:
         for u in run["env"]["unmet"]:
-            hint = "换用满足该形态的设备或窗口状态" if u["key"].startswith("layout.") else "可用 --env 声明"
+            hint = {"layout": "换用满足该形态的设备或窗口状态", "secret": "设置对应环境变量后重跑，不要写进用例",
+                    "authorize": "确认后由人在命令行显式授权"}.get(u["key"].split(".")[0], "可用 --env 声明")
             out.append(f"  - 环境要求 `{u['key']}` 需为 `{u['required']}`，实际 `{u['actual']}`（{hint}）")
+
+    if run.get("measurements"):
+        out += ["", "## 读数", "", "| 步骤 | 名称 | 值 | 原文 |", "|---|---|---|---|"]
+        out += [f"| {m['step']} | {_esc(m.get('name'))} | {_esc(m.get('value'))} {_esc(m.get('unit') or '')} | {_esc(m.get('raw'))} |"
+                for m in run["measurements"]]
+    if run.get("authorized"):
+        sup = (run.get("supervision") or {})
+        out += ["", f"> 本次运行由人授权的副作用：{'、'.join(run['authorized'])}"
+                + (f"；在场监护人：{_esc(sup.get('supervisor'))}" if sup.get("supervised_granted") else "")
+                + "。不可逆账号变更/升级/支付/清数据任何授权下都禁止。"]
+    for s in run.get("safety_stops", []):
+        head = "已确认停止" if s.get("confirmed_stopped") else "**未能确认已停止，需现场人工接管**"
+        out += ["", f"## 安全停止（{_esc(s['trigger'])}）：{head}", "",
+                f"- 运动自 `{_esc(s.get('armed_since'))}` 起 {_esc(s.get('elapsed_s'))}s；首次失败见下文，安全停止不改变它"]
+        out += [f"- `{x['id']}` {x.get('action', '')} → {x.get('outcome') or x.get('skipped')}" for x in s["steps"]]
+    for st in run["steps"]:
+        for m in _step_monitors(st):
+            out += ["", f"## 监视时间线：{st['step_id']}（{m['samples']} 次采样，{m['duration_s']}s，结束于 `{m['stopped_by']}`）", "",
+                    f"- 状态序列：{' → '.join(m['states'])}",
+                    "- 规则命中：" + ("、".join(f"{k}×{h['count']}（首次 t={h['first_t']}s「{_esc(h['text'])}」）"
+                                        for k, h in m["hits"].items()) or "无"), "",
+                    "| t(s) | 状态 | 新出现的文字 | 命中 | 观测 |", "|---|---|---|---|---|"]
+            out += [f"| {e['t']} | {e['state']} | {_esc('；'.join(e.get('new_texts', [])[:6]))} | {_esc(','.join(e.get('hits', [])))} "
+                    f"| {e['obs']} |" for e in m["timeline"] if e.get("new_texts") or e.get("hits") or e is m["timeline"][0]]
 
     fa = v.get("first_anomaly")
     out += ["", "## 首次异常", ""]
@@ -97,6 +122,13 @@ def render_run(run: dict) -> str:
     return "\n".join(out)
 
 
+def _step_monitors(step: dict) -> list:
+    out = [step["monitor"]] if step.get("monitor") else []
+    for s in step.get("sub_steps", []):
+        out += _step_monitors(s)
+    return out
+
+
 def render_exploration(exp: dict) -> str:
     cov = exp["coverage"]
     out = [f"# 探索记录：{exp['run_id']}", "", f"- 目标：{exp.get('goal') or '（未填写）'}",
@@ -110,6 +142,11 @@ def render_exploration(exp: dict) -> str:
     for t in exp["transitions"]:
         out.append(f"| {t['id']} | {t['from']} | 点击「{_esc(t['label'])}」 | {t['to']}{'' if t['to_declared'] else '（未声明）'} "
                    f"| {t['obs_before']} → {t['obs_after']} |")
-    out += ["", "## 被策略跳过的动作", ""] + [f"- `{s['state']}`「{_esc(s['label'])}」：{_esc(s['reason'])}" for s in exp["skipped"]]
+    sup = [s for s in exp["skipped"] if s.get("supervised")]
+    if sup:
+        out += ["", "## 控车/运动入口（自动探索不点，交给有人监护的 act 单步或回归用例）", ""]
+        out += [f"- `{s['state']}`「{_esc(s['label'])}」（{s['deny_class']}）" for s in sup]
+    out += ["", "## 被策略跳过的动作", ""] + [f"- `{s['state']}`「{_esc(s['label'])}」：{_esc(s['reason'])}"
+                                            for s in exp["skipped"] if not s.get("supervised")]
     out += ["", "## 异常 / 未知", ""] + ([f"- {_esc(a)}" for a in exp["anomalies"]] or ["- 无"])
     return "\n".join(out) + "\n"

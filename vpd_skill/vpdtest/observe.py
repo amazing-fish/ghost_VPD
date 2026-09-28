@@ -45,6 +45,7 @@ class Observer:
         self.last_window = None
         self.last_layout_key = None
         self.layouts_seen: dict = {}    # layout key -> 首次出现的 obs_id
+        self.params = None              # 用于脱敏；由 runner 设置
 
     def _display_for(self, tree: Optional[UiTree]) -> Optional[dict]:
         win = tree.window_rect() if (tree is not None and tree.status == "ok") else None
@@ -68,6 +69,13 @@ class Observer:
         tree = None
         if fg == self.bundle:
             r = self.device.dump_tree(self.bundle, d / "tree.json")
+            if r.ok and self.params is not None:
+                # 输入过的账号/密码可能以明文出现在布局树里：落盘前替换为 ***
+                raw = self.params.redact(r.data.get("tree"))
+                if raw != r.data.get("tree"):
+                    write_json(d / "tree.json", raw)
+                    obs["redacted"] = True
+                r.data["tree"] = raw
             if r.ok:
                 tree = UiTree(r.data.get("tree"))
                 obs["tree"] = {"status": tree.status, "path": self.store.rel(d / "tree.json"), "nodes": len(tree.nodes)}
@@ -79,6 +87,9 @@ class Observer:
 
         if not screenshot:
             obs["screenshot"] = {"status": "skipped"}
+        elif obs.get("redacted"):
+            # 截图无法可靠打码：页面上出现了账号/密码明文时不截图
+            obs["screenshot"] = {"status": "withheld", "reason": "页面含已输入的敏感值，隐私策略不截图"}
         elif not self.policy.screenshot_allowed(fg):
             obs["screenshot"] = {"status": "withheld", "reason": f"前台为 {fg}，隐私策略不截图"}
         else:

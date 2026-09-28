@@ -27,6 +27,9 @@ STATUS_MAP = {
     "interrupted": ("blocked", "requirement_unclear", "出现未评审或非良性的中断，未自动处理，需确认其性质"),
     "anomaly": ("fail_candidate", "product", "出现异常中断或疑似崩溃"),
     "postcondition_not_met": ("fail_candidate", "product", "动作后预期状态未出现"),
+    "motion_timeout": ("fail_candidate", "product", "车辆运动超过用例声明的 max_motion_s 仍未观测到停止/结束"
+                                                    "（可能卡住、终点不对或被挡路；也可能是现场环境原因，需人工确认）"),
+    "monitor_abort": ("fail_candidate", "product", "监视期间出现用例声明的中止信号"),
 }
 
 
@@ -47,7 +50,10 @@ class Executor:
     def run_step(self, step: dict, case_id: str) -> dict:
         if step["action"] == "ensure_state":
             return self._ensure_state(step, case_id)
-        max_retry = min(int(step.get("retry", 1)), 2)
+        if step["action"] == "flow":
+            return self._flow(step, case_id)
+        # 监视是一段连续观测，整体重跑会重复计时，不重试
+        max_retry = 0 if step["action"] == "monitor" else min(int(step.get("retry", 1)), 2)
         attempts, recoveries, n = [], [], 0
         while True:
             n += 1
@@ -69,9 +75,15 @@ class Executor:
     def _attempt(self, step: dict, n: int, case_id: str) -> dict:
         ctx, kind = self.ctx, step["action"]
         att = {"n": n, "ts": now_iso(), "action": kind}
-        if ctx.actions >= ctx.policy.max_actions_per_run:
+        safety = bool(step.get("_safety"))  # 安全停止步骤：不受动作预算与运动超时拦截
+        if not safety and ctx.motion.over():
+            att.update(status="motion_timeout", motion={"elapsed_s": ctx.motion.elapsed(), "max_s": ctx.motion.max_s})
+            return att
+        if not safety and kind != "monitor" and ctx.actions >= ctx.policy.max_actions_per_run:
             att["status"] = "budget_exhausted"
             return att
+        if kind == "monitor":
+            return self._monitor(step, att)
         obs, tree = ctx.observe(f"{step['id']}#{n}:before")
         att.update(obs_before=obs["obs_id"], state_before=obs["page"]["state"])
         if obs["page"].get("observation_error") and kind in ("tap", "input", "swipe"):
@@ -79,31 +91,61 @@ class Executor:
             att.update(status="observation_failed", error_class=obs["page"]["observation_error"])
             return att
         res = None
+        if kind == "read":
+            tid, target = self._target(step)
+            loc, obs, tree = self._locate(tid, target, obs, tree, step)
+            att["locate"] = loc
+            if loc["status"] != "found":
+                att["status"] = _unresolved(loc)
+                return att
+            att["measurement"] = _measure(tree, loc, step)
+            ctx.store.event("measure", step=step["id"], **{k: v for k, v in att["measurement"].items() if k != "raw"})
+            att.update(status="ok" if att["measurement"]["value"] is not None else "postcondition_not_met",
+                       obs_after=obs["obs_id"])
+            return att
         if kind == "tap":
-            tid, target = ctx.app.target(step["target"])
+            tid, target = self._target(step)
             loc, obs, tree = self._locate(tid, target, obs, tree, step)
             att["locate"] = loc
             if loc["status"] != "found":
                 att["status"] = _unresolved(loc)
                 return att
             pol = ctx.policy.check_tap(tree, loc["point"], loc["basis"], target,
-                                       ctx.app.states.deny_for_page(obs["page"]))
+                                       ctx.app.states.deny_for_page(obs["page"]), ctx.authorized)
             att["policy"] = pol
             if not pol["allowed"]:
                 att["status"] = "policy_denied"
                 return att
             res = ctx.device.tap(*loc["point"])
+            if res.ok and target.get("side_effect") == "vehicle_motion":
+                # 先挂上看门狗再做后置观测：后置观测里出现的停止状态会按规则解除
+                ctx.motion.arm(step["id"], pol.get("label") or tid, obs["page"]["state"])
         elif kind == "launch":
             res = ctx.device.launch(ctx.app.bundle, ctx.app.ability)
+        elif kind == "resume":
+            # 从后台拉回：与 launch 同一条命令；区别在于判定"回到原页面"而不是"冷启动"
+            att["process_alive_before"] = ctx.device.process_alive(ctx.app.bundle)
+            res = ctx.device.launch(ctx.app.bundle, ctx.app.ability)
+        elif kind == "wait" and step.get("duration_s"):
+            dur = min(float(step["duration_s"]), float(ctx.policy.supervision.get("max_monitor_s", 600)))
+            waited = 0.0
+            while waited < dur and not ctx.motion.over():
+                ctx.sleep(min(1.0, dur - waited))
+                waited += min(1.0, dur - waited)
+            att["waited_s"] = round(waited, 2)
         elif kind in ("back", "home"):
             res = ctx.device.key(kind)
+        elif kind == "swipe" and step.get("random"):
+            res, att["swipe"] = self._random_swipe(tree, obs.get("layout"), step)
         elif kind == "swipe":
             res, att["swipe"] = self._swipe(step.get("direction", "up"), tree, obs.get("layout"), step.get("within"))
         elif kind == "stop_app":
             res = ctx.device.stop(ctx.app.bundle)
         elif kind == "input":
-            tid, target = ctx.app.target(step["target"])
-            pol = ctx.policy.check_input(step.get("text", ""), target)
+            tid, target = self._target(step)
+            raw = step.get("text", "")
+            is_ref = bool(ctx.params and ctx.params.is_secret_ref(raw))
+            pol = ctx.policy.check_input(raw, target, is_ref)
             att["policy"] = pol
             if not pol["allowed"]:
                 att["status"] = "policy_denied"
@@ -113,7 +155,9 @@ class Executor:
             if loc["status"] != "found":
                 att["status"] = _unresolved(loc)
                 return att
-            res = ctx.device.input_text(*loc["point"], step.get("text", ""))
+            text = ctx.params.subst(raw, step.get("_flow_params")) if ctx.params else raw
+            att["input"] = {"ref": raw, "secret": is_ref, "length": len(text)}  # 只记引用与长度，不记值
+            res = ctx.device.input_text(*loc["point"], text)
         elif kind != "wait":
             att["status"] = "invalid_step"
             return att
@@ -128,6 +172,91 @@ class Executor:
                 return att
         post = self._post(step, n, case_id, was_in_app=att["state_before"] != "out_of_app")
         att.update(post=post, obs_after=post["obs_id"], status=post["status"])
+        if kind == "resume":
+            # 后台期间进程被回收时，拉起就是冷启动：页面是否恢复由 expect_state 判定，这里只记录事实
+            att["resume"] = {"process_alive_before": att.get("process_alive_before"),
+                             "cold_start": att.get("process_alive_before") is False}
+        return att
+
+    # ---- 监视：一段时间内连续观测（运动中信息、TOR/接管提示、异常显示）----
+    def _monitor(self, step: dict, att: dict) -> dict:
+        """不下发动作，按间隔连续观测，记录时间线：状态序列、新出现的文字、watch 规则命中、中断。
+        结束条件：until_state 出现 / stop_on 规则命中（正常结束）/ abort_on 命中或崩溃（失败，交由运行器安全停止）/
+        运动超时 / 达到 duration_s。真机上每次采样本身要几秒，实际间隔以时间线里的 t 为准。"""
+        import re
+        ctx = self.ctx
+        cap = float(ctx.policy.supervision.get("max_monitor_s", 600))
+        duration = min(float(step.get("duration_s", 30)), cap)
+        interval = max(0.5, float(step.get("interval_s", 2)))
+        watch = {k: re.compile(v) for k, v in (step.get("watch") or {}).items()}
+        stop_on, abort_on = set(step.get("stop_on", [])), set(step.get("abort_on", []))
+        until = step.get("until_state")
+        shots = step.get("screenshots", True)
+        t0, timeline, hits = ctx.clock(), [], {}
+        prev_texts, prev_alive, states, first_obs = set(), None, [], None
+        stopped_by, status, errors = None, None, 0
+        for _ in range(int(duration / interval) + 2):
+            t = round(ctx.clock() - t0, 2)
+            obs, _tree = ctx.observe(f"{step['id']}:t{t}", screenshot=shots)
+            first_obs = first_obs or obs["obs_id"]
+            page = obs["page"]
+            texts = set(obs.get("texts") or [])
+            new = sorted(texts - prev_texts) if page["state"] != "out_of_app" else []
+            fired = [k for k, rx in watch.items() if any(rx.search(x) for x in new)]
+            for k in fired:
+                hits.setdefault(k, {"count": 0, "first_t": t, "first_obs": obs["obs_id"],
+                                    "text": next(x for x in new if watch[k].search(x))})
+                hits[k]["count"] += 1
+            died = prev_alive is True and page.get("process_alive") is False
+            anomalies = [i["id"] for i in page.get("interrupts", []) if i["class"] == "anomaly"]
+            errors += 1 if page.get("observation_error") else 0
+            entry = {"t": t, "obs": obs["obs_id"], "state": page["state"]}
+            if new:
+                entry["new_texts"] = new[:50]
+            if fired:
+                entry["hits"] = fired
+            if page.get("interrupts"):
+                entry["interrupts"] = [i["id"] for i in page["interrupts"]]
+            if died:
+                entry["process_died"] = True
+            if ctx.motion.armed:
+                entry["motion_s"] = ctx.motion.elapsed()
+            timeline.append(entry)
+            if not states or states[-1] != page["state"]:
+                states.append(page["state"])
+            if page["state"] != "out_of_app":
+                prev_texts = texts
+            if page.get("process_alive") is not None:
+                prev_alive = page["process_alive"]
+            if died and not step.get("allow_process_exit"):
+                status, stopped_by = "anomaly", "process_died"
+            elif anomalies:
+                status, stopped_by = "anomaly", f"interrupt:{anomalies[0]}"
+            elif set(fired) & abort_on:
+                status, stopped_by = "monitor_abort", f"abort_on:{sorted(set(fired) & abort_on)[0]}"
+            elif ctx.motion.over():
+                status, stopped_by = "motion_timeout", "motion_timeout"
+            elif until and ctx.app.states.is_state(page, until):
+                status, stopped_by = "ok", f"until_state:{until}"
+            elif set(fired) & stop_on:
+                status, stopped_by = "ok", f"stop_on:{sorted(set(fired) & stop_on)[0]}"
+            elif ctx.clock() - t0 + interval > duration:
+                status = "postcondition_not_met" if until else "ok"
+                stopped_by = "duration"
+            if status:
+                break
+            ctx.sleep(interval)
+        if status is None:
+            status, stopped_by = ("postcondition_not_met" if until else "ok"), "sample_cap"
+        if errors and errors == len(timeline):
+            status = "observation_failed"
+        att.update(status=status, obs_before=first_obs, state_before=timeline[0]["state"] if timeline else None,
+                   obs_after=timeline[-1]["obs"] if timeline else None,
+                   monitor={"duration_s": round(ctx.clock() - t0, 2), "samples": len(timeline), "stopped_by": stopped_by,
+                            "until_state": until, "hits": hits, "states": states, "timeline": timeline,
+                            "observation_errors": errors})
+        ctx.store.event("monitor_done", step=step["id"], stopped_by=stopped_by, samples=len(timeline),
+                        hits={k: v["count"] for k, v in hits.items()})
         return att
 
     # ---- 定位（可含声明过的滚动查找）----
@@ -168,6 +297,72 @@ class Executor:
         loc["obs"] = obs["obs_id"]
         loc["layout_key"] = layout_key(lay)
         return loc, obs, tree
+
+    def _target(self, step: dict) -> tuple:
+        """取目标并代入参数（流程参数 ${param:x}、用例数据 ${var:x}）。"""
+        tid, target = self.ctx.app.target(step["target"])
+        if self.ctx.params is not None:
+            from .params import with_params
+            target = with_params(target, self.ctx.params, step.get("_flow_params"))
+        return tid, target
+
+    def _random_swipe(self, tree, lay, step: dict) -> tuple:
+        """可复现的随机滑动（如"随机拖动地图"）：种子记入证据，重跑时用同一种子得到同样的轨迹；
+        起止点都在容器可见区域内，按比例取，不写像素。"""
+        import random
+        seed = step.get("seed", self.ctx.seed)
+        rng = random.Random(f"{seed}:{step['id']}")
+        info = {"random": True, "seed": seed}
+        rect = None
+        if tree is not None and tree.status == "ok":
+            scope = resolve_scope(step.get("within"), tree, lay)
+            if scope is not None and not scope:
+                return DeviceResult("swipe", False, False, "scroll_scope_missing",
+                                    f"滑动范围 {step['within']} 在当前页面不存在"), info
+            rect = tree.visible_rect(scope[0]) if scope else tree.window_rect()
+        if not rect:
+            return DeviceResult("swipe", False, False, "screen_size_unknown", "未知滑动区域"), info
+        w, h = rect[2] - rect[0], rect[3] - rect[1]
+        fx1, fy1 = rng.uniform(0.3, 0.7), rng.uniform(0.3, 0.7)
+        fx2, fy2 = min(0.85, max(0.15, fx1 + rng.uniform(-0.3, 0.3))), min(0.85, max(0.15, fy1 + rng.uniform(-0.3, 0.3)))
+        p1 = [rect[0] + int(w * fx1), rect[1] + int(h * fy1)]
+        p2 = [rect[0] + int(w * fx2), rect[1] + int(h * fy2)]
+        info.update(area=list(rect), fractions=[round(fx1, 3), round(fy1, 3), round(fx2, 3), round(fy2, 3)],
+                    **{"from": p1, "to": p2})
+        return self.ctx.device.swipe(*p1, *p2), info
+
+    def _flow(self, step: dict, case_id: str) -> dict:
+        """流程 = 带参数的原子能力序列（flows.json）。展开后逐步执行，每个子步骤仍走完整的观测/定位/策略/后置条件。"""
+        ctx = self.ctx
+        base = {"step_id": step["id"], "action": "flow", "flow": step.get("flow"), "critical": step.get("critical", True),
+                "oracle_refs": step.get("oracle_refs", []), "recoveries": [], "adapted": False}
+        spec = ctx.app.flows.get(step.get("flow"))
+        if not spec:
+            return {**base, "outcome": "blocked", "attribution": "tool", "attempts": [],
+                    "reason": f"flows.json 中没有流程 {step.get('flow')}"}
+        local = ctx.params.subst(dict(step.get("params", {}))) if ctx.params else dict(step.get("params", {}))
+        missing = [p for p in spec.get("params", {}) if p not in local]
+        if missing:
+            return {**base, "outcome": "blocked", "attribution": "tool", "attempts": [], "reason": f"流程缺少参数 {missing}"}
+        subs = []
+        for i, sub in enumerate(spec["steps"]):
+            s = self.run_step({"critical": True, "retry": 1, **sub, "id": f"{step['id']}.{i + 1}",
+                               "_flow_params": local}, case_id)
+            subs.append(s)
+            if not s["outcome"].startswith("passed") and s.get("critical", True):
+                return {**base, "outcome": s["outcome"], "attribution": s.get("attribution"),
+                        "reason": f"流程 {step['flow']} 第 {i + 1} 步（{sub.get('desc', sub['action'])}）未通过：{s.get('reason')}",
+                        "sub_steps": subs, "attempts": [a for x in subs for a in x["attempts"]],
+                        "first_failure": s.get("first_failure"), "final_obs": s.get("final_obs"),
+                        "final_status": s.get("final_status"), "measurement": s.get("measurement")}
+        order = ["passed", "passed_after_adaptation", "passed_after_recovery"]
+        outcome = max((s["outcome"] for s in subs if s["outcome"] in order), key=order.index, default="passed")
+        meas = next((s["measurement"] for s in reversed(subs) if s.get("measurement")), None)
+        return {**base, "outcome": outcome, "sub_steps": subs, "attempts": [a for x in subs for a in x["attempts"]],
+                "adapted": any(s["adapted"] for s in subs),
+                "first_failure": next((s["first_failure"] for s in subs if s.get("first_failure")), None),
+                "recoveries": [r for s in subs for r in s["recoveries"]], "final_obs": subs[-1].get("final_obs"),
+                "measurement": meas}
 
     def _swipe(self, direction: str, tree=None, lay=None, within=None) -> tuple:
         """在可滚动容器内滑动：起止点取容器可见区域的 75%/25% 高度，而不是整屏比例。
@@ -274,6 +469,12 @@ class Executor:
         out = {"step_id": step["id"], "action": step["action"], "critical": bool(step.get("critical", True)),
                "oracle_refs": step.get("oracle_refs", []), "attempts": attempts, "recoveries": recoveries,
                "adapted": adapted}
+        if last.get("measurement"):
+            out["measurement"] = last["measurement"]
+        if last.get("monitor"):
+            out["monitor"] = last["monitor"]
+        if last.get("resume"):
+            out["resume"] = last["resume"]
         if ok:
             out["outcome"] = "passed_after_recovery" if first_bad else ("passed_after_adaptation" if adapted else "passed")
             out["final_obs"] = last_rec["post"]["obs_id"] if (rec_ok and last["status"] != "ok") else last.get("obs_after")
@@ -316,6 +517,21 @@ class Executor:
                 "recoveries": [r for s in subs for r in s["recoveries"]], "final_obs": subs[-1].get("final_obs")}
 
 
+def _measure(tree, loc: dict, step: dict) -> dict:
+    """读取目标所在行/卡片的文本并按 pattern 取值（例如算路距离 "1.2公里"）。只记录，不判定。"""
+    import re
+    node = tree.node_at(*loc["point"]) if tree is not None else None
+    holder = tree.clickable_container(node) if node else None
+    scope = step.get("read_scope", "node")
+    texts = ([node.text] if node and scope == "node" else tree.subtree_texts(holder or node) if node else [])
+    raw = " ".join(t for t in texts if t)
+    pat = step.get("pattern")
+    m = re.search(pat, raw) if pat else None
+    value = (m.group(1) if (m and m.groups()) else (m.group(0) if m else None)) if pat else (raw or None)
+    return {"name": step.get("measure", step["id"]), "value": value, "raw": raw[:200], "pattern": pat,
+            "unit": step.get("unit"), "target": loc.get("target")}
+
+
 def _unresolved(loc: dict) -> str:
     return {"ambiguous": "target_ambiguous", "partially_visible": "target_partially_visible"}.get(
         loc["status"], "target_unresolved")
@@ -323,9 +539,11 @@ def _unresolved(loc: dict) -> str:
 
 def _failure_detail(att: dict) -> dict:
     d = {"status": att["status"]}
-    for k in ("error_class", "policy", "dispatch"):
+    for k in ("error_class", "policy", "dispatch", "motion"):
         if att.get(k):
             d[k] = att[k]
+    if att.get("monitor"):
+        d["monitor"] = {k: att["monitor"].get(k) for k in ("stopped_by", "samples", "states", "hits")}
     if att.get("locate"):
         d["locate"] = {k: att["locate"].get(k) for k in ("status", "target", "attempts")}
     if att.get("post"):

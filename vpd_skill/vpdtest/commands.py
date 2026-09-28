@@ -70,8 +70,23 @@ def cmd_act(ws: Workspace, a) -> dict:
     store = _session(ws, a.session)
     dev = ws.device(a.device, state_path=store.dir / "replay_state.json")
     ctx = RunContext(ws, app, dev, store, ExperienceStore(ws.root, app.id).overlay(), mode="agent")
+    # 单步授权：由人看过当前观测后给出。supervised 类（控车/运动）必须写明在场监护人；
+    # act 是一次性进程，没有跨步骤的运动看门狗，停车由监护人或下一条 act（safe_stop 目标）完成
+    granted = set(a.authorize or [])
+    auth = ctx.policy.check_authorizations(sorted(granted), granted, a.supervisor, {"safe_stop": ["human"]})
+    if auth["not_grantable"]:
+        raise ValueError(f"不可授权：{auth['not_grantable']}（policy 硬禁止）")
+    if auth["missing_supervisor"]:
+        raise ValueError(f"{auth['missing_supervisor']} 需要在场监护人：加 --supervisor <姓名/工号>")
+    ctx.authorized, ctx.supervisor = granted, a.supervisor
+    store.event("authorization", requested=sorted(granted), granted=sorted(granted), supervisor=bool(a.supervisor))
     step = {"id": a.step_id or f"A{store._obs_seq + 1}", "action": a.action, "retry": 0,
             "timeout_s": a.timeout, "expect_state": a.expect}
+    if a.duration:
+        step["duration_s"] = a.duration
+    if a.action == "monitor":
+        step.update(interval_s=a.interval, until_state=a.expect,
+                    watch=dict(kv.split("=", 1) for kv in a.watch or []), stop_on=[])
     if a.action in ("tap", "input"):
         if a.point:
             if not a.basis:
@@ -81,8 +96,8 @@ def cmd_act(ws: Workspace, a) -> dict:
                 raise ValueError("--point 需要先在同一 session 内 observe：坐标只对观测时的窗口尺寸有效")
             step["point"] = [int(v) for v in a.point.split(",")]
             step["point_window"] = win  # 执行前窗口尺寸若已变化（旋转/折叠/分屏），执行器会丢弃该坐标
-            step["target"] = {"label": f"agent:{a.basis}", "strategies": [], "side_effect": "navigation"}
-            store.event("agent_proposal", point=step["point"], basis=a.basis, window=win)
+            step["target"] = {"label": f"agent:{a.basis}", "strategies": [], "side_effect": a.side_effect}
+            store.event("agent_proposal", point=step["point"], basis=a.basis, window=win, side_effect=a.side_effect)
         else:
             step["target"] = a.target
         step["text"] = a.text
@@ -93,7 +108,8 @@ def cmd_act(ws: Workspace, a) -> dict:
 def cmd_run(ws: Workspace, a) -> dict:
     overlay = ExperienceStore(ws.root, ws.load_case(a.case)["app"]).overlay(trial=a.trial) if a.trial else None
     env = dict(kv.split("=", 1) for kv in a.env or [])
-    run = run_case(ws, a.case, device_spec=a.device, overlay=overlay, env=env)
+    run = run_case(ws, a.case, device_spec=a.device, overlay=overlay, env=env, authorize=a.authorize,
+                   supervisor=a.supervisor)
     if a.record_replay:
         case_mod.record_replay(ws, a.case, run)
     return _run_brief(run)
@@ -132,7 +148,7 @@ def cmd_case(ws: Workspace, a) -> dict:
     if a.case_cmd == "lint":
         case = ws.load_case(a.case)
         return {"case": a.case, "status": case.get("status"), "hash": case_mod.content_hash(case),
-                "issues": case_mod.lint(case, ws.app(case["app"]), kn)}
+                "issues": case_mod.lint(case, ws.app(case["app"]), kn, ws.policy())}
     if a.case_cmd == "from-exploration":
         exp = case_mod.load_exploration(ws, a.run)
         case = case_mod.from_exploration(exp, a.transitions, a.new_id, exp["app"])
@@ -140,7 +156,7 @@ def cmd_case(ws: Workspace, a) -> dict:
             raise FileExistsError(f"用例 {a.new_id} 已存在")
         write_json(ws.case_path(a.new_id), case)
         return {"case": a.new_id, "path": str(ws.case_path(a.new_id)),
-                "issues": case_mod.lint(case, ws.app(case["app"]), kn)}
+                "issues": case_mod.lint(case, ws.app(case["app"]), kn, ws.policy())}
     if a.case_cmd == "promote":
         case = case_mod.promote(ws, a.case, a.to, kn, a.reviewer, a.allow_offline)
         return {"case": a.case, "status": case["status"], "history": case["history"][-1]}

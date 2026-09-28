@@ -30,16 +30,24 @@ def build_parser() -> argparse.ArgumentParser:
     o.add_argument("--label")
 
     a = sub.add_parser("act", help="执行一个受约束的动作并观测结果")
-    a.add_argument("action", choices=["tap", "back", "home", "swipe", "launch", "stop_app", "input", "wait"])
+    a.add_argument("action", choices=["tap", "back", "home", "swipe", "launch", "resume", "stop_app", "input", "wait",
+                                      "monitor"])
     a.add_argument("--app", default="motor_hm")
     a.add_argument("--device")
     a.add_argument("--session", default="default")
     a.add_argument("--target", help="targets.json 中的目标 ID")
     a.add_argument("--point", help="x,y：Agent 根据截图提议的坐标（须同时给 --basis，受 policy 约束）")
     a.add_argument("--basis", help="坐标依据说明")
+    a.add_argument("--side-effect", default="navigation",
+                   help="--point 目标的副作用声明（例如 vehicle_motion），须与 --authorize 一致才会放行")
     a.add_argument("--text")
     a.add_argument("--expect", help="期望到达的状态 ID")
     a.add_argument("--timeout", type=float, default=8)
+    a.add_argument("--duration", type=float, help="wait/monitor 的时长（秒）")
+    a.add_argument("--interval", type=float, default=2, help="monitor 采样间隔（秒）")
+    a.add_argument("--watch", action="append", help="monitor 关注的文字 name=正则，如 tor=接管|请注意")
+    a.add_argument("--authorize", nargs="*", default=[], help="本步授予的 gated/supervised 副作用（人确认后给出）")
+    a.add_argument("--supervisor", help="在场监护人：授予 vehicle_motion/vehicle_control 时必填")
     a.add_argument("--step-id")
 
     r = sub.add_parser("run", help="回归执行一条用例")
@@ -48,6 +56,11 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--env", action="append", help="声明环境事实 key=value，如 account_state=logged_out")
     r.add_argument("--trial", help="试用一条经验候选（不采纳）")
     r.add_argument("--record-replay", action="store_true", help="把结果记入用例的 replays（晋级依据）")
+    r.add_argument("--authorize", nargs="*", default=[],
+                   help="本次运行授予用例申请的副作用：gated（account_state/vehicle_selection/vpd_entry/route_planning/"
+                        "user_data）或 supervised（vehicle_motion/vehicle_control，须同时 --supervisor）；"
+                        "不可逆账号变更/升级/支付/清数据不可授予")
+    r.add_argument("--supervisor", help="在场监护人（姓名或工号）：授予 vehicle_motion/vehicle_control 时必填，记入报告")
     r.add_argument("--fail-on", nargs="*", default=[], choices=["failed", "blocked", "pending"])
 
     s = sub.add_parser("suite", help="执行用例集")

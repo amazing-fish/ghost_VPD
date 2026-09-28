@@ -81,8 +81,13 @@ def explore(ws: Workspace, app_id: str, start: str, device_spec: Optional[str], 
             if not c["policy"]["allowed"] or not c["label"] or c["selected"]:
                 reason = ("当前已选中" if c["selected"] else c["policy"]["reason"] if not c["policy"]["allowed"]
                           else "无文本标识，副作用无法确认；需 Agent 看截图判断后经 act --point --basis 单步执行")
-                exp["skipped"].append({"state": state, "label": c["label"] or "（无文本控件）", "reason": reason,
-                                       "point": c["point"]})
+                deny = (c["policy"].get("deny") or {}) if not c["policy"]["allowed"] else {}
+                rec = {"state": state, "label": c["label"] or "（无文本控件）", "reason": reason, "point": c["point"]}
+                if deny.get("supervised"):
+                    # 控车/运动不是禁止项，但无人值守时可能挡路、终点不对卡住：自动探索只记录入口，不点
+                    rec.update(supervised=True, deny_class=deny.get("class"),
+                               reason="控车/运动入口：自动探索不执行，需有人监护的 act 单步或回归用例（--authorize --supervisor）")
+                exp["skipped"].append(rec)
                 continue
             if ctx.actions >= ctx.policy.max_actions_per_run:
                 exp["exit"] = {"reason": "budget_exhausted"}
@@ -122,6 +127,7 @@ def explore(ws: Workspace, app_id: str, start: str, device_spec: Optional[str], 
                        "unvisited_declared": [s for s in declared if s not in visited],
                        "unknown_states": [s for s in exp["states"] if s.startswith("unknown:")],
                        "transitions": len(exp["transitions"]), "skipped_by_policy": len(exp["skipped"]),
+                       "supervised_entries": [s["label"] for s in exp["skipped"] if s.get("supervised")],
                        "disclaimer": DISCLAIMER}
     write_json(store.dir / "exploration.json", exp)
     (store.dir / "report.md").write_text(render_exploration(exp), encoding="utf-8")

@@ -220,9 +220,11 @@ class ReplayDevice:
             tree = placeholder_tree()
         else:
             if self._screen_spec(self.state["stack"][-1]).get("tree") == "unavailable":
+                self._tick()
                 return self._res("dump_tree", False, "tree_unavailable", "该页面不提供 UI 树（模拟 XComponent/自绘页面）")
             tree = {"attributes": {"type": "orgRoot", "bounds": "[0,0][%d,%d]" % tuple(self.world["screen"])},
                     "children": [expand(self._composed(), self.bundle)]}
+            self._tick()  # 本次返回的是推进前的画面，下一次观测才看到变化
         write_json(local_path, tree)
         return self._res("dump_tree", raw="DumpLayout saved", data={"tree": tree})
 
@@ -244,10 +246,29 @@ class ReplayDevice:
         if hits:
             spec, parents = max(hits, key=lambda sp: len(sp[1]))
             for node in (spec,) + tuple(reversed(parents)):
+                if str(node.get("attrs", {}).get("enabled", "true")).lower() == "false":
+                    break  # 置灰控件点了没反应（与真机一致）
                 if node.get("go"):
                     self._go(node["go"])
                     break
         return self._res("tap", raw=f"click {x} {y}")
+
+    def _tick(self) -> None:
+        """时间推进：屏幕声明 after_obs {n, go} 时，被观测 n 次后自动切到 go。
+        用来模拟泊车过程（准备 → 泊入中 → 接管提示 → 完成）、Toast 自动消失等不需要点击的变化。"""
+        cur = self.current_screen()
+        spec = self._screen_spec(cur).get("after_obs") if cur else None
+        tick = self.state.get("tick") or [None, 0]
+        if tick[0] != cur:
+            tick = [cur, 0]
+        tick[1] += 1
+        if spec and tick[1] >= int(spec["n"]):
+            if spec.get("replace") and not self.state["popup"] and self.state["stack"]:
+                self.state["stack"][-1] = spec["go"]  # 同一流程内的阶段切换，不叠加返回栈
+            else:
+                self._go(spec["go"])
+            tick = [None, 0]
+        self.state["tick"] = tick
 
     def _go(self, go: str) -> None:
         s = self.state
@@ -263,6 +284,8 @@ class ReplayDevice:
                 s["popup"] = go
             elif target.get("tab") and s["stack"]:
                 s["stack"][-1] = go
+            elif target.get("stage") and s["stack"] and self._screen_spec(s["stack"][-1]).get("stage"):
+                s["stack"][-1] = go  # 同一流程的阶段页（泊入中/暂停/完成）互相切换，不叠加返回栈
             else:
                 s["stack"].append(go)
 
@@ -294,6 +317,14 @@ class ReplayDevice:
         if name == "back" and self._in_app():
             self._back()
         elif name == "home":
+            # on_background：退到后台时页面的变化（例如泊车中退后台 → 车端自动暂停）；kill_on_background 模拟进程被回收
+            if self._in_app() and self.state["stack"]:
+                spec = self._screen_spec(self.state["stack"][-1])
+                if spec.get("on_background"):
+                    self.state["stack"][-1] = spec["on_background"]
+                    self.state["popup"] = None
+                if spec.get("kill_on_background"):
+                    self.state.update(alive=False, stack=[], popup=None)
             self.state["foreground"] = LAUNCHER
         elif name != "back":
             return self._res(f"key_{name}", False, "unsupported", f"不支持的按键 {name}")
@@ -308,6 +339,8 @@ class ReplayDevice:
         s["foreground"] = bundle
         if not s["alive"] or not s["stack"]:
             s.update(alive=True, stack=[self.world["launch_screen"]], popup=self.world.get("launch_popup"))
+        elif self._screen_spec(s["stack"][-1]).get("on_resume"):
+            s["stack"][-1] = self._screen_spec(s["stack"][-1])["on_resume"]
         return self._res("launch", raw="start ability successfully.")
 
     def stop(self, bundle: str) -> DeviceResult:

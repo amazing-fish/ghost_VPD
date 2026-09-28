@@ -24,7 +24,69 @@ def content_hash(case: dict) -> str:
     return sha256_obj(body)[:12]
 
 
-def lint(case: dict, app, knowledge) -> list:
+def _all_steps(case: dict, app):
+    """用例步骤 + 清理 + 安全停止 + 展开后的流程子步骤。"""
+    for s in case.get("steps", []) + case.get("cleanup", []) + (case.get("safety") or {}).get("safe_stop", []):
+        yield s, None
+        if s.get("action") == "flow" and s.get("flow") in app.flows:
+            for sub in app.flows[s["flow"]].get("steps", []):
+                yield sub, s
+
+
+def _lint_effects(case: dict, app, policy) -> list:
+    """副作用相关检查：申请的授权要覆盖实际会点的目标；运动类必须有安全声明；改用户数据必须有清理；
+    密钥只能以引用形式写入 secret 输入框；流程与监视参数完整。"""
+    import re
+    issues = []
+    requested = {a["effect"] if isinstance(a, dict) else a for a in case.get("authorizations", [])}
+    authorizable = policy.authorizable if policy else set()
+    secrets = {k for k, v in (case.get("test_data") or {}).items() if isinstance(v, dict) and "secret" in v}
+    for s, parent in _all_steps(case, app):
+        where = f"steps.{(parent or s).get('id', '?')}" + (f"→{s.get('action')}" if parent else "")
+        if s.get("action") == "flow":
+            spec = app.flows.get(s.get("flow"))
+            if spec is None:
+                issues.append({"field": where, "problem": f"flows.json 中没有流程 {s.get('flow')}"})
+            else:
+                miss = [p for p in spec.get("params", {}) if p not in (s.get("params") or {})]
+                if miss:
+                    issues.append({"field": where, "problem": f"流程 {s['flow']} 缺少参数 {miss}"})
+        t = s.get("target")
+        target = app.targets.get(t) if isinstance(t, str) else (t if isinstance(t, dict) else None)
+        eff = (target or {}).get("side_effect")
+        if s.get("action") == "tap" and eff in authorizable and eff not in requested:
+            issues.append({"field": where, "problem": f"会点击 side_effect={eff} 的目标 {t}，但用例 authorizations 未申请 {eff}"})
+        if s.get("action") == "input" and target is not None:
+            ref = re.fullmatch(r"\$\{var:([A-Za-z0-9_]+)\}", str(s.get("text", "")))
+            if target.get("secret") and not (ref and ref.group(1) in secrets):
+                issues.append({"field": where, "problem": "敏感输入框只能写 ${var:x}，且 x 须在 test_data 中声明为 {\"secret\": NAME}"})
+            if ref and ref.group(1) in secrets and not target.get("secret"):
+                issues.append({"field": where, "problem": "密钥引用只能写入声明了 secret 的输入框"})
+        if s.get("action") == "monitor" and policy:
+            cap = float(policy.supervision.get("max_monitor_s", 600))
+            if float(s.get("duration_s", 30)) > cap:
+                issues.append({"field": where, "problem": f"监视时长超过 policy 上限 {cap}s"})
+            for k, v in (s.get("watch") or {}).items():
+                try:
+                    re.compile(v)
+                except re.error as e:
+                    issues.append({"field": where, "problem": f"watch.{k} 不是合法正则：{e}"})
+            for k in set(s.get("stop_on", [])) | set(s.get("abort_on", [])):
+                if k not in (s.get("watch") or {}):
+                    issues.append({"field": where, "problem": f"stop_on/abort_on 引用了未定义的 watch 规则 {k}"})
+    if "vehicle_motion" in requested and policy:
+        from .safety import problems
+        issues += problems(case.get("safety"), app, policy)
+    if "user_data" in requested and not case.get("cleanup"):
+        issues.append({"field": "cleanup", "problem": "申请了 user_data（收藏/重命名/标签）的用例必须有清理步骤，恢复账号数据"})
+    if policy:
+        bad = [r for r in requested if r not in authorizable]
+        if bad:
+            issues.append({"field": "authorizations", "problem": f"{bad} 不可授权（policy 硬禁止）或不是已知副作用类"})
+    return issues
+
+
+def lint(case: dict, app, knowledge, policy=None) -> list:
     issues = []
     for k in REQUIRED:
         v = case.get(k)
@@ -50,6 +112,7 @@ def lint(case: dict, app, knowledge) -> list:
         if k not in REQUIREMENT_KEYS:
             issues.append({"field": "layout_requirements", "problem": f"{k} 不能在启动前判定，可用 {list(REQUIREMENT_KEYS)}；"
                                                                      "是否分栏请写成步骤后的断言"})
+    issues += _lint_effects(case, app, policy)
     real = [a for a in case.get("assertions", []) if not a.get("advisory")]
     if not real and case.get("assertions"):
         issues.append({"field": "assertions", "problem": "没有非建议类断言"})
@@ -104,7 +167,7 @@ def promote(ws, case_id: str, to: str, knowledge, reviewer: Optional[str] = None
     cur = case.get("status", "draft")
     if NEXT.get(cur) != to:
         raise PermissionError(f"不能从 {cur} 晋级到 {to}（允许：{cur} → {NEXT.get(cur)}）")
-    issues = lint(case, app, knowledge)
+    issues = lint(case, app, knowledge, ws.policy())
     if issues:
         raise PermissionError(f"用例不完整，不能晋级：{issues}")
     h = content_hash(case)
