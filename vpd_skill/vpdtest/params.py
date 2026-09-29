@@ -14,6 +14,7 @@ from typing import Optional
 
 _REF = re.compile(r"\$\{(var|param|secret):([A-Za-z0-9_.-]+)\}")
 MASK = "***"
+MIN_FRAGMENT = 6  # 密钥片段达到这个长度就脱敏
 
 
 class Params:
@@ -60,12 +61,27 @@ class Params:
             return {k: self.subst(v, local) for k, v in obj.items()}
         return obj
 
+    def _fragments(self) -> list:
+        """密钥本身及其所有长度 ≥ MIN_FRAGMENT 的连续片段，长的在前。输入框可能截断、只收下一部分，
+        或把密码的一段落进另一个框（真机上见过），只按全值替换会漏。"""
+        if getattr(self, "_frag_cache", None) is None:
+            frags = set()
+            for s in self._secret_values:
+                n = len(s)
+                if n < MIN_FRAGMENT:
+                    frags.add(s)
+                    continue
+                frags |= {s[i:j] for i in range(n) for j in range(i + MIN_FRAGMENT, n + 1)}
+            self._frag_cache = sorted(frags, key=len, reverse=True)
+        return self._frag_cache
+
     def redact(self, obj):
         if not self._secret_values:
             return obj
         if isinstance(obj, str):
-            for s in self._secret_values:
-                obj = obj.replace(s, MASK)
+            for s in self._fragments():
+                if s in obj:
+                    obj = obj.replace(s, MASK)
             return obj
         if isinstance(obj, list):
             return [self.redact(x) for x in obj]
@@ -74,7 +90,7 @@ class Params:
         return obj
 
     def contains_secret(self, texts) -> bool:
-        return any(s in t for s in self._secret_values for t in texts)
+        return any(s in t for s in self._fragments() for t in texts)
 
 
 def with_params(target: dict, params: Optional[Params], local: Optional[dict] = None) -> dict:

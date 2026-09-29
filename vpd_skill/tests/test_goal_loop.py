@@ -195,6 +195,19 @@ def test_session_never_writes_rejected_or_secret_input_text(ws, tmp_path, monkey
     assert any(i["field"] == "test_data.input_3" for i in C.lint(case, ws.app("motor_hm"), KnowledgeStore(ws.root)))
 
 
+def test_partial_secret_is_redacted():
+    # 真机上见过：密码的前一段落进了另一个输入框。只按全值替换会把这段明文写进 tree.json
+    from vpdtest.params import Params
+    import os
+    os.environ["VPD_SECRET_T_PW"] = "Abc123456xyz"
+    try:
+        p = Params({"pw": {"secret": "T_PW"}}, None, "run-x")
+        assert p.redact("框里是 Abc12345 后面") == "框里是 *** 后面"
+        assert p.contains_secret(["456xyz"]) and not p.contains_secret(["Abc12"])
+    finally:
+        del os.environ["VPD_SECRET_T_PW"]
+
+
 def test_declared_env_cannot_override_measured_facts(ws):
     from vpdtest.runner import run_facts
     f = run_facts(ws.app("motor_hm"), {"app_version": "3.0.4.100", "display": {"device_form": "bar"}},
@@ -337,6 +350,18 @@ def test_authorization_change_invalidates_replays(ws):
 
 
 # ---- 可见性：被列表裁掉的文字不能证明"出现了" ----
+
+def test_overlay_sheet_wins_over_deeper_page_node():
+    # 真机：登录面板盖在「我的」页上，页面里更深的「收藏」节点与密码框重叠；点击实际落在面板上
+    page = {"attributes": {"type": "Column", "bounds": "[0,0][1000,2000]"}, "children": [
+        {"attributes": {"type": "Column", "bounds": "[0,800][1000,1000]"}, "children": [
+            {"attributes": {"type": "Row", "bounds": "[0,800][1000,1000]"}, "children": [
+                {"attributes": {"type": "Text", "text": "收藏", "bounds": "[0,800][1000,1000]"}, "children": []}]}]}]}
+    sheet = {"attributes": {"type": "Column", "bounds": "[0,600][1000,2000]"}, "children": [
+        {"attributes": {"type": "TextInput", "bounds": "[0,850][1000,950]", "clickable": "true"}, "children": []}]}
+    t = UiTree({"attributes": {"type": "root", "bounds": "[0,0][1000,2000]"}, "children": [page, sheet]})
+    assert t.node_at(500, 900).type == "TextInput"
+
 
 def test_clipped_text_is_not_visible_evidence():
     raw = {"attributes": {"type": "root", "bounds": "[0,0][1000,2000]"}, "children": [

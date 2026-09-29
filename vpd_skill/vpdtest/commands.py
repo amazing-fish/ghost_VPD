@@ -153,6 +153,10 @@ def _act_step(ctx, store, a, step_id: str) -> dict:
         step["duration_s"] = a.duration
     if getattr(a, "direction", None):
         step["direction"] = a.direction
+    if a.action == "swipe" and a.within:
+        # 在指定容器里滑：弹出的下拉/面板和背后页面都是可滚动容器时，默认会滑到面积最大的那个
+        k, _, v = a.within.partition("=")
+        step["within"] = {k: v}
     if a.action == "monitor":
         step.update(interval_s=a.interval, until_state=a.expect,
                     watch=dict(kv.split("=", 1) for kv in a.watch or []), stop_on=[])
@@ -227,8 +231,13 @@ def diagnose(res: dict) -> Optional[dict]:
     elif st == "target_unresolved":
         out["offscreen"] = sum(t.get("offscreen", 0) for t in tries)
         out["tree_status"] = loc.get("tree_status")
-        out["hint"] = ("树里有但在可视区外：先 act swipe 再试" if out["offscreen"] else
-                       "当前 UI 树里没有：看截图确认文字；地图等自绘区域（XComponent）不在 UI 树里，选择器无法覆盖")
+        out["state_before"] = last.get("state_before")
+        if last.get("state_before") == "out_of_app" or all(t.get("status") == "skipped_no_tree" for t in tries):
+            out["hint"] = "没有被测 APP 的 UI 树（APP 不在前台/被系统弹层遮住）：先 observe 确认前台，必要时 act launch"
+        elif out["offscreen"]:
+            out["hint"] = "树里有但在可视区外：先 act swipe 再试"
+        else:
+            out["hint"] = "当前 UI 树里没有：看截图确认文字；地图等自绘区域（XComponent）不在 UI 树里，选择器无法覆盖"
     elif st == "target_stale":
         out["revalidate"] = last.get("revalidate")
         out["hint"] = "观察与下发之间页面变了：重新 observe 后再决定"

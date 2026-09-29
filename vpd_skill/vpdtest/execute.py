@@ -38,6 +38,7 @@ STATUS_MAP = {
 }
 # 这些动作会作用到"当前前台"：前台不是被测 APP 时不下发，避免点到/输入到用户正在用的其他应用
 FOREGROUND_BOUND = ("tap", "input", "swipe", "back", "home")
+LAUNCHER = "com.ohos.sceneboard"
 
 
 def classify(att: dict) -> tuple:
@@ -144,7 +145,8 @@ class Executor:
                 loc = {**loc, "point": self._point_in(loc, step, n), "container_point": True}
                 att["locate"] = loc
             pol = ctx.policy.check_tap(tree, loc["point"], loc["basis"], target,
-                                       ctx.app.states.deny_for_page(obs["page"]), ctx.authorized)
+                                       ctx.app.states.deny_for_page(obs["page"]), ctx.authorized,
+                                       node=_tree_node(tree, loc))
             att["policy"] = pol
             if not pol["allowed"]:
                 att["status"] = "policy_denied"
@@ -206,7 +208,8 @@ class Executor:
             if tid.startswith("inline:"):
                 # 现场选择器定位的输入框：按所在控件的文字做副作用检查（例如重命名框里有「收藏」→ user_data 需授权）
                 pol = ctx.policy.check_tap(tree, loc["point"], loc["basis"], target,
-                                           ctx.app.states.deny_for_page(obs["page"]), ctx.authorized)
+                                           ctx.app.states.deny_for_page(obs["page"]), ctx.authorized,
+                                           node=_tree_node(tree, loc))
                 att["policy_context"] = pol
                 if not pol["allowed"]:
                     att["status"] = "policy_denied"
@@ -376,12 +379,14 @@ class Executor:
         ctx = self.ctx
         if att["action"] not in FOREGROUND_BOUND:
             return True
-        if att.get("state_before") == "out_of_app" and att["action"] in ("back", "home"):
-            return True  # 动作前本来就不在 APP 内（例如已在桌面）：按键不会落到被测 APP 以外的新场景
         fg = ctx.device.foreground()
         att["foreground_check"] = {"foreground": fg, "expected": ctx.app.bundle, "after_revalidate": bool(fresh)}
         if fg == ctx.app.bundle:
             return True
+        # 桌面：回放设备报 sceneboard；真机桌面上所有 mission 都是 BACKGROUND，查询成功但没有前台应用
+        on_desktop = fg == LAUNCHER or (fg is None and not getattr(ctx.device, "last_query_error", None))
+        if on_desktop and att["action"] in ("back", "home"):
+            return True  # 在系统桌面上按返回/主页不会落到用户正在用的其他应用；其他应用在前台时一律不发
         att["foreground_check"]["process_alive"] = ctx.device.process_alive(ctx.app.bundle)
         att["status"] = "foreground_changed"
         ctx.store.event("foreground_changed", step=att.get("step_id"), foreground=fg, action=att["action"])
@@ -677,6 +682,14 @@ def _measure(tree, loc: dict, step: dict) -> dict:
     value = (m.group(1) if (m and m.groups()) else (m.group(0) if m else None)) if pat else (raw or None)
     return {"name": step.get("measure", step["id"]), "value": value, "raw": raw[:200], "pattern": pat,
             "unit": step.get("unit"), "target": loc.get("target")}
+
+
+def _tree_node(tree, loc: dict):
+    """定位命中的树节点（容器内取点的步骤不用：点击点不在节点中心，按点反查更准确）。"""
+    hit = _found_node(loc)
+    if hit is None or tree is None or loc.get("container_point") or loc.get("basis") != "tree":
+        return None
+    return tree.nodes[hit["idx"]] if hit["idx"] < len(tree.nodes) else None
 
 
 def _found_node(loc: dict) -> Optional[dict]:

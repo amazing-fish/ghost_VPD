@@ -208,6 +208,9 @@ def _to_case_step(it: dict, req: dict, session_dir: Path, test_data: dict, facts
             step[{"expect": "expect_state", "duration": "duration_s"}.get(k, k)] = req[k]
     if action == "swipe" and req.get("direction"):
         step["direction"] = req["direction"]
+    if action == "swipe" and req.get("within"):
+        k, _, v = req["within"].partition("=")
+        step["within"] = {k: v}
     if action in ("tap", "input"):
         if req.get("select"):
             target = parse_select(req["select"], req.get("within"), req.get("side_effect") or "navigation",

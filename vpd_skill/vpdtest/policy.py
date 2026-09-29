@@ -74,7 +74,7 @@ class Policy:
         return bool(self.safe_stop_rx and text and self.safe_stop_rx.search(text))
 
     def check_tap(self, tree: Optional[UiTree], point: tuple, basis: str, target: Optional[dict] = None,
-                  state_deny: Optional[list] = None, authorized: Optional[set] = None) -> dict:
+                  state_deny: Optional[list] = None, authorized: Optional[set] = None, node=None) -> dict:
         """判定一次点击。返回 {allowed, reason, label, deny}；不会抛异常。
         authorized：本次运行由人显式授予的 gated 副作用；只放行"目标声明了同一副作用"的命中。"""
         target, authorized = target or {}, set(authorized or ())
@@ -100,7 +100,8 @@ class Policy:
             return {"allowed": False, "reason": "无可用 UI 树，禁止盲点坐标；请先模板定位或重新观察", "label": None,
                     "deny": None}
 
-        node = tree.node_at(*point)
+        # 按 UI 树定位到的节点优先（定位本身已确认它可见、唯一）；坐标类依据才按点击点反查
+        node = node if node is not None else tree.node_at(*point)
         if node is None:
             return {"allowed": False, "reason": "点击点不在任何可见节点内", "label": None, "deny": None}
         container = tree.clickable_container(node)

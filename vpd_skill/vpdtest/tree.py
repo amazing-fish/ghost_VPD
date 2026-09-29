@@ -198,7 +198,9 @@ class UiTree:
         vis = self._visibility()
         hits = [n for n in self.nodes if vis[n.idx] and vis[n.idx][0] <= x < vis[n.idx][2]
                 and vis[n.idx][1] <= y < vis[n.idx][3]]
-        return max(hits, key=lambda n: (n.depth, -n.area), default=None)
+        # 先序靠后 = 绘制在上层（后兄弟盖住前兄弟，子节点盖住父节点）。弹层/底部面板是后加入的兄弟，
+        # 按深度取会选中面板下面更深的页面节点（真机上登录面板下的「收藏」就这样被误认成点击对象）
+        return max(hits, key=lambda n: n.idx, default=None)
 
     def is_within(self, node: Node, scope: Node) -> bool:
         cur = node.idx

@@ -19,7 +19,10 @@ WORLDS = SKILL / "fixtures" / "worlds"
 def ws(tmp_path) -> Workspace:
     shutil.copytree(SKILL / "data", tmp_path / "data")
     shutil.copytree(SKILL / "fixtures", tmp_path / "fixtures")
-    return Workspace(str(tmp_path / "data"))
+    w = Workspace(str(tmp_path / "data"))
+    w.config.pop("secrets", None)  # 测试不读本机 config.local.json 里的真实密钥
+    w.config.pop("device", None)
+    return w
 
 
 def confirm(ws: Workspace, *ids: str) -> None:
