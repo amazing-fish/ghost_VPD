@@ -238,6 +238,26 @@ class UiTree:
                 return n
         return node
 
+    def enabled_state(self, node: Node, rule: Optional[dict] = None) -> tuple:
+        """控件是否可用 → (enabled | None, 证据)。节点或其可点击容器任一 enabled=false 即不可用。
+        有的 APP 置灰只改透明度（原工程乾崑判断「开始」可用用的是 Button opacity=1）：目标可声明
+        enabled_by={"attr": "opacity", "min": 1.0}，两种依据都记入证据；声明的属性缺失或不是数值时返回 None（不可判定）。"""
+        holder = self.clickable_container(node)
+        enabled = bool(node.enabled and holder.enabled)
+        ev = {"enabled_attr": enabled}
+        if rule:
+            vals = [x.attrs.get(rule["attr"]) for x in (node, holder) if x.attrs.get(rule["attr"]) not in (None, "")]
+            if not vals:
+                return None, {**ev, "reason": f"节点没有 {rule['attr']} 属性，无法按声明的依据判断可用性"}
+            try:
+                ok = all(float(v) >= float(rule.get("min", 1.0)) - 1e-6 for v in vals)
+            except ValueError:
+                return None, {**ev, "reason": f"{rule['attr']} 不是数值：{vals}"}
+            ev[rule["attr"]] = vals
+            enabled = enabled and ok
+        ev["enabled"] = enabled
+        return enabled, ev
+
     def subtree_texts(self, node: Node) -> list:
         out, stack = [], [node.idx]
         while stack:  # 先序遍历，保持与界面阅读顺序一致

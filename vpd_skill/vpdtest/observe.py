@@ -20,9 +20,11 @@ class RunStore:
         self.events_path = self.dir / "events.jsonl"
         existing = [p.name for p in (self.dir / "obs").iterdir()] if (self.dir / "obs").exists() else []
         self._obs_seq = len(existing)
+        self.redactor = None  # 运行带密钥参数时由 runner 设置
 
     def event(self, kind: str, **data) -> None:
-        append_jsonl(self.events_path, {"ts": now_iso(), "event": kind, **data})
+        rec = {"ts": now_iso(), "event": kind, **data}
+        append_jsonl(self.events_path, self.redactor(rec) if self.redactor else rec)
 
     def next_obs_dir(self) -> tuple:
         self._obs_seq += 1

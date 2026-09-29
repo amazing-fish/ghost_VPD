@@ -25,12 +25,29 @@ def content_hash(case: dict) -> str:
 
 
 def _all_steps(case: dict, app):
-    """用例步骤 + 清理 + 安全停止 + 展开后的流程子步骤。"""
+    """用例步骤 + 清理 + 安全停止 + 展开后的流程子步骤与 ensure_state 的 recipe 步骤（授权要覆盖它们会点的目标）。"""
     for s in case.get("steps", []) + case.get("cleanup", []) + (case.get("safety") or {}).get("safe_stop", []):
         yield s, None
         if s.get("action") == "flow" and s.get("flow") in app.flows:
             for sub in app.flows[s["flow"]].get("steps", []):
                 yield sub, s
+        if s.get("action") == "ensure_state":
+            for sub in app.states.recipes.get(s.get("state"), []):
+                yield sub, s
+
+
+def hypothesis_targets(case: dict, app) -> list:
+    """用例（含流程/recipe 展开）会用到的 status=hypothesis 目标：原工程没有、未经真机校准的控件。"""
+    used = []
+    for s, _ in _all_steps(case, app):
+        t = s.get("target")
+        if isinstance(t, str) and (app.targets.get(t) or {}).get("status") == "hypothesis" and t not in used:
+            used.append(t)
+    for a in case.get("assertions", []):
+        t = a.get("target")
+        if isinstance(t, str) and (app.targets.get(t) or {}).get("status") == "hypothesis" and t not in used:
+            used.append(t)
+    return used
 
 
 def _lint_effects(case: dict, app, policy) -> list:
@@ -57,7 +74,11 @@ def _lint_effects(case: dict, app, policy) -> list:
         if s.get("action") == "tap" and eff in authorizable and eff not in requested:
             issues.append({"field": where, "problem": f"会点击 side_effect={eff} 的目标 {t}，但用例 authorizations 未申请 {eff}"})
         if s.get("action") == "input" and target is not None:
-            ref = re.fullmatch(r"\$\{var:([A-Za-z0-9_]+)\}", str(s.get("text", "")))
+            text = str(s.get("text", ""))
+            pm = re.fullmatch(r"\$\{param:([A-Za-z0-9_]+)\}", text)
+            if parent and pm:  # 流程子步骤：按调用方传入的参数值检查
+                text = str((parent.get("params") or {}).get(pm.group(1), text))
+            ref = re.fullmatch(r"\$\{var:([A-Za-z0-9_]+)\}", text)
             if target.get("secret") and not (ref and ref.group(1) in secrets):
                 issues.append({"field": where, "problem": "敏感输入框只能写 ${var:x}，且 x 须在 test_data 中声明为 {\"secret\": NAME}"})
             if ref and ref.group(1) in secrets and not target.get("secret"):
@@ -113,6 +134,10 @@ def lint(case: dict, app, knowledge, policy=None) -> list:
             issues.append({"field": "layout_requirements", "problem": f"{k} 不能在启动前判定，可用 {list(REQUIREMENT_KEYS)}；"
                                                                      "是否分栏请写成步骤后的断言"})
     issues += _lint_effects(case, app, policy)
+    hyp = hypothesis_targets(case, app)
+    if hyp:
+        issues.append({"field": "targets", "problem": f"用到未经真机校准的假设目标 {hyp}（status=hypothesis）："
+                                                      "先在真机上校准选择器并改为 calibrated_on_device，才能晋级"})
     real = [a for a in case.get("assertions", []) if not a.get("advisory")]
     if not real and case.get("assertions"):
         issues.append({"field": "assertions", "problem": "没有非建议类断言"})

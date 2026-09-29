@@ -48,7 +48,12 @@ class Policy:
         return hits[0] if hits else None
 
     def match_all(self, texts: list, extra: Optional[list] = None) -> list:
-        rules = list(self.deny) + [(re.compile(p), "页面级禁止", "state_deny") for p in (extra or [])]
+        rules = list(self.deny)
+        for p in extra or []:
+            if isinstance(p, dict):  # 页面级副作用归类：按该类的授权规则处理
+                rules.append((re.compile(p["pattern"]), f"本页面上该控件属于 {p['class']}", p["class"]))
+            else:
+                rules.append((re.compile(p), "页面级禁止", "state_deny"))
         return [{"text": text, "pattern": rx.pattern, "reason": reason, "class": cls}
                 for text in texts for rx, reason, cls in rules if rx.search(text)]
 

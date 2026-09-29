@@ -127,6 +127,7 @@ def resolve(target_id: str, target: dict, tree: Optional[UiTree], screenshot: Op
     primary = target.get("strategies", [{}])[0].get("kind") if target.get("strategies") else None
     if found:
         return {"target": target_id, "status": "found", "point": found["point"], "bounds": found.get("bounds"),
+                "visible": found.get("visible"),
                 "strategy_index": found["index"], "strategy_kind": found["kind"],
                 "basis": {"xpath": "tree", "text": "tree", "id": "tree", "template": "template"}.get(found["kind"], "point"),
                 # adapted：本次首个尝试的策略失败、由后备策略定位成功（经验候选的来源）

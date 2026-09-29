@@ -37,9 +37,13 @@ def problems(safety: Optional[dict], app, policy) -> list:
     m = safety.get("max_motion_s")
     if not isinstance(m, (int, float)) or m <= 0 or m > cap:
         out.append({"field": "safety.max_motion_s", "problem": f"须为 0 < x <= {cap} 的秒数"})
-    for s in safety.get("stopped_states", []):
-        if s not in app.states.states:
-            out.append({"field": "safety.stopped_states", "problem": f"状态 {s} 未在 states.json 声明"})
+    for k in ("stopped_states", "moving_states"):
+        for s in safety.get(k, []):
+            if s not in app.states.states:
+                out.append({"field": f"safety.{k}", "problem": f"状态 {s} 未在 states.json 声明"})
+    both = set(safety.get("stopped_states", [])) & set(safety.get("moving_states", []))
+    if both:
+        out.append({"field": "safety.moving_states", "problem": f"{sorted(both)} 不能既是已停又是运动中"})
     if not safety.get("stopped_states"):
         out.append({"field": "safety.stopped_states", "problem": "需声明哪些状态表示已停/已暂停/已结束，用于确认安全停止生效"})
     return out
@@ -53,6 +57,7 @@ class MotionGuard:
         self.clock, self.store = clock, store
         self.max_s = float(self.safety.get("max_motion_s", 0) or 0)
         self.stopped = set(self.safety.get("stopped_states", []))
+        self.moving = set(self.safety.get("moving_states", []))
         self.armed: Optional[dict] = None
         self.history: list = []
 
@@ -70,10 +75,16 @@ class MotionGuard:
         return bool(self.armed and self.max_s and self.elapsed() > self.max_s)
 
     def on_observation(self, obs: dict) -> None:
-        if not self.armed:
-            return
         page = obs.get("page") or {}
         parts = set(page.get("active") or [page.get("state")])
+        if not self.armed:
+            seen = parts & self.moving
+            if seen:
+                # 没点运动按钮却观测到"运动中"（例如退后台再拉回时车自己恢复行驶）：同样开始计时，失败/超时要安全停止
+                self.arm("observed", f"state:{sorted(seen)[0]}", page.get("state"))
+                self.armed["left_arm_state"] = True
+                self.history[-1]["observed_in"] = obs.get("obs_id")
+            return
         arm_state = self.armed["state_at_arm"]
         # 点击"开始泊车"后第一帧往往还是原页面：原页面本身若也在 stopped_states 里，不能据此认为已停。
         # 只有"到了与点击时不同的停止状态"，或"离开过原页面后再出现停止状态"才解除

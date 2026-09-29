@@ -57,6 +57,135 @@
       "source": {"type": "repo_code", "ref": "app/config/motor_config.py:511-513, 546-548; app/service/vpd/vpd.py:2403-2412", "commit": "90545b9"},
       "status": "unconfirmed",
       "history": [{"ts": "2026-09-29T00:00:00+08:00", "to": "unconfirmed", "why": "从仓库代码提取"}]
+    },
+    {
+      "id": "K-QK-001",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.vpd.entry_success",
+      "statement": "从爱车页点「ADS」进入泊车代驾后，加载完成的首页显示「默认车位」。",
+      "expected": {"entry": "ADS", "loading": "正在加载...", "home_marker": "默认车位"},
+      "applies_to": {"app": "qiankun_hm"},
+      "source": {"type": "repo_code", "ref": "app/config/mhero_config.py:264, 276, 279; app/service/vpd/vpd.py:571-656", "commit": "90545b9"},
+      "status": "unconfirmed",
+      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}],
+      "note": "原工程用它判断进入 VPD 成功（判断条件较弱：vpd.py:643-656 里「暂停不存在」也算成功）。"
+    },
+    {
+      "id": "K-QK-002",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.vpd.start_enabled_rule",
+      "statement": "算路完成后，「开始」按钮 opacity=1 表示可以激活；小于 1（置灰）表示当前不可激活。",
+      "expected": {"target": "开始", "enabled_when": {"opacity": 1.0}},
+      "applies_to": {"app": "qiankun_hm"},
+      "source": {"type": "repo_code", "ref": "app/config/mhero_config.py:309-316 start / start_enabled / start_btn; app/service/vpd/vpd.py:803-821", "commit": "90545b9"},
+      "status": "unconfirmed",
+      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}],
+      "note": "这是原自动化脚本的判断方式，不是产品需求文档；置灰时 enabled 属性是否也为 false 未知。"
+    },
+    {
+      "id": "K-QK-003",
+      "kind": "ui_copy",
+      "subject": "qiankun_hm.vpd.plan_fault_copy",
+      "statement": "算路失败或当前不可激活时，页面显示以下提示之一：泊车代驾辅助暂不可用 / 路径规划失败 / 路线规划失败 / 抱歉，无可达路径；其中「泊车代驾辅助暂不可用」持续 10 秒以上视为失败。",
+      "expected": {"any": ["泊车代驾辅助暂不可用", "路径规划失败", "路线规划失败", "抱歉，无可达路径"], "persist_s": {"泊车代驾辅助暂不可用": 10}},
+      "applies_to": {"app": "qiankun_hm"},
+      "source": {"type": "repo_code", "ref": "app/service/vpd/vpd.py:2037-2056 power_on_stress_case; vpd.py:103-107 exception_map（暂不可用/泊车代驾异常退出/规划失败）", "commit": "90545b9"},
+      "status": "unconfirmed",
+      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}],
+      "note": "原工程没有「故障」「无法激活」字样；有故障时实际显示哪条提示需在真机上确认。"
+    },
+    {
+      "id": "K-QK-004",
+      "kind": "ui_copy",
+      "subject": "qiankun_hm.vpd.finish_copy",
+      "statement": "泊入完成显示「车已泊入车位」；召唤完成显示「车已到达上车点」。",
+      "expected": {"parking": "车已泊入车位", "summon": "车已到达上车点"},
+      "applies_to": {"app": "qiankun_hm"},
+      "source": {"type": "repo_code", "ref": "app/config/mhero_config.py:413-416", "commit": "90545b9"},
+      "status": "unconfirmed",
+      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}]
+    },
+    {
+      "id": "K-QK-005",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.vpd.activate_sequence",
+      "statement": "激活顺序：点「开始」→ 弹出「确定」→ 点「确定」后出现「暂停」即为激活成功。",
+      "expected": {"sequence": ["开始", "确定"], "success_marker": "暂停"},
+      "applies_to": {"app": "qiankun_hm"},
+      "source": {"type": "repo_code", "ref": "app/service/vpd/vpd.py:874-913 confirm_vpd; app/config/mhero_config.py:309, 320, 323", "commit": "90545b9"},
+      "status": "unconfirmed",
+      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}]
+    },
+    {
+      "id": "K-QK-006",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.vpd.route_planning_wakes_vehicle",
+      "statement": "发起算路可能唤醒/上电车辆：原工程把算路等待≥5 秒记为「召唤上电」成功，把默认车位算路结果出现记为「上电成功」。",
+      "expected": {"route_planning_may_power_on": true},
+      "applies_to": {"app": "qiankun_hm"},
+      "source": {"type": "repo_code", "ref": "app/service/vpd/vpd.py:937-941, 2028-2033", "commit": "90545b9"},
+      "status": "unconfirmed",
+      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}],
+      "note": "只是原脚本的事件命名，是否真的上电未核实。据此 route_planning 保持 gated（需 --authorize），但不按运动类要求监护。"
+    },
+    {
+      "id": "K-QK-007",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.vpd.pause_controls",
+      "statement": "运动中可点「暂停」；暂停后有「继续」（恢复运动）与「退出」（结束任务）。",
+      "expected": {"moving": "暂停", "paused": ["继续", "退出"]},
+      "applies_to": {"app": "qiankun_hm"},
+      "source": {"type": "repo_code", "ref": "app/config/mhero_config.py:323-329", "commit": "90545b9"},
+      "status": "unconfirmed",
+      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}],
+      "note": "原工程只定义了这三个按钮；暂停后页面的其他内容是 Skill 推测。"
+    },
+    {
+      "id": "K-QK-USR-001",
+      "kind": "requirement",
+      "subject": "qiankun_hm.env.test_vehicle",
+      "statement": "测试账号下有问界 M5，车架号末位 7885，是本组样例用例的目标车辆。",
+      "expected": {"model": "M5", "vin_tail": "7885"},
+      "applies_to": {"app": "qiankun_hm"},
+      "source": {"type": "reviewer", "ref": "用户在本次会话中的描述（2026-09-29，PR #2 对应需求）"},
+      "status": "unconfirmed",
+      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}]
+    },
+    {
+      "id": "K-QK-USR-002",
+      "kind": "requirement",
+      "subject": "qiankun_hm.vpd.fault_blocks_activation",
+      "statement": "车辆当前有故障时，进入 VPD 选默认车位算路后不能激活（「开始」不可用或不出现，并有不可用/故障提示）。",
+      "expected": {"activation_possible": false},
+      "applies_to": {"app": "qiankun_hm"},
+      "source": {"type": "reviewer", "ref": "用户在本次会话中的描述（2026-09-29，PR #2 对应需求）"},
+      "status": "unconfirmed",
+      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}],
+      "note": "用户原话：预期当前有故障也无法激活。具体提示文案见 K-QK-003（来自原工程），两者一起作为判据。"
+    },
+    {
+      "id": "K-QK-USR-003",
+      "kind": "requirement",
+      "subject": "qiankun_hm.vpd.favorite_search_route",
+      "statement": "VPD 地图上可以选中并收藏车位，收藏可以重命名、设置标签；在 VPD 首页按收藏名搜索可以发起算路，算路后可读到路线距离。",
+      "expected": {"favorite": true, "rename": true, "tag": true, "search_by_name": true, "distance_readable": true},
+      "applies_to": {"app": "qiankun_hm"},
+      "source": {"type": "reviewer", "ref": "用户在本次会话中的描述（2026-09-29，PR #2 对应需求）"},
+      "status": "unconfirmed",
+      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}],
+      "note": "原工程没有这些功能的实现与文案；按钮文字、距离格式都是假设（targets.json 中 status=hypothesis）。"
+    },
+    {
+      "id": "K-QK-USR-004",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.policy.vehicle_control",
+      "statement": "车辆控制始终允许；只是探索阶段受限（无人保障时可能挡路、终点不对卡住）。实际需要观察不同场景下的 TOR 提示文案或异常显示、运动时的信息显示、控车启动后泊入泊出过程的不同显示、暂停退出、后台返回等场景。",
+      "expected": {"explore_motion": false, "supervised_motion": true},
+      "applies_to": {"app": "*"},
+      "source": {"type": "reviewer", "ref": "用户在本次会话中的描述（2026-09-29，PR #2 对应需求）"},
+      "status": "unconfirmed",
+      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}],
+      "note": "这是测试边界要求而不是产品判据：落实为 policy-0.3 的 supervised 类（--authorize + --supervisor + safety）。"
     }
   ]
 }

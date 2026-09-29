@@ -1,0 +1,583 @@
+{
+  "note": "乾崑定位目标。status=unverified：xpath/文字原样取自原工程（按行号引用，commit 90545b9），未在本 Skill 真机运行中核对；status=hypothesis：原工程没有，来自用户描述或推测，真机校准前含这些目标的用例不能晋级。skill 追加的策略标注 source=skill。",
+  "targets": {
+    "qk_tab_car": {
+      "desc": "底部导航「爱车」",
+      "side_effect": "navigation",
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "爱车",
+          "source": "app/config/mhero_config.py:261 MHERO_HARMONY_CONFIG.car"
+        },
+        {
+          "kind": "text",
+          "value": "爱车",
+          "source": "skill：限定在 TabBar 容器内，避免与页面标题同名（未经真机验证）",
+          "within": {
+            "type": "TabBar"
+          }
+        }
+      ]
+    },
+    "qk_tab_discover": {
+      "desc": "底部导航「探索」（#08 登录前先进这里读账号区）",
+      "side_effect": "navigation",
+      "status": "unverified",
+      "source_flow": "app/service/vpd/vpd.py:2270-2272 #08 登录前点击 discover",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "探索",
+          "source": "app/config/mhero_config.py:267 MHERO_HARMONY_CONFIG.discover"
+        },
+        {
+          "kind": "text",
+          "value": "探索",
+          "source": "skill：限定在 TabBar 容器内（未经真机验证）",
+          "within": {
+            "type": "TabBar"
+          }
+        }
+      ]
+    },
+    "qk_assess_icon": {
+      "desc": "探索页左上角头像/账号入口：未登录时进入登录页，已登录时进入个人中心",
+      "side_effect": "navigation",
+      "status": "unverified",
+      "source_flow": "app/service/vpd/vpd.py:2310-2312",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//root[1]/Navigation[1]/NavigationContent[1]/NavDestination[1]/NavDestinationContent[1]/Navigation[1]/NavBar[1]/NavBarContent[1]/Tabs[1]/Swiper[1]/TabContent[1]/Stack[1]/Row[1]/__Common__[1]",
+          "source": "app/config/mhero_config.py:460 MHERO_HARMONY_CONFIG.assess_icon"
+        }
+      ]
+    },
+    "qk_account_area": {
+      "desc": "探索页账号区（只读：未登录时文本为空或为「探索」）",
+      "side_effect": "read_only",
+      "status": "unverified",
+      "forbid_tap": true,
+      "forbid_reason": "只读",
+      "note": "原工程 _get_login_status 以该文本为空或等于「探索」判定未登录（vpd.py:2379-2390）",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//root[1]/Navigation[1]/NavigationContent[1]/NavDestination[1]/NavDestinationContent[1]/Navigation[1]/NavBar[1]/NavBarContent[1]/Tabs[1]/Swiper[1]/TabContent[1]/Stack[1]/Row[1]/Row[1]",
+          "source": "skill：取 assess_info 的容器本身，读取其子树文字；原选择器 //*[@text] 会命中容器下每个节点，按本 Skill 规则属于多匹配不点（未经真机验证）"
+        },
+        {
+          "kind": "xpath",
+          "value": "//root[1]/Navigation[1]/NavigationContent[1]/NavDestination[1]/NavDestinationContent[1]/Navigation[1]/NavBar[1]/NavBarContent[1]/Tabs[1]/Swiper[1]/TabContent[1]/Stack[1]/Row[1]/Row[1]//*[@text]",
+          "source": "app/config/mhero_config.py:455 MHERO_HARMONY_CONFIG.assess_info"
+        }
+      ]
+    },
+    "qk_login_icon": {
+      "desc": "个人页头像：进入登录方式选择",
+      "side_effect": "account_state",
+      "status": "unverified",
+      "source_flow": "app/service/vpd/vpd.py:2313-2314",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//root[1]/Navigation[1]/NavigationContent[1]/NavDestination[1]/NavDestinationContent[1]/Navigation[1]/NavigationContent[1]/NavDestination[1]/NavDestinationContent[1]/Column[1]/Scroll[1]/Column[1]/Column[1]/Image[1]",
+          "source": "app/config/mhero_config.py:465 MHERO_HARMONY_CONFIG.login_icon"
+        }
+      ]
+    },
+    "qk_pwd_login": {
+      "desc": "「密码登录」",
+      "side_effect": "account_state",
+      "status": "unverified",
+      "source_flow": "app/service/vpd/vpd.py:2315-2316",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"密码登录\"]",
+          "source": "app/config/mhero_config.py:475 MHERO_HARMONY_CONFIG.pwd_login"
+        }
+      ]
+    },
+    "qk_number_input": {
+      "desc": "账号（手机号）输入框",
+      "side_effect": "account_state",
+      "status": "unverified",
+      "allow_input": true,
+      "secret": true,
+      "source_flow": "app/service/vpd/vpd.py:2318-2320",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//root[1]/Navigation[1]/NavigationContent[1]/NavDestination[1]/NavDestinationContent[1]/Navigation[1]/NavigationContent[1]/NavDestination[1]/NavDestinationContent[1]/Column[1]/Row[1]/Column[3]/TextInput[1]",
+          "source": "app/config/mhero_config.py:478 MHERO_HARMONY_CONFIG.number_input"
+        }
+      ]
+    },
+    "qk_manual_btn": {
+      "desc": "「手动输入」（部分机型出现，需点一下再重输账号）",
+      "side_effect": "account_state",
+      "status": "unverified",
+      "source_flow": "app/service/vpd/vpd.py:2322-2326",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"手动输入\"]",
+          "source": "app/config/mhero_config.py:483 MHERO_HARMONY_CONFIG.manual_btn"
+        }
+      ]
+    },
+    "qk_pwd_input": {
+      "desc": "密码输入框",
+      "side_effect": "account_state",
+      "status": "unverified",
+      "allow_input": true,
+      "secret": true,
+      "source_flow": "app/service/vpd/vpd.py:2330-2334",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//root[1]/Navigation[1]/NavigationContent[1]/NavDestination[1]/NavDestinationContent[1]/Navigation[1]/NavigationContent[1]/NavDestination[1]/NavDestinationContent[1]/Column[1]/Column[2]/TextInput[1]",
+          "source": "app/config/mhero_config.py:486 MHERO_HARMONY_CONFIG.pwd_input"
+        }
+      ]
+    },
+    "qk_agree": {
+      "desc": "用户协议勾选（节点文字为 userProtocol）",
+      "side_effect": "account_state",
+      "status": "unverified",
+      "allow_node_type": true,
+      "source_flow": "app/service/vpd/vpd.py:2336-2337",
+      "note": "可能是 Checkbox 类控件：policy 默认拒绝点 Checkbox，这里显式允许，且仍需 --authorize account_state",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"userProtocol\"]",
+          "source": "app/config/mhero_config.py:491 MHERO_HARMONY_CONFIG.agree_btn"
+        }
+      ]
+    },
+    "qk_login_btn": {
+      "desc": "「登录」按钮",
+      "side_effect": "account_state",
+      "status": "unverified",
+      "source_flow": "app/service/vpd/vpd.py:2339-2340",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"登录\"]",
+          "source": "app/config/mhero_config.py:494 MHERO_HARMONY_CONFIG.login_btn"
+        }
+      ]
+    },
+    "qk_car_select": {
+      "desc": "爱车页顶部车辆选择入口（打开车辆列表，不直接切换）",
+      "side_effect": "navigation",
+      "status": "unverified",
+      "source_flow": "app/service/vpd/vpd.py:2349-2358 _select_car",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//root[1]/Navigation[1]/NavigationContent[1]/NavDestination[1]/NavDestinationContent[1]/Navigation[1]/NavBar[1]/NavBarContent[1]/Tabs[1]/Swiper[1]/TabContent[1]/Stack[1]/Row[1]/Row[1]",
+          "source": "app/config/mhero_config.py:498 MHERO_HARMONY_CONFIG.car_select"
+        }
+      ]
+    },
+    "qk_car_by_vin": {
+      "desc": "车辆列表中车架号后 6 位以 ${param:vin_tail} 结尾的车辆（点击即切换当前车辆）",
+      "side_effect": "vehicle_selection",
+      "status": "unverified",
+      "scroll": {
+        "direction": "up",
+        "max": 8,
+        "source": "app/service/vpd/vpd.py:2368-2374 找不到就上滑重试"
+      },
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[contains(@text, \"车架号\") and contains(@text, \"${param:vin_tail}(后6位)\")]",
+          "source": "skill：原选择器要求完整后 6 位精确匹配；用户只给了末 4 位，改为包含「<末位>(后6位)」。多辆车末位相同会得到多匹配并拒绝点击（未经真机验证）"
+        },
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"车架号 ${param:vin_tail}(后6位)\"]",
+          "source": "app/config/mhero_config.py:502 MHERO_HARMONY_CONFIG.car_vin"
+        }
+      ]
+    },
+    "qk_ads": {
+      "desc": "爱车页「ADS」入口（进入泊车代驾）",
+      "side_effect": "vpd_entry",
+      "status": "unverified",
+      "scroll": {
+        "direction": "up",
+        "max": 3,
+        "source": "app/service/vpd/vpd.py:631 click_for_element('vpd') 找不到时上滑"
+      },
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "ADS",
+          "source": "app/config/mhero_config.py:264 MHERO_HARMONY_CONFIG.vpd"
+        }
+      ]
+    },
+    "qk_default_spot": {
+      "desc": "VPD 首页「默认车位」：点击即以默认车位为终点开始算路",
+      "side_effect": "route_planning",
+      "status": "unverified",
+      "source_flow": "app/service/vpd/vpd.py:2015-2017 power_on_stress_case 点击默认车位后等待算路结果",
+      "note": "原工程在该流程里把算路结果出现记为「上电成功」（vpd.py:2033），算路可能唤醒车辆，见 K-QK-006",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "默认车位",
+          "source": "app/config/mhero_config.py:279 MHERO_HARMONY_CONFIG.vpd_success"
+        }
+      ]
+    },
+    "qk_default_spot_name": {
+      "desc": "「默认车位」左侧的车位名（只读）",
+      "side_effect": "read_only",
+      "status": "unverified",
+      "forbid_tap": true,
+      "forbid_reason": "只读",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"默认车位\"]/preceding-sibling::*[1]",
+          "source": "app/config/mhero_config.py:434 MHERO_HARMONY_CONFIG.default_parking_space"
+        }
+      ]
+    },
+    "qk_spot_input": {
+      "desc": "「输入车位号设为目的地」入口",
+      "side_effect": "navigation",
+      "status": "unverified",
+      "source_flow": "app/service/vpd/vpd_harmony.py:17-54 input_parking_space",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"输入车位号设为目的地\"]",
+          "source": "app/config/mhero_config.py:282 MHERO_HARMONY_CONFIG.parking_space_input"
+        }
+      ]
+    },
+    "qk_search_input": {
+      "desc": "车位搜索输入框",
+      "side_effect": "navigation",
+      "status": "unverified",
+      "allow_input": true,
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@id=\"search_input\"]",
+          "source": "app/config/mhero_config.py:285 MHERO_HARMONY_CONFIG.parking_space_input_text"
+        }
+      ]
+    },
+    "qk_search_go": {
+      "desc": "搜索结果中名称含 ${param:name} 的那一行的「去这里」",
+      "side_effect": "route_planning",
+      "status": "unverified",
+      "note": "原工程用车位号搜索；按收藏名搜索能否命中是假设（K-QK-USR-003）",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[contains(@text, '${param:name}')]/../..//*[contains(@text, '去这里')]",
+          "source": "app/config/mhero_config.py:288 MHERO_HARMONY_CONFIG.parking_space_select"
+        }
+      ]
+    },
+    "qk_retry": {
+      "desc": "算路失败时的「重试」",
+      "side_effect": "route_planning",
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "重试",
+          "source": "app/config/mhero_config.py:306 MHERO_HARMONY_CONFIG.retry"
+        }
+      ]
+    },
+    "qk_case_parking": {
+      "desc": "任务按钮「泊入车位」",
+      "side_effect": "vehicle_motion",
+      "status": "unverified",
+      "note": "原工程 start_vpd 中点击后还要等算路、再点开始/确定才激活（vpd.py:943-968），可能只是选任务类型；未确认前按运动类从严处理",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "泊入车位",
+          "source": "app/config/mhero_config.py:294 MHERO_HARMONY_CONFIG.parking"
+        }
+      ]
+    },
+    "qk_case_summon": {
+      "desc": "任务按钮「靠边停车」",
+      "side_effect": "vehicle_motion",
+      "status": "unverified",
+      "note": "同 qk_case_parking",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "靠边停车",
+          "source": "app/config/mhero_config.py:297 MHERO_HARMONY_CONFIG.summon"
+        }
+      ]
+    },
+    "qk_start": {
+      "desc": "激活「开始」按钮（置灰时 opacity<1）",
+      "side_effect": "vehicle_motion",
+      "status": "unverified",
+      "enabled_by": {
+        "attr": "opacity",
+        "min": 1.0,
+        "source": "app/config/mhero_config.py:312 MHERO_HARMONY_CONFIG.start_enabled：Button[@opacity=\"1.000000\"] 才算可用"
+      },
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"开始\"]",
+          "source": "app/config/mhero_config.py:309 MHERO_HARMONY_CONFIG.start"
+        },
+        {
+          "kind": "xpath",
+          "value": "//*[@id=\"VPD_HOME_VIEW\"]/RelativeContainer[1]/Column[1]/__Common__[2]/Stack[1]/Column[1]/Column[1]/Column[1]/GridRow[1]/GridCol[2]/Button[1]",
+          "source": "app/config/mhero_config.py:316 MHERO_HARMONY_CONFIG.start_btn"
+        }
+      ]
+    },
+    "qk_start_confirm": {
+      "desc": "点「开始」后的确认「确定」（真正激活）",
+      "side_effect": "vehicle_motion",
+      "status": "unverified",
+      "source_flow": "app/service/vpd/vpd.py:874-913 confirm_vpd：开始 → 确定 → 等待「暂停」出现",
+      "note": "「确定」是通用文字：只应在 qk_route_result 页上使用，该页 effect_text 把「确定」归为 vehicle_motion",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"确定\"]",
+          "source": "app/config/mhero_config.py:320 MHERO_HARMONY_CONFIG.confirm"
+        }
+      ]
+    },
+    "qk_pause": {
+      "desc": "运动中「暂停」",
+      "side_effect": "safe_stop",
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"暂停\"]",
+          "source": "app/config/mhero_config.py:323 MHERO_HARMONY_CONFIG.pause"
+        }
+      ]
+    },
+    "qk_quit": {
+      "desc": "暂停后「退出」",
+      "side_effect": "safe_stop",
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"退出\"]",
+          "source": "app/config/mhero_config.py:326 MHERO_HARMONY_CONFIG.quit"
+        }
+      ]
+    },
+    "qk_continue": {
+      "desc": "暂停后「继续」（车辆会再次运动）",
+      "side_effect": "vehicle_motion",
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"继续\"]",
+          "source": "app/config/mhero_config.py:329 MHERO_HARMONY_CONFIG.continue"
+        }
+      ]
+    },
+    "qk_finish_back": {
+      "desc": "结束页「返回」",
+      "side_effect": "navigation",
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"返回\"]",
+          "source": "app/config/mhero_config.py:332 MHERO_HARMONY_CONFIG.finish"
+        }
+      ]
+    },
+    "qk_speed": {
+      "desc": "运动中车速（含 km/h，只读）",
+      "side_effect": "read_only",
+      "status": "unverified",
+      "forbid_tap": true,
+      "forbid_reason": "只读",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[contains(@text, \"km/h\")]",
+          "source": "app/config/mhero_config.py:335 MHERO_HARMONY_CONFIG.speed"
+        }
+      ]
+    },
+    "qk_cruise_tip": {
+      "desc": "「开始」按钮左侧的提示文案（故障/不可用原因，只读）",
+      "side_effect": "read_only",
+      "status": "unverified",
+      "forbid_tap": true,
+      "forbid_reason": "只读",
+      "source_flow": "app/service/vpd/vpd.py:803-821 judge_calculate_result 读取失败提示",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@id=\"VPD_HOME_VIEW\"]/RelativeContainer[1]/Column[1]/__Common__[2]/Stack[1]/Column[1]/Column[1]/Column[1]/GridRow[1]/GridCol[1]/Row[1]/Column[1]/Text[1]",
+          "source": "app/config/mhero_config.py:419 MHERO_HARMONY_CONFIG.cruise_tip"
+        }
+      ]
+    },
+    "qk_full_view": {
+      "desc": "地图「全览」",
+      "side_effect": "navigation",
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"全览\"]",
+          "source": "app/config/mhero_config.py:449 MHERO_HARMONY_CONFIG.full_view_btn"
+        }
+      ]
+    },
+    "qk_ego_view": {
+      "desc": "地图「回自车」",
+      "side_effect": "navigation",
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"回自车\"]",
+          "source": "app/config/mhero_config.py:452 MHERO_HARMONY_CONFIG.ego_view_btn"
+        }
+      ]
+    },
+    "qk_map": {
+      "desc": "VPD 首页地图区域（在其中按比例取点选车位）",
+      "side_effect": "route_planning",
+      "status": "hypothesis",
+      "note": "点地图上的车位是否直接设为终点并算路未知，从严按 route_planning 处理",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//XComponent",
+          "source": "skill：地图通常是自绘 XComponent；真机上可能没有可用子节点，也可能不是这个类型（未经真机验证）"
+        }
+      ]
+    },
+    "qk_spot_fav": {
+      "desc": "车位卡片「收藏」",
+      "side_effect": "user_data",
+      "status": "hypothesis",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "收藏",
+          "source": "skill：按用户描述推测的按钮文字（未经真机验证）"
+        }
+      ]
+    },
+    "qk_spot_rename": {
+      "desc": "收藏后「重命名」",
+      "side_effect": "user_data",
+      "status": "hypothesis",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "重命名",
+          "source": "skill：按用户描述推测（未经真机验证）"
+        }
+      ]
+    },
+    "qk_rename_input": {
+      "desc": "重命名输入框",
+      "side_effect": "user_data",
+      "status": "hypothesis",
+      "allow_input": true,
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//Dialog//TextInput",
+          "source": "skill：推测重命名在对话框内输入（未经真机验证）"
+        }
+      ]
+    },
+    "qk_dialog_ok": {
+      "desc": "对话框内「确定」（提交重命名/标签）",
+      "side_effect": "user_data",
+      "status": "hypothesis",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "确定",
+          "source": "skill：推测对话框确认按钮（未经真机验证）",
+          "within": {
+            "type": "Dialog"
+          }
+        }
+      ]
+    },
+    "qk_spot_tag": {
+      "desc": "收藏后「标签」入口",
+      "side_effect": "user_data",
+      "status": "hypothesis",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "标签",
+          "source": "skill：按用户描述推测（未经真机验证）"
+        }
+      ]
+    },
+    "qk_tag_option": {
+      "desc": "标签选项 ${param:tag}",
+      "side_effect": "user_data",
+      "status": "hypothesis",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"${param:tag}\"]",
+          "source": "skill：推测标签是可选项；也可能是自由输入，需真机确认（未经真机验证）"
+        }
+      ]
+    },
+    "qk_fav_item": {
+      "desc": "首页「常去地点」中名为 ${param:name} 的收藏",
+      "side_effect": "navigation",
+      "status": "hypothesis",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"常去地点\"]/../following-sibling::Column[1]//*[contains(@text, \"${param:name}\")]",
+          "source": "skill：参照 favorite_flag 的结构（app/config/mhero_config.py:446 MHERO_HARMONY_CONFIG.favorite_flag）推测收藏名的位置（未经真机验证）"
+        }
+      ]
+    },
+    "qk_spot_unfav": {
+      "desc": "车位卡片「取消收藏」",
+      "side_effect": "user_data",
+      "status": "hypothesis",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "取消收藏",
+          "source": "skill：推测的取消收藏按钮文字（未经真机验证）"
+        }
+      ]
+    }
+  }
+}

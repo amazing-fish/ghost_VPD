@@ -2,6 +2,11 @@
 
 回放结果只证明执行器/判定逻辑，不代表真实产品行为；run.json 会标记 device.kind=replay。
 world 支持 "extends" 继承与 "patch_screens" 覆盖，方便构造漂移、弹窗、锁屏、崩溃等变体。
+
+有状态的交互（登录后页面不同、搜索结果随输入变化）用两种机制模拟：
+- flags：节点 set_flag 在点击时写入；屏幕 if_flag 按 flag 改道到另一屏；节点 show_if_flag / hide_if_flag / text_flag。
+- bind：输入框声明 bind=<名字> 时记下输入值；节点 text_bound / show_if_bound / show_if_match 按输入值显示。
+  输入值只存在内存里、不写 replay_state.json（输入的可能是账号），因此跨 CLI 进程的单步 act 不保留输入。
 """
 from __future__ import annotations
 
@@ -146,6 +151,8 @@ class ReplayDevice:
             self.state = {"locked": init.get("locked", False), "screen_on": init.get("screen_on", True),
                           "foreground": init.get("foreground", LAUNCHER), "alive": False, "stack": [],
                           "popup": None, "installed": init.get("installed", True), "events": 0}
+        self.state.setdefault("flags", dict(self.world.get("initial_flags", {})))
+        self.bound: dict = {}  # 输入框的输入值：只在内存里
 
     def _save(self):
         self.state["events"] += 1
@@ -165,7 +172,43 @@ class ReplayDevice:
         return (not self.state["locked"]) and self.state["foreground"] == self.bundle and self.state["alive"]
 
     def _screen_spec(self, sid: str) -> dict:
-        return self.world["screens"][sid]
+        spec, seen = self.world["screens"][sid], {sid}
+        while spec.get("if_flag"):  # {"flag": "logged_in", "then": "discover_in"}：按 flag 改道
+            rule = spec["if_flag"]
+            nxt = rule["then"] if self.state["flags"].get(rule["flag"]) else None
+            if not nxt or nxt in seen:
+                break
+            seen.add(nxt)
+            spec = self.world["screens"][nxt]
+        return spec
+
+    def _live(self, root: dict) -> dict:
+        """按 flags / 输入值展开节点：隐藏不满足条件的节点，替换带变量的文字。点击命中与布局树都用它，保持一致。"""
+        flags, bound = self.state["flags"], self.bound
+
+        def visible(n):
+            if n.get("show_if_flag") and not flags.get(n["show_if_flag"]):
+                return False
+            if n.get("hide_if_flag") and flags.get(n["hide_if_flag"]):
+                return False
+            if n.get("show_if_bound") and not bound.get(n["show_if_bound"]):
+                return False
+            if n.get("show_if_match"):  # [输入名, 另一个输入名]：两次输入的值相同才显示（例如按收藏名搜索）
+                a, b = n["show_if_match"]
+                if not bound.get(a) or bound.get(a) != bound.get(b):
+                    return False
+            return True
+
+        def rec(n):
+            n = dict(n)
+            if n.get("text_bound"):
+                n["text"] = n.get("text_format", "{}").format(bound.get(n["text_bound"], n.get("text", "")))
+            if n.get("text_flag"):
+                n["text"] = str(flags.get(n["text_flag"], n.get("text", "")))
+            if n.get("children"):
+                n["children"] = [rec(c) for c in n["children"] if visible(c)]
+            return n
+        return rec(root)
 
     def _composed(self) -> Optional[dict]:
         """当前屏幕 + 弹窗（弹窗与底层页面在同一窗口树，真机 Dialog 也是这样出现在布局中）。"""
@@ -175,7 +218,7 @@ class ReplayDevice:
         root = copy.deepcopy(self._screen_spec(base)["root"])
         if self.state["popup"]:
             root.setdefault("children", []).append(copy.deepcopy(self._screen_spec(self.state["popup"])["root"]))
-        return root
+        return self._live(root)
 
     # ---- 状态采集 ----
     def info(self) -> dict:
@@ -242,12 +285,13 @@ class ReplayDevice:
         if not self._in_app():
             return self._res("tap", raw="tap outside target app")
         sid = self.current_screen()
-        hits = _hits(self._screen_spec(sid)["root"], x, y, self.world["screen"])
+        hits = _hits(self._live(self._screen_spec(sid)["root"]), x, y, self.world["screen"])
         if hits:
             spec, parents = max(hits, key=lambda sp: len(sp[1]))
             for node in (spec,) + tuple(reversed(parents)):
                 if str(node.get("attrs", {}).get("enabled", "true")).lower() == "false":
                     break  # 置灰控件点了没反应（与真机一致）
+                self.state["flags"].update(node.get("set_flag", {}))
                 if node.get("go"):
                     self._go(node["go"])
                     break
@@ -276,13 +320,17 @@ class ReplayDevice:
             self._back()
         elif go == "@dismiss":
             s["popup"] = None
+        elif go == "@root":  # 回到首屏（例如登录成功后关掉登录页栈）
+            s.update(stack=s["stack"][:1], popup=None)
         elif go == "@crash":
             s.update(alive=False, foreground=LAUNCHER, stack=[], popup=None)
         elif go in self.world["screens"]:
             target = self._screen_spec(go)
             if target.get("kind") == "popup":
                 s["popup"] = go
-            elif target.get("tab") and s["stack"]:
+                return
+            s["popup"] = None  # 从弹窗里跳到别的页面：弹窗随之关闭
+            if target.get("tab") and s["stack"]:
                 s["stack"][-1] = go
             elif target.get("stage") and s["stack"] and self._screen_spec(s["stack"][-1]).get("stage"):
                 s["stack"][-1] = go  # 同一流程的阶段页（泊入中/暂停/完成）互相切换，不叠加返回栈
@@ -311,6 +359,15 @@ class ReplayDevice:
         return self._res("swipe", raw="swipe")
 
     def input_text(self, x: int, y: int, text: str) -> DeviceResult:
+        if self._in_app():
+            hits = _hits(self._live(self._screen_spec(self.current_screen())["root"]), x, y, self.world["screen"])
+            if hits:
+                spec, parents = max(hits, key=lambda sp: len(sp[1]))
+                box = next((n for n in (spec,) + tuple(reversed(parents)) if n.get("bind")), None)
+                if box is not None:
+                    self.bound[box["bind"]] = text
+                    if box.get("on_input"):
+                        self._go(box["on_input"])
         return self._res("input_text", raw="inputText")
 
     def key(self, name: str) -> DeviceResult:

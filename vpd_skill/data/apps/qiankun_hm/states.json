@@ -1,0 +1,122 @@
+{
+  "note": "乾崑页面状态签名与到达方式（识别经验，不是产品规则）。文字取自原工程选择器；review=pending 表示尚未在真机上核对，首次真机运行就是校准。",
+  "states": {
+    "qk_car_tab": {
+      "desc": "底部导航「爱车」选中",
+      "require_selected_text": ["爱车"],
+      "source": "app/config/mhero_config.py:261 car「爱车」；选中态判定沿用鸿蒙智行真机校准的规则（selected 在 TabBar 下的可点击容器上），乾崑未核对",
+      "review": "pending"
+    },
+    "qk_discover_tab": {
+      "desc": "底部导航「探索」选中（账号区在这一页）",
+      "require_selected_text": ["探索"],
+      "source": "app/config/mhero_config.py:267 discover「探索」；app/service/vpd/vpd.py:2270-2272",
+      "review": "pending"
+    },
+    "qk_vehicle_list": {
+      "desc": "车辆列表（每行带「车架号 xxxxxx(后6位)」）",
+      "require_text_pattern": ["车架号 .{6}\\(后6位\\)"],
+      "effect_text": {"车架号": "vehicle_selection"},
+      "effect_note": "点列表行就会切换当前车辆，行内文字不含「切换车辆」，靠页面级规则归为 vehicle_selection",
+      "source": "app/config/mhero_config.py:502 car_vin「车架号 %s(后6位)」",
+      "review": "pending"
+    },
+    "qk_vpd_loading": {
+      "desc": "进入 VPD 后的加载",
+      "require_text": ["正在加载..."],
+      "source": "app/config/mhero_config.py:276 vpd_loading",
+      "review": "pending"
+    },
+    "qk_vpd_home": {
+      "desc": "VPD 首页（有「默认车位」，尚未算路）",
+      "require_text": ["默认车位"],
+      "forbid_text": ["开始", "暂停", "继续"],
+      "forbid_text_pattern": ["路线规划中"],
+      "source": "app/config/mhero_config.py:279 vpd_success「默认车位」；原工程把它作为进入 VPD 成功的标志（vpd.py:643-656）",
+      "review": "pending",
+      "review_note": "算路后「默认车位」是否仍在页面上未知：若仍在，靠 forbid_text「开始」与算路结果页区分"
+    },
+    "qk_route_planning": {
+      "desc": "算路中",
+      "require_text_pattern": ["路线规划中"],
+      "source": "app/config/mhero_config.py:291 start_loading「路线规划中，请稍后…」",
+      "review": "pending"
+    },
+    "qk_route_result": {
+      "desc": "算路结果（有「开始」按钮；有故障时按钮置灰并在左侧显示原因）",
+      "require_text": ["开始"],
+      "forbid_text": ["暂停", "继续"],
+      "forbid_text_pattern": ["路线规划中"],
+      "effect_text": {"^确定$": "vehicle_motion"},
+      "effect_note": "点「开始」后弹出的「确定」才真正激活（vpd.py:874-913），在本页归为 vehicle_motion",
+      "source": "app/config/mhero_config.py:309-320 start / start_enabled / confirm；vpd.py:803-821 judge_calculate_result",
+      "review": "pending"
+    },
+    "qk_moving": {
+      "desc": "激活后运动中（出现「暂停」）",
+      "require_text": ["暂停"],
+      "forbid_text": ["继续"],
+      "source": "app/service/vpd/vpd.py:890-908 确定后等待「暂停」出现即视为激活成功",
+      "review": "pending"
+    },
+    "qk_paused": {
+      "desc": "已暂停（「继续」「退出」）",
+      "require_text": ["继续", "退出"],
+      "source": "app/config/mhero_config.py:326-329 quit / continue",
+      "review": "pending",
+      "review_note": "暂停后的页面构成是推测：原工程只定义了这两个按钮"
+    },
+    "qk_parked": {
+      "desc": "任务完成（车已泊入车位 / 车已到达上车点）",
+      "require_any_text": ["车已泊入车位", "车已到达上车点"],
+      "source": "app/config/mhero_config.py:413-416 parking_finish / summon_finish",
+      "review": "pending"
+    }
+  },
+  "interrupts": {
+    "qk_safe_code": {
+      "desc": "安全码输入",
+      "class": "blocking",
+      "require_text": ["请输入安全码"],
+      "source": "app/config/mhero_config.py:270 vpd_safe_code；#08 原流程不输入安全码（vpd.py 只对 #01/#06/#10 调用 set_safe_code）",
+      "review": "reviewed",
+      "review_note": "安全码属于 account_destructive，Skill 永远不输入；出现即阻塞，需测试人员手动处理后重跑"
+    },
+    "qk_update_dialog": {
+      "desc": "版本更新提示",
+      "class": "blocking",
+      "require_text": ["更新"],
+      "source": "app/config/mhero_config.py:505 update_btn「更新」；原工程 _handle_common_popups 会点「更新」（vpd.py:2403-2412），本 Skill 的 policy 禁止升级被测 APP",
+      "review": "pending",
+      "review_note": "没有已知的「以后再说」类按钮，不自动关闭；页面上其他位置出现「更新」二字会误判，真机校准时收紧"
+    },
+    "qk_app_error": {
+      "desc": "应用异常/无响应提示",
+      "class": "anomaly",
+      "require_any_text": ["应用无响应", "已停止运行", "程序异常"],
+      "source": "skill 通用规则；文本为推测",
+      "review": "pending"
+    }
+  },
+  "recipes": {
+    "qk_car_tab": [
+      {"action": "stop_app"},
+      {"action": "launch", "expect_state": "@in_app", "timeout_s": 20},
+      {"action": "tap", "target": "qk_tab_car", "expect_state": "qk_car_tab", "timeout_s": 10}
+    ],
+    "qk_discover_tab": [
+      {"action": "stop_app"},
+      {"action": "launch", "expect_state": "@in_app", "timeout_s": 20},
+      {"action": "tap", "target": "qk_tab_discover", "expect_state": "qk_discover_tab", "timeout_s": 10}
+    ],
+    "qk_vpd_home": [
+      {"action": "stop_app"},
+      {"action": "launch", "expect_state": "@in_app", "timeout_s": 20},
+      {"action": "tap", "target": "qk_tab_car", "expect_state": "qk_car_tab", "timeout_s": 10},
+      {"action": "tap", "target": "qk_ads", "expect_state": "@in_app", "timeout_s": 10},
+      {"action": "monitor", "duration_s": 120, "interval_s": 3, "until_state": "qk_vpd_home",
+       "watch": {"loading": "正在加载", "safe_code": "请输入安全码"}, "screenshots": false,
+       "desc": "等待 VPD 首页（原工程最多等 120s：constant.py VPD_WAIT_MAP_TIME）"}
+    ]
+  }
+}

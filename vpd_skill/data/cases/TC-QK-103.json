@@ -1,0 +1,80 @@
+{
+  "id": "TC-QK-103",
+  "version": 1,
+  "status": "draft",
+  "app": "qiankun_hm",
+  "title": "有人监护：默认车位算路后激活泊入，观察运动中信息与 TOR 提示，暂停、退后台、拉回、继续直到泊入完成",
+  "purpose": "观察控车全过程的显示：激活后的运动信息、TOR/接管提示与异常显示、暂停后的页面、退到后台再拉回时的状态、继续后直到「车已泊入车位」。判据只对状态序列作断言，文案与显示由人工复核（advisory）。",
+  "preconditions": [
+    "手机已由测试人员手动解锁",
+    "已登录测试账号且当前车辆为 M5（末位 7885），车辆无故障；有故障时本用例在 S3 按「开始不可用」阻塞，不点击（与 TC-QK-101 互补）",
+    "有在场监护人（--supervisor），能随时在车端/APP 接管；场地无遮挡、默认车位可达",
+    "测试人员声明：--env account_state=logged_in"
+  ],
+  "env_requirements": {"account_state": "logged_in"},
+  "test_data": {},
+  "test_data_none": true,
+  "authorizations": ["vpd_entry", "route_planning", "vehicle_motion"],
+  "safety": {
+    "safe_stop": [
+      {"action": "tap", "target": "qk_pause", "expect_state": "qk_paused", "timeout_s": 8},
+      {"action": "tap", "target": "qk_quit", "expect_state": "qk_vpd_home", "timeout_s": 10}
+    ],
+    "max_motion_s": 420,
+    "stopped_states": ["qk_paused", "qk_parked", "qk_vpd_home", "qk_route_result"],
+    "moving_states": ["qk_moving"],
+    "note": "moving_states：没点「开始/继续」却观察到运动中页面（例如退后台再回来车辆自己在动）也挂上看门狗，超时或失败同样安全停止"
+  },
+  "steps": [
+    {"id": "S1", "action": "ensure_state", "state": "qk_vpd_home"},
+    {"id": "S2", "action": "flow", "flow": "plan_default_spot", "params": {}},
+    {"id": "S3", "action": "tap", "target": "qk_start", "require_enabled": true, "retry": 0, "expect_state": "@in_app",
+     "expect_text": "^确定$", "timeout_s": 8,
+     "desc": "点「开始」前先确认可用（opacity=1，K-QK-002）；不可用就不点，按前置条件不满足阻塞"},
+    {"id": "S4", "action": "tap", "target": "qk_start_confirm", "retry": 0, "expect_state": "qk_moving", "timeout_s": 30,
+     "desc": "确认激活（K-QK-005：点「确定」后出现「暂停」即激活成功）", "oracle_refs": ["K-QK-005"]},
+    {"id": "S5", "action": "monitor", "duration_s": 30, "interval_s": 2,
+     "watch": {"tor": "接管|请注意|请立即", "moving": "km/h",
+               "fault": "泊车代驾辅助暂不可用|路径规划失败|路线规划失败|无可达路径|异常退出",
+               "done": "车已泊入车位|车已到达上车点"},
+     "stop_on": ["done"], "abort_on": ["fault"],
+     "desc": "运动中观察 30 秒：记录车速/剩余距离等信息与 TOR 提示的时间线"},
+    {"id": "S6", "action": "tap", "target": "qk_pause", "expect_state": "qk_paused", "timeout_s": 8,
+     "desc": "暂停（K-QK-007）", "oracle_refs": ["K-QK-007"]},
+    {"id": "S7", "action": "home", "expect_state": "out_of_app", "desc": "暂停状态下退到后台"},
+    {"id": "S8", "action": "wait", "duration_s": 10, "expect_state": "out_of_app"},
+    {"id": "S9", "action": "resume", "expect_state": "@in_app", "timeout_s": 15,
+     "desc": "从后台拉回：记录回来后的页面（仍暂停 / 已恢复运动 / 冷启动）"},
+    {"id": "S10", "action": "tap", "target": "qk_continue", "skip_if_absent": "^继续$", "retry": 0,
+     "expect_state": "qk_moving", "timeout_s": 15, "desc": "仍处于暂停就点「继续」；已恢复运动则跳过"},
+    {"id": "S11", "action": "monitor", "duration_s": 300, "interval_s": 3, "until_state": "qk_parked",
+     "watch": {"tor": "接管|请注意|请立即", "moving": "km/h",
+               "fault": "泊车代驾辅助暂不可用|路径规划失败|路线规划失败|无可达路径|异常退出"},
+     "abort_on": ["fault"], "desc": "继续后观察到泊入完成（K-QK-004）", "oracle_refs": ["K-QK-004"]},
+    {"id": "S12", "action": "tap", "target": "qk_finish_back", "expect_state": "@in_app", "critical": false,
+     "desc": "完成页点「返回」"}
+  ],
+  "assertions": [
+    {"id": "A1", "at": "S4", "type": "state_seen", "state": "qk_moving",
+     "desc": "确认后进入运动中（出现「暂停」）", "oracle_refs": ["K-QK-005"]},
+    {"id": "A2", "at": "S6", "type": "state_seen", "state": "qk_paused",
+     "desc": "点「暂停」后出现「继续」「退出」", "oracle_refs": ["K-QK-007"]},
+    {"id": "A3", "at": "S11", "type": "state_seen", "state": "qk_parked",
+     "desc": "继续后最终显示泊入完成", "oracle_refs": ["K-QK-004"]},
+    {"id": "A4", "at": "S11", "type": "text_seen", "pattern": "应用无响应|已停止运行|程序异常", "expected": false,
+     "desc": "全程不出现应用异常提示", "oracle_refs": ["K-QK-004"]},
+    {"id": "A5", "at": "S5", "type": "visual_review", "advisory": true, "desc": "运动中信息与 TOR 提示是否清楚",
+     "prompt": "主观建议：车速、剩余距离、接管提示是否醒目易懂；不作为缺陷结论"},
+    {"id": "A6", "at": "S9", "type": "visual_review", "advisory": true, "desc": "后台返回后的页面是否正确反映车辆状态",
+     "prompt": "主观建议：拉回后页面是否与车辆实际状态一致（暂停/运动中），是否有闪屏或旧状态残留；不作为缺陷结论"}
+  ],
+  "cleanup": [
+    {"action": "back", "desc": "离开泊车页面"},
+    {"action": "stop_app"}
+  ],
+  "sources": [
+    {"type": "reviewer", "ref": "用户在本次会话中的描述（2026-09-29）：控车始终允许，需要观察 TOR 文案、运动中信息、泊入泊出显示、暂停退出、后台返回"},
+    {"type": "repo_code", "ref": "app/service/vpd/vpd.py:874-972 start_vpd / confirm_vpd；mhero_config.py:326-329 暂停后的「继续」「退出」；413-416 完成文案", "commit": "90545b9"}
+  ],
+  "history": [{"ts": "2026-09-29T11:00:00+08:00", "to": "draft", "why": "按用户对控车场景的说明新增；需有人监护的真机运行校准选择器与判据"}]
+}

@@ -1,8 +1,9 @@
 {
-  "version": "policy-0.3",
+  "version": "policy-0.4",
   "note": "运行边界。Skill/经验/模型都不能修改本文件；变更需人工评审并单独提交。",
   "allowed_packages": [
-    "app.huawei.hmos.motor"
+    "app.huawei.hmos.motor",
+    "com.yinwang.qiankunapp.hm"
   ],
   "denied_side_effects": [
     "account_destructive",
@@ -13,8 +14,8 @@
   "deny_text": [
     {
       "class": "vehicle_motion",
-      "pattern": "召唤|挪车|遥控|开始泊车|开始代驾|启动代驾|一键泊车|激活|开始$|继续$|去这里|泊入|泊出|靠边停车",
-      "reason": "可能触发真实车辆运动，任何授权下都不点击"
+      "pattern": "召唤|挪车|遥控|开始泊车|开始代驾|启动代驾|一键泊车|激活|开始$|继续$|泊入|泊出|靠边停车",
+      "reason": "可能触发真实车辆运动：只在本次授权 vehicle_motion 且有在场监护人时点击"
     },
     {
       "class": "vehicle_control",
@@ -38,13 +39,13 @@
     },
     {
       "class": "vpd_entry",
-      "pattern": "泊车代驾|代客泊车",
-      "reason": "进入泊车代驾页面（需授权）"
+      "pattern": "泊车代驾|代客泊车|^ADS$",
+      "reason": "进入泊车代驾页面（需授权）。乾崑 APP 的入口文字是「ADS」（app/config/mhero_config.py:264）"
     },
     {
       "class": "route_planning",
-      "pattern": "算路|规划路线|路线规划|导航到",
-      "reason": "发起算路（需授权）"
+      "pattern": "算路|规划路线|路线规划|导航到|去这里",
+      "reason": "发起算路（需授权）。「去这里」按原工程只是设目的地并开始算路（app/service/vpd/vpd_harmony.py:17-54 之后等待「路线规划中」），不直接让车动"
     },
     {
       "class": "user_data",
@@ -109,5 +110,18 @@
     "explore_allows": []
   },
   "safe_stop_text": "暂停|停止|结束|退出|取消|中止|终止|急停|返回",
-  "safe_stop_note": "side_effect=safe_stop 的目标（暂停/退出泊车等）在任何授权下都可点击、不占动作预算：安全停止不应被门槛挡住。但点击点所在可点击容器里必须有停止类文字，且不能同时含有其他会触发运动/车控的文字。"
+  "safe_stop_note": "side_effect=safe_stop 的目标（暂停/退出泊车等）在任何授权下都可点击、不占动作预算：安全停止不应被门槛挡住。但点击点所在可点击容器里必须有停止类文字，且不能同时含有其他会触发运动/车控的文字。",
+  "changelog": [
+    {
+      "version": "policy-0.4",
+      "date": "2026-09-29",
+      "changes": [
+        "allowed_packages 增加乾崑 com.yinwang.qiankunapp.hm（用户要求的样例用例）",
+        "「去这里」从 vehicle_motion 改到 route_planning：原工程中它只设目的地并触发算路",
+        "vpd_entry 增加乾崑入口文字 ^ADS$，避免探索时无授权进入泊车页",
+        "vehicle_motion 的 reason 与 policy-0.3 的监护授权语义对齐"
+      ],
+      "reviewed_by": "待用户评审（PR #2）"
+    }
+  ]
 }

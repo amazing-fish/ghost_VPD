@@ -20,8 +20,14 @@ def _texts_match(spec: dict, tree: UiTree, scope: Optional[list] = None) -> bool
             return False
     if spec.get("require_any_text") and not any(t in texts for t in spec["require_any_text"]):
         return False
+    for pat in spec.get("require_text_pattern", []):  # 文案带变量时用正则，例如「车架号 xxxxxx(后6位)」
+        if not any(re.search(pat, x) for x in texts):
+            return False
     for t in spec.get("forbid_text", []):
         if t in texts:
+            return False
+    for pat in spec.get("forbid_text_pattern", []):
+        if any(re.search(pat, x) for x in texts):
             return False
     for t in spec.get("require_selected_text", []):
         if not any(is_selected(tree, n) for n in tree.find_text(t) if tree.in_scope(n, scope)):
@@ -98,7 +104,10 @@ class StateModel:
         return ident["state"] == expect or expect in (ident.get("active") or [])
 
     def deny_for(self, state_id: Optional[str]) -> list:
-        return list(self.states.get(state_id or "", {}).get("deny_text", []))
+        """页面级规则：deny_text 为纯禁止；effect_text {正则: 副作用类} 把本页上的通用文字（如确认弹窗的「确定」）
+        归到某个副作用类，按该类的授权规则处理（例如点「开始」后的「确定」才真正让车动）。"""
+        spec = self.states.get(state_id or "", {})
+        return list(spec.get("deny_text", [])) + [{"pattern": p, "class": c} for p, c in spec.get("effect_text", {}).items()]
 
     def deny_for_page(self, page: dict) -> list:
         """分栏时多个状态同时生效，禁止文本取并集（从严）。"""

@@ -1,0 +1,166 @@
+"""乾崑样例用例（TC-QK-101/102/103）在合成回放世界上的闭环：
+101 登录→切车→进 VPD→默认车位算路，有故障时「开始」不可用；102 地图选点收藏/重命名/标签→按名搜索算路→读距离；
+103 有人监护的激活→运动中监视→暂停→退后台→拉回→继续→泊入完成。
+
+世界 qiankun_hm_base/ready.json 的层级按原工程绝对 xpath 搭建，文案标（占位）的都是虚构：这些测试只证明
+执行器、策略、脱敏与判定逻辑，不代表乾崑 APP 的真实行为。
+"""
+import json
+
+import pytest
+
+from conftest import WORLDS, world
+from vpdtest.cases import lint
+from vpdtest.devices.replay import load_world
+from vpdtest.explore import explore
+from vpdtest.knowledge import KnowledgeStore
+from vpdtest.runner import run_case
+from vpdtest.util import read_json, write_json
+
+PHONE, PASSWORD = "13900001111", "Fake#Pass9"  # 测试用假值
+AUTH_101 = ["account_state", "vehicle_selection", "vpd_entry", "route_planning"]
+AUTH_102 = ["vpd_entry", "user_data", "route_planning"]
+AUTH_103 = ["vpd_entry", "route_planning", "vehicle_motion"]
+
+
+@pytest.fixture
+def secrets(monkeypatch):
+    monkeypatch.setenv("VPD_SECRET_QIANKUN_PHONE", PHONE)
+    monkeypatch.setenv("VPD_SECRET_QIANKUN_PASSWORD", PASSWORD)
+
+
+def _by(run):
+    return {s["step_id"]: s for s in run["steps"]}
+
+
+def _outcomes(run):
+    return [(s["step_id"], s["outcome"], s.get("reason")) for s in run["steps"]]
+
+
+def test_101_fault_blocks_activation_without_touching_start(ws, secrets):
+    run = run_case(ws, "TC-QK-101", device_spec=world("qiankun_hm_base.json"), propose=False, authorize=AUTH_101)
+    assert all(s["outcome"] == "passed" for s in run["steps"]), _outcomes(run)
+    a = {x["id"]: x for x in run["assertions"]}
+    # 判据未确认 → pending；观测本身成立：「开始」置灰且 10 秒后仍有不可用提示
+    assert a["A1"]["result"] == "pending" and a["A1"]["observed_holds"] is True
+    assert a["A2"]["observed_holds"] is True and a["A3"]["observed_holds"] is True
+    assert run["verdict"]["verdict"] == "pending"
+    meas = {m["step"]: m["value"] for m in run["measurements"]}
+    assert meas["S3"] == "问界M5（占位）" and meas["S7"] == "泊车代驾辅助暂不可用"
+    assert run["motion"] == [] and run["safety_stops"] == []
+    taps = [x for s in run["steps"] for x in s["attempts"] if x.get("locate")]
+    assert not any((t["locate"].get("target") or "") in ("qk_start", "qk_start_confirm") for t in taps)
+
+
+def test_101_secrets_never_reach_disk(ws, secrets):
+    run = run_case(ws, "TC-QK-101", device_spec=world("qiankun_hm_base.json"), propose=False, authorize=AUTH_101)
+    d = ws.runs_dir / run["run_id"]
+    for p in d.rglob("*"):
+        if p.is_file() and p.suffix in (".json", ".jsonl", ".md", ".txt"):
+            body = p.read_text("utf-8", errors="ignore")
+            assert PHONE not in body and PASSWORD not in body, p
+    redacted = [read_json(p) for p in d.glob("obs/*/observation.json") if read_json(p).get("redacted")]
+    assert redacted, "输入账号后的页面应标记为已脱敏"
+    assert all(o["screenshot"]["status"] == "withheld" for o in redacted)
+    inputs = [x["input"] for s in run["steps"] for x in s["attempts"] if x.get("input")]
+    assert {i["secret"] for i in inputs} == {True} and all("ref" in i and "length" in i for i in inputs)
+
+
+def test_101_blocked_before_any_step_without_secrets_or_authorization(ws, monkeypatch):
+    monkeypatch.delenv("VPD_SECRET_QIANKUN_PHONE", raising=False)
+    monkeypatch.delenv("VPD_SECRET_QIANKUN_PASSWORD", raising=False)
+    run = run_case(ws, "TC-QK-101", device_spec=world("qiankun_hm_base.json"), propose=False,
+                   authorize=["vehicle_selection", "vpd_entry", "route_planning"])
+    assert run["verdict"]["verdict"] == "blocked" and run["verdict"]["attribution"] == "environment"
+    keys = {u["key"] for u in run["env"]["unmet"]}
+    assert keys == {"secret.QIANKUN_PHONE", "secret.QIANKUN_PASSWORD", "authorize.account_state"}
+    assert all(s["outcome"] == "not_run" for s in run["steps"]) and run["actions"] == 0
+
+
+def test_102_favorite_rename_tag_search_and_read_distance(ws):
+    run = run_case(ws, "TC-QK-102", device_spec=world("qiankun_hm_ready.json"), propose=False, authorize=AUTH_102)
+    assert all(s["outcome"] == "passed" for s in run["steps"]), _outcomes(run)
+    assert all(c["outcome"] == "passed" for c in run["cleanup"]), [(c["step_id"], c.get("reason")) for c in run["cleanup"]]
+    assert {m["step"]: m["value"] for m in run["measurements"]}["S4"] == "356"
+    assert all(a["observed_holds"] for a in run["assertions"])
+    name = run["test_data"]["spot_name"]
+    assert name.startswith("VPDT")
+    # 按重命名后的名字搜索命中（结果行只在搜索词与收藏名一致时出现），清理后已取消收藏
+    s3 = _by(run)["S3"]["sub_steps"]
+    go = next(x for x in s3 if x["attempts"][0].get("locate", {}).get("target") == "qk_search_go")
+    assert go["outcome"] == "passed"
+    state = read_json(ws.runs_dir / run["run_id"] / "replay_state.json")
+    assert state["flags"]["faved"] is False and state["flags"]["tag_label"] == "常用"
+    assert name not in json.dumps(state, ensure_ascii=False)  # 输入值不落盘到回放状态
+
+
+def test_102_blocked_without_user_data_authorization(ws):
+    run = run_case(ws, "TC-QK-102", device_spec=world("qiankun_hm_ready.json"), propose=False,
+                   authorize=["vpd_entry", "route_planning"])
+    assert run["verdict"]["verdict"] == "blocked"
+    assert {u["key"] for u in run["env"]["unmet"]} == {"authorize.user_data"}
+
+
+def test_103_supervised_lifecycle_pause_background_resume_continue(ws):
+    run = run_case(ws, "TC-QK-103", device_spec=world("qiankun_hm_ready.json"), propose=False, authorize=AUTH_103,
+                   supervisor="现场监护人A")
+    by = _by(run)
+    assert all(s["outcome"] == "passed" for s in run["steps"]), _outcomes(run)
+    assert [h["event"] for h in run["motion"]] == ["armed", "stopped_observed", "armed", "stopped_observed"]
+    assert [h.get("state") for h in run["motion"] if h["event"] == "stopped_observed"] == ["qk_paused", "qk_parked"]
+    assert run["safety_stops"] == []
+    hits = by["S5"]["monitor"]["hits"]
+    assert hits["tor"]["text"] == "前方有行人，请注意（占位）" and hits["moving"]["count"] >= 1 and "fault" not in hits
+    assert by["S9"]["resume"] == {"process_alive_before": True, "cold_start": False}
+    assert not by["S10"]["attempts"][0].get("skipped")  # 拉回后仍是暂停：真的点了「继续」
+    assert by["S11"]["monitor"]["stopped_by"] == "until_state:qk_parked"
+    assert {a["id"]: a["observed_holds"] for a in run["assertions"] if not a["advisory"]} == \
+        {"A1": True, "A2": True, "A3": True, "A4": True}
+
+
+def test_103_fault_world_blocks_at_start_without_arming(ws):
+    run = run_case(ws, "TC-QK-103", device_spec=world("qiankun_hm_base.json"), propose=False, authorize=AUTH_103,
+                   supervisor="现场监护人A", env={"account_state": "logged_in"})
+    by = _by(run)
+    assert run["verdict"]["verdict"] == "blocked" and run["verdict"]["attribution"] == "environment"
+    att = by["S3"]["attempts"][0]
+    assert att["status"] == "target_disabled" and "dispatch" not in att
+    assert att["enabled_check"]["enabled"] is False and att["enabled_check"]["opacity"] == ["0.400000"]
+    assert run["motion"] == [] and run["safety_stops"] == []
+    assert all(by[s]["outcome"] == "not_run" for s in ("S4", "S5", "S11"))
+
+
+def test_103_requires_supervisor(ws):
+    run = run_case(ws, "TC-QK-103", device_spec=world("qiankun_hm_ready.json"), propose=False, authorize=AUTH_103)
+    assert run["verdict"]["verdict"] == "blocked" and "supervisor" in {u["key"] for u in run["env"]["unmet"]}
+    assert run["actions"] == 0
+
+
+def test_103_vehicle_resuming_by_itself_is_armed_by_observation(ws, tmp_path):
+    # 变体：暂停后退后台，拉回时车已自行恢复运动（不点「继续」）→ 看门狗按 moving_states 观测挂上，泊入后解除
+    w = load_world(WORLDS / "qiankun_hm_ready.json")
+    w["screens"]["qk_paused"]["on_resume"] = "qk_moving_final"
+    w.pop("_path", None)
+    p = tmp_path / "qiankun_auto_resume.json"
+    write_json(p, w)
+    run = run_case(ws, "TC-QK-103", device_spec=f"replay:{p}", propose=False, authorize=AUTH_103,
+                   supervisor="现场监护人A")
+    by = _by(run)
+    assert all(s["outcome"] == "passed" for s in run["steps"]), _outcomes(run)
+    assert by["S10"]["attempts"][0].get("skipped")  # 页面上没有「继续」：跳过
+    assert [(h["event"], h.get("label")) for h in run["motion"]][2] == ("armed", "state:qk_moving")
+    assert run["motion"][2]["step"] == "observed" and run["motion"][-1]["state"] == "qk_parked"
+    assert run["safety_stops"] == []
+
+
+def test_qiankun_lint_and_explore_boundary(ws):
+    app, kn, pol = ws.app("qiankun_hm"), KnowledgeStore(ws.root), ws.policy()
+    assert lint(ws.load_case("TC-QK-101"), app, kn, pol) == []
+    assert lint(ws.load_case("TC-QK-103"), app, kn, pol) == []
+    issues = lint(ws.load_case("TC-QK-102"), app, kn, pol)
+    assert len(issues) == 1 and "qk_map" in issues[0]["problem"] and "hypothesis" in issues[0]["problem"]
+    # 探索不带任何授权：不进 VPD、不点账号区
+    exp = explore(ws, "qiankun_hm", "qk_car_tab", world("qiankun_hm_base.json"), budget=40)
+    assert exp["exit"]["reason"] == "frontier_exhausted"
+    assert "ADS" in {s["label"] for s in exp["skipped"]}
+    assert not any(t["to"] in ("qk_vpd_loading", "qk_vpd_home") for t in exp["transitions"])

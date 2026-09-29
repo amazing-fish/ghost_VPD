@@ -249,6 +249,10 @@ class HdcDevice:
     def input_text(self, x: int, y: int, text: str) -> DeviceResult:
         if re.search(r"\s", text):
             return DeviceResult("input_text", False, False, "unsupported", "v0.1 的 uiInput inputText 不支持含空白的文本")
+        if not re.fullmatch(r"[A-Za-z0-9_.@+\-一-鿿]*", text):
+            # hdc shell 的参数会经过设备端 shell：含 $ ; & | ' " 等字符的文本（例如密码）用单引号包起来，
+            # 避免被当成 shell 语法。设备端 shell 的转义行为未在真机上逐字符验证
+            text = "'" + text.replace("'", "'\\''") + "'"
         return self._shell("uitest", "uiInput", "inputText", int(x), int(y), text, op="input_text")
 
     def key(self, name: str) -> DeviceResult:

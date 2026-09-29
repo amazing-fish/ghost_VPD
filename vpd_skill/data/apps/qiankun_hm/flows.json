@@ -1,0 +1,119 @@
+{
+  "note": "乾崑流程（带参数的原子能力序列）。每个子步骤仍走完整的观测/定位/策略/后置条件；status 与目标一致：unverified=照搬原工程流程，hypothesis=原工程没有。",
+  "flows": {
+    "login_password": {
+      "desc": "账号密码登录（#08）",
+      "status": "unverified",
+      "source": "app/service/vpd/vpd.py:2261-2345 AppLoginCar._login 的 #08 分支",
+      "params": {"account": "账号（必须传 ${var:x}，x 为 secret）", "password": "密码（必须传 ${var:x}，x 为 secret）"},
+      "precondition": "APP 在前台且未登录（--env account_state=logged_out）",
+      "postcondition": "探索页账号区出现非「探索」的文字",
+      "differences_from_repo": [
+        "不做原工程的两次坐标点击 (0.50, 0.15) 收起键盘：可能点到键盘按键，且本 Skill 不写像素",
+        "不自动处理登录后的弹窗（原工程会点「更新」）：出现未评审弹窗即阻塞",
+        "出现「手动输入」时原工程会再输一次账号；本流程只点它，不重输（重输会追加文字）"
+      ],
+      "steps": [
+        {"action": "tap", "target": "qk_tab_discover", "expect_state": "qk_discover_tab", "timeout_s": 10, "desc": "进入「探索」"},
+        {"action": "tap", "target": "qk_assess_icon", "expect_state": "@in_app", "retry": 2, "desc": "点账号入口"},
+        {"action": "tap", "target": "qk_login_icon", "expect_state": "@in_app", "retry": 2, "desc": "点头像进入登录"},
+        {"action": "tap", "target": "qk_pwd_login", "expect_state": "@in_app", "retry": 2, "desc": "选择密码登录"},
+        {"action": "input", "target": "qk_number_input", "text": "${param:account}", "retry": 2, "desc": "输入账号"},
+        {"action": "tap", "target": "qk_manual_btn", "skip_if_absent": "^手动输入$", "expect_state": "@in_app", "desc": "出现「手动输入」时点一下"},
+        {"action": "input", "target": "qk_pwd_input", "text": "${param:password}", "desc": "输入密码"},
+        {"action": "tap", "target": "qk_agree", "expect_state": "@in_app", "desc": "勾选用户协议"},
+        {"action": "tap", "target": "qk_login_btn", "expect_state": "@in_app", "timeout_s": 10, "desc": "登录"},
+        {"action": "wait", "duration_s": 5, "desc": "等待登录结果"},
+        {"action": "tap", "target": "qk_tab_discover", "expect_state": "qk_discover_tab", "timeout_s": 10, "desc": "回到探索页检查账号区"},
+        {"action": "read", "target": "qk_account_area", "read_scope": "self", "pattern": "(?:^|\\s)((?!探索(?:\\s|$))\\S+)",
+         "measure": "account_area", "desc": "账号区文字：为空或只有「探索」表示仍未登录（vpd.py:2379-2390）"}
+      ]
+    },
+    "switch_vehicle": {
+      "desc": "按车架号末位切换当前车辆",
+      "status": "unverified",
+      "source": "app/service/vpd/vpd.py:2349-2377 _select_car；app/config/mhero_config.py:498-502",
+      "params": {"vin_tail": "车架号末位（原工程用后 6 位，这里允许更短，按「<末位>(后6位)」包含匹配）"},
+      "postcondition": "回到爱车页；顶部车辆入口的文字记为读数（原工程切换后不做任何校验）",
+      "steps": [
+        {"action": "tap", "target": "qk_tab_car", "expect_state": "qk_car_tab", "timeout_s": 10, "desc": "进入「爱车」"},
+        {"action": "tap", "target": "qk_car_select", "expect_state": "qk_vehicle_list", "timeout_s": 10, "desc": "打开车辆列表"},
+        {"action": "tap", "target": "qk_car_by_vin", "expect_state": "qk_car_tab", "timeout_s": 15,
+         "desc": "点选目标车辆（切换后是否自动回到爱车页是推测）"},
+        {"action": "read", "target": "qk_car_select", "read_scope": "self", "measure": "current_vehicle", "critical": false,
+         "desc": "记录切换后顶部显示的车辆信息（只记录，是否符合预期由用例断言判定）"}
+      ]
+    },
+    "enter_vpd": {
+      "desc": "爱车页 → ADS → VPD 首页",
+      "status": "unverified",
+      "source": "app/service/vpd/vpd.py:571-656 enter_vpd（#08 走 click_for_element('vpd')，vpd.py:631）；mhero_config.py:264, 276, 279",
+      "params": {},
+      "steps": [
+        {"action": "tap", "target": "qk_tab_car", "expect_state": "qk_car_tab", "timeout_s": 10, "desc": "进入「爱车」"},
+        {"action": "tap", "target": "qk_ads", "expect_state": "@in_app", "timeout_s": 10, "desc": "点「ADS」"},
+        {"action": "monitor", "duration_s": 120, "interval_s": 3, "until_state": "qk_vpd_home", "screenshots": false,
+         "watch": {"loading": "正在加载", "safe_code": "请输入安全码"}, "desc": "等待 VPD 首页出现「默认车位」"}
+      ]
+    },
+    "plan_default_spot": {
+      "desc": "以默认车位为终点算路，并记录算路过程与结果",
+      "status": "unverified",
+      "source": "app/service/vpd/vpd.py:2015-2056 power_on_stress_case：点「默认车位」后轮询算路结果与失败提示",
+      "params": {},
+      "postcondition": "出现算路结果页（qk_route_result），或出现已知的失败提示",
+      "note": "原工程在这里把算路结果出现记为「上电成功」：算路可能唤醒车辆（K-QK-006）",
+      "steps": [
+        {"action": "tap", "target": "qk_default_spot", "expect_state": "@in_app", "timeout_s": 8, "desc": "点「默认车位」"},
+        {"action": "monitor", "duration_s": 180, "interval_s": 3, "until_state": "qk_route_result",
+         "watch": {"planning": "路线规划中", "fault": "泊车代驾辅助暂不可用|路径规划失败|路线规划失败|无可达路径|暂不可用|规划失败|异常退出"},
+         "stop_on": ["fault"], "desc": "等待算路结果（原工程最多等 180s：VPD_CALCULATED_WAIT_TIME）"}
+      ]
+    },
+    "favorite_random_spot": {
+      "desc": "随机拖动地图、点选一个车位并收藏、重命名、设置标签",
+      "status": "hypothesis",
+      "source": "用户描述（K-QK-USR-003）；原工程没有地图选点/收藏/重命名/标签的实现",
+      "params": {"name": "收藏后改成的名字", "tag": "要设置的标签"},
+      "postcondition": "回到 VPD 首页；收藏名与标签已设置（由后续按名搜索间接验证）",
+      "steps": [
+        {"action": "swipe", "random": true, "within": {"type": "XComponent"}, "expect_state": "qk_vpd_home", "desc": "随机拖动地图（种子记入证据）"},
+        {"action": "tap", "target": "qk_map", "random_point": true, "expect_state": "@in_app", "expect_text": "^收藏$",
+         "idempotent": true, "retry": 2, "desc": "在地图内随机点一个位置，期望弹出带「收藏」的车位卡片；没弹出就换个点再试"},
+        {"action": "tap", "target": "qk_spot_fav", "expect_state": "@in_app", "expect_text": "^重命名$", "desc": "收藏"},
+        {"action": "tap", "target": "qk_spot_rename", "expect_state": "@in_app", "desc": "重命名"},
+        {"action": "input", "target": "qk_rename_input", "text": "${param:name}", "desc": "输入新名字"},
+        {"action": "tap", "target": "qk_dialog_ok", "expect_state": "@in_app", "expect_text": "^标签$", "desc": "确认重命名"},
+        {"action": "tap", "target": "qk_spot_tag", "expect_state": "@in_app", "desc": "打开标签"},
+        {"action": "tap", "target": "qk_tag_option", "expect_state": "@in_app", "desc": "选择标签"},
+        {"action": "tap", "target": "qk_dialog_ok", "skip_if_absent": "^确定$", "expect_state": "@in_app", "desc": "标签需要确认时点确定"},
+        {"action": "back", "expect_state": "qk_vpd_home", "desc": "关闭车位卡片回到首页"}
+      ]
+    },
+    "search_and_plan": {
+      "desc": "在 VPD 首页按名字搜索并从搜索结果「去这里」发起算路",
+      "status": "unverified",
+      "source": "app/service/vpd/vpd_harmony.py:17-54 input_parking_space（原工程按车位号搜索；按收藏名搜索是 K-QK-USR-003 的假设）",
+      "params": {"name": "搜索词"},
+      "steps": [
+        {"action": "tap", "target": "qk_spot_input", "expect_state": "@in_app", "desc": "点「输入车位号设为目的地」"},
+        {"action": "input", "target": "qk_search_input", "text": "${param:name}", "desc": "输入搜索词"},
+        {"action": "tap", "target": "qk_search_go", "expect_state": "@in_app", "retry": 2, "desc": "点命中那一行的「去这里」"},
+        {"action": "monitor", "duration_s": 180, "interval_s": 3, "until_state": "qk_route_result",
+         "watch": {"planning": "路线规划中", "fault": "泊车代驾辅助暂不可用|路径规划失败|路线规划失败|无可达路径|规划失败"},
+         "stop_on": ["fault"], "desc": "等待算路结果"}
+      ]
+    },
+    "unfavorite": {
+      "desc": "清理：从首页「常去地点」打开该收藏并取消收藏",
+      "status": "hypothesis",
+      "source": "推测（原工程没有收藏相关实现）；常去地点结构参照 mhero_config.py:446 favorite_flag",
+      "params": {"name": "收藏名"},
+      "steps": [
+        {"action": "tap", "target": "qk_fav_item", "expect_state": "@in_app", "expect_text": "^取消收藏$", "desc": "打开该收藏"},
+        {"action": "tap", "target": "qk_spot_unfav", "expect_state": "@in_app", "desc": "取消收藏"},
+        {"action": "back", "expect_state": "qk_vpd_home", "desc": "回到首页"}
+      ]
+    }
+  }
+}

@@ -6,6 +6,7 @@ post.met（预期业务状态已出现）。重试与恢复会追加新的 attem
 """
 from __future__ import annotations
 
+import re
 import time
 
 from .devices import DeviceResult
@@ -30,6 +31,7 @@ STATUS_MAP = {
     "motion_timeout": ("fail_candidate", "product", "车辆运动超过用例声明的 max_motion_s 仍未观测到停止/结束"
                                                     "（可能卡住、终点不对或被挡路；也可能是现场环境原因，需人工确认）"),
     "monitor_abort": ("fail_candidate", "product", "监视期间出现用例声明的中止信号"),
+    "target_disabled": ("blocked", "environment", "目标控件当前不可用（置灰），按前置条件不满足处理，未点击"),
 }
 
 
@@ -92,8 +94,11 @@ class Executor:
             return att
         res = None
         if kind == "read":
-            tid, target = self._target(step)
-            loc, obs, tree = self._locate(tid, target, obs, tree, step)
+            if step.get("target") is None and step.get("read_scope") == "page":
+                loc = {"status": "found", "target": None, "point": None, "basis": "tree"}
+            else:
+                tid, target = self._target(step)
+                loc, obs, tree = self._locate(tid, target, obs, tree, step)
             att["locate"] = loc
             if loc["status"] != "found":
                 att["status"] = _unresolved(loc)
@@ -103,6 +108,11 @@ class Executor:
             att.update(status="ok" if att["measurement"]["value"] is not None else "postcondition_not_met",
                        obs_after=obs["obs_id"])
             return att
+        if step.get("skip_if_absent") and kind in ("tap", "input"):
+            # 可选步骤（例如"出现安全码输入框才输入"）：本页没有该文字就跳过，不算失败
+            if not any(re.search(step["skip_if_absent"], x) for x in obs.get("texts") or []):
+                att.update(status="ok", skipped=f"本页没有匹配「{step['skip_if_absent']}」的文字，跳过", obs_after=obs["obs_id"])
+                return att
         if kind == "tap":
             tid, target = self._target(step)
             loc, obs, tree = self._locate(tid, target, obs, tree, step)
@@ -110,6 +120,20 @@ class Executor:
             if loc["status"] != "found":
                 att["status"] = _unresolved(loc)
                 return att
+            if step.get("require_enabled"):
+                # 点之前先确认控件可用（例如「开始」置灰表示当前不可激活）：不可用就不点，按前置条件不满足处理
+                node = next((tree.nodes[x["node"]["idx"]] for x in loc.get("attempts", [])
+                             if x.get("status") == "found" and x.get("node")), None) if tree is not None else None
+                enabled, ev = tree.enabled_state(node, target.get("enabled_by")) if node is not None else (None, {})
+                att["enabled_check"] = ev
+                if enabled is not True:
+                    att.update(status="target_disabled" if enabled is False else "target_unresolved",
+                               obs_after=obs["obs_id"])
+                    return att
+            if step.get("at") or step.get("random_point"):
+                # 在目标容器内按比例取点（例如在地图上点一个车位）：比例相对可见区域现算，不写像素
+                loc = {**loc, "point": self._point_in(loc, step, n), "container_point": True}
+                att["locate"] = loc
             pol = ctx.policy.check_tap(tree, loc["point"], loc["basis"], target,
                                        ctx.app.states.deny_for_page(obs["page"]), ctx.authorized)
             att["policy"] = pol
@@ -144,7 +168,10 @@ class Executor:
         elif kind == "input":
             tid, target = self._target(step)
             raw = step.get("text", "")
-            is_ref = bool(ctx.params and ctx.params.is_secret_ref(raw))
+            # 流程内 ${param:x}：看调用方传入的原始值是不是密钥引用（${var:secret}），是则按密钥处理
+            m = re.fullmatch(r"\$\{param:([A-Za-z0-9_.-]+)\}", str(raw))
+            origin = (step.get("_flow_raw") or {}).get(m.group(1)) if m else raw
+            is_ref = bool(ctx.params and ctx.params.is_secret_ref(origin))
             pol = ctx.policy.check_input(raw, target, is_ref)
             att["policy"] = pol
             if not pol["allowed"]:
@@ -191,10 +218,13 @@ class Executor:
         watch = {k: re.compile(v) for k, v in (step.get("watch") or {}).items()}
         stop_on, abort_on = set(step.get("stop_on", [])), set(step.get("abort_on", []))
         until = step.get("until_state")
+        until_text = re.compile(step["until_text"]) if step.get("until_text") else None
+        until_gone = re.compile(step["until_text_gone"]) if step.get("until_text_gone") else None
+        until_any = until or until_text or until_gone
         shots = step.get("screenshots", True)
         t0, timeline, hits = ctx.clock(), [], {}
         prev_texts, prev_alive, states, first_obs = set(), None, [], None
-        stopped_by, status, errors = None, None, 0
+        stopped_by, status, errors, gone_seen = None, None, 0, False
         for _ in range(int(duration / interval) + 2):
             t = round(ctx.clock() - t0, 2)
             obs, _tree = ctx.observe(f"{step['id']}:t{t}", screenshot=shots)
@@ -209,6 +239,9 @@ class Executor:
                 hits[k]["count"] += 1
             died = prev_alive is True and page.get("process_alive") is False
             anomalies = [i["id"] for i in page.get("interrupts", []) if i["class"] == "anomaly"]
+            blocking = [i["id"] for i in page.get("interrupts", []) if i["class"] == "blocking"]
+            if until_gone and any(until_gone.search(x) for x in texts):
+                gone_seen = True
             errors += 1 if page.get("observation_error") else 0
             entry = {"t": t, "obs": obs["obs_id"], "state": page["state"]}
             if new:
@@ -232,22 +265,30 @@ class Executor:
                 status, stopped_by = "anomaly", "process_died"
             elif anomalies:
                 status, stopped_by = "anomaly", f"interrupt:{anomalies[0]}"
+            elif blocking:
+                status, stopped_by = "interrupted", f"interrupt:{blocking[0]}"
             elif set(fired) & abort_on:
                 status, stopped_by = "monitor_abort", f"abort_on:{sorted(set(fired) & abort_on)[0]}"
             elif ctx.motion.over():
                 status, stopped_by = "motion_timeout", "motion_timeout"
             elif until and ctx.app.states.is_state(page, until):
                 status, stopped_by = "ok", f"until_state:{until}"
+            elif until_text and any(until_text.search(x) for x in texts):
+                status, stopped_by = "ok", f"until_text:{until_text.pattern}"
+            elif until_gone and gone_seen and page["state"] not in ("out_of_app", "undetermined") and \
+                    not any(until_gone.search(x) for x in texts):
+                # 先出现过再消失才算结束：点击后第一帧文字可能还没出来，不能当成"已消失"
+                status, stopped_by = "ok", f"until_text_gone:{until_gone.pattern}"
             elif set(fired) & stop_on:
                 status, stopped_by = "ok", f"stop_on:{sorted(set(fired) & stop_on)[0]}"
             elif ctx.clock() - t0 + interval > duration:
-                status = "postcondition_not_met" if until else "ok"
+                status = "postcondition_not_met" if until_any else "ok"
                 stopped_by = "duration"
             if status:
                 break
             ctx.sleep(interval)
         if status is None:
-            status, stopped_by = ("postcondition_not_met" if until else "ok"), "sample_cap"
+            status, stopped_by = ("postcondition_not_met" if until_any else "ok"), "sample_cap"
         if errors and errors == len(timeline):
             status = "observation_failed"
         att.update(status=status, obs_before=first_obs, state_before=timeline[0]["state"] if timeline else None,
@@ -306,6 +347,17 @@ class Executor:
             target = with_params(target, self.ctx.params, step.get("_flow_params"))
         return tid, target
 
+    def _point_in(self, loc: dict, step: dict, n: int) -> list:
+        """容器内取点：at=[fx, fy] 固定比例；random_point=true 按种子随机（每次尝试不同，重试时换一个点）。"""
+        import random
+        rect = loc.get("visible") or loc.get("bounds")
+        if step.get("random_point"):
+            rng = random.Random(f"{step.get('seed', self.ctx.seed)}:{step['id']}:{n}")
+            fx, fy = rng.uniform(0.25, 0.75), rng.uniform(0.25, 0.75)
+        else:
+            fx, fy = step["at"]
+        return [int(rect[0] + (rect[2] - rect[0]) * fx), int(rect[1] + (rect[3] - rect[1]) * fy)]
+
     def _random_swipe(self, tree, lay, step: dict) -> tuple:
         """可复现的随机滑动（如"随机拖动地图"）：种子记入证据，重跑时用同一种子得到同样的轨迹；
         起止点都在容器可见区域内，按比例取，不写像素。"""
@@ -347,7 +399,7 @@ class Executor:
         subs = []
         for i, sub in enumerate(spec["steps"]):
             s = self.run_step({"critical": True, "retry": 1, **sub, "id": f"{step['id']}.{i + 1}",
-                               "_flow_params": local}, case_id)
+                               "_flow_params": local, "_flow_raw": step.get("params", {})}, case_id)
             subs.append(s)
             if not s["outcome"].startswith("passed") and s.get("critical", True):
                 return {**base, "outcome": s["outcome"], "attribution": s.get("attribution"),
@@ -409,12 +461,18 @@ class Executor:
                      and step["action"] not in ("stop_app", "home"))
             anomalies = [i for i in page.get("interrupts", []) if i["class"] == "anomaly"]
             met = expect is None or (ctx.app.states.is_state(page, expect) and not page.get("interrupts"))
+            if met and step.get("expect_text"):
+                # 状态签名之外的补充后置条件：可见文字里要有匹配项（例如点地图后出现带「收藏」的车位卡片）
+                met = any(re.search(step["expect_text"], x) for x in obs.get("texts") or [])
             elapsed = round(time.monotonic() - t0, 2)
             if crash or anomalies:
                 status = "anomaly"
                 break
             if met:
                 status = "ok"
+                break
+            if any(i["class"] == "blocking" for i in page.get("interrupts", [])):
+                status = "interrupted"  # 需要人工处理的中断（例如安全码）：不等超时，也不自动处理
                 break
             if interval <= 0 or elapsed >= timeout:
                 if page.get("interrupts"):
@@ -520,13 +578,22 @@ class Executor:
 def _measure(tree, loc: dict, step: dict) -> dict:
     """读取目标所在行/卡片的文本并按 pattern 取值（例如算路距离 "1.2公里"）。只记录，不判定。"""
     import re
-    node = tree.node_at(*loc["point"]) if tree is not None else None
+    node = tree.node_at(*loc["point"]) if (tree is not None and loc.get("point")) else None
     holder = tree.clickable_container(node) if node else None
     scope = step.get("read_scope", "node")
-    texts = ([node.text] if node and scope == "node" else tree.subtree_texts(holder or node) if node else [])
+    if scope == "page":  # 整页可见文字里按 pattern 找（位置未知、只知道格式的读数，例如"1.2公里"）
+        texts = tree.visible_texts() if tree is not None else []
+    elif scope == "self":  # 只读定位到的节点自己的子树（目标本身就是容器、且不可点击时，不向上扩到整页）
+        hit = next((a for a in loc.get("attempts", []) if a.get("status") == "found" and a.get("node")), None)
+        found = tree.nodes[hit["node"]["idx"]] if (hit and tree is not None) else node
+        texts = tree.subtree_texts(found) if found else []
+    else:
+        texts = ([node.text] if node and scope == "node" else tree.subtree_texts(holder or node) if node else [])
     raw = " ".join(t for t in texts if t)
     pat = step.get("pattern")
     m = re.search(pat, raw) if pat else None
+    if scope == "page":  # 整页文字不整段落盘，只保留命中附近
+        raw = raw[max(0, m.start() - 20):m.end() + 20] if m else ""
     value = (m.group(1) if (m and m.groups()) else (m.group(0) if m else None)) if pat else (raw or None)
     return {"name": step.get("measure", step["id"]), "value": value, "raw": raw[:200], "pattern": pat,
             "unit": step.get("unit"), "target": loc.get("target")}

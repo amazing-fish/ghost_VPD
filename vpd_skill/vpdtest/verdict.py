@@ -53,14 +53,20 @@ def _check(a: dict, obs: dict, tree: UiTree, app) -> tuple:
         if t == "target_absent":
             return not found, ev
         if not found:
+            if t == "target_enabled" and a.get("absent_is") == "disabled":
+                # 显式声明"控件不存在也算不可用"（例如有故障时整个「开始」按钮不出现）；证据里保留"未找到"
+                ev.update(enabled=False, absent=True)
+                return a.get("expected", True) is False, ev
             return None, ev
         hit = next((x for x in loc["attempts"] if x.get("status") == "found" and x.get("node")), None)
         node = tree.nodes[hit["node"]["idx"]] if hit else (tree.node_at(*loc["point"]) if loc.get("point") else None)
         if t == "target_enabled":
-            # 不点击，只读 enabled：例如"有故障时激活按钮不可用"。节点或其可点击容器任一为 false 即视为不可用
-            enabled = bool(node and node.enabled and tree.clickable_container(node).enabled)
-            ev["enabled"] = enabled
-            return enabled == a.get("expected", True), ev
+            # 不点击，只读可用性：例如"有故障时激活按钮不可用"
+            if node is None:
+                return None, ev
+            enabled, e2 = tree.enabled_state(node, target.get("enabled_by"))
+            ev.update(e2)
+            return (None if enabled is None else enabled == a.get("expected", True)), ev
         if t == "node_selected":
             from .states import is_selected
             sel = is_selected(tree, node) if node else False
