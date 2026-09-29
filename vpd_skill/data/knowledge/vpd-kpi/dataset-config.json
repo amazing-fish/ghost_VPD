@@ -1,0 +1,20 @@
+{
+  "_comment": "本技能固定参数的配置化（原 step-scripts.md 头部固化参数迁此）。引擎脚本以此文件为参数，workspace 为 cookies/SQL/归档的落盘目录（绝对路径）。",
+  "env": "pre-prod",
+  "env_config": {
+    "pre-prod": {
+      "dataset_manage_url": "https://pre-prod.adscloud.huawei.com/dataworks-frontend/#/layout/self-service-report/dataset-manage",
+      "bi_iframe_domain": "bi.preprod.adscloud.yinwang.com"
+    },
+    "prod": {
+      "dataset_manage_url": "https://adscloud.huawei.com/dataworks-frontend/#/layout/self-service-report/dataset-manage",
+      "bi_iframe_domain": "bi.adscloud.yinwang.com"
+    }
+  },
+  "dataset_tree_path": ["ADS", "ADS维测KPI", "泊车", "hza_vpd"],
+  "datasource_path": "自定义看板/ADS/ADS维测KPI/dws-ads-kpi",
+  "workspace": "C:/Users/h00899877/Documents/DSH/ads-kpi",
+  "cookies_file": "cookies.json",
+  "edge_executable": "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+  "preview_row_limit": 200
+}

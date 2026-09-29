@@ -858,6 +858,384 @@
       ]
     },
     {
+      "id": "K-IC-001",
+      "kind": "product_rule",
+      "subject": "vpd_intercom.speed_admission_hangup",
+      "statement": "车外对讲：车速<15（km/h）准入；通话中车速>20（km/h）挂断。",
+      "expected": {
+        "admission_below_kmh": 15,
+        "hangup_above_kmh": 20
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "reviewer",
+        "ref": "VPD用例 车外语音对讲用例集冻结业务规则（用户确认，Hindsight Key decisions）"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T16:30:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T16:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "VPD 知识库补全导入（2026-09-29，PR 补充提交：Hindsight 项目记忆 + ads-sdk-kpi 数据侧知识）"
+        }
+      ]
+    },
+    {
+      "id": "K-IC-002",
+      "kind": "product_rule",
+      "subject": "vpd_intercom.poweron_link_reuse",
+      "statement": "车外对讲：下电唤醒复用 VPD 上电链路。",
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "reviewer",
+        "ref": "VPD用例 车外语音对讲用例集冻结业务规则（用户确认，Hindsight Key decisions）"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T16:30:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T16:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "VPD 知识库补全导入（2026-09-29，PR 补充提交：Hindsight 项目记忆 + ads-sdk-kpi 数据侧知识）"
+        }
+      ]
+    },
+    {
+      "id": "K-IC-003",
+      "kind": "product_rule",
+      "subject": "vpd_intercom.auto_poweroff_after_hangup",
+      "statement": "车外对讲：挂断后 3-5min 自动下电。",
+      "expected": {
+        "delay_min": [
+          3,
+          5
+        ]
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "reviewer",
+        "ref": "VPD用例 车外语音对讲用例集冻结业务规则（用户确认，Hindsight Key decisions）"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T16:30:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T16:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "VPD 知识库补全导入（2026-09-29，PR 补充提交：Hindsight 项目记忆 + ads-sdk-kpi 数据侧知识）"
+        }
+      ]
+    },
+    {
+      "id": "K-IC-004",
+      "kind": "product_rule",
+      "subject": "vpd_intercom.epa_epd_availability",
+      "statement": "车外对讲：EPA 模式无对讲按钮；EPD≈VPD 可对讲。",
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "reviewer",
+        "ref": "VPD用例 车外语音对讲用例集冻结业务规则（用户确认，Hindsight Key decisions）"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T16:30:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T16:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "VPD 知识库补全导入（2026-09-29，PR 补充提交：Hindsight 项目记忆 + ads-sdk-kpi 数据侧知识）"
+        }
+      ]
+    },
+    {
+      "id": "K-IC-005",
+      "kind": "product_rule",
+      "subject": "vpd_intercom.incoming_call_hangup_rule",
+      "statement": "车外对讲：来电接听才挂断。",
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "reviewer",
+        "ref": "VPD用例 车外语音对讲用例集冻结业务规则（用户确认，Hindsight Key decisions）"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T16:30:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T16:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "VPD 知识库补全导入（2026-09-29，PR 补充提交：Hindsight 项目记忆 + ads-sdk-kpi 数据侧知识）"
+        }
+      ]
+    },
+    {
+      "id": "K-IC-006",
+      "kind": "product_rule",
+      "subject": "vpd_intercom.driver_seat_disconnect",
+      "statement": "车外对讲：主驾落座即断开。",
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "reviewer",
+        "ref": "VPD用例 车外语音对讲用例集冻结业务规则（用户确认，Hindsight Key decisions）"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T16:30:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T16:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "VPD 知识库补全导入（2026-09-29，PR 补充提交：Hindsight 项目记忆 + ads-sdk-kpi 数据侧知识）"
+        }
+      ]
+    },
+    {
+      "id": "K-IC-007",
+      "kind": "product_rule",
+      "subject": "vpd_intercom.bluetooth_default_route",
+      "statement": "车外对讲：蓝牙优先默认路由。",
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "reviewer",
+        "ref": "VPD用例 车外语音对讲用例集冻结业务规则（用户确认，Hindsight Key decisions）"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T16:30:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T16:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "VPD 知识库补全导入（2026-09-29，PR 补充提交：Hindsight 项目记忆 + ads-sdk-kpi 数据侧知识）"
+        }
+      ]
+    },
+    {
+      "id": "K-IC-008",
+      "kind": "product_rule",
+      "subject": "vpd_intercom.mute_reset_on_new_call",
+      "statement": "车外对讲：静音新通话重置。",
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "reviewer",
+        "ref": "VPD用例 车外语音对讲用例集冻结业务规则（用户确认，Hindsight Key decisions）"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T16:30:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T16:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "VPD 知识库补全导入（2026-09-29，PR 补充提交：Hindsight 项目记忆 + ads-sdk-kpi 数据侧知识）"
+        }
+      ]
+    },
+    {
+      "id": "K-IC-009",
+      "kind": "product_rule",
+      "subject": "vpd_intercom.owner_call_outside_tone",
+      "statement": "车外对讲：「车主来电」在车外播放提示音。",
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "reviewer",
+        "ref": "VPD用例 车外语音对讲用例集冻结业务规则（用户确认，Hindsight Key decisions）"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T16:30:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T16:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "VPD 知识库补全导入（2026-09-29，PR 补充提交：Hindsight 项目记忆 + ads-sdk-kpi 数据侧知识）"
+        }
+      ]
+    },
+    {
+      "id": "K-IC-010",
+      "kind": "requirement",
+      "subject": "vpd_intercom.kpi_targets",
+      "statement": "车外对讲 KPI 时延指标：上电 3s / VPD 热启动+3s / 成功率 99%。",
+      "expected": {
+        "poweron_s": 3,
+        "warm_start_extra_s": 3,
+        "success_rate": 0.99
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "reviewer",
+        "ref": "VPD用例 车外语音对讲用例集冻结业务规则（用户确认，Hindsight Key decisions）"
+      },
+      "note": "与真机侧 K-AV-026（召唤算路 1.0s 触发/37.8s 就绪）为不同链路：本条是对讲上电链路目标值。",
+      "status": "unconfirmed",
+      "created": "2026-09-29T16:30:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T16:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "VPD 知识库补全导入（2026-09-29，PR 补充提交：Hindsight 项目记忆 + ads-sdk-kpi 数据侧知识）"
+        }
+      ]
+    },
+    {
+      "id": "K-KPI-001",
+      "kind": "domain_note",
+      "subject": "vpd_kpi.tables_schema",
+      "statement": "hza_vpd 数据集含两张底层物理表：dwi_vpd_event_track_to_vpd（event_id 303xx，33 列，含 total_time）与 dwi_vpd_event_track_to_adssdk（event_id 30601~30606，28 列异构，前 15 列与 vpd 表共享）。两表 event_id 范围不重叠；result 取值三端不一致：IOS（adssdk 表）'1'=失败/'0'=成功，Android/harmonyOS 'success'/'failed'，harmonyOS 偶有 'fail'；os_name 精确值 Android/IOS/harmonyOS（首字母大写）。",
+      "expected": {
+        "vpd_table_cols": 33,
+        "adssdk_table_cols": 28,
+        "event_id_overlap": false,
+        "ios_result_failed": "1"
+      },
+      "applies_to": {
+        "app": "*"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "ads-sdk-kpi business-cases 用例1/2 + step-scripts 表语义实测（2026-08~09，pre-prod/prod SELECT * 列探针）"
+      },
+      "note": "pre-prod vpd 表无 vehicle_brand 列（prod 才有）；跨环境复用 SQL 先跑列存在性探针。",
+      "status": "unconfirmed",
+      "created": "2026-09-29T16:30:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T16:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "VPD 知识库补全导入（2026-09-29，PR 补充提交：Hindsight 项目记忆 + ads-sdk-kpi 数据侧知识）"
+        }
+      ]
+    },
+    {
+      "id": "K-KPI-002",
+      "kind": "domain_note",
+      "subject": "vpd_kpi.event_semantics",
+      "statement": "KPI event_id 语义（用户 2026-09-22 确认）：30301 获取本地证书/30302 上电/30303 远控控车/30304 证书同步/30305 算路（主口径 source=1）/30307 WS 建链（手机-ADS 云）/30308 进图加载/30309 激活/30312 控车指令/30313-30314 接口请求（业务码）/30315-30316 支持区域/30317 点亮报告查看/30319 车辆激活状态/30320 车辆运行状态/30601 进图自检/30604-30605 图片下载、云端接口请求/30606 视频质量。已废弃：30306/30602/30603；result 全空事件：30319（安卓/iOS）、30320（安卓/iOS）、30606（三端）。",
+      "expected": {
+        "route_event": "30305",
+        "poweron_event": "30302",
+        "activate_event": "30309"
+      },
+      "applies_to": {
+        "app": "*"
+      },
+      "source": {
+        "type": "reviewer",
+        "ref": "用户确认（2026-09-22，weekly-report.md §3 事件语义表 EV_NAME）"
+      },
+      "note": "30301~30309 序列（证书→上电→进图→算路→激活）与真机四阶段流互为数据侧佐证，可作 states.json 流程判据。",
+      "status": "unconfirmed",
+      "created": "2026-09-29T16:30:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T16:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "VPD 知识库补全导入（2026-09-29，PR 补充提交：Hindsight 项目记忆 + ads-sdk-kpi 数据侧知识）"
+        }
+      ]
+    },
+    {
+      "id": "K-KPI-003",
+      "kind": "generic_invariant",
+      "subject": "vpd_kpi.regression_anchor_priority",
+      "statement": "KPI 修复回归判定的锚点优先级：SNAPSHOT 构建时间戳 > 码值按天首现/止步日 > 版本首现日；同版本号内行为按天切换=热更铺开而非版本未含修复。载体版本零失败≠回归通过（可能是无样本/覆盖度低，须写明补验触发条件）；prod 未铺开≠修复失效。",
+      "expected": {
+        "anchor_priority": [
+          "snapshot_build_ts",
+          "reason_first_last_day",
+          "version_first_day"
+        ]
+      },
+      "applies_to": {
+        "app": "*"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "ads-sdk-kpi business-cases 回归判定方法论（DTS2608110099372 等实证）"
+      },
+      "note": "适用于本架构 RSI 经验闭环与线上问题回归用例的判定纪律。",
+      "status": "unconfirmed",
+      "created": "2026-09-29T16:30:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T16:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "VPD 知识库补全导入（2026-09-29，PR 补充提交：Hindsight 项目记忆 + ads-sdk-kpi 数据侧知识）"
+        }
+      ]
+    },
+    {
+      "id": "K-KPI-004",
+      "kind": "domain_note",
+      "subject": "vpd_kpi.dau_ingest_stability",
+      "statement": "KPI 数据入湖非实时：DAU 当日末~87-89%、T+1 末~94-95%、T+2 末~95.4%、T+7≈98-99%（>7d 长尾 3.5-4.1% 不归零，'终值'是移动目标，精确口径必须显式定义 dws_create_time≤截止时刻）；8/12 管线代际切换（此前 7 月积压 ~5000 万事件在 8/27~9/2 集中回补，8/12 起准实时）。取数口径建议：粗看 T+1 上午、日报 T+1 晚间、精确口径 T+7。跨 8/12 历史对比必须分段。",
+      "expected": {
+        "dau_d0_end_pct": "~88",
+        "t1_end_pct": "~94-95",
+        "t7_pct": "~98-99"
+      },
+      "applies_to": {
+        "app": "*"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "ads-sdk-kpi business-cases 用例12（9/16 prod 64 采样 + 跨 15 日 ~860 万事件 + 7/8 月回补分析，2026-09-23）"
+      },
+      "note": "回归用例取数时点设计必须考虑；事件两层延迟：81% ≤6h（起步 ~10min 批次延迟），10.5% >1d=离线车补传。",
+      "status": "unconfirmed",
+      "created": "2026-09-29T16:30:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T16:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "VPD 知识库补全导入（2026-09-29，PR 补充提交：Hindsight 项目记忆 + ads-sdk-kpi 数据侧知识）"
+        }
+      ]
+    },
+    {
+      "id": "K-KPI-005",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.route.cloud_10002_30m_limit",
+      "statement": "算路云端拦截：failure_reason=10002 表示算路不可达（无可用导航路径，请更换目标车位）；法规限制后算路仅允许 30m 内，超过 30m 目标云端直接拦截；10002 是 30305 失败 top reason（单周 55,773 次），属设计内拦截而非缺陷，周报口径须剔除后计算实际失败率。",
+      "expected": {
+        "reason_10002": "by_design_30m_limit",
+        "route_distance_limit_m": 30
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "ads-sdk-kpi 周报口径决议（wk6/wk9 SQL 实证）+ business-cases 附则（用户定性）"
+      },
+      "note": "route_planning 用例判据：超 30m 目标预期=算路被拦（文案「无可用导航路径」），不应判 FAIL；30m 内目标才算路成功。",
+      "status": "unconfirmed",
+      "created": "2026-09-29T16:30:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T16:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "VPD 知识库补全导入（2026-09-29，PR 补充提交：Hindsight 项目记忆 + ads-sdk-kpi 数据侧知识）"
+        }
+      ]
+    },
+    {
       "id": "K-MOT-001",
       "kind": "product_rule",
       "subject": "motor_hm.bottom_nav.switch",
