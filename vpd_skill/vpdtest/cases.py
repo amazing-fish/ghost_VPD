@@ -118,6 +118,10 @@ def lint(case: dict, app, knowledge, policy=None) -> list:
         if v is None or v == [] or v == "" or (k == "test_data" and v == {} and not case.get("test_data_none")):
             issues.append({"field": k, "problem": "缺失或为空" + ("（无测试数据请写 test_data_none: true）" if k == "test_data" else "")})
     step_ids = {s.get("id") for s in case.get("steps", [])}
+    for k, v in (case.get("test_data") or {}).items():
+        if isinstance(v, dict) and v.get("missing_from_session"):
+            issues.append({"field": f"test_data.{k}", "problem": "会话没有保留这次输入的原文（不允许输入/敏感框/疑似密钥）："
+                                                                 "非敏感数据请直接填值，账号密码改写为 {\"secret\": NAME}"})
     for s in case.get("steps", []):
         if s["action"] in ("tap", "input"):
             t = s.get("target")

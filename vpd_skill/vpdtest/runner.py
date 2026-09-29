@@ -26,10 +26,14 @@ def _env_check(case: dict, facts: dict) -> dict:
 
 
 def run_facts(app, pre: dict, declared: dict) -> dict:
-    """知识适用性比较用的事实：只放执行器实际查到的或测试人员 --env 声明的，查不到的不猜。"""
+    """知识适用性比较用的事实：执行器实际查到的优先；--env 声明只补充查不到的项，不能覆盖实测值
+    （否则声明一个旧版本号就能让版本范围不符的判据"适用"，得出假通过）。"""
     disp = pre.get("display") or {}
-    out = {"app": app.id, "app_version": pre.get("app_version"), "device_form": disp.get("device_form")}
-    out.update({k: v for k, v in (declared or {}).items() if v not in (None, "")})
+    measured = {"app": app.id, "app_version": pre.get("app_version"), "device_form": disp.get("device_form")}
+    out = {k: v for k, v in (declared or {}).items() if v not in (None, "")}
+    out.update({k: v for k, v in measured.items() if v not in (None, "")})
+    for k in measured:
+        out.setdefault(k, None)
     return out
 
 

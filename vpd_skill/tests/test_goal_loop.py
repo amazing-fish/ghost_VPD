@@ -166,6 +166,43 @@ def test_session_to_candidate_keeps_failure_trail(ws, tmp_path):
     assert "没有解析成功" in s2["problem"]
 
 
+def _input_world(tmp_path):
+    # text_bound：输入后布局树里显示输入值（真机输入框也是这样），用来检查落盘前脱敏
+    box = {"t": "TextInput", "b": [40, 800, 1280, 920], "click": True, "bind": "name", "text_bound": "name"}
+    return _lab_world(tmp_path, "inp", {"home": {"root": {"t": "Column", "b": [0, 0, 1320, 2848], "children": [
+        {"t": "Text", "text": "名称", "b": [40, 700, 600, 780]}, box]}}})
+
+
+def test_session_never_writes_rejected_or_secret_input_text(ws, tmp_path, monkeypatch):
+    dev = _input_world(tmp_path)
+    _start(ws, dev, "i1")
+    monkeypatch.setenv("VPD_SECRET_FAKE_PW", "Fake#Pass9")
+    base = ["act", "input", "--select", "xpath=//TextInput", "--app", "motor_hm", "--session", "i1", "--device", dev]
+    cli(ws, *base, "--text", "Fake#Pass9")                        # 没有 --allow-input：policy 拒绝
+    cli(ws, *base, "--allow-input", "--text", "Fake#Pass9")       # 允许输入，但等于已配置密钥：不留原文
+    ok = cli(ws, *base, "--allow-input", "--text", "测试名A")      # 普通测试数据：保留原文供复测
+    assert ok["input_value_recorded"] is True
+    sdir = ws.runs_dir / "session-i1"
+    disk = "".join(p.read_text("utf-8") for p in sdir.rglob("*") if p.suffix in (".json", ".jsonl"))
+    assert "Fake#Pass9" not in disk and "测试名A" in disk
+    # 输入后布局树里出现了密钥值：落盘前替换为 ***，该观测不截图
+    red = [read_json(p) for p in (sdir / "obs").glob("*/observation.json") if read_json(p).get("redacted")]
+    assert red and all(o["screenshot"]["status"] == "withheld" for o in red)
+    case = __import__("vpdtest.session", fromlist=["from_session"]).from_session(
+        sdir, "TC-I-1", ws.app("motor_hm"), None, ["A1=启动", "A2=被拒的试探"])
+    assert case["test_data"]["input_3"] == {"missing_from_session": True, "length": 10}
+    assert case["test_data"]["input_4"] == "测试名A"
+    assert any(i["field"] == "test_data.input_3" for i in C.lint(case, ws.app("motor_hm"), KnowledgeStore(ws.root)))
+
+
+def test_declared_env_cannot_override_measured_facts(ws):
+    from vpdtest.runner import run_facts
+    f = run_facts(ws.app("motor_hm"), {"app_version": "3.0.4.100", "display": {"device_form": "bar"}},
+                  {"app_version": "3.0.3.200", "device_form": "foldable", "account_state": "logged_in"})
+    assert f["app_version"] == "3.0.4.100" and f["device_form"] == "bar" and f["account_state"] == "logged_in"
+    assert run_facts(ws.app("motor_hm"), {}, {"app_version": "3.0.3.200"})["app_version"] == "3.0.3.200"  # 查不到时才用声明
+
+
 def test_point_tap_is_converted_only_when_a_unique_selector_exists(ws, tmp_path):
     dev = _lab_world(tmp_path)
     _start(ws, dev, "p1")

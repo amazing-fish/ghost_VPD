@@ -75,7 +75,8 @@ def trail(session_dir: Path) -> dict:
                 rec = records.get(e["seq"], {})
                 it.update(outcome=e.get("outcome"), effect_unknown=e.get("effect_unknown", False),
                           obs_before=e.get("obs_before"), obs_after=e.get("obs_after"),
-                          dispatched=e.get("dispatched"), record=rec.get("result"))
+                          dispatched=e.get("dispatched"), record=rec.get("result"),
+                          input_value=rec.get("input_value"))
         elif ev == "session_facts":
             items.append({"kind": "facts", "facts": e.get("facts"), "ts": e["ts"]})
     for it in open_req.values():
@@ -235,6 +236,10 @@ def _to_case_step(it: dict, req: dict, session_dir: Path, test_data: dict, facts
         step["target"] = target
         if action == "input":
             name = f"input_{seq}"
-            test_data[name] = req.get("text", "")
+            # 会话只在"允许输入、目标非敏感、不等于已配置密钥"时保留原文；否则留空待人补（lint 会指出）
+            if it.get("input_value") is not None:
+                test_data[name] = it["input_value"]
+            else:
+                test_data[name] = {"missing_from_session": True, "length": req.get("text_len")}
             step["text"] = f"${{var:{name}}}"
     return step

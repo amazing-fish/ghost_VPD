@@ -1,6 +1,7 @@
 """CLI 子命令实现。每个函数返回可 JSON 序列化的 dict，由 cli.py 输出到 stdout。"""
 from __future__ import annotations
 
+import os
 import shutil
 from pathlib import Path
 from typing import Optional
@@ -11,10 +12,11 @@ from .experience import ExperienceStore
 from .explore import explore
 from .knowledge import KnowledgeStore, import_repo_selectors
 from .observe import RunStore
+from .params import Params
 from .runner import run_case
 from .session import dispatched, effect_unknown, from_session, next_seq, parse_select, summarize, trail
 from .templates import crop
-from .util import append_jsonl, now_iso, read_json, read_jsonl, write_json
+from .util import append_jsonl, now_iso, read_json, read_jsonl, short_hash, write_json
 from .workspace import RunContext, Workspace
 
 
@@ -38,6 +40,17 @@ def cmd_doctor(ws: Workspace, a) -> dict:
     return out
 
 
+def _session_redaction(ws, ctx, store) -> None:
+    """会话没有用例参数：按已配置的密钥值（VPD_SECRET_* / config.local.json secrets）脱敏 UI 树与事件，
+    页面上出现这些值时不截图——和 run 的脱敏规则一致。"""
+    names = {k[len("VPD_SECRET_"):] for k, v in os.environ.items() if k.startswith("VPD_SECRET_") and v}
+    names |= {k for k, v in (ws.config.get("secrets") or {}).items() if v}
+    if names:
+        p = Params({n: {"secret": n} for n in names}, ws.config.get("secrets"), store.run_id)
+        ctx.params = ctx.observer.params = p
+        store.redactor = p.redact
+
+
 def _session_facts(store, dev, app) -> None:
     """每个会话记一次环境事实（只读查询）：生成用例与判断知识适用性时要知道是哪个版本、什么屏幕形态。"""
     if any(e.get("event") == "session_facts" for e in read_jsonl(store.events_path)):
@@ -53,6 +66,7 @@ def cmd_observe(ws: Workspace, a) -> dict:
     store = _session(ws, a.session)
     dev = ws.device(a.device, state_path=store.dir / "replay_state.json")
     ctx = RunContext(ws, app, dev, store, ExperienceStore(ws.root, app.id).overlay(), mode="agent")
+    _session_redaction(ws, ctx, store)
     _session_facts(store, dev, app)
     obs, tree = ctx.observe(a.label or "observe")
     store.event("agent_observe", obs_id=obs["obs_id"], label=a.label or "observe", state=obs["page"]["state"])
@@ -84,12 +98,17 @@ def cmd_act(ws: Workspace, a) -> dict:
     store = _session(ws, a.session)
     dev = ws.device(a.device, state_path=store.dir / "replay_state.json")
     ctx = RunContext(ws, app, dev, store, ExperienceStore(ws.root, app.id).overlay(), mode="agent")
+    _session_redaction(ws, ctx, store)
     _session_facts(store, dev, app)
     seq = next_seq(store)
     step_id = a.step_id or f"A{seq}"
     # 先记请求再执行：进程中途被杀时，会话里仍能看到"请求了什么、没有结果"
+    # 输入文字不进请求事件：policy 还没检查，可能是误输入的密码。只记长度与摘要；
+    # 允许输入、目标非敏感、且不等于任何已配置密钥时，才在执行记录里保留原文（供复测）
     request = {"action": a.action, "select": a.select, "within": a.within, "target": a.target, "point": a.point,
-               "basis": a.basis, "side_effect": a.side_effect, "allow_input": a.allow_input, "text": a.text,
+               "basis": a.basis, "side_effect": a.side_effect, "allow_input": a.allow_input,
+               "text_len": len(a.text) if a.text is not None else None,
+               "text_sha": short_hash(a.text, 10) if a.text else None,
                "expect": a.expect, "expect_text": a.expect_text, "timeout": a.timeout, "duration": a.duration,
                "direction": getattr(a, "direction", None), "authorize": sorted(set(a.authorize or [])),
                "supervisor": bool(a.supervisor)}
@@ -105,12 +124,15 @@ def cmd_act(ws: Workspace, a) -> dict:
         store.event("act_error", seq=seq, reason=f"{type(e).__name__}: {e}")
         raise
     first, last = (res.get("attempts") or [{}])[0], (res.get("attempts") or [{}])[-1]
-    append_jsonl(store.dir / "steps.jsonl", {"seq": seq, "ts": now_iso(), "step": step, "result": res})
+    keep = _input_value_keepable(ctx, step, res, ws)
+    append_jsonl(store.dir / "steps.jsonl", {"seq": seq, "ts": now_iso(), "step": _scrub_step(step),
+                                             "result": _scrub_input(res),
+                                             **({"input_value": a.text} if keep else {})})
     store.event("act_result", seq=seq, outcome=res["outcome"], effect_unknown=effect_unknown(res),
                 dispatched=dispatched(res), obs_before=first.get("obs_before"),
                 obs_after=res.get("final_obs") or last.get("obs_after"))
-    return {"session": store.run_id, "seq": seq, "step_id": step_id, "result": res,
-            "diagnosis": diagnose(res)}
+    return {"session": store.run_id, "seq": seq, "step_id": step_id, "result": _scrub_input(res),
+            "input_value_recorded": keep if step.get("action") == "input" else None, "diagnosis": diagnose(res)}
 
 
 def _act_step(ctx, store, a, step_id: str) -> dict:
@@ -157,6 +179,33 @@ def _act_step(ctx, store, a, step_id: str) -> dict:
             step["target"] = a.target
         step["text"] = a.text
     return step
+
+
+def _known_secrets(ws) -> set:
+    vals = {v for k, v in os.environ.items() if k.startswith("VPD_SECRET_") and v}
+    return vals | {str(v) for v in (ws.config.get("secrets") or {}).values() if v}
+
+
+def _input_value_keepable(ctx, step: dict, res: dict, ws) -> bool:
+    if step.get("action") != "input" or not step.get("text"):
+        return False
+    _, target = ctx.app.target(step["target"])
+    allowed = any((a.get("policy") or {}).get("allowed") for a in res.get("attempts", []))
+    return allowed and not target.get("secret") and step["text"] not in _known_secrets(ws)
+
+
+def _scrub_step(step: dict) -> dict:
+    return {**step, "text": None, "text_len": len(step["text"])} if step.get("text") else step
+
+
+def _scrub_input(res: dict) -> dict:
+    """执行记录里的 input.ref 是原文（act 没有 ${var:x} 引用）：换成长度。"""
+    atts = []
+    for a in res.get("attempts", []):
+        if (a.get("input") or {}).get("ref") is not None:
+            a = {**a, "input": {**a["input"], "ref": None}}
+        atts.append(a)
+    return {**res, "attempts": atts}
 
 
 def diagnose(res: dict) -> Optional[dict]:
@@ -276,14 +325,15 @@ def cmd_knowledge(ws: Workspace, a) -> dict:
     kn = KnowledgeStore(ws.root)
     if a.k_cmd == "search":
         facts = dict(kv.split("=", 1) for kv in a.env or [])
-        if a.device:  # 只读查询：版本与屏幕形态，不发任何输入
-            app = ws.app(a.app)
-            dev = ws.device(a.device)
-            facts.update(app_version=dev.app_version(app.bundle),
-                         device_form=(dev.display_info() or {}).get("device_form"))
         for k in ("app_version", "device_form"):
             if getattr(a, k, None):
                 facts[k] = getattr(a, k)
+        if a.device:  # 只读查询：版本与屏幕形态，不发任何输入；实测值优先于声明
+            app = ws.app(a.app)
+            dev = ws.device(a.device)
+            measured = {"app_version": dev.app_version(app.bundle),
+                        "device_form": (dev.display_info() or {}).get("device_form")}
+            facts.update({k: v for k, v in measured.items() if v})
         return search_mod.search(ws, " ".join(a.query), a.app, a.role, facts, a.limit)
     if a.k_cmd == "list":
         return {"items": [{k: i.get(k) for k in ("id", "kind", "subject", "status", "statement")} for i in kn.items()],
