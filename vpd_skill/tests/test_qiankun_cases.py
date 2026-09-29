@@ -155,7 +155,9 @@ def test_103_vehicle_resuming_by_itself_is_armed_by_observation(ws, tmp_path):
 
 def test_qiankun_lint_and_explore_boundary(ws):
     app, kn, pol = ws.app("qiankun_hm"), KnowledgeStore(ws.root), ws.policy()
-    assert lint(ws.load_case("TC-QK-101"), app, kn, pol) == []
+    # 101 的登录流程已被 auto-vpd 真机校准证伪（C8）：lint 如实指出，不再是"无问题"
+    issues101 = lint(ws.load_case("TC-QK-101"), app, kn, pol)
+    assert len(issues101) == 1 and "login_password" in issues101[0]["problem"] and "证伪" in issues101[0]["problem"]
     assert lint(ws.load_case("TC-QK-103"), app, kn, pol) == []
     issues = lint(ws.load_case("TC-QK-102"), app, kn, pol)
     assert len(issues) == 1 and "qk_map" in issues[0]["problem"] and "hypothesis" in issues[0]["problem"]

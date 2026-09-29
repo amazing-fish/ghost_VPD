@@ -62,8 +62,15 @@ write_json(states, s)
 cli("弹窗经评审后恢复", "run", "TC-MOTOR-HM-001", "--device", "replay:motor_hm_popup.json")
 cli("小直板（360 vp，「设置」被底部导航遮住）", "run", "TC-MOTOR-HM-001", "--device", "replay:motor_hm_compact.json")
 cli("折叠屏展开（733 vp，左右分栏）", "run", "TC-MOTOR-HM-001", "--device", "replay:motor_hm_fold.json")
+scoped = cli("新版本 3.0.4.100：判据只覆盖 3.0.3.200（应为待确认）", "run", "TC-MOTOR-HM-001", "--device", D)
+kp = out_root / "data" / "knowledge" / "items.json"
+kd = read_json(kp)
+for it in kd["items"]:
+    if it["id"] in ("K-MOT-001", "K-MOT-002"):  # 模拟评审：确认这两条判据对新版本仍适用
+        it["applies_to"]["app_version"] = ["3.0.3.200", "3.0.4.100"]
+write_json(kp, kd)
 drift = cli("页面变化（定位漂移）", "run", "TC-MOTOR-HM-001", "--device", D)
-xid = drift["experience_candidates"][0]
+xid = (scoped["experience_candidates"] or drift["experience_candidates"])[0]  # 同一经验第二次出现只追加证据
 cli("经验验证（3 用例 × 2 世界）", "experience", "validate", xid, "--suite", "motor_hm_smoke", "--device", B, "--device", D)
 cli("经验采纳", "experience", "adopt", xid)
 cli("采纳后重跑漂移", "run", "TC-MOTOR-HM-001", "--device", D)

@@ -94,6 +94,10 @@ class Observer:
             obs["screenshot"] = {"status": "withheld", "reason": "页面含已输入的敏感值，隐私策略不截图"}
         elif not self.policy.screenshot_allowed(fg):
             obs["screenshot"] = {"status": "withheld", "reason": f"前台为 {fg}，隐私策略不截图"}
+        elif not self.policy.screenshot_allowed(fg2 := self.device.foreground()):
+            # 取布局树要几秒：期间 APP 可能崩溃、退后台或被别的应用覆盖。截图前再确认一次，避免截到其他应用
+            obs["screenshot"] = {"status": "withheld", "reason": f"取树后前台已变为 {fg2}，隐私策略不截图"}
+            obs["foreground_after"] = fg2
         else:
             r = self.device.screenshot(d / "screen.png")
             if r.ok and (d / "screen.png").exists():

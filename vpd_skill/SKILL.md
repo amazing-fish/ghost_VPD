@@ -11,19 +11,34 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
 运行方式（Windows PowerShell，在 `vpd_skill` 目录）：`.\vpdtest.ps1 <命令> ...`，输出为 JSON。
 首次使用见 [README.md](README.md)；命令与字段细节按需读取下方参考资料。
 
-## 工作流
+## 工作流（从文字目标出发）
 
-1. **理解目标**：明确是回归（执行已确认用例）、探索（围绕功能目标找状态与迁移）还是整理用例/知识。
-   目标涉及登录/切车/进入 VPD/算路/改收藏 → 需要本次运行 `--authorize`；涉及车辆运动或车控 → 还需要 `--supervisor`
-   （在场监护人）和用例 `safety` 声明。这些授权只能由用户给出，你不能替用户决定；探索永远不带运动授权。
-2. **获取知识与用例**：`knowledge list`、读 `data/cases/*.json` 与 `data/knowledge/text_cases/`。
-   找不到依据时如实说明缺口，**不要编造业务规则**；新规则用 `knowledge add` 记为 unconfirmed。
-3. **前置检查**：`doctor --device <spec>`。锁屏、离线、未安装 → 结论为阻塞（环境），告诉用户需要做什么，不要尝试解锁或猜密码。
-4. **执行**：回归用 `run <case>`；探索用 `explore --start <state> --budget N --goal ...`；
-   需要你逐步决策时用 `observe` + `act`（见 [workflows](references/workflows.md)）。
-5. **读结论**：打开返回的 `report.md`。结论只取执行器给出的 verdict，不要自行改判。
-6. **沉淀**：对运行产生的经验候选执行 `experience validate`（跨用例、跨设备/世界与基线对比）；
-   探索路径用 `case from-exploration` 生成探索记录，补齐字段后 `case lint` / `case promote`。
+默认输入是一句测试目标，例如"测试收藏车位重命名后，重新进入地图是否仍能按新名称找到它"。路径是未知的：
+不要先找一条现成用例或流程照跑，也不要先写完整业务脚本再执行。已有的 targets/flows/用例都是**可检索的经验**，
+要在现场核对后才能用。
+
+1. **拆目标**：要做哪些操作（收藏、重命名、退出再进入、搜索）、要证明什么（新名称仍能找到）、会产生哪些副作用
+   （user_data 要清理；登录/切车/进 VPD/算路/改收藏要 `--authorize`；车辆运动/车控还要 `--supervisor`，探索永远不带运动授权）。
+2. **检索知识**：`knowledge search <关键词…> --app <app> --device <spec>`。结果分三类读：
+   **产品要求**回答"应该怎样"（只有 confirmed 且适用于本次版本/形态的才能作判据）；**操作经验**回答"可以怎样操作"
+   （targets/flows/状态签名/校准笔记，看 status 与适用性）；**现场观察**回答"某次实际发生了什么"（不能证明"应该是什么"）。
+   适用范围无法确认时就写"未知"，不要因为页面相似就当作适用。测试目标里的期望不等于已确认的产品要求：
+   找不到独立判据时用 `knowledge add` 记一条 `source.type=test_goal` 的 unconfirmed 条目，结论会是待确认。
+3. **前置**：`doctor --device <spec>`。锁屏/离线/未安装、账号未登录、目标车辆未选好 → 报告阻塞，说明需要人做什么，
+   不要解锁、猜密码或自动登录。**前台不是被测 APP（用户正在用手机）时不要 launch 抢前台**，报告等待。
+4. **观察与探索**：`observe` 看页面与可点元素（label/type/id），`act tap|input --select "text=…"` 现场定位，
+   或 `--target` 复用已登记目标。失败、被拒、超时都会留在会话里。允许修正定位、处理适用的弹窗、尝试其他入口；
+   但如果原路径本身就是测试对象，替代路径成功不能替原路径判通过。
+5. **固化**：`case from-session --session <s> --new-id <id> --app <app> --goal "<原文>"`。与目标无关的试探可以
+   `--drop A4=理由` 排除，失败和效果未知的动作不能静默删掉。补齐 purpose / preconditions / assertions
+   （`oracle_refs` 必须独立于本会话）/ cleanup / `knowledge_used`（用了哪条知识、判断是否适用及理由、映射到哪一步），
+   然后 `case lint`。
+6. **执行与判定**：`run <case> --device <spec> --authorize …`。结论只取执行器的 verdict；读 report 的
+   "尚未验证的检查""清理""用到的知识与适用性"。退出码 2 或 `action_required` 表示需要人工接管，立即转告用户。
+7. **交接**：汇报用到的知识及理由、每一步对应的命令、证据位置（obs/截图）、结论、未覆盖的范围，
+   并分开说明离线回放与真机验证。下一位 Agent 只靠用例、知识和证据就能复测。
+
+回归（执行已确认用例）、自动探索（`explore`，只在已声明状态上枚举）与经验验证见 [workflows](references/workflows.md)。
 
 ## 判定规则（硬约束）
 
@@ -33,6 +48,11 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
 - 看到"待确认""阻塞"时如实汇报原因与缺口，不要为了得到通过去：删步骤、放宽断言、改 expect_state、
   加长超时到 policy 上限以外、把中断标成 reviewed、换成坐标盲点。
 - 恢复只允许执行器内置的三种：重新观察、关闭**已评审的良性中断**、幂等步骤重发。首次失败永远保留在报告里。
+- 判据要适用于本次运行：知识的 `applies_to`（版本、形态、账号状态）与实测事实比较，未知或不符 → 待确认。
+- 必需断言没执行到（前面步骤失败）→ 列为"尚未验证"，不推断成立；引用不存在的步骤 → 阻塞。必需清理未完成 → 不能判通过。
+- 未确认的安全停止 → 结论阻塞并要求人工接管（`action_required`，CLI 退出码 2），产品失败仍保留在 findings 里。
+- 用例成熟度与产品状态分开：稳定复现同一产品失败的用例可以 `case promote --known-issue <单号>` 固化，照常判失败，
+  **不要改预期把缺陷变成通过**。
 
 ## 授权、密钥与控车
 
@@ -60,9 +80,10 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
 
 | 情况 | 你要做的 |
 |---|---|
-| `page.state = unknown` | 看该观测的 `screen.png`，描述页面语义；如需纳入状态模型，提议 states.json 签名（需人工评审） |
-| 无 UI 树 / 定位失败 | 先考虑已有模板；可用 `template-crop` 从观测裁剪模板并提议登记。只有确有把握时才用 `act tap --point x,y --basis "<看到了什么>"`，且执行器仍会按 policy 拦截 |
-| `target_ambiguous` | 不要挑一个点；提议更精确的策略（`within` 容器/分栏、id），写入 targets.json 候选并评审 |
+| `page.state = unknown` | 看该观测的 `screen.png`，描述页面语义；未声明页面用 `--expect-text` 写后置条件；如需纳入状态模型，提议 states.json 签名（需人工评审） |
+| 无 UI 树 / 定位失败 | `--select` 只覆盖有 UI 树的页面，地图等自绘区域（XComponent）不在树里。先考虑已有模板；可用 `template-crop` 从观测裁剪模板并提议登记。只有确有把握时才用 `act tap --point x,y --basis "<看到了什么>"`，且执行器仍会按 policy 拦截 |
+| `target_ambiguous` | 不要挑一个点；`diagnosis.candidates` 列出了各候选，用 `--within` 限定容器/分栏或改用 `id=`/`xpath=` |
+| `target_stale` / `foreground_changed` | 观察与下发之间页面变了 / 前台被切走：重新 observe 再决定；前台是其他应用时停止并报告 |
 | `target_partially_visible` | 目标被列表裁剪或被底部导航挡住；为目标补 `scroll` 声明，而不是改成点边缘 |
 | 只在宽屏/折叠屏上成立的用例 | 在用例上写 `layout_requirements`（如 `{"wide": true}`）；形态不符时判环境阻塞，不判失败 |
 | `observation_failed` | 设备连接或查询失败（如 hdc `E000004`），属环境问题；等连接恢复后重跑，不要改用例 |
@@ -79,7 +100,12 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
 .\vpdtest.ps1 run TC-QK-103 --device hdc:<serial> --env account_state=logged_in --authorize vpd_entry route_planning vehicle_motion --supervisor <监护人>
 .\vpdtest.ps1 suite motor_hm_smoke --device hdc:<serial>
 .\vpdtest.ps1 explore --start car_tab --budget 30 --goal "我的页导航" --device hdc:<serial>
-.\vpdtest.ps1 observe --session s1 --device hdc:<serial>
+.\vpdtest.ps1 knowledge search 收藏 重命名 --app qiankun_hm --device hdc:<serial>
+.\vpdtest.ps1 observe --app qiankun_hm --session s1 --device hdc:<serial>
+.\vpdtest.ps1 act tap --select "text=重命名" --side-effect user_data --authorize user_data --app qiankun_hm --session s1 --device hdc:<serial>
+.\vpdtest.ps1 act input --select "xpath=//TextInput" --allow-input --text 测试名 --side-effect user_data --authorize user_data --app qiankun_hm --session s1 --device hdc:<serial>
+.\vpdtest.ps1 session s1
+.\vpdtest.ps1 case from-session --session s1 --new-id TC-QK-201 --app qiankun_hm --goal "<目标原文>" [--drop A4=理由]
 .\vpdtest.ps1 act tap --target tab_my --expect my_tab --session s1 --device hdc:<serial>
 .\vpdtest.ps1 case from-exploration --run <explore-id> --transitions T3 T5 --new-id TC-EXP-001
 .\vpdtest.ps1 experience validate <XP-id> --suite motor_hm_smoke --device <spec1> --device <spec2>

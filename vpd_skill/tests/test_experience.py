@@ -5,9 +5,17 @@ from vpdtest.experience import ExperienceStore
 from vpdtest.runner import run_case
 from vpdtest.util import read_json
 
-from conftest import confirm, world
+from conftest import confirm, widen_scope, world
 
 BASE, DRIFT = world("motor_hm_base.json"), world("motor_hm_drift.json")
+
+
+def _confirm(ws, *ids):
+    # 漂移世界是 3.0.4.100：评审人确认这些判据对新版本仍适用后才能跨版本判定（applies_to 参与适用性）
+    for k in ("K-MOT-001", "K-MOT-002"):
+        if k in ids:
+            widen_scope(ws, k, app_version=["3.0.3.200", "3.0.4.100"])
+    confirm(ws, *ids)
 
 
 def _runner(ws):
@@ -15,7 +23,7 @@ def _runner(ws):
 
 
 def test_drift_adaptation_creates_traceable_candidate(ws):
-    confirm(ws, "K-MOT-001", "K-MOT-002")
+    _confirm(ws, "K-MOT-001", "K-MOT-002")
     run = run_case(ws, "TC-MOTOR-HM-001", device_spec=DRIFT)
     assert run["verdict"]["verdict"] == "passed" and run["verdict"]["adapted"]
     s2 = next(s for s in run["steps"] if s["step_id"] == "S2")
@@ -36,7 +44,7 @@ def test_drift_adaptation_creates_traceable_candidate(ws):
 
 
 def test_validate_adopt_and_rollback(ws):
-    confirm(ws, "K-MOT-001", "K-MOT-002", "K-MOT-003")
+    _confirm(ws, "K-MOT-001", "K-MOT-002", "K-MOT-003")
     xid = run_case(ws, "TC-MOTOR-HM-001", device_spec=DRIFT)["experience_candidates"][0]
     xs = ExperienceStore(ws.root, "motor_hm")
     with pytest.raises(PermissionError):
@@ -58,7 +66,7 @@ def test_validate_adopt_and_rollback(ws):
 
 
 def test_origin_case_only_is_not_enough(ws):
-    confirm(ws, "K-MOT-001", "K-MOT-002")
+    _confirm(ws, "K-MOT-001", "K-MOT-002")
     xid = run_case(ws, "TC-MOTOR-HM-001", device_spec=DRIFT)["experience_candidates"][0]
     xs = ExperienceStore(ws.root, "motor_hm")
     res = xs.validate(xid, ["TC-MOTOR-HM-001"], [DRIFT], _runner(ws))
@@ -66,7 +74,7 @@ def test_origin_case_only_is_not_enough(ws):
 
 
 def test_regression_rejects_candidate(ws):
-    confirm(ws, "K-MOT-001", "K-MOT-002")
+    _confirm(ws, "K-MOT-001", "K-MOT-002")
     xid = run_case(ws, "TC-MOTOR-HM-001", device_spec=DRIFT)["experience_candidates"][0]
     xs = ExperienceStore(ws.root, "motor_hm")
 

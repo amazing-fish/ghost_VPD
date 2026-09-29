@@ -28,6 +28,15 @@ def confirm(ws: Workspace, *ids: str) -> None:
         kn.confirm(k, reviewer="pytest-reviewer")
 
 
+def widen_scope(ws: Workspace, kid: str, **scope) -> None:
+    """模拟评审人扩大知识的适用范围（例如确认新版本仍适用），用于跨版本的回放世界。"""
+    p = ws.root / "knowledge" / "items.json"
+    data = read_json(p)
+    item = next(i for i in data["items"] if i["id"] == kid)
+    item["applies_to"] = {**item.get("applies_to", {}), **scope}
+    write_json(p, data)
+
+
 def review_interrupt(ws: Workspace, iid: str) -> None:
     p = ws.root / "apps" / "motor_hm" / "states.json"
     data = read_json(p)

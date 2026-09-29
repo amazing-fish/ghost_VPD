@@ -25,6 +25,14 @@ def _env_check(case: dict, facts: dict) -> dict:
     return {"ok": not unmet, "facts": facts, "required": case.get("env_requirements", {}), "unmet": unmet}
 
 
+def run_facts(app, pre: dict, declared: dict) -> dict:
+    """知识适用性比较用的事实：只放执行器实际查到的或测试人员 --env 声明的，查不到的不猜。"""
+    disp = pre.get("display") or {}
+    out = {"app": app.id, "app_version": pre.get("app_version"), "device_form": disp.get("device_form")}
+    out.update({k: v for k, v in (declared or {}).items() if v not in (None, "")})
+    return out
+
+
 def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] = None, device_spec: Optional[str] = None,
              overlay=None, env: Optional[dict] = None, run_id: Optional[str] = None, propose: bool = True,
              authorize: Optional[list] = None, supervisor: Optional[str] = None) -> dict:
@@ -36,7 +44,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     xstore = ExperienceStore(ws.root, app.id)
     overlay = overlay or xstore.overlay()
     ctx = RunContext(ws, app, device, store, overlay, mode="regression")
-    knowledge = KnowledgeStore(ws.root)
+    knowledge = KnowledgeStore(ws.root)  # 前置检查后再绑定本次运行事实（APP/版本/形态/声明的环境）
     started = now_iso()
     store.event("run_start", case=case["id"], device=device.spec, overlay=overlay.describe())
 
@@ -51,6 +59,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     if lay_unmet:
         envc = {**envc, "ok": False, "unmet": envc["unmet"] + lay_unmet}
     envc["layout"] = {"required": case.get("layout_requirements", {}), "display_profile": pre_layout}
+    knowledge.bind(run_facts(app, pre, facts))
     # 参数与密钥：密钥只从环境变量/本地配置读取；缺失时判环境阻塞，不向输入框写空值
     params = Params(case.get("test_data"), ws.config.get("secrets"), store.run_id)
     ctx.params = ctx.observer.params = params
@@ -96,7 +105,10 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
         if ctx.motion.armed and (case.get("safety") or {}).get("stop_at_end", True):
             safety_stops.append(safety_mod.safe_stop(ex, "case_end_still_moving"))
         for i, c in enumerate(case.get("cleanup", [])):
-            cleanup.append(ex.run_step({"critical": False, "retry": 0, **c, "id": c.get("id", f"C{i + 1}")}, case["id"]))
+            res = ex.run_step({"critical": False, "retry": 0, **c, "id": c.get("id", f"C{i + 1}")}, case["id"])
+            res["required"] = c.get("required", True)  # 默认必需：清理没完成就不能判通过
+            cleanup.append(res)
+            store.event("cleanup_done", step=res["step_id"], outcome=res["outcome"], required=res["required"])
     else:
         ctx.observe("preflight-blocked")
         steps = [{"step_id": s["id"], "action": s["action"], "outcome": "not_run", "critical": s.get("critical", True),
@@ -110,7 +122,16 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
 
     by_id = {s["step_id"]: s for s in steps}
     assertions = [evaluate_assertion(a, by_id, load, knowledge, app) for a in case.get("assertions", [])]
-    verdict = case_verdict(pre, envc, steps, assertions, knowledge, safety_stops)
+    verdict = case_verdict(pre, envc, steps, assertions, knowledge, safety_stops, cleanup,
+                           step_ids={s["id"] for s in case["steps"]})
+    known = case.get("product_status") or {}
+    if known.get("status") == "known_failure":
+        # 已知缺陷用例：结论照常判定，另外说明缺陷是否仍按同一特征复现（不把失败改成通过）
+        sig = verdict.get("failure_signature")
+        verdict["known_issue"] = {"ref": known.get("issue"), "expected_signature": known.get("signature"),
+                                  "reproduced": verdict["verdict"] == "failed" and sig == known.get("signature"),
+                                  "note": "仍按同一特征复现" if (verdict["verdict"] == "failed" and sig == known.get("signature"))
+                                  else "未按已知特征复现：可能已修复、路径变化或本次被其他问题挡住，需人工核对"}
     refs = sorted({r for x in case.get("assertions", []) + case["steps"] for r in x.get("oracle_refs", [])})
     run = {"run_id": store.run_id, "skill_version": __version__, "started": started, "finished": now_iso(),
            "validation_level": "offline_replay" if device.kind == "replay" else "real_device",
@@ -124,6 +145,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                       "seen": ctx.observer.layouts_seen},
            "env": envc, "preflight": pre, "steps": steps, "cleanup": cleanup, "assertions": assertions,
            "knowledge_snapshot": knowledge.oracle_status(refs)["items"] if refs else [],
+           "facts": knowledge.facts, "knowledge_used": case.get("knowledge_used", []), "goal": case.get("goal"),
            "verdict": verdict, "actions": ctx.actions, "seed": ctx.seed,
            "test_data": params.public(), "authorized": sorted(ctx.authorized),
            "supervision": {"supervisor": supervisor,

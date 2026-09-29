@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 import time
+from typing import Optional
 
 from .devices import DeviceResult
 from .layout import key as layout_key
@@ -32,7 +33,11 @@ STATUS_MAP = {
                                                     "（可能卡住、终点不对或被挡路；也可能是现场环境原因，需人工确认）"),
     "monitor_abort": ("fail_candidate", "product", "监视期间出现用例声明的中止信号"),
     "target_disabled": ("blocked", "environment", "目标控件当前不可用（置灰），按前置条件不满足处理，未点击"),
+    "target_stale": ("blocked", "tool", "执行前复核发现目标已变化（页面刷新/弹窗/滚动/被替换），未下发"),
+    "foreground_changed": ("blocked", "environment", "下发前前台已不是被测 APP（被切走或被其他应用覆盖），未下发"),
 }
+# 这些动作会作用到"当前前台"：前台不是被测 APP 时不下发，避免点到/输入到用户正在用的其他应用
+FOREGROUND_BOUND = ("tap", "input", "swipe", "back", "home")
 
 
 def classify(att: dict) -> tuple:
@@ -76,7 +81,7 @@ class Executor:
     # ---- 单次尝试 ----
     def _attempt(self, step: dict, n: int, case_id: str) -> dict:
         ctx, kind = self.ctx, step["action"]
-        att = {"n": n, "ts": now_iso(), "action": kind}
+        att = {"n": n, "ts": now_iso(), "action": kind, "step_id": step["id"]}
         safety = bool(step.get("_safety"))  # 安全停止步骤：不受动作预算与运动超时拦截
         if not safety and ctx.motion.over():
             att.update(status="motion_timeout", motion={"elapsed_s": ctx.motion.elapsed(), "max_s": ctx.motion.max_s})
@@ -120,6 +125,10 @@ class Executor:
             if loc["status"] != "found":
                 att["status"] = _unresolved(loc)
                 return att
+            if step.get("revalidate"):
+                loc, obs, tree = self._revalidate(tid, target, loc, step, n, att)
+                if att.get("status"):
+                    return att
             if step.get("require_enabled"):
                 # 点之前先确认控件可用（例如「开始」置灰表示当前不可激活）：不可用就不点，按前置条件不满足处理
                 node = next((tree.nodes[x["node"]["idx"]] for x in loc.get("attempts", [])
@@ -140,6 +149,9 @@ class Executor:
             if not pol["allowed"]:
                 att["status"] = "policy_denied"
                 return att
+            att["resolved"] = _resolved(loc, obs)
+            if not self._foreground_ok(att, step.get("revalidate")):
+                return att
             res = ctx.device.tap(*loc["point"])
             if res.ok and target.get("side_effect") == "vehicle_motion":
                 # 先挂上看门狗再做后置观测：后置观测里出现的停止状态会按规则解除
@@ -158,11 +170,16 @@ class Executor:
                 waited += min(1.0, dur - waited)
             att["waited_s"] = round(waited, 2)
         elif kind in ("back", "home"):
+            if not self._foreground_ok(att):
+                return att
             res = ctx.device.key(kind)
-        elif kind == "swipe" and step.get("random"):
-            res, att["swipe"] = self._random_swipe(tree, obs.get("layout"), step)
         elif kind == "swipe":
-            res, att["swipe"] = self._swipe(step.get("direction", "up"), tree, obs.get("layout"), step.get("within"))
+            if not self._foreground_ok(att):
+                return att
+            if step.get("random"):
+                res, att["swipe"] = self._random_swipe(tree, obs.get("layout"), step)
+            else:
+                res, att["swipe"] = self._swipe(step.get("direction", "up"), tree, obs.get("layout"), step.get("within"))
         elif kind == "stop_app":
             res = ctx.device.stop(ctx.app.bundle)
         elif kind == "input":
@@ -182,8 +199,23 @@ class Executor:
             if loc["status"] != "found":
                 att["status"] = _unresolved(loc)
                 return att
+            if step.get("revalidate"):
+                loc, obs, tree = self._revalidate(tid, target, loc, step, n, att)
+                if att.get("status"):
+                    return att
+            if tid.startswith("inline:"):
+                # 现场选择器定位的输入框：按所在控件的文字做副作用检查（例如重命名框里有「收藏」→ user_data 需授权）
+                pol = ctx.policy.check_tap(tree, loc["point"], loc["basis"], target,
+                                           ctx.app.states.deny_for_page(obs["page"]), ctx.authorized)
+                att["policy_context"] = pol
+                if not pol["allowed"]:
+                    att["status"] = "policy_denied"
+                    return att
             text = ctx.params.subst(raw, step.get("_flow_params")) if ctx.params else raw
             att["input"] = {"ref": raw, "secret": is_ref, "length": len(text)}  # 只记引用与长度，不记值
+            att["resolved"] = _resolved(loc, obs)
+            if not self._foreground_ok(att, step.get("revalidate")):
+                return att
             res = ctx.device.input_text(*loc["point"], text)
         elif kind != "wait":
             att["status"] = "invalid_step"
@@ -338,6 +370,54 @@ class Executor:
         loc["obs"] = obs["obs_id"]
         loc["layout_key"] = layout_key(lay)
         return loc, obs, tree
+
+    def _foreground_ok(self, att: dict, fresh: bool = False) -> bool:
+        """下发前的最后一道确认：前台仍是被测 APP。执行前观测到下发之间用户可能切走、系统可能弹出别的应用。"""
+        ctx = self.ctx
+        if att["action"] not in FOREGROUND_BOUND:
+            return True
+        if att.get("state_before") == "out_of_app" and att["action"] in ("back", "home"):
+            return True  # 动作前本来就不在 APP 内（例如已在桌面）：按键不会落到被测 APP 以外的新场景
+        fg = ctx.device.foreground()
+        att["foreground_check"] = {"foreground": fg, "expected": ctx.app.bundle, "after_revalidate": bool(fresh)}
+        if fg == ctx.app.bundle:
+            return True
+        att["foreground_check"]["process_alive"] = ctx.device.process_alive(ctx.app.bundle)
+        att["status"] = "foreground_changed"
+        ctx.store.event("foreground_changed", step=att.get("step_id"), foreground=fg, action=att["action"])
+        return False
+
+    def _revalidate(self, tid, target, loc: dict, step: dict, n: int, att: dict) -> tuple:
+        """执行前复核：下发前重新取一次 UI 树（不截图）并重新解析同一目标，与执行前观测里的解析结果比较。
+        节点不见了、变成多个、文字/类型/ID 变了、或位置移动超过窗口的 3%，都判 target_stale 且不下发。
+        通过后用复核时的树做 policy 检查与下发（点击点来自最新的树）。"""
+        ctx = self.ctx
+        if loc.get("strategy_kind") not in ("text", "id", "xpath"):
+            # 模板/坐标没有可比较的节点：复核无意义，如实记为跳过（覆盖范围只限有 UI 树的定位）
+            att["revalidate"] = {"result": "skipped", "reason": f"定位依据 {loc.get('strategy_kind')} 不是 UI 树节点"}
+            return loc, ctx.last_obs, ctx.last_tree
+        obs2, tree2 = ctx.observe(f"{step['id']}#{n}:predispatch", screenshot=False)
+        loc2 = resolve(tid, target, tree2, None, ctx.app.dir, None, None, obs2.get("layout"))
+        before, after = _found_node(loc), _found_node(loc2)
+        rec = {"obs": obs2["obs_id"], "status": loc2["status"], "before": before, "after": after}
+        if obs2["page"].get("observation_error") or loc2["status"] != "found" or before is None or after is None:
+            rec["result"] = "gone" if loc2["status"] == "not_found" else (loc2["status"] if loc2["status"] != "found"
+                                                                           else "not_comparable")
+        else:
+            win = (obs2.get("layout") or {}).get("window_px") or [1, 1]
+            (x1, y1), (x2, y2) = loc["point"], loc2["point"]
+            drift = max(abs(x1 - x2) / max(1, win[0]), abs(y1 - y2) / max(1, win[1]))
+            same = all(before.get(k) == after.get(k) for k in ("type", "text", "id"))
+            rec.update(drift=round(drift, 4), same_node=same)
+            rec["result"] = "same" if (same and drift <= 0.03) else ("moved" if same else "changed")
+        att["revalidate"] = rec
+        ctx.store.event("revalidate", step=step["id"], n=n, result=rec["result"], obs=obs2["obs_id"])
+        if rec["result"] != "same":
+            att.update(status="target_stale", obs_after=obs2["obs_id"])
+            return loc, obs2, tree2
+        loc2["obs"], loc2["revalidated_from"] = obs2["obs_id"], loc.get("obs")
+        att["locate"] = {**loc, "revalidated": loc2}
+        return loc2, obs2, tree2
 
     def _target(self, step: dict) -> tuple:
         """取目标并代入参数（流程参数 ${param:x}、用例数据 ${var:x}）。"""
@@ -505,7 +585,7 @@ class Executor:
             return {"action": "dismiss_interrupt", "performed": "dispatch" in r, "interrupt": ints[0]["id"],
                     "reason": "关闭已评审的良性中断后重新判定后置条件", "attempt": r, "post": r.get("post"),
                     "status": r["status"]}
-        if st in ("target_unresolved", "target_partially_visible"):
+        if st in ("target_unresolved", "target_partially_visible", "target_stale"):
             time.sleep(min(1.0, ctx.device.poll_interval))
             return {"action": "reobserve_and_retry", "performed": True, "reason": "等待后重新观察并完整重试定位"}
         if st == "observation_failed":
@@ -597,6 +677,21 @@ def _measure(tree, loc: dict, step: dict) -> dict:
     value = (m.group(1) if (m and m.groups()) else (m.group(0) if m else None)) if pat else (raw or None)
     return {"name": step.get("measure", step["id"]), "value": value, "raw": raw[:200], "pattern": pat,
             "unit": step.get("unit"), "target": loc.get("target")}
+
+
+def _found_node(loc: dict) -> Optional[dict]:
+    hit = next((a for a in loc.get("attempts", []) if a.get("status") == "found" and a.get("node")), None)
+    return hit["node"] if hit else None
+
+
+def _resolved(loc: dict, obs: dict) -> dict:
+    """执行证据：这次实际点在哪里、依据哪个节点、在什么屏幕形态下。用例里不写坐标，但证据里必须记下。"""
+    lay = obs.get("layout") or {}
+    return {"point": loc.get("point"), "node": _found_node(loc), "bounds": loc.get("bounds"), "visible": loc.get("visible"),
+            "visible_fraction": loc.get("visible_fraction"), "strategy": loc.get("strategy_kind"),
+            "strategy_index": loc.get("strategy_index"), "container_point": bool(loc.get("container_point")),
+            "obs": obs.get("obs_id"), "window_px": lay.get("window_px"), "layout_key": layout_key(lay),
+            "density": lay.get("density"), "device_form": lay.get("device_form"), "panes": len(lay.get("panes") or [])}
 
 
 def _unresolved(loc: dict) -> str:

@@ -30,9 +30,9 @@ def _nodes_for(strategy: dict, tree: UiTree) -> list:
     if kind == "xpath":
         return tree.xpath(strategy["value"])
     if kind == "text":
-        return tree.find_text(strategy["value"], exact=strategy.get("exact", True))
+        return tree.find_text(strategy["value"], exact=strategy.get("exact", True), include_clipped=True)
     if kind == "id":
-        return tree.find_id(strategy["value"])
+        return tree.find_id(strategy["value"], include_clipped=True)
     raise ValueError(f"未知策略 {kind}")
 
 

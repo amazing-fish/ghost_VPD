@@ -109,12 +109,16 @@ class UiTree:
         meaningful = [n for n in self.nodes[1:] if n.visible]
         return "ok" if meaningful else "empty"
 
+    def shown(self, n: "Node") -> bool:
+        """用户实际看得到：visible 且可见矩形非空（被列表/滚动容器裁到可视区外的条目不算）。"""
+        return n.visible and self._visibility()[n.idx] is not None
+
     def visible_texts(self) -> list:
         seen, out = set(), []
         for n in self.nodes:
             for t in (n.text, n.description):
                 t = t.strip()
-                if t and n.visible and t not in seen:
+                if t and self.shown(n) and t not in seen:
                     seen.add(t)
                     out.append(t)
         return out
@@ -126,12 +130,16 @@ class UiTree:
         return best.bounds[2], best.bounds[3]
 
     # ---- 查询 ----
-    def find_text(self, text: str, exact: bool = True) -> list:
-        return [n for n in self.nodes if n.visible and
+    def find_text(self, text: str, exact: bool = True, include_clipped: bool = False) -> list:
+        """include_clipped=True 时也返回被列表裁到可视区外的节点（定位用它判断"滑动后可能出现"）；
+        断言与状态识别用默认值，只认用户看得到的节点。"""
+        ok = (lambda n: n.visible) if include_clipped else self.shown
+        return [n for n in self.nodes if ok(n) and
                 ((n.text == text or n.description == text) if exact else (text in n.text or text in n.description))]
 
-    def find_id(self, value: str) -> list:
-        return [n for n in self.nodes if n.visible and value in (n.id, n.attrs.get("key", ""))]
+    def find_id(self, value: str, include_clipped: bool = False) -> list:
+        ok = (lambda n: n.visible) if include_clipped else self.shown
+        return [n for n in self.nodes if ok(n) and value in (n.id, n.attrs.get("key", ""))]
 
     def xpath(self, expr: str) -> list:
         """返回匹配节点；表达式错误会抛出 lxml 异常，由调用方记录为 error 而不是"未找到"。"""
@@ -206,7 +214,7 @@ class UiTree:
     def texts_in(self, scope: Optional[list]) -> list:
         if scope is None:
             return self.visible_texts()
-        return [t for n in self.nodes if n.visible and self.in_scope(n, scope)
+        return [t for n in self.nodes if self.shown(n) and self.in_scope(n, scope)
                 for t in (n.text.strip(), n.description.strip()) if t]
 
     def scroll_container(self, scope: Optional[list] = None) -> Optional[Node]:

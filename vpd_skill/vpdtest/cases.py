@@ -13,7 +13,9 @@ from .util import now_iso, read_json, sha256_obj, write_json
 
 REQUIRED = ("purpose", "preconditions", "test_data", "steps", "assertions", "cleanup", "sources")
 CONTENT_KEYS = ("app", "preconditions", "env_requirements", "test_data", "steps", "assertions", "cleanup")
-OPTIONAL_CONTENT_KEYS = ("layout_requirements",)  # 只在声明时计入，避免改变既有用例的内容哈希
+# 只在声明时计入，避免改变既有用例的内容哈希。授权与安全停止决定实际会产生哪些物理副作用，改了就要重新重放
+OPTIONAL_CONTENT_KEYS = ("layout_requirements", "authorizations", "safety")
+TREE_KINDS = ("text", "id", "xpath")
 NEXT = {"exploration_record": "candidate", "draft": "candidate", "candidate": "replay_verified",
         "replay_verified": "regression"}
 
@@ -65,6 +67,8 @@ def _lint_effects(case: dict, app, policy) -> list:
             if spec is None:
                 issues.append({"field": where, "problem": f"flows.json 中没有流程 {s.get('flow')}"})
             else:
+                if spec.get("status") == "falsified_on_device":
+                    issues.append({"field": where, "problem": f"流程 {s['flow']} 已被真机证伪：{spec.get('status_note', '')[:80]}"})
                 miss = [p for p in spec.get("params", {}) if p not in (s.get("params") or {})]
                 if miss:
                     issues.append({"field": where, "problem": f"流程 {s['flow']} 缺少参数 {miss}"})
@@ -113,12 +117,20 @@ def lint(case: dict, app, knowledge, policy=None) -> list:
         v = case.get(k)
         if v is None or v == [] or v == "" or (k == "test_data" and v == {} and not case.get("test_data_none")):
             issues.append({"field": k, "problem": "缺失或为空" + ("（无测试数据请写 test_data_none: true）" if k == "test_data" else "")})
+    step_ids = {s.get("id") for s in case.get("steps", [])}
     for s in case.get("steps", []):
-        if s["action"] == "tap":
+        if s["action"] in ("tap", "input"):
             t = s.get("target")
             if isinstance(t, dict):
-                issues.append({"field": f"steps.{s['id']}", "problem": "使用临时内联目标，需评审后登记到 targets.json"})
-            elif t not in app.targets:
+                # 现场选择器：只用 UI 树策略、且附有"在哪次观测中解析成功"的来源，才可以直接留在用例里
+                kinds = {st.get("kind") for st in t.get("strategies", [])}
+                if not kinds:
+                    issues.append({"field": f"steps.{s['id']}", "problem": "内联目标没有定位策略（会话里是坐标点击且无法"
+                                                                           "从 UI 树推出选择器）：请补文本/id/xpath 选择器或模板"})
+                elif not kinds <= set(TREE_KINDS) or not t.get("observed"):
+                    issues.append({"field": f"steps.{s['id']}", "problem": "内联目标需只含 text/id/xpath 策略并附 observed 来源"
+                                                                           "（会话观测），否则请登记到 targets.json 并评审"})
+            elif s["action"] == "tap" and t not in app.targets:
                 issues.append({"field": f"steps.{s['id']}", "problem": f"目标 {t} 未登记"})
         if s.get("expect_state_unresolved"):
             issues.append({"field": f"steps.{s['id']}", "problem": "终点是未声明状态，缺少可判定的后置条件"})
@@ -141,6 +153,12 @@ def lint(case: dict, app, knowledge, policy=None) -> list:
     real = [a for a in case.get("assertions", []) if not a.get("advisory")]
     if not real and case.get("assertions"):
         issues.append({"field": "assertions", "problem": "没有非建议类断言"})
+    for a in case.get("assertions", []):
+        if a.get("at") not in step_ids:
+            issues.append({"field": f"assertions.{a.get('id')}", "problem": f"at={a.get('at')} 不是用例中的步骤 ID"})
+    if any(s.get("type") == "session" for s in case.get("sources", [])) and not case.get("knowledge_used"):
+        issues.append({"field": "knowledge_used", "problem": "由会话生成的用例须说明用到了哪些知识、是否适用、怎样映射到动作"
+                                                             "（没有可用知识也要写明，例如 [{\"id\": null, \"note\": \"...\"}]）"})
     for a in real:
         if not a.get("oracle_refs"):
             issues.append({"field": f"assertions.{a.get('id')}", "problem": "缺少 oracle_refs（需求/已确认用例/产品规则）"})
@@ -180,14 +198,49 @@ def from_exploration(exp: dict, transitions: list, case_id: str, app_id: str) ->
 
 def record_replay(ws, case_id: str, run: dict) -> dict:
     case = ws.load_case(case_id)
+    v = run["verdict"]
     case.setdefault("replays", []).append({
-        "run_id": run["run_id"], "verdict": run["verdict"]["verdict"], "hash": run["case"]["hash"],
-        "validation_level": run["validation_level"], "device": run["device_spec"], "ts": now_iso()})
+        "run_id": run["run_id"], "verdict": v["verdict"], "hash": run["case"]["hash"],
+        "validation_level": run["validation_level"], "device": run["device_spec"], "ts": now_iso(),
+        "failure_signature": v.get("failure_signature", []), "alerts": len(v.get("alerts") or []),
+        "not_verified": len(v.get("not_verified") or []), "facts": run.get("facts")})
     write_json(ws.case_path(case_id), case)
     return case
 
 
-def promote(ws, case_id: str, to: str, knowledge, reviewer: Optional[str] = None, allow_offline: bool = False) -> dict:
+def replay_basis(case: dict) -> dict:
+    """用例成熟度（能否稳定复测）与产品状态（是否符合要求）分开判断。
+    当前内容版本下至少 2 次来自不同运行、结论一致且确定的重放：全部通过 → conforming；
+    全部失败且失败特征相同 → known_failure（需登记缺陷单）。混合、待确认、阻塞都说明还不能稳定复测。"""
+    h = content_hash(case)
+    cur = [r for r in case.get("replays", []) if r["hash"] == h]
+    runs = {r["run_id"]: r for r in cur}
+    out = {"hash": h, "replays": list(runs), "count": len(runs)}
+    if len(runs) < 2:
+        return {**out, "ok": False, "why": f"当前内容版本 {h} 下的重放不足 2 次（现有 {len(runs)}）"}
+    if any(r.get("alerts") for r in runs.values()):
+        return {**out, "ok": False, "why": "有重放出现人工接管信号（安全停止未确认），不能作为晋级依据"}
+    # 待确认/阻塞的重放不给出产品结论（常见于判据确认之前的运行），不计入但如实列出；
+    # 确定结论的重放之间不允许混合通过与失败（那说明用例或产品不稳定）
+    rows = [r for r in runs.values() if r["verdict"] in ("passed", "failed")]
+    out["ignored"] = [{"run_id": r["run_id"], "verdict": r["verdict"]} for r in runs.values() if r not in rows]
+    if len(rows) < 2:
+        return {**out, "ok": False, "why": f"当前内容版本 {h} 下给出确定结论的重放不足 2 次（现有 {len(rows)}，"
+                                           f"另有待确认/阻塞 {len(out['ignored'])} 次）：重放不足"}
+    out["replays"] = [r["run_id"] for r in rows]
+    verdicts = {r["verdict"] for r in rows}
+    if verdicts == {"passed"}:
+        return {**out, "ok": True, "product": "conforming", "rows": rows}
+    if verdicts == {"failed"}:
+        sigs = {tuple(r.get("failure_signature") or []) for r in rows}
+        if len(sigs) == 1 and next(iter(sigs)):
+            return {**out, "ok": True, "product": "known_failure", "signature": list(next(iter(sigs))), "rows": rows}
+        return {**out, "ok": False, "why": f"失败重放的失败特征不一致 {sorted(sigs)}：还不能稳定复现"}
+    return {**out, "ok": False, "why": f"重放结论不一致或不确定 {sorted(verdicts)}：还不能稳定复测"}
+
+
+def promote(ws, case_id: str, to: str, knowledge, reviewer: Optional[str] = None, allow_offline: bool = False,
+            known_issue: Optional[str] = None) -> dict:
     case, app = ws.load_case(case_id), ws.app(ws.load_case(case_id)["app"])
     cur = case.get("status", "draft")
     if NEXT.get(cur) != to:
@@ -196,20 +249,32 @@ def promote(ws, case_id: str, to: str, knowledge, reviewer: Optional[str] = None
     if issues:
         raise PermissionError(f"用例不完整，不能晋级：{issues}")
     h = content_hash(case)
-    good = [r for r in case.get("replays", []) if r["hash"] == h and r["verdict"] == "passed"]
-    if to == "replay_verified" and len({r["run_id"] for r in good}) < 2:
-        raise PermissionError(f"当前内容版本 {h} 下通过的重放不足 2 次（现有 {len(good)}）")
+    basis = replay_basis(case) if to in ("replay_verified", "regression") else {"replays": []}
+    if to in ("replay_verified", "regression"):
+        # regression 也按当前内容版本重新核对：replay_verified 之后改过步骤/断言/授权，旧重放不再作数
+        if not basis["ok"]:
+            raise PermissionError(basis["why"])
+        if basis["product"] == "known_failure":
+            if not (known_issue or (case.get("product_status") or {}).get("issue")):
+                raise PermissionError("重放稳定复现产品失败：请用 --known-issue <缺陷单/Issue> 登记；不要改预期把缺陷变成通过")
+            case["product_status"] = {"status": "known_failure", "signature": basis["signature"],
+                                      "issue": known_issue or case["product_status"]["issue"], "since_hash": h}
+        else:
+            case["product_status"] = {"status": "conforming", "since_hash": h}
     if to == "regression":
         if not reviewer:
             raise PermissionError("晋级正式回归用例需要评审人 --reviewer")
+        # 判据适用性按计入晋级的重放里实际测到的事实判断（优先真机）
+        rows = sorted(basis["rows"], key=lambda r: (r["validation_level"] == "real_device", r["ts"]))
         refs = [r for a in case["assertions"] if not a.get("advisory") for r in a["oracle_refs"]]
-        st = knowledge.oracle_status(refs)
+        st = knowledge.oracle_status(refs, facts=rows[-1].get("facts") or {})
         if st["status"] != "confirmed":
             raise PermissionError(f"判据未全部确认：{st['reason']}")
-        if not allow_offline and not any(r["validation_level"] == "real_device" for r in good):
-            raise PermissionError("没有真机通过重放；如确需仅凭离线回放晋级，请显式 --allow-offline 并在评审中说明")
+        if not allow_offline and not any(r["validation_level"] == "real_device" for r in rows):
+            raise PermissionError("没有真机重放；如确需仅凭离线回放晋级，请显式 --allow-offline 并在评审中说明")
     case["history"] = case.get("history", []) + [{"ts": now_iso(), "from": cur, "to": to, "by": reviewer,
-                                                   "hash": h, "replays": [r["run_id"] for r in good]}]
+                                                   "hash": h, "replays": basis["replays"],
+                                                   "product_status": (case.get("product_status") or {}).get("status")}]
     case["status"] = to
     write_json(ws.case_path(case_id), case)
     return case

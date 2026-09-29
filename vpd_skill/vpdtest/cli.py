@@ -36,12 +36,19 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--device")
     a.add_argument("--session", default="default")
     a.add_argument("--target", help="targets.json 中的目标 ID")
+    a.add_argument("--select", help="现场选择器（仅限有 UI 树的页面）：text=<文字> / text~=<包含> / id=<id> / xpath=<表达式>；"
+                                    "多匹配/不可见/部分可见/执行前失效都不下发并返回诊断")
+    a.add_argument("--within", help="--select 的查找范围：type=<控件类型> / id=<容器 id> / pane=first|last")
     a.add_argument("--point", help="x,y：Agent 根据截图提议的坐标（须同时给 --basis，受 policy 约束）")
     a.add_argument("--basis", help="坐标依据说明")
     a.add_argument("--side-effect", default="navigation",
-                   help="--point 目标的副作用声明（例如 vehicle_motion），须与 --authorize 一致才会放行")
+                   help="--select/--point 目标的副作用声明（例如 user_data），须与 --authorize 一致才会放行")
+    a.add_argument("--allow-input", action="store_true",
+                   help="允许向 --select/--point 定位的输入框输入（非敏感测试数据；值会记入会话，密钥不能这样输入）")
     a.add_argument("--text")
+    a.add_argument("--direction", choices=["up", "down"], help="swipe 方向（默认 up）")
     a.add_argument("--expect", help="期望到达的状态 ID")
+    a.add_argument("--expect-text", help="动作后可见文字中应出现的正则（未声明状态的页面用它作后置条件）")
     a.add_argument("--timeout", type=float, default=8)
     a.add_argument("--duration", type=float, help="wait/monitor 的时长（秒）")
     a.add_argument("--interval", type=float, default=2, help="monitor 采样间隔（秒）")
@@ -84,14 +91,34 @@ def build_parser() -> argparse.ArgumentParser:
     x.add_argument("--run", required=True)
     x.add_argument("--transitions", nargs="+", required=True)
     x.add_argument("--new-id", required=True)
+    x = csub.add_parser("from-session", help="把 observe/act 会话提炼为候选用例（保留到原始事件的关联）")
+    x.add_argument("--session", required=True)
+    x.add_argument("--new-id", required=True)
+    x.add_argument("--app", required=True)
+    x.add_argument("--goal", help="原始测试目标（文字）")
+    x.add_argument("--title")
+    x.add_argument("--drop", action="append", help="排除与目标无关的动作并写明理由：A4=理由 或 A4-A7=理由")
     x = csub.add_parser("promote")
     x.add_argument("case")
     x.add_argument("--to", required=True, choices=["candidate", "replay_verified", "regression"])
     x.add_argument("--reviewer")
     x.add_argument("--allow-offline", action="store_true")
+    x.add_argument("--known-issue", help="重放稳定复现产品失败时登记的缺陷单/Issue（用例照常判失败，不改预期）")
+
+    ss = sub.add_parser("session", help="查看 observe/act 会话的完整轨迹")
+    ss.add_argument("session")
 
     k = sub.add_parser("knowledge", help="知识条目管理")
     ksub = k.add_subparsers(dest="k_cmd", required=True)
+    x = ksub.add_parser("search", help="检索产品要求 / 操作经验 / 现场观察，附来源、适用范围、验证状态、可调用命令")
+    x.add_argument("query", nargs="+", help="检索词，空格分隔")
+    x.add_argument("--app")
+    x.add_argument("--role", nargs="*", choices=["requirement", "operation", "observation", "background"])
+    x.add_argument("--app-version")
+    x.add_argument("--device-form", choices=["bar", "foldable"])
+    x.add_argument("--device", help="从设备只读取得 APP 版本与屏幕形态（需同时给 --app）")
+    x.add_argument("--env", action="append", help="其他事实 key=value，如 account_state=logged_in")
+    x.add_argument("--limit", type=int, default=8, help="每类最多返回条数")
     ksub.add_parser("list")
     x = ksub.add_parser("show")
     x.add_argument("id")
@@ -138,7 +165,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 HANDLERS = {"doctor": c.cmd_doctor, "observe": c.cmd_observe, "act": c.cmd_act, "run": c.cmd_run,
             "suite": c.cmd_suite, "explore": c.cmd_explore, "case": c.cmd_case, "knowledge": c.cmd_knowledge,
-            "experience": c.cmd_experience, "template-crop": c.cmd_template_crop}
+            "experience": c.cmd_experience, "template-crop": c.cmd_template_crop, "session": c.cmd_session}
 
 
 def main(argv=None) -> int:
@@ -158,7 +185,11 @@ def main(argv=None) -> int:
                          ensure_ascii=False))
         return 3
     print(dumps(out))
-    verdicts = [out.get("verdict")] + [r.get("verdict") for r in out.get("results", [])]
+    res = out.get("results")
+    rows = [out] + ([r for r in res if isinstance(r, dict)] if isinstance(res, list) else [])
+    if any(r.get("action_required") for r in rows):
+        return 2  # 需要现场人工接管：任何调用方都不能把它当成普通结论
+    verdicts = [r.get("verdict") for r in rows]
     return 1 if set(getattr(args, "fail_on", []) or []) & set(verdicts) else 0
 
 
