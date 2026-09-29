@@ -3,6 +3,10 @@
 所有字段都落在 `runs/<run_id>/` 下：`run.json`（汇总）、`events.jsonl`（追加写的原始事件）、
 `obs/<obs_id>/`（每次观测独占创建：`observation.json`、`tree.json`、`screen.png`）、`report.md`。
 
+进度事件（控制台据此显示进度，只读）：用例 `run_start`（含 `steps` 计划）→ `step_start`/`step_done` → `run_end`；
+用例集在 `runs/suite-*/events.jsonl` 写 `suite_start`（`total`）→ `case_start`/`case_done`（`run_id`、`verdict`）→ `suite_end`；
+探索 `explore_start` → `explore_end`。没有结束事件且超过 120 s 未更新的运行显示为"疑似中断"。
+
 ## 1. 观测（`obs/<id>/observation.json`）
 
 | 字段 | 含义 |
@@ -11,7 +15,7 @@
 | `source` | `hdc`（真机）或 `replay`（离线替身） |
 | `foreground` / `process_alive` | 前台 bundle、目标进程是否存活（`pidof`） |
 | `tree.status` | `ok` 有可用内容 / `empty` 调用成功但只有占位根节点 / `unavailable` 页面不提供 UI 树 / `error` 采集或解析失败 / `not_collected` 目标不在前台，按隐私策略不采 |
-| `screenshot.status` | `ok` / `withheld`（前台非目标 APP，不截图）/ `error` / `skipped` |
+| `screenshot.status` | `ok` / `withheld`（前台非目标 APP，不截图）/ `error` / `skipped`；`fallback_from` 表示首选截图方式失败后改用了 `snapshot_display`（如控制台帧流运行时 `screenCap` 不可用） |
 | `page.state` | 已声明状态 ID，或 `unknown`（附 `signature`）、`ambiguous`（附 `candidates`）、`undetermined`（无可用树）、`out_of_app`（附 `suspected_crash`） |
 | `page.interrupts` | 命中的中断：`{id, class: benign/anomaly/unknown, review: reviewed/pending}` |
 | `texts` | 可见文本（前 60 条），便于 Agent 快速判断 |

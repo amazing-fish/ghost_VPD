@@ -132,7 +132,9 @@ class HdcDevice:
         cmd = [self.hdc] + (["-t", self.serial] if with_target and self.serial else []) + args
         t0 = time.monotonic()
         try:
-            r = subprocess.run(cmd, capture_output=True, timeout=timeout or self.timeout_s)
+            # Windows 上不为 hdc 子进程弹出控制台窗口（控制台常驻或无窗口宿主中运行时尤其明显）
+            r = subprocess.run(cmd, capture_output=True, timeout=timeout or self.timeout_s,
+                               creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         except FileNotFoundError:
             return DeviceResult(op, False, False, "tool_missing", f"找不到 {self.hdc}，请确认已加入 PATH")
         except subprocess.TimeoutExpired as e:
@@ -237,7 +239,26 @@ class HdcDevice:
     def screenshot(self, local_path) -> DeviceResult:
         remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.png"
         r = self._shell("uitest", "screenCap", "-p", remote, op="screenshot", timeout=30)
-        return self._pull(remote, Path(local_path), "screenshot_pull") if r.ok else r
+        if r.ok and "saved" not in r.raw.lower():
+            # 2026-09-29 真机：投屏帧流（uitest Captures）运行期间 screenCap 输出
+            # "ScreenCap failed: Failed to get display pixelMap"，不含上面的失败标记
+            r.ok, r.error_class, r.error = False, "command_failed", r.raw.strip()[:300]
+        if r.ok:
+            return self._pull(remote, Path(local_path), "screenshot_pull")
+        if r.error_class in ("screen_locked", "device_offline", "transport_unavailable", "tool_missing"):
+            return r  # 设备侧前提不满足，换一种截图方式也一样失败，保留原始错误类别
+        # 回退 snapshot_display（同为整屏截图，帧流运行期间真机实测可用），并记下回退原因
+        s = self.snapshot(local_path, fmt="png")
+        s.data["fallback_from"] = {"op": "uitest screenCap", "error": r.error}
+        return s
+
+    def snapshot(self, local_path, fmt: str = "jpeg") -> DeviceResult:
+        """snapshot_display 整屏截图（jpeg 约 70KB，png 约 1.7MB，1320×2848 真机实测）。"""
+        remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.{fmt}"
+        r = self._shell("snapshot_display", "-f", remote, "-t", fmt, op="snapshot", timeout=30)
+        if r.ok and "success" not in r.raw.lower():
+            r.ok, r.error_class, r.error = False, "command_failed", r.raw.strip()[:300]
+        return self._pull(remote, Path(local_path), "snapshot_pull") if r.ok else r
 
     # ---- 动作 ----
     def tap(self, x: int, y: int) -> DeviceResult:
@@ -246,19 +267,49 @@ class HdcDevice:
     def swipe(self, x1: int, y1: int, x2: int, y2: int, speed: int = 2000) -> DeviceResult:
         return self._shell("uitest", "uiInput", "swipe", int(x1), int(y1), int(x2), int(y2), int(speed), op="swipe")
 
-    def input_text(self, x: int, y: int, text: str) -> DeviceResult:
+    @staticmethod
+    def _text_arg(text: str, op: str):
+        """返回 (设备端 shell 参数, None) 或 (None, 不支持时的 DeviceResult)。"""
         if re.search(r"\s", text):
-            return DeviceResult("input_text", False, False, "unsupported", "v0.1 的 uiInput inputText 不支持含空白的文本")
+            return None, DeviceResult(op, False, False, "unsupported", "v0.1 的 uiInput 文本输入不支持含空白的文本")
         if not re.fullmatch(r"[A-Za-z0-9_.@+\-一-鿿]*", text):
             # hdc shell 的参数会经过设备端 shell：含 $ ; & | ' " 等字符的文本（例如密码）用单引号包起来，
             # 避免被当成 shell 语法。设备端 shell 的转义行为未在真机上逐字符验证
             text = "'" + text.replace("'", "'\\''") + "'"
-        return self._shell("uitest", "uiInput", "inputText", int(x), int(y), text, op="input_text")
+        return text, None
+
+    def input_text(self, x: int, y: int, text: str) -> DeviceResult:
+        arg, bad = self._text_arg(text, "input_text")
+        return bad or self._shell("uitest", "uiInput", "inputText", int(x), int(y), arg, op="input_text")
+
+    def type_focused(self, text: str) -> DeviceResult:
+        """向当前已聚焦的输入框输入（uiInput text），不先点击坐标。"""
+        arg, bad = self._text_arg(text, "type_focused")
+        return bad or self._shell("uitest", "uiInput", "text", arg, op="type_focused")
+
+    def long_press(self, x: int, y: int) -> DeviceResult:
+        return self._shell("uitest", "uiInput", "longClick", int(x), int(y), op="long_press")
 
     def key(self, name: str) -> DeviceResult:
         if name not in KEYS:
             return DeviceResult("key", False, False, "unsupported", f"不支持的按键 {name}")
         return self._shell("uitest", "uiInput", "keyEvent", KEYS[name], op=f"key_{name}")
+
+    def wakeup(self) -> DeviceResult:
+        """只点亮屏幕，不解锁（锁屏密码不由工具输入）。"""
+        return self._shell("power-shell", "wakeup", op="wakeup")
+
+    def screen_off_override(self) -> Optional[int]:
+        """当前的熄屏时间覆盖值（ms）。锁屏状态下系统自己会设 10000ms（2026-09-29 真机观测），没有覆盖时为 None。"""
+        r = self._shell("hidumper", "-s", "3301", "-a", "-a", op="power_state")
+        m = re.search(r"OverrideTimeout=(\d+)ms", r.raw) if r.ok else None
+        return int(m.group(1)) if m else None
+
+    def set_screen_off(self, ms: Optional[int]) -> DeviceResult:
+        """覆盖熄屏时间；ms 为 None 时撤销覆盖（power-shell timeout -o / -r）。"""
+        if ms is None:
+            return self._shell("power-shell", "timeout", "-r", op="screen_off_restore")
+        return self._shell("power-shell", "timeout", "-o", int(ms), op="screen_off_override")
 
     def launch(self, bundle: str, ability: str) -> DeviceResult:
         r = self._shell("aa", "start", "-a", ability, "-b", bundle, op="launch")

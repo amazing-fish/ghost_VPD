@@ -21,6 +21,8 @@
 4. 控车：`.\vpdtest.ps1 run TC-QK-103 --device $D --env account_state=logged_in --authorize vpd_entry route_planning vehicle_motion --supervisor <监护人>`。用例必须声明 `safety`；运行中出现首次失败、超时（`max_motion_s`）或用例结束仍在动，执行器自动执行安全停止并单独记录。
 5. 读报告：监视时间线（TOR、车速、故障文字的首次出现时间）、看门狗 `motion[]`、`safety_stops[]`。有 `action_required` 时立即转告用户人工接管。
 6. 单步控车同理（加 `--app qiankun_hm`）：`act tap --target qk_pause` 不需授权（safe_stop）；`act tap --target qk_continue --authorize vehicle_motion --supervisor <人>`。
+7. 监护人可以另开 `.\vpdtest.ps1 console --device $D --view-only` 实时看画面和步骤进度（`runs/run-*` 的第 n/N 步、看门狗状态）；
+   需要人工接管时在手机上或控制台里操作，控制台会话日志记录每次手动操作的时间，便于和运行事件对照。
 
 ## 探索
 

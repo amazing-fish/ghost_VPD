@@ -29,6 +29,7 @@ vpd_skill/
                            qiankun_hm_base（未登录、有故障）/ qiankun_hm_ready（已登录、无故障）
   tests/                   pytest
   scripts/demo_offline.py  离线闭环演示
+  vpdtest/console/         本机控制台：NEXT 投屏、手动操作、运行进度（vpdtest console）
 ```
 
 ## 安装（Windows / PowerShell）
@@ -44,7 +45,8 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 .\install.ps1 -IndexUrl <公司 pip 镜像>
 ```
 
-依赖只有 `lxml`、`opencv-python`、`numpy`（与原工程版本一致）和 `pytest`；不需要数据库、Redis、Flask 或网络服务。
+依赖只有 `lxml`、`opencv-python`、`numpy`、`hmdriver2`（与原工程版本一致）和 `pytest`；不需要数据库、Redis、Flask 或网络服务。
+`hmdriver2` 只用于控制台的 uitest 帧流与快速点击，缺失时控制台回退到 `snapshot_display` 轮询，执行器不受影响。
 
 ## 配置
 
@@ -83,6 +85,26 @@ $env:VPD_SECRET_QIANKUN_PHONE = '<账号>'; $env:VPD_SECRET_QIANKUN_PASSWORD = '
 回归、探索、单步决策、探索转用例、经验晋级的完整步骤见 [references/workflows.md](references/workflows.md)
 与 [references/knowledge-rsi.md](references/knowledge-rsi.md)。
 
+## 控制台：NEXT 投屏与运行进度
+
+```powershell
+.\vpdtest.ps1 console --device hdc:<serial>                  # 打印 {"console": "http://127.0.0.1:8765/?token=..."}，在本机浏览器打开
+.\vpdtest.ps1 console --device hdc:<serial> --keep-awake 30  # 运行期间熄屏时间覆盖为 30 分钟，退出时恢复原值
+.\vpdtest.ps1 console --no-device                            # 只看 runs/ 进度，不连手机
+```
+
+- 画面：优先 uitest 帧流（hmdriver2 部署的 uitest agent，真机约 10~13 fps、660×1424）；帧流连续失败 3 次或未安装 hmdriver2 时回退
+  `snapshot_display` 轮询（约 1.6 fps、全分辨率）。帧只在内存中，不落盘。
+- 操作：点击、拖动滑动、按住 0.6 s 长按、返回、主页、点亮屏幕、向已聚焦输入框输入（不含空白）。坐标按画面比例换算成设备像素，不写死分辨率。
+  优先走帧流所在的 uitest 会话（不必每次起 hdc 进程）；会话不可用时改走 `hdc shell uitest uiInput`。请求已发出但失败时不自动重发，避免重复点击。
+- 进度：列出 `runs/` 下用例（第 n/N 步、当前步骤、运动看门狗状态、结论）、用例集（完成数、各结论计数、当前用例）、探索与控制台会话；
+  点开看步骤、断言与最近事件。最后一条事件超过 120 s 未更新且没有结束事件的，标为"疑似中断"，不猜结论。
+- 安全：只允许绑定 127.0.0.1 / localhost；每次启动随机 token；校验 Host（防 DNS rebinding）；POST 还要 `X-VPD-Token` 请求头与同源 Origin；
+  严格 CSP（nonce）、不发 Referer、禁止嵌入。**没有用户体系**：本机上拿到 URL 的人都能看屏幕、操作手机，URL 不要外传，不要改成监听其他地址。
+- 手动操作等同于人直接触碰手机，不经过 policy 与授权检查；每次操作写入 `runs/console-*/events.jsonl`（只记坐标、按键和文字长度）。
+  Agent 不得用控制台代替 `act/run/explore`。激活泊车代驾等会动车的操作，须有人在车旁监护。
+- 控制台运行期间 `uitest screenCap` 失败（真机报 "Failed to get display pixelMap"），执行器截图自动回退 `snapshot_display`，observation 里记 `fallback_from`。
+
 ## 数据状态说明（重要）
 
 - 仓库和本机均**未找到既有的 VPD 知识库或文字用例**。`data/knowledge/items.json` 中 K-MOT-* 条目提取自原工程代码（附文件行号与提交号），状态均为 **unconfirmed**；`TC-MOTOR-HM-001.md` 是按原工程登录/登出路径整理的种子样例。因此在真机上运行这些用例，结论会是"待确认"而不是"通过"，这是预期行为。
@@ -120,7 +142,15 @@ $env:VPD_SECRET_QIANKUN_PHONE = '<账号>'; $env:VPD_SECRET_QIANKUN_PASSWORD = '
 | 缺密钥 / 缺授权 / 缺监护人 | 离线回放 + pytest | 运行前判阻塞（环境），一步都不执行 |
 | 同一用例跑三种形态：真机参数直板（391 vp）、小直板（360 vp，「设置」被底部导航遮住）、折叠屏展开（733 vp，左右分栏） | 离线回放 + pytest | 三种形态均通过；反例测试确认按 bounds 中心点击会点到底部导航、按整屏中线滑动滑不动左栏、整窗匹配会把设置页认成「我的」 |
 
+| 控制台帧流（只看模式） | 真机 `console --view-only` + curl | uitest 帧流 45 s 共 329 帧，稳定后 10~13 fps，帧 660×1424；`/frame.jpg`、`/stream`（5 s 49 帧）正常；无 token 401；只看模式拒绝输入 |
+| 帧流与其他 uitest 命令并存 | 真机探针 | 帧流期间 `dumpLayout` 与点击正常；`screenCap` 失败、`snapshot_display` 可用；停流后 `screenCap` 恢复 |
+| 控制台页面（点击/滑动坐标换算、进度面板、浅色/深色、390 px 窄屏） | 无界面 chrome-headless-shell + 假设备 | 通过：画面 25%/50% 处点击换算为 (330, 1424)；无控制台报错与 CSP 拦截；窄屏无横向滚动 |
+| 控制台鉴权、帧切分（含 APP 段嵌套标记）、进度汇总、截图回退 | pytest（假设备） | 通过 |
+
 ## 仍未验证的边界
+
+- 控制台在真机上的输入（点击/滑动/长按/文字、uitest 会话快速路径与 hdc 回退的实际延迟）：本轮真机验证时手机正被用户使用，只做了只看模式；
+  折叠屏、横屏与运行中旋转时的画面与坐标换算未验证（坐标按当时读到的显示尺寸换算）。
 
 - 真实弹窗文案、崩溃/无响应提示文案；TC-MOTOR-HM-002/003 未在真机上运行。
 - 折叠屏、平板、横屏、分屏/悬浮窗：只有离线合成世界验证。鸿蒙智行在宽屏上的真实布局（导航是否移到侧边、是否分栏、分栏容器类型）、

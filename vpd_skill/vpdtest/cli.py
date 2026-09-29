@@ -128,6 +128,19 @@ def build_parser() -> argparse.ArgumentParser:
     x.add_argument("--to-version", type=int, required=True)
     x.add_argument("--reason", required=True)
 
+    cn = sub.add_parser("console", help="本机控制台：NEXT 投屏、手动操作与运行进度（只监听 127.0.0.1）")
+    cn.add_argument("--device", help="hdc:<serial>；省略且未配置设备时只显示运行进度")
+    cn.add_argument("--no-device", action="store_true", help="不连接设备，只显示运行进度")
+    cn.add_argument("--host", default="127.0.0.1", help="只允许 127.0.0.1 / localhost")
+    cn.add_argument("--port", type=int, default=8765, help="0 表示随机端口")
+    cn.add_argument("--source", choices=["auto", "stream", "snapshot"], default="auto",
+                    help="auto：uitest 帧流（需 hmdriver2），失败回退 snapshot_display 轮询")
+    cn.add_argument("--view-only", action="store_true", help="只看不操作")
+    cn.add_argument("--max-fps", type=float, default=12.0)
+    cn.add_argument("--keep-awake", type=float, metavar="MIN",
+                    help="控制台运行期间把熄屏时间覆盖为 MIN 分钟，退出时恢复原值（不解锁）")
+    cn.add_argument("--duration", type=float, help="运行 N 秒后自动退出（默认一直运行到 Ctrl+C）")
+
     t = sub.add_parser("template-crop", help="从观测截图裁剪模板")
     t.add_argument("--app", default="motor_hm")
     t.add_argument("--obs-dir", required=True)
@@ -138,7 +151,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 HANDLERS = {"doctor": c.cmd_doctor, "observe": c.cmd_observe, "act": c.cmd_act, "run": c.cmd_run,
             "suite": c.cmd_suite, "explore": c.cmd_explore, "case": c.cmd_case, "knowledge": c.cmd_knowledge,
-            "experience": c.cmd_experience, "template-crop": c.cmd_template_crop}
+            "experience": c.cmd_experience, "template-crop": c.cmd_template_crop, "console": c.cmd_console}
 
 
 def main(argv=None) -> int:

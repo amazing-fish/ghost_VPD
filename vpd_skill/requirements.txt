@@ -3,5 +3,7 @@ lxml==5.4.0
 # 与原工程 requirements.txt 保持一致；仅模板定位与回放截图需要
 opencv-python==4.11.0.86
 numpy==2.5.2
+# 与原工程 requirements.txt 一致；仅 vpdtest console 的 uitest 帧流与快速点击用到（缺失时回退 snapshot_display + hdc）
+hmdriver2==1.4.3
 # 测试
 pytest==9.1.1

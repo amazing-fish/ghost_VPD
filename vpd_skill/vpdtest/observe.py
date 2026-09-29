@@ -99,6 +99,8 @@ class Observer:
             if r.ok and (d / "screen.png").exists():
                 obs["screenshot"] = {"status": "ok", "path": self.store.rel(d / "screen.png"),
                                      "sha256": sha256_file(d / "screen.png")[:16]}
+                if r.data.get("fallback_from"):  # 例如控制台帧流占用时 screenCap 失败，改用 snapshot_display
+                    obs["screenshot"]["fallback_from"] = r.data["fallback_from"]
             else:
                 obs["screenshot"] = {"status": "error", "error_class": r.error_class, "error": r.error}
 

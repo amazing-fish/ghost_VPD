@@ -56,6 +56,14 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
 - 宽屏与窄屏布局不同的目标，用策略上的 `within`（限定容器/分栏）或 `when`（限定形态）表达，不要为某台设备写死区域或坐标。
 - 形态阈值（用户估计约 640 vp，ArkUI 默认 600/840 vp）尚未在被测 APP 上确认；确认后只改 `data/layout.json`。
 
+## 控制台（投屏与进度）
+
+- `console --device hdc:<serial>` 在本机起一个网页：NEXT 实时投屏、点击/滑动/返回/主页、`runs/` 下用例/用例集/探索的进度。
+  它是给人看和人手动操作的；**你的设备动作只能走 `act/run/explore`**，不要调用控制台的输入接口（它不经过 policy、授权与证据）。
+- 替用户启动时把打印的 URL 交给用户（含访问 token，只在本机打开）；你自己只需要看进度时加 `--view-only` 或 `--no-device`。
+- 控制台只监听 127.0.0.1，没有用户体系：本机上拿到 URL 的人都能看屏幕、操作手机。
+- 控制台运行时执行器截图会从 `uitest screenCap` 回退到 `snapshot_display`（观测里记为 `fallback_from`），不影响判定。
+
 ## 何时需要你的判断
 
 | 情况 | 你要做的 |
@@ -83,6 +91,7 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
 .\vpdtest.ps1 act tap --target tab_my --expect my_tab --session s1 --device hdc:<serial>
 .\vpdtest.ps1 case from-exploration --run <explore-id> --transitions T3 T5 --new-id TC-EXP-001
 .\vpdtest.ps1 experience validate <XP-id> --suite motor_hm_smoke --device <spec1> --device <spec2>
+.\vpdtest.ps1 console --device hdc:<serial> [--view-only] [--keep-awake 30]    # 阻塞运行，Ctrl+C 退出
 ```
 
 离线（无真机）把 `--device` 换成 `replay:motor_hm_base.json`、`replay:qiankun_hm_ready.json` 等回放世界；回放结论只证明协议与闭环，必须在汇报中标注"离线回放"。

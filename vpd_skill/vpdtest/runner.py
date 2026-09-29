@@ -38,7 +38,9 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     ctx = RunContext(ws, app, device, store, overlay, mode="regression")
     knowledge = KnowledgeStore(ws.root)
     started = now_iso()
-    store.event("run_start", case=case["id"], device=device.spec, overlay=overlay.describe())
+    # 步骤计划写在首条事件里：控制台据此显示"第 n/N 步"，不必等 run.json
+    store.event("run_start", case=case["id"], title=case.get("title"), device=device.spec, overlay=overlay.describe(),
+                steps=[s["id"] for s in case["steps"]])
 
     pre = device.preflight(app.bundle)
     store.event("preflight", ok=pre["ok"], checks=pre["checks"])
@@ -84,6 +86,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                               "critical": st.get("critical", True), "attempts": [], "recoveries": [], "adapted": False,
                               "oracle_refs": st.get("oracle_refs", [])})
                 continue
+            store.event("step_start", step=st["id"], action=st["action"])
             res = ex.run_step(st, case["id"])
             steps.append(res)
             store.event("step_done", step=st["id"], outcome=res["outcome"])
