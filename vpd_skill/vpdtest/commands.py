@@ -221,7 +221,7 @@ def cmd_console(ws: Workspace, a) -> dict:
 
     from .console.server import Console, is_loopback, serve
     if not is_loopback(a.host):  # 先校验，避免连上设备、起了帧流才报错
-        raise ValueError(f"控制台只允许绑定 IPv4 回环地址（127.0.0.1 / localhost），拒绝 {a.host}")
+        raise ValueError(f"控制台只允许绑定 127.0.0.1 或 localhost，拒绝 {a.host}")
     spec = None if a.no_device else (a.device or ws.config.get("device"))
     if spec and not spec.startswith("hdc:"):
         raise ValueError("控制台只支持真机 hdc:<serial>；回放 world 请用 run/observe")

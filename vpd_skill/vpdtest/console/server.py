@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import hmac
-import ipaddress
 import json
 import secrets
 import threading
@@ -26,15 +25,12 @@ MAX_BODY = 4096
 BOUNDARY = "vpdframe"
 
 
+ALLOWED_HOSTS = ("127.0.0.1", "localhost")
+
+
 def is_loopback(host: str) -> bool:
-    """只接受 IPv4 回环（ThreadingHTTPServer 默认 AF_INET）与 localhost。"""
-    if host == "localhost":
-        return True
-    try:
-        ip = ipaddress.ip_address(host)
-    except ValueError:
-        return False
-    return ip.version == 4 and ip.is_loopback
+    """只接受 127.0.0.1 与 localhost：与 Host 头校验的白名单一致（127.0.0.2 等虽是回环，但请求会被 421 拒绝）。"""
+    return host in ALLOWED_HOSTS
 
 
 class Console:
@@ -101,8 +97,36 @@ class Console:
                 "display": {k: d.get(k) for k in ("width_px", "height_px", "density", "device_form", "fold_status")},
                 "keep_awake": self.keep_awake, "console_run": self.store.run_id}
 
+    @staticmethod
+    def _aspect_mismatch(frame_size, size) -> bool:
+        """画面与换算用尺寸的宽高比差 5% 以上（旋转、折叠/展开后）。帧流是半分辨率，所以比较比例而不是像素。"""
+        if not frame_size or not size or not all(frame_size) or not all(size):
+            return False
+        a, b = frame_size[0] / frame_size[1], size[0] / size[1]
+        return abs(a - b) / b > 0.05
+
+    def _check_geometry(self) -> Optional[str]:
+        """坐标类操作前确认换算尺寸仍与当前画面一致；不一致先重读显示参数，仍不一致就拒绝，不按旧尺寸猜。"""
+        frame = self.hub.size
+        if not self._aspect_mismatch(frame, self.control.size):
+            return None
+        self.display = self.device.display_info()
+        size = (self.display.get("width_px"), self.display.get("height_px"))
+        if all(size):
+            self.control.size = tuple(size)
+        if self._aspect_mismatch(frame, self.control.size):
+            return f"画面 {frame[0]}×{frame[1]} 与设备尺寸 {self.control.size} 的方向/比例不一致（旋转或折叠中），已拒绝，稍后重试"
+        self.store.event("console_display_refresh", size=list(self.control.size), frame=list(frame))
+        return None
+
     def input(self, cmd: dict) -> dict:
         with self._lock:  # 串行执行，避免两次操作交错
+            if cmd.get("op") in ("tap", "long_press", "swipe"):
+                why = self._check_geometry()
+                if why:
+                    rec = {"op": cmd.get("op"), "ok": False, "error_class": "display_mismatch", "error": why}
+                    self.store.event("console_input", **rec)
+                    return rec
             return self.control.handle(cmd)
 
     def close(self) -> None:
@@ -131,7 +155,7 @@ def make_handler(console: Console, token: str, port_ref: dict):
         # ---- 校验 ----
         def _host_ok(self) -> bool:
             host = (self.headers.get("Host") or "").strip()
-            return host in {f"127.0.0.1:{port_ref['port']}", f"localhost:{port_ref['port']}"}
+            return host in {f"{h}:{port_ref['port']}" for h in ALLOWED_HOSTS}
 
         def _token_ok(self, allow_query: bool) -> bool:
             got = self.headers.get("X-VPD-Token") or ""
@@ -143,7 +167,7 @@ def make_handler(console: Console, token: str, port_ref: dict):
             origin = self.headers.get("Origin")
             if origin is None:
                 return True  # 非浏览器客户端（curl 等）不带 Origin；token 请求头仍是必需的
-            return origin in {f"http://127.0.0.1:{port_ref['port']}", f"http://localhost:{port_ref['port']}"}
+            return origin in {f"http://{h}:{port_ref['port']}" for h in ALLOWED_HOSTS}
 
         # ---- 输出 ----
         def _headers(self, code: int, ctype: str, length: Optional[int] = None, nonce: Optional[str] = None):
@@ -219,7 +243,8 @@ def make_handler(console: Console, token: str, port_ref: dict):
             if not isinstance(cmd, dict):
                 return self._deny(400, "请求体须为对象")
             res = console.input(cmd)
-            return self._json(200 if res.get("ok") else 400 if res.get("error_class") == "bad_request" else 502, res)
+            code = 200 if res.get("ok") else {"bad_request": 400, "display_mismatch": 409}.get(res.get("error_class"), 502)
+            return self._json(code, res)
 
         def _stream(self):
             self.send_response(200)
@@ -249,16 +274,14 @@ def serve(console: Console, host: str = "127.0.0.1", port: int = 8765, duration:
           on_ready=None, stop: Optional[threading.Event] = None) -> dict:
     """阻塞到 Ctrl+C、duration 秒或 stop 被置位。on_ready(url, port) 在开始监听后调用。"""
     if not is_loopback(host):
-        raise ValueError(f"控制台只允许绑定 IPv4 回环地址（127.0.0.1 / localhost），拒绝 {host}：没有用户鉴权，不能暴露到网络")
+        raise ValueError(f"控制台只允许绑定 127.0.0.1 或 localhost，拒绝 {host}：没有用户鉴权，不能暴露到网络")
     token = secrets.token_urlsafe(24)
     stop = stop or threading.Event()
     port_ref = {"port": port, "stopping": stop}
     httpd = ThreadingHTTPServer((host, port), make_handler(console, token, port_ref))
     httpd.daemon_threads = True
     port_ref["port"] = httpd.server_address[1]
-    # Host 校验只认 127.0.0.1 / localhost：绑定到其他 127.x 地址时 URL 仍用 127.0.0.1 访问不到，统一显示绑定地址
-    shown = "localhost" if host == "localhost" else "127.0.0.1" if host == "127.0.0.1" else host
-    url = f"http://{shown}:{port_ref['port']}/?token={token}"
+    url = f"http://{host}:{port_ref['port']}/?token={token}"
     console.store.event("console_start", host=host, port=port_ref["port"], device=getattr(console.device, "spec", None),
                         input=console.allow_input)
     th = threading.Thread(target=httpd.serve_forever, name="console-http", daemon=True)

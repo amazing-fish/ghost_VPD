@@ -121,13 +121,30 @@ def test_progress_run_suite_explore_and_stale(tmp_path):
         assert progress.detail(runs, bad) is None
 
 
-def test_progress_reads_only_tail_of_large_events(tmp_path):
+def test_progress_counts_survive_large_event_files_and_read_incrementally(tmp_path):
     d = tmp_path / "runs" / "run-20260929-040404-dddd"
     d.mkdir(parents=True)
-    _events(d, {"event": "run_start", "case": "TC-L", "steps": ["S1"]})
-    _events(d, *[{"event": "observe", "state": "x", "pad": "p" * 200} for _ in range(3000)])
+    _events(d, {"event": "run_start", "case": "TC-L", "steps": ["S1", "S2"]},
+            {"event": "step_start", "step": "S1"}, {"event": "step_done", "step": "S1", "outcome": "passed"},
+            {"event": "step_start", "step": "S2"}, {"event": "motion_armed", "step": "S2"})
+    # 长时间监视：大量采样事件把前面的步骤事件挤出任何固定大小的尾部窗口（约 1.3MB）
+    _events(d, *[{"event": "observe", "state": "x", "pad": "p" * 400} for _ in range(3000)])
     s = progress.summarize(d)
-    assert s["title"] == "TC-L" and s["total"] == 1 and s["events"] < 3000  # 首行单独读取，其余只读尾部
+    assert (s["title"], s["total"], s["done"], s["current"], s["motion"], s["events"]) == \
+        ("TC-L", 2, 1, "S2", "motion_armed", 3005)   # 已完成数不倒退
+    size = (d / "events.jsonl").stat().st_size
+    with (d / "events.jsonl").open("ab") as f:       # 写到一半的行不计入，写完后再计入
+        f.write(b'{"ts": "t", "event": "step_do')
+    assert progress.summarize(d)["events"] == 3005
+    with (d / "events.jsonl").open("ab") as f:
+        f.write(b'ne", "step": "S2", "outcome": "passed"}\n')
+    s = progress.summarize(d)
+    assert (s["done"], s["current"], s["events"]) == (2, None, 3006)
+    assert progress._SCANS[str((d / "events.jsonl").resolve())].offset > size   # 增量读取，不重读整个文件
+    (d / "events.jsonl").write_text('{"ts": "t", "event": "run_start", "case": "TC-N", "steps": ["S1"]}\n',
+                                    encoding="utf-8")
+    s = progress.summarize(d)
+    assert (s["title"], s["done"], s["events"]) == ("TC-N", 0, 1)   # 文件被替换（变小）：从头重读
 
 
 # ---- 假设备 ----
@@ -136,12 +153,15 @@ class FakeDevice:
 
     def __init__(self):
         self.calls, self.override = [], 10000
+        self.wh = (1320, 2848)        # 显示参数报告的尺寸
+        self.frame_wh = (1320, 2848)  # 画面实际尺寸（旋转时先于显示参数变化）
 
     def display_info(self):
-        return {"width_px": 1320, "height_px": 2848, "density": 3.375, "device_form": "bar"}
+        return {"width_px": self.wh[0], "height_px": self.wh[1], "density": 3.375, "device_form": "bar"}
 
     def snapshot(self, local_path, fmt="jpeg"):
-        Path(local_path).write_bytes(fake_jpeg(1320, 2848))
+        Path(local_path).write_bytes(fake_jpeg(*self.frame_wh))
+        time.sleep(0.01)
         return DeviceResult("snapshot", True, True)
 
     def _rec(self, *call):
@@ -292,9 +312,37 @@ def test_console_frames_stream_view_only_and_keep_awake(served):
     assert box["dev"].calls[-1] == ("set_screen_off", 10000)  # 恢复启动前的值，而不是简单撤销
 
 
+def test_console_input_follows_rotation_or_refuses(tmp_path):
+    dev = FakeDevice()
+    con = Console(dev, RunStore(tmp_path / "runs", kind="console"), tmp_path / "runs")
+    try:
+        con.hub.wait(0, timeout=3)
+        assert con.input({"op": "tap", "x": 0.75, "y": 0.5})["ok"] and dev.calls[-1] == ("tap", 990, 1424)
+
+        def wait_frame(wh):
+            deadline = time.time() + 3
+            while time.time() < deadline and con.hub.size != wh:
+                time.sleep(0.02)
+            assert con.hub.size == wh
+        dev.frame_wh = (2848, 1320)   # 转成横屏，但显示参数还没更新：拒绝，不按旧尺寸换算
+        wait_frame((2848, 1320))
+        r = con.input({"op": "tap", "x": 0.75, "y": 0.5})
+        assert not r["ok"] and r["error_class"] == "display_mismatch" and dev.calls[-1] == ("tap", 990, 1424)
+        assert con.input({"op": "key", "key": "back"})["ok"]   # 不依赖坐标的操作不受影响
+        dev.wh = (2848, 1320)         # 显示参数跟上：重读后按新尺寸换算
+        r = con.input({"op": "tap", "x": 0.75, "y": 0.5})
+        assert r["ok"] and dev.calls[-1] == ("tap", 2136, 660)
+        dev.frame_wh = (1424, 660)    # 帧流是半分辨率：只比较宽高比，不因像素不同误拒
+        wait_frame((1424, 660))
+        assert con.input({"op": "swipe", "x1": 0.5, "y1": 0.5, "x2": 0.1, "y2": 0.5})["ok"]
+    finally:
+        con.close()
+
+
 def test_console_refuses_non_loopback_bind(tmp_path):
     assert is_loopback("127.0.0.1") and is_loopback("localhost")
     assert not is_loopback("0.0.0.0") and not is_loopback("192.168.1.2") and not is_loopback("::1")
+    assert not is_loopback("127.0.0.2")  # 虽是回环，但不在 Host 白名单里，访问会被 421 拒绝
     con = Console(None, RunStore(tmp_path / "runs", kind="console"), tmp_path / "runs")
     with pytest.raises(ValueError):
         serve(con, "0.0.0.0", 0, duration=0)
