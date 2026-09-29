@@ -39,31 +39,43 @@ def is_loopback(host: str) -> bool:
 
 
 class Console:
-    """设备侧状态：帧源、手动操作、熄屏覆盖。device 为 None 时只提供进度面板。"""
+    """设备侧状态：帧源、手动操作、熄屏覆盖。device 为 None 时只提供进度面板。
+
+    生命周期：构造不产生副作用；start() 获取资源（帧源线程、熄屏覆盖）；close() 是唯一的释放点，
+    幂等，且与帧流回退互斥——关闭之后不会再起新的帧源。serve() 负责保证 start 之后一定 close。"""
 
     def __init__(self, device, store, runs_dir: Path, source: str = "auto", allow_input: bool = True,
                  max_fps: float = 12.0, keep_awake_min: Optional[float] = None):
         self.device, self.store, self.runs_dir = device, store, Path(runs_dir)
         self.hub = FrameHub()
         self.max_fps = max_fps
+        self.source_pref = source
         self.allow_input = allow_input and device is not None
         self.display = None
         self.src = None
         self.fast = None
         self.fallback_reason = None
-        self._lock = threading.Lock()
-        self._closed = False
+        self.control = None
+        self._lock = threading.Lock()   # 串行化手动操作
+        self._life = threading.Lock()   # 串行化 start / 回退 / close
+        self._started = self._closed = False
         self.keep_awake = {"requested_min": keep_awake_min, "previous_override_ms": None, "applied": False}
-        if device is not None:
-            self.display = device.display_info()
+
+    def start(self) -> "Console":
+        with self._life:
+            if self._started or self._closed:
+                return self
+            self._started = True
+            if self.device is None:
+                self.hub.set_status("no_device")
+                return self
+            self.display = self.device.display_info()
             size = (self.display.get("width_px"), self.display.get("height_px"))
-            self.control = Control(device, store, size=size if all(size) else None)
-            self._start_source(source)
-            if keep_awake_min:
-                self._keep_awake(keep_awake_min)
-        else:
-            self.control = None
-            self.hub.set_status("no_device")
+            self.control = Control(self.device, self.store, size=size if all(size) else None)
+            self._start_source(self.source_pref)
+            if self.keep_awake["requested_min"]:
+                self._keep_awake(self.keep_awake["requested_min"])
+        return self
 
     def _start_source(self, source: str) -> None:
         if source in ("auto", "stream") and getattr(self.device, "kind", None) == "hdc":
@@ -82,7 +94,10 @@ class Console:
         self.store.event("console_source", source=self.src.name, reason=self.fallback_reason)
 
     def _fallback(self, reason: str) -> None:
-        with self._lock:
+        """由帧流线程在连续失败后调用。已关闭（或正在关闭）时什么都不做。"""
+        with self._life:
+            if self._closed:
+                return
             self.fallback_reason = f"帧流连续失败，改用 snapshot_display：{reason}"
             self.fast = self.control.fast = None
             self.src = SnapshotSource(self.device, self.hub, self.store.dir / "tmp")
@@ -135,11 +150,18 @@ class Console:
             return self.control.handle(cmd)
 
     def close(self) -> None:
-        if self._closed:
-            return
-        self._closed = True
-        if self.src:
-            self.src.stop()
+        with self._life:  # 置位之后 _fallback 不会再起新帧源
+            if self._closed:
+                return
+            self._closed = True
+            src = self.src
+        # 停帧源不能持锁：帧流线程可能正卡在 _fallback 等这把锁，持锁 join 会死锁
+        stopped = set()
+        while src is not None and id(src) not in stopped:
+            src.stop()
+            stopped.add(id(src))
+            with self._life:
+                src = self.src  # 关闭前一刻刚回退出的新帧源也要停掉
         if self.keep_awake.get("applied"):
             # 恢复启动前的值（锁屏时系统自己会设 10000ms），而不是简单撤销覆盖
             prev = self.keep_awake.get("previous_override_ms")
@@ -283,22 +305,22 @@ def serve(console: Console, host: str = "127.0.0.1", port: int = 8765, duration:
     token = secrets.token_urlsafe(24)
     stop = stop or threading.Event()
     port_ref = {"port": port, "stopping": stop}
+    httpd, served, t0 = None, False, time.monotonic()
+    # 从 start() 到退出只有这一个 try/finally：绑定失败、on_ready 抛异常（例如 stdout 管道已关）、
+    # Ctrl+C 都走同一条收尾路径（停 HTTP、停帧源、恢复熄屏覆盖）
     try:
+        console.start()
         httpd = _Server((host, port), make_handler(console, token, port_ref))
-    except Exception:
-        console.close()  # 端口被占用等：帧源已启动、熄屏覆盖可能已生效，必须收尾再抛出
-        raise
-    httpd.daemon_threads = True
-    port_ref["port"] = httpd.server_address[1]
-    url = f"http://{host}:{port_ref['port']}/?token={token}"
-    console.store.event("console_start", host=host, port=port_ref["port"], device=getattr(console.device, "spec", None),
-                        input=console.allow_input)
-    th = threading.Thread(target=httpd.serve_forever, name="console-http", daemon=True)
-    th.start()
-    if on_ready:
-        on_ready(url, port_ref["port"])
-    t0 = time.monotonic()
-    try:
+        httpd.daemon_threads = True
+        port_ref["port"] = httpd.server_address[1]
+        url = f"http://{host}:{port_ref['port']}/?token={token}"
+        console.store.event("console_start", host=host, port=port_ref["port"],
+                            device=getattr(console.device, "spec", None), input=console.allow_input)
+        threading.Thread(target=httpd.serve_forever, name="console-http", daemon=True).start()
+        served = True
+        if on_ready:
+            on_ready(url, port_ref["port"])
+        t0 = time.monotonic()
         while not stop.wait(0.5):  # 短间隔等待：Windows 上 Ctrl+C 才能及时打断
             if duration is not None and time.monotonic() - t0 >= duration:
                 break
@@ -306,8 +328,10 @@ def serve(console: Console, host: str = "127.0.0.1", port: int = 8765, duration:
         pass
     finally:
         stop.set()
-        httpd.shutdown()
-        httpd.server_close()
+        if httpd is not None:
+            if served:
+                httpd.shutdown()
+            httpd.server_close()
         console.close()
         console.store.event("console_end", uptime_s=round(time.monotonic() - t0, 1), frames=console.hub.seq)
     return {"console_run": console.store.run_id, "uptime_s": round(time.monotonic() - t0, 1),

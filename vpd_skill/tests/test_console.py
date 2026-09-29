@@ -315,7 +315,7 @@ def test_console_frames_stream_view_only_and_keep_awake(served):
 
 def test_console_input_follows_rotation_or_refuses(tmp_path):
     dev = FakeDevice()
-    con = Console(dev, RunStore(tmp_path / "runs", kind="console"), tmp_path / "runs")
+    con = Console(dev, RunStore(tmp_path / "runs", kind="console"), tmp_path / "runs").start()
     try:
         con.hub.wait(0, timeout=3)
         assert con.input({"op": "tap", "x": 0.75, "y": 0.5})["ok"] and dev.calls[-1] == ("tap", 990, 1424)
@@ -367,20 +367,48 @@ def test_stream_failure_count_resets_only_after_frames():
     assert gave_up.wait(3) and len(rounds) == 5
 
 
-def test_console_closed_when_bind_fails(tmp_path, monkeypatch):
-    import vpdtest.console.server as srv
+def _awake_console(tmp_path):
     dev = FakeDevice()
     con = Console(dev, RunStore(tmp_path / "runs", kind="console"), tmp_path / "runs", keep_awake_min=30)
-    assert dev.calls == [("set_screen_off", 1800000)]
+    assert dev.calls == [] and con.src is None   # 构造不产生副作用，资源在 serve() 里 start
+    return dev, con
+
+
+def test_console_cleans_up_when_bind_fails(tmp_path, monkeypatch):
+    import vpdtest.console.server as srv
+    dev, con = _awake_console(tmp_path)
 
     def occupied(*a, **k):
         raise OSError(10048, "address already in use")
     monkeypatch.setattr(srv, "_Server", occupied)
     with pytest.raises(OSError):
         serve(con, "127.0.0.1", 8765)
-    assert dev.calls[-1] == ("set_screen_off", 10000) and con._closed   # 熄屏覆盖已恢复、帧源已停
+    assert dev.calls == [("set_screen_off", 1800000), ("set_screen_off", 10000)]   # 覆盖过，也恢复了
+    assert con._closed and not con.src._th.is_alive()
     monkeypatch.undo()
     assert srv._Server.allow_reuse_address is False   # 端口被占用时报错，而不是和另一个进程共用端口
+
+
+def test_console_cleans_up_when_ready_callback_fails(tmp_path):
+    dev, con = _awake_console(tmp_path)
+
+    def broken_stdout(url, port):
+        raise BrokenPipeError("stdout closed")
+    with pytest.raises(BrokenPipeError):
+        serve(con, "127.0.0.1", 0, on_ready=broken_stdout)
+    assert dev.calls[-1] == ("set_screen_off", 10000) and con._closed and not con.src._th.is_alive()
+    events = (con.store.dir / "events.jsonl").read_text(encoding="utf-8")
+    assert "console_end" in events
+
+
+def test_no_fallback_source_after_close(tmp_path):
+    dev = FakeDevice()
+    con = Console(dev, RunStore(tmp_path / "runs", kind="console"), tmp_path / "runs")
+    con.control = Control(dev, con.store, size=(1320, 2848))
+    con.close()
+    con._fallback("race: 帧流在 close 之后才到达失败上限")
+    assert con.src is None   # 关闭之后不再起轮询线程
+    assert con.start() is con and con.src is None   # 关闭后 start 也是空操作
 
 
 def test_console_refuses_non_loopback_bind(tmp_path):
