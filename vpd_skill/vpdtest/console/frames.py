@@ -182,6 +182,7 @@ class UitestStreamSource:
         self._sock: Optional[socket.socket] = None
         self._ctl_lock = threading.Lock()
         self.restarts = 0
+        self.retry_s = 2.0
 
     def start(self) -> None:
         self.hub.source = self.name
@@ -262,12 +263,13 @@ class UitestStreamSource:
     def _loop(self) -> None:
         failures = 0
         while not self._stop.is_set():
+            seq0 = self.hub.seq
             try:
                 self._open()
-                failures = 0
                 self._pump()
             except Exception as e:  # 设备断开、agent 启动失败、hmdriver2 缺失等
-                failures += 1
+                # 只有这一轮确实收到过帧才算恢复健康；连上后立刻断开不清零，否则永远到不了回退
+                failures = (0 if self.hub.seq > seq0 else failures) + 1
                 self.hub.set_status("error", f"{type(e).__name__}: {str(e)[:160]}")
             finally:
                 self._close()
@@ -278,7 +280,7 @@ class UitestStreamSource:
                     self.on_give_up(self.hub.error or "帧流连续失败")
                 return
             self.restarts += 1
-            self._stop.wait(2.0)
+            self._stop.wait(self.retry_s)
 
     def stop(self) -> None:
         self._stop.set()

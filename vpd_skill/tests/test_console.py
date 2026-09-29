@@ -11,7 +11,8 @@ import pytest
 
 from vpdtest.console import progress
 from vpdtest.console.control import Control
-from vpdtest.console.frames import FrameHub, SessionUnavailable, SnapshotSource, jpeg_size, split_frames
+from vpdtest.console.frames import (FrameHub, SessionUnavailable, SnapshotSource, UitestStreamSource, jpeg_size,
+                                    split_frames)
 from vpdtest.console.server import Console, is_loopback, serve
 from vpdtest.devices import DeviceResult
 from vpdtest.devices.harmony_hdc import HdcDevice
@@ -337,6 +338,49 @@ def test_console_input_follows_rotation_or_refuses(tmp_path):
         assert con.input({"op": "swipe", "x1": 0.5, "y1": 0.5, "x2": 0.1, "y2": 0.5})["ok"]
     finally:
         con.close()
+
+
+def test_stream_falls_back_when_connections_die_before_any_frame():
+    hub, gave_up = FrameHub(), threading.Event()
+    src = UitestStreamSource("S", hub, on_give_up=lambda why: gave_up.set(), max_failures=3)
+    src.retry_s, opened = 0.01, []
+    src._open = lambda: opened.append(1)                        # 每次都能连上……
+    src._pump = lambda: (_ for _ in ()).throw(ConnectionError("EOF"))   # ……但一帧没出就断开
+    src._close = lambda: None
+    src.start()
+    assert gave_up.wait(3) and len(opened) == 3                 # 连上即清零的话永远到不了回退
+
+
+def test_stream_failure_count_resets_only_after_frames():
+    hub, gave_up = FrameHub(), threading.Event()
+    src = UitestStreamSource("S", hub, on_give_up=lambda why: gave_up.set(), max_failures=2)
+    src.retry_s, rounds = 0.01, []
+
+    def pump():
+        rounds.append(1)
+        if len(rounds) <= 4:
+            hub.push(fake_jpeg())                               # 前 4 轮都出过帧：每次断开都算一次恢复
+        raise ConnectionError("EOF")
+    src._open, src._pump, src._close = (lambda: None), pump, (lambda: None)
+    src.start()
+    # 第 4 轮出过帧后断开记 1 次，第 5 轮一帧没出再记 1 次 → 连续 2 次才回退（前 4 轮每轮都从 0 重新计）
+    assert gave_up.wait(3) and len(rounds) == 5
+
+
+def test_console_closed_when_bind_fails(tmp_path, monkeypatch):
+    import vpdtest.console.server as srv
+    dev = FakeDevice()
+    con = Console(dev, RunStore(tmp_path / "runs", kind="console"), tmp_path / "runs", keep_awake_min=30)
+    assert dev.calls == [("set_screen_off", 1800000)]
+
+    def occupied(*a, **k):
+        raise OSError(10048, "address already in use")
+    monkeypatch.setattr(srv, "_Server", occupied)
+    with pytest.raises(OSError):
+        serve(con, "127.0.0.1", 8765)
+    assert dev.calls[-1] == ("set_screen_off", 10000) and con._closed   # 熄屏覆盖已恢复、帧源已停
+    monkeypatch.undo()
+    assert srv._Server.allow_reuse_address is False   # 端口被占用时报错，而不是和另一个进程共用端口
 
 
 def test_console_refuses_non_loopback_bind(tmp_path):

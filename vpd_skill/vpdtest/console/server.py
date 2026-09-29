@@ -28,6 +28,11 @@ BOUNDARY = "vpdframe"
 ALLOWED_HOSTS = ("127.0.0.1", "localhost")
 
 
+class _Server(ThreadingHTTPServer):
+    # Windows 上 SO_REUSEADDR 允许两个进程绑同一端口（请求会随机落到任一进程）：关掉，端口被占用时直接报错
+    allow_reuse_address = False
+
+
 def is_loopback(host: str) -> bool:
     """只接受 127.0.0.1 与 localhost：与 Host 头校验的白名单一致（127.0.0.2 等虽是回环，但请求会被 421 拒绝）。"""
     return host in ALLOWED_HOSTS
@@ -278,7 +283,11 @@ def serve(console: Console, host: str = "127.0.0.1", port: int = 8765, duration:
     token = secrets.token_urlsafe(24)
     stop = stop or threading.Event()
     port_ref = {"port": port, "stopping": stop}
-    httpd = ThreadingHTTPServer((host, port), make_handler(console, token, port_ref))
+    try:
+        httpd = _Server((host, port), make_handler(console, token, port_ref))
+    except Exception:
+        console.close()  # 端口被占用等：帧源已启动、熄屏覆盖可能已生效，必须收尾再抛出
+        raise
     httpd.daemon_threads = True
     port_ref["port"] = httpd.server_address[1]
     url = f"http://{host}:{port_ref['port']}/?token={token}"
