@@ -1,0 +1,136 @@
+{
+  "_comment": "auto-vpd UI 锚点目录（数据非代码，App 改版只改这里）。selector 字段见 scripts/ui_finder.py。2026-09-27/28 真机实测于 HarmonyOS NEXT 阔折叠 Purax Max 6HQ0226505000341 / com.yinwang.qiankunapp.hm。三几何（2026-09-29 折叠外屏实测后确立）：dual 两页 2584x1828 / 半展开竖屏 1828x2584 / 折叠外屏 1264x1848——detect_form 按宽度阈值只分 dual/direct 两类，后两种几何同属 direct 类。居中弹框与底栏一律用 center_y_frac_range 相对屏高（一套通吃三几何）；页面类 UI 纵向顶部对齐（三种屏高 1828/2584/1848 中 dual 与折叠外屏近似、半展开差异大——半展开下页面类锚点未回归验证）。所有坐标仅为 dump 实测参考，定位一律靠 selector。",
+  "app": {"bundle": "com.yinwang.qiankunapp.hm", "ability": "EntryAbility"},
+  "tabs": {
+    "_note": "底栏 tab 用 center_y_frac_range（相对屏高），一套适配三几何：dual 2584x1828 / 半展开 1828x2584 / 折叠外屏 1264x1848（2026-09-29 折叠实测 tab 中心 y≈1757/1848=0.95）。避免与页面内同名文本（如 VPD 地图上的 'ADS 10m'）混淆",
+    "community": {"text": "社区", "center_y_frac_range": [0.88, 1.0]},
+    "ads": {"text": "ADS", "center_y_frac_range": [0.88, 1.0]},
+    "mine": {"text": "我的", "center_y_frac_range": [0.88, 1.0]}
+  },
+  "first_launch": {
+    "privacy_marker": {"text_contains": "欢迎使用华为乾崑"},
+    "privacy_agree": {"text": "同意", "center_y_frac_range": [0.86, 0.96]}
+  },
+  "login_quick": {
+    "marker": {"text_contains": "欢迎登录"},
+    "other_way": {"text": "其他登录方式"}
+  },
+  "login_sms_mode": {
+    "marker": {"text": "获取验证码"},
+    "pwd_login_toggle": {"text": "密码登录", "center_y_range": [900, 1150]}
+  },
+  "login_pwd": {
+    "phone_input": {"type": "TextInput", "center_y_range": [500, 700]},
+    "pwd_input": {"type": "TextInput", "center_y_range": [700, 900]},
+    "login_btn": {"text": "登录", "type": "Button"},
+    "protocol_checkbox": {"id_contains": "userProtocol"},
+    "sms_toggle": {"text": "验证码登录"}
+  },
+  "vault": {
+    "_note": "密码保险箱链路（系统窗口，全量 dump 才可见）：面板→使用其他账号→人脸→使用密码→PIN→账号选择器→点目标账号行→双字段自动填充",
+    "panel_marker": {"text_contains": "使用密码保险箱"},
+    "use_other_account": {"text": "使用其他账号"},
+    "face_use_password": {"text": "使用密码", "center_y_frac_range": [0.63, 0.71]},
+    "pin_marker": {"text_contains": "请输入锁屏密码"},
+    "pin_input": {"id_contains": "pinSix", "type": "TextInput"},
+    "chooser_marker": {"text_contains": "推荐填入"},
+    "secure_keyboard": {"id_contains": "hideButton"}
+  },
+  "protocol_dialog": {
+    "_note": "实测：该确认框在点'登录'提交后才弹出（勾选框点击不生效时），须在登录结果轮询里处理。按钮落屏底条（各形态 frac≈0.87-0.95）",
+    "marker": {"text_contains": "用户协议和隐私条款"},
+    "agree": {"text": "同意", "type": "Button", "center_y_frac_range": [0.86, 0.96]}
+  },
+  "loc_permission": {
+    "_note": "系统定位权限框（首次进 VPD 必弹，挡地图加载）：点仅使用期间允许",
+    "marker": {"text_contains": "访问你的位置"},
+    "grant": {"text": "仅使用期间允许"},
+    "grant_once": {"text": "本次使用允许"}
+  },
+  "mine_logged": {
+    "user_name": {"text": "黄子傲"},
+    "vehicles_link": {"text_contains": "辆车"}
+  },
+  "car_select": {
+    "_note": "我的车辆页：每行=车名+车架号label+VIN文本(右对齐,同行y) 设为默认显示按钮(行内)；默认行显示'默认显示'标签",
+    "page_title": {"text": "我的车辆"},
+    "vin_label": {"text": "车架号"},
+    "set_default_btn": {"text": "设为默认显示"},
+    "default_label": {"text": "默认显示"},
+    "confirm_ok": {"text": "确定"}
+  },
+  "vpd": {
+    "intro_video_marker": {"text": "跳过"},
+    "page_ready": {"text_contains": "华为练秋湖研发中心"},
+    "feature_label": {"text": "泊车代驾"},
+    "pickup_label": {"text": "上车点"},
+    "summon_panel_marker": {"text_contains": "我的爱车"},
+    "planning": {"text_contains": "路线规划中"},
+    "poweron_progress": {"text_contains": "启动中"},
+    "start_btn": {"text": "开始"},
+    "route_cleared": {"text_contains": "路线已清除"},
+    "warning_marks": [
+      {"text_contains": "暂不可用"},
+      {"text_contains": "胎压异常"},
+      {"text_contains": "车辆位置据您较远"},
+      {"text_contains": "异常退出"}
+    ],
+    "running_marks": [
+      {"text": "暂停"},
+      {"text_contains": "正在前往召唤点"},
+      {"text_contains": "正在泊入车位"}
+    ]
+  },
+  "case2": {
+    "_comment": "用例2参数（2026-09-28/29 direct 形态实测）。spot_no=收藏/搜索目标车位号；floor_pref=结果行楼层偏好",
+    "spot_no": "498",
+    "floor_pref": "B1层"
+  },
+  "vpd_map": {
+    "_note": "VPD 主页地图元素（XComponent 渲染，车位号/icon 不落 dump，需 vision 桥）。纯文本锚点两形态通用；floor/reset 按钮随地图状态浮动，勿用 y-range",
+    "search_bar": {"text": "搜索车位号设为目的地"},
+    "frequent_tab": {"text": "常去地点"},
+    "charge_tab": {"text": "附近充电站"},
+    "more_favorites": {"text": "更多"},
+    "reset_view": {"text": "回自车"},
+    "overview": {"text": "全览"},
+    "floor_l1": {"text": "L1"},
+    "floor_b1": {"text": "B1"},
+    "floor_b2": {"text": "B2"},
+    "find_along_route": {"text": "沿途找车位"},
+    "download_sheet": {
+      "marker": {"text_contains": "请下载车辆资源包"},
+      "later_btn": {"text": "下次再说"}
+    }
+  },
+  "search_page": {
+    "_note": "搜索车位页（点 VPD 主页搜索栏进入，id SearchSpotPage）。inputText 实时出多楼层结果；行点击=开车位详情面板，行内'路线'按钮=直接算路。结果行选择器由 flow 动态拼 spot_no（如 '498 车位'，占位符/快捷chip不误匹配）；快捷 chip 我的位置/电梯口/楼梯口与车位面板 chip 同名，靠上下文页区分（面板开时搜索页必已关闭，实测无共存）",
+    "input": {"id_contains": "search_input"},
+    "result_row_tpl": "text_contains:{spot_no} 车位",
+    "route_btn": {"text": "路线"}
+  },
+  "spot_panel": {
+    "_note": "车位详情面板（搜索结果行点击或地图车位号点击打开；bottom sheet 固定高度不可上滑展开）。纯文本锚点两形态通用（'收藏'/'已收藏'为全树唯一精确文本，无歧义）。2026-09-28 实测（direct）：收藏按钮点击被地图 XComponent hit-test 吞掉（uiRecord 实锤 W1=XComponent），标签 chip 命中 Text 但无效果（疑似需先收藏生效）——收藏/重命名/标签链路被产品缺陷阻断，DTS 证据链固化于 flows/case2.py",
+    "title": {"text_contains": "层-", "type": "Text"},
+    "add_tag_header": {"text": "添加标签"},
+    "chip_elevator": {"text": "电梯口"},
+    "chip_stair": {"text": "楼梯口"},
+    "chip_charging": {"text": "充电桩"},
+    "posture_header": {"text": "停车位姿设置"},
+    "posture_left": {"text": "靠左"},
+    "posture_center": {"text": "居中"},
+    "posture_right": {"text": "靠右"},
+    "favorite": {"text": "收藏"},
+    "favorite_done": {"text": "已收藏"},
+    "view_route": {"text": "查看路线"}
+  },
+  "route_view": {
+    "_note": "路线规划页（查看路线/搜索行'路线'按钮/常去地点行点击均进入）。目的地卡片在顶部(我的爱车→目的地)；底部主按钮随车辆状态在 开始/重试 之间切换——两态都禁点（禁止激活；重试也会触发上电流程）。常去地点行点击=直接算路，不开详情面板（实测）；行上横滑也会被当成点击",
+    "dest_marker": {"text": "我的爱车"},
+    "retry_btn": {"text": "重试"},
+    "tab_park_in": {"text": "泊入车位"},
+    "tab_pullover": {"text": "靠边停车"},
+    "tab_walk": {"text": "步行路线"},
+    "cam_front": {"text": "前视"}
+  }
+}

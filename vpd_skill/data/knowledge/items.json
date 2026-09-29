@@ -1,39 +1,919 @@
 {
   "items": [
     {
+      "id": "K-AV-001",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.vpd.entry_success",
+      "statement": "现行内部 debug 版（phone_fc78649）中「ADS」是底部一级 tab，点击直达 VPD（折叠外屏 y≈1743 底栏），加载约 13s 就绪；VPD 主页就绪以 ui_catalog vpd.* 锚点判定。",
+      "expected": {
+        "entry": "bottom_tab_ADS",
+        "vpd_home_marker": "ui_catalog vpd.* anchors"
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "内部debug版 phone_fc78649"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "auto-vpd runs/case1_20260928_184150 及 case3/case4 E2E PASS（2026-09-29）"
+      },
+      "note": "与 K-QK-001（repo_code：爱车页点 ADS 按钮）构成冲突，请裁决；注意 build 差异——K-QK-001 源自公网版代码，本条为内部 debug 版真机。",
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-002",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.login.vault_hijack",
+      "statement": "密码登录页手动输入会被系统「密码保险箱」劫持覆盖；唯一稳定自动化路径：聚焦密码框触发保险箱面板→使用其他账号→使用密码→PIN→账号选择器→点目标账号行→账号密码双字段自动填充。",
+      "expected": {
+        "automatable_path": "vault_selector_fill",
+        "manual_input": "overwritten_by_vault"
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "内部debug版 phone_fc78649"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "auto-vpd ui_catalog vault.* 链路；case1 E2E PASS（dual+折叠外屏，2026-09-28/29）"
+      },
+      "note": "flows.json login_password（repo 来源 12 步）在真机会失败于手动输入步；vault 面板是系统窗口，全量 dump 才可见。",
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-003",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.login.secure_keyboard",
+      "statement": "密码填充后系统安全键盘自动弹出，必须先点 hideButton 收起键盘再点协议区，否则点击落到键盘污染密码框（11星→12星）。",
+      "expected": {
+        "must_dismiss_keyboard": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "内部debug版 phone_fc78649"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "auto-vpd troubleshooting §2（case1 排障）"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-004",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.launch.first_launch_interrupts",
+      "statement": "首次启动（或重装后）：隐私协议同意后，系统通知权限弹框会盖住登录页，dismiss 后登录链路才可继续。",
+      "expected": {
+        "interrupts": [
+          "隐私协议",
+          "系统通知权限"
+        ]
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "内部debug版 phone_fc78649"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "auto-vpd troubleshooting §17/§18"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-005",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.permission.owner_only_vpd",
+      "statement": "鸿蒙智行车辆仅车主可用 VPD；授权用户进入 VPD 页必 60s 超时打不开。测试账号（151****3183）仅 7885（LM8F7E890PA007885）为车主车，0133/384 等授权车不可作为 VPD 测试对象。",
+      "expected": {
+        "owner_only": true,
+        "authorized_user_vpd": "timeout_60s",
+        "owner_car_vin_tail": "7885"
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "reviewer",
+        "ref": "用户实锤（2026-09-29 会话）+ 0133/384 真机超时复现"
+      },
+      "note": "影响 switch_vehicle 流程与多车用例设计：多车探索一律用车主车。",
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-006",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.vpd.power_on_progress_marker",
+      "statement": "召唤算路确实触发车辆上电：点上车点卡片→「路线规划中」（实测 1.0s）→「系统功能启动中N%」进度→就绪=「开始」按钮出现（实测 37.8s，7885，2026-09-29）。",
+      "expected": {
+        "route_triggers_power_on": true,
+        "progress_marker": "系统功能启动中",
+        "ready_marker": "开始"
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "auto-vpd runs/case4_car_route_poweron_20260929_122942（KPI 留证）"
+      },
+      "note": "K-QK-006（算路可能唤醒车辆）的真机证实与细化；「系统功能启动中」可作 powering-on 状态签名，states.json 目前缺此状态。",
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-007",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.route.retry_side_effect",
+      "statement": "路线规划页「重试」按钮点击会重新触发上电（等同改变车辆电源状态），与「开始」并列为禁点目标。",
+      "expected": {
+        "retry_equivalent": "re_trigger_power_on"
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "reviewer",
+        "ref": "auto-vpd 禁止激活铁律裁决（2026-09-28）"
+      },
+      "note": "建议 targets.json qk_retry 的 side_effect 从 route_planning 升级为 vehicle_motion。",
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-008",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.vpd.vehicle_warnings_nonblocking",
+      "statement": "车辆侧警告（胎压异常请前往检修 / 泊车代驾辅助暂不可用 / 车辆位置据您较远异常退出风险）计入 warnings 不判 FAIL。",
+      "expected": {
+        "vehicle_warnings": "counted_not_failed"
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "reviewer",
+        "ref": "auto-vpd 验收口径裁定；7885 实测命中三种文案"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-009",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.spot.favorite_hittest_defect",
+      "statement": "车位详情面板「收藏」按钮注入点击无效果：uiRecord 实测命中地图 XComponent/[0,107][2584,1611]（dump bounds/clickable 正常但 hit-test 被吞）；dual/direct 跨形态复现；产品缺陷，DTS 证据链已备。",
+      "expected": {
+        "panel_favorite_click": "swallowed_by_xcomponent",
+        "cross_form": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "内部debug版 phone_fc78649"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "evidence_favorite_hittest.json 原始 pointer 事件流 + runs/case2_20260928_225305/DTS_DRAFT.md"
+      },
+      "note": "阻塞 favorite_random_spot 流程（qk_spot_fav 步），属产品缺陷非流程错误。",
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-010",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.favorites.no_manage_entry",
+      "statement": "常去地点「更多」仅展开 10 项预置列表，无 管理/编辑/重命名 入口；行点击或横滑均直接发起算路（不开面板）。",
+      "expected": {
+        "more": "expand_only",
+        "row_click": "direct_route",
+        "manage_entry": false
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "内部debug版 phone_fc78649"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "auto-vpd 10_favorites_expanded.jpeg（2026-09-28 23:28 run）"
+      },
+      "note": "重命名入口缺失疑似与收藏缺陷同源的级联问题。",
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-011",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.spot.tag_fixed_chips",
+      "statement": "车位详情面板「添加标签」为固定 chips（电梯口/楼梯口/充电桩），非自由输入。",
+      "expected": {
+        "tag_options": [
+          "电梯口",
+          "楼梯口",
+          "充电桩"
+        ]
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "内部debug版 phone_fc78649"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "case2 面板实测"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-012",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.search.result_row_interactions",
+      "statement": "搜索结果行点击→车位详情面板；行内「路线」按钮→直接算路（均确定性，dual 两轮 E2E 验证）。",
+      "expected": {
+        "row_click": "spot_panel",
+        "row_route_btn": "direct_route"
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "内部debug版 phone_fc78649"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "runs/case2_20260928_231108 / 232811 E2E PASS"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-013",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.spot.panel_view_route_stable",
+      "statement": "车位详情面板「查看路线」是面板上唯一稳定可交互按钮（收藏被吞、标签无状态变化时仍可用）。",
+      "expected": {
+        "stable_button": "查看路线"
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "内部debug版 phone_fc78649"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "case2 系列实测"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-014",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.map.vision_click_unreliable",
+      "statement": "地图车位号 vision 坐标点击误差约 40%，不可靠；XComponent 地图上的确定性入口=底部搜索栏。",
+      "expected": {
+        "map_spot_click_reliability": "~60%",
+        "deterministic_entry": "search_bar"
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "内部debug版 phone_fc78649"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "case2 探索实测"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-015",
+      "kind": "generic_invariant",
+      "subject": "generic.dump_hittest_divergence",
+      "statement": "dump 树的 bounds/clickable 与真实 hit-test 可能背离（控件被 XComponent 覆盖吞事件时）；关键交互断言建议以事件流取证（uiRecord）复核。",
+      "expected": {
+        "tree_hit_test_can_diverge": true
+      },
+      "applies_to": {
+        "app": "*"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "收藏按钮反例（K-AV-009）：坐标命中 dump 目标但事件落 XComponent"
+      },
+      "note": "对本架构的影响：可见矩形中心计算在该场景会给出错误信心，建议新增 hittest_verified 证据类型/定位状态。",
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-016",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.search.multi_floor_same_name",
+      "statement": "同名车位多楼层并存（如搜「498」→ B2层-498 / B2层-3498 / B1层-498×3 / B1层-2498）。",
+      "expected": {
+        "same_name_multi_floor": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "内部debug版 phone_fc78649"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "case2 搜索实测"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-017",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.search.quick_chips",
+      "statement": "搜索页快捷 chip：我的位置/电梯口/楼梯口（疑似按标签筛选目的地，语义待验证）。",
+      "expected": {
+        "chips": [
+          "我的位置",
+          "电梯口",
+          "楼梯口"
+        ]
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "内部debug版 phone_fc78649"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "case2 搜索页实测"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-018",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.spot.panel_fixed_height",
+      "statement": "车位详情面板为 bottom sheet 固定高度，不可上滑展开。",
+      "expected": {
+        "expandable": false
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "内部debug版 phone_fc78649"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "case2 面板实测"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-019",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.env.resource_pack_required",
+      "statement": "重装后首启车辆资源包必须点「立即下载」；拒绝后进 VPD 页面 app 必死退桌面。",
+      "expected": {
+        "resource_pack": "must_download_now"
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "内部debug版 phone_fc78649"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "2026-09-29 重装事故链，troubleshooting §18"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-020",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.env.appgallery_silent_update",
+      "statement": "AppGallery 会静默将乾崑 App 升级为公网 release 版（VPD 入口整体消失、ADS tab 变充电地图）；恢复=卸载后安装内部 debug hap（直接 install 报 version downgrade）；建议测试机关闭 AppGallery 自动更新。",
+      "expected": {
+        "silent_update": true,
+        "recovery": "uninstall_then_install_debug_hap"
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "内部debug版 phone_fc78649"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "2026-09-29 实锤事故，troubleshooting §18"
+      },
+      "note": "佐证 policy 禁止 app_update 类的取舍。",
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-021",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.env.reboot_password_lock",
+      "statement": "设备重启后首启要求完整锁屏 PIN（bouncer）；dual 横屏形态 bouncer 键盘键位推断不可靠（疑似网格转置），自动化应熔断、人工解锁。",
+      "expected": {
+        "reboot_lock": "same_as_lock_pin",
+        "landscape_keypad_inference": "unreliable"
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "内部debug版 phone_fc78649"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "troubleshooting §16（2026-09-29 凌晨实测+用户裁定修正）"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-022",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.car_list.reorder_on_switch",
+      "statement": "切换默认车确认后车辆列表重排序（新默认车跳首行），但滚动位置停留，需滚动复位后重新定位行。",
+      "expected": {
+        "reorder_on_switch": true,
+        "scroll_reset_needed": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "内部debug版 phone_fc78649"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "case1 _select_car 排障（2026-09-28）"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-023",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.car_list.bottom_row_scroll",
+      "statement": "车辆列表屏底行的「设为默认显示」按钮常滚出可视区，需上滑重找。",
+      "expected": {
+        "bottom_row_needs_scroll": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "内部debug版 phone_fc78649"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "case1 _select_car 排障"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-024",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.layout.three_geometries",
+      "statement": "阔折叠实测三几何：dual 2584×1828 / 半展开 1828×2584 / 折叠外屏 1264×1848；绝对坐标锚点跨形态失效（折叠外屏事故实锤），已建立比例（frac）锚点体系过渡。",
+      "expected": {
+        "geometries": [
+          [
+            2584,
+            1828
+          ],
+          [
+            1828,
+            2584
+          ],
+          [
+            1264,
+            1848
+          ]
+        ],
+        "anchor_system": "fraction_based"
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "内部debug版 phone_fc78649"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "troubleshooting §20（2026-09-29 折叠外屏实测确立）"
+      },
+      "note": "三组数据可校准 layout.json vp 阈值；折叠外屏是本 PR 布局模型未覆盖的真机形态。",
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-025",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.map.xcomponent_structure",
+      "statement": "VPD 地图为 XComponent 全屏渲染（无树子节点）；左侧楼层选择器 L1/B1/B2；右上回自车/全览按钮随状态改名；底部 sheet=搜索栏+常去地点/附近充电站 tabs。",
+      "expected": {
+        "map_node": "XComponent_no_children",
+        "floor_selector": [
+          "L1",
+          "B1",
+          "B2"
+        ]
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "内部debug版 phone_fc78649"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "case2-map-knowledge 页面图（2026-09-28/29 实测固化）"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-026",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.summon.kpi",
+      "statement": "召唤算路 KPI（7885，折叠外屏，2026-09-29）：触发 1.0s、就绪 37.8s（开始按钮出现）。",
+      "expected": {
+        "trigger_latency_s": 1.0,
+        "ready_latency_s": 37.8
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "runs/case4_car_route_poweron_20260929_122942"
+      },
+      "note": "flows plan_default_spot 的 180s monitor 对此余量充足。",
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-027",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.test.keepalive_end_state",
+      "statement": "召唤算路上电用例的终态语义：不退出页面、保持车辆上电（cleanup 不 back_out/stop_app），供后续人工接管。",
+      "expected": {
+        "end_state": "keep_powered_on"
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "reviewer",
+        "ref": "auto-vpd case4 设计裁定（2026-09-29）"
+      },
+      "note": "本架构 cleanup 默认 stop_app，需要支持「终态保持」用例类型。",
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-028",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.summon.default_car_route_target",
+      "statement": "召唤算路对象=当前默认车；且默认车必须为车主车，否则 VPD 不可用（K-AV-005）。",
+      "expected": {
+        "route_target": "default_car",
+        "default_car_must_be_owner": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "reviewer",
+        "ref": "auto-vpd case1/case4 设计与实测"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-029",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.env.uitest_aams_occupancy",
+      "statement": "uitest uiRecord 报「Can not connect to AAMS」=残留 uitest start-daemon 独占连接，按 pid kill -9 清理（pkill 被拒）。",
+      "expected": {
+        "fix": "kill_daemon_by_pid"
+      },
+      "applies_to": {
+        "app": "*"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "troubleshooting §19（2026-09-29 实锤）"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
+      "id": "K-AV-030",
+      "kind": "domain_note",
+      "subject": "qiankun_hm.vpd.route_page_structure",
+      "statement": "路线规划页：顶部目的地卡片（我的爱车→目的地）+ tabs 泊入车位/靠边停车/步行路线 + 底部主按钮 开始↔重试（随车辆状态切换，均禁点）。",
+      "expected": {
+        "tabs": [
+          "泊入车位",
+          "靠边停车",
+          "步行路线"
+        ],
+        "main_button": "开始↔重试"
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "内部debug版 phone_fc78649"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "case2-map-knowledge 页面图"
+      },
+      "status": "unconfirmed",
+      "created": "2026-09-29T15:20:00+08:00",
+      "history": [
+        {
+          "ts": "2026-09-29T15:20:00+08:00",
+          "to": "unconfirmed",
+          "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        }
+      ]
+    },
+    {
       "id": "K-GEN-001",
       "kind": "generic_invariant",
       "subject": "generic.no_crash_during_navigation",
       "statement": "测试操作过程中，被测 APP 不应崩溃退出或弹出应用无响应提示。",
       "expected": "no_crash",
-      "applies_to": {"app": "*"},
-      "source": {"type": "skill_policy", "ref": "vpd_skill/SKILL.md 判定规则 v0.1"},
+      "applies_to": {
+        "app": "*"
+      },
+      "source": {
+        "type": "skill_policy",
+        "ref": "vpd_skill/SKILL.md 判定规则 v0.1"
+      },
       "status": "confirmed",
       "confirmed_by": "skill_policy_v0.1（随 Skill 评审，用户可撤销）",
-      "history": [{"ts": "2026-09-29T00:00:00+08:00", "to": "confirmed", "why": "通用质量不变量，随 Skill 版本评审"}]
+      "history": [
+        {
+          "ts": "2026-09-29T00:00:00+08:00",
+          "to": "confirmed",
+          "why": "通用质量不变量，随 Skill 版本评审"
+        }
+      ]
     },
     {
       "id": "K-MOT-001",
       "kind": "product_rule",
       "subject": "motor_hm.bottom_nav.switch",
       "statement": "底部导航有「爱车」「我的」入口，点击后切换到对应页面且该入口呈选中态。",
-      "expected": {"tabs": ["爱车", "我的"], "selected_on_tap": true},
-      "applies_to": {"app": "motor_hm", "app_version": "3.0.3.200"},
-      "source": {"type": "repo_code", "ref": "app/config/motor_config.py:295-297, 315-317; app/service/vpd/vpd.py:2269, 2354", "commit": "90545b9"},
+      "expected": {
+        "tabs": [
+          "爱车",
+          "我的"
+        ],
+        "selected_on_tap": true
+      },
+      "applies_to": {
+        "app": "motor_hm",
+        "app_version": "3.0.3.200"
+      },
+      "source": {
+        "type": "repo_code",
+        "ref": "app/config/motor_config.py:295-297, 315-317; app/service/vpd/vpd.py:2269, 2354",
+        "commit": "90545b9"
+      },
       "status": "unconfirmed",
       "note": "来自原工程自动化脚本的导航方式，只说明脚本曾这样操作；“选中态”是 Skill 的推断，需求来源未核实。",
-      "history": [{"ts": "2026-09-29T00:00:00+08:00", "to": "unconfirmed", "why": "从仓库代码提取"}]
+      "history": [
+        {
+          "ts": "2026-09-29T00:00:00+08:00",
+          "to": "unconfirmed",
+          "why": "从仓库代码提取"
+        }
+      ]
     },
     {
       "id": "K-MOT-002",
       "kind": "product_rule",
       "subject": "motor_hm.my.settings_logout",
       "statement": "「我的」页（上滑后）有「设置」入口，设置页中有「退出登录」。",
-      "expected": {"settings_entry": "设置", "logout_entry": "退出登录"},
-      "applies_to": {"app": "motor_hm", "app_version": "3.0.3.200"},
-      "source": {"type": "repo_code", "ref": "app/service/vpd/vpd.py:2458-2471 _account_logout; app/config/motor_config.py:522-527", "commit": "90545b9"},
+      "expected": {
+        "settings_entry": "设置",
+        "logout_entry": "退出登录"
+      },
+      "applies_to": {
+        "app": "motor_hm",
+        "app_version": "3.0.3.200"
+      },
+      "source": {
+        "type": "repo_code",
+        "ref": "app/service/vpd/vpd.py:2458-2471 _account_logout; app/config/motor_config.py:522-527",
+        "commit": "90545b9"
+      },
       "status": "unconfirmed",
-      "history": [{"ts": "2026-09-29T00:00:00+08:00", "to": "unconfirmed", "why": "从仓库代码提取"}]
+      "history": [
+        {
+          "ts": "2026-09-29T00:00:00+08:00",
+          "to": "unconfirmed",
+          "why": "从仓库代码提取"
+        }
+      ]
     },
     {
       "id": "K-MOT-003",
@@ -41,33 +921,76 @@
       "subject": "motor_hm.my.logged_out_entry_copy",
       "statement": "未登录时「我的」页账号区显示文案「注册/登录」。",
       "expected": "注册/登录",
-      "applies_to": {"app": "motor_hm", "account_state": "logged_out"},
-      "source": {"type": "repo_code", "ref": "app/service/vpd/vpd.py:2380-2390 _get_login_status logout_text_map['#01']", "commit": "90545b9"},
+      "applies_to": {
+        "app": "motor_hm",
+        "account_state": "logged_out"
+      },
+      "source": {
+        "type": "repo_code",
+        "ref": "app/service/vpd/vpd.py:2380-2390 _get_login_status logout_text_map['#01']",
+        "commit": "90545b9"
+      },
       "status": "unconfirmed",
       "note": "原代码用于判断登录态，#01 在 Android/Harmony 共用该文案；Harmony 版本是否一致未核实。",
-      "history": [{"ts": "2026-09-29T00:00:00+08:00", "to": "unconfirmed", "why": "从仓库代码提取"}]
+      "history": [
+        {
+          "ts": "2026-09-29T00:00:00+08:00",
+          "to": "unconfirmed",
+          "why": "从仓库代码提取"
+        }
+      ]
     },
     {
       "id": "K-MOT-004",
       "kind": "domain_note",
       "subject": "motor_hm.popup.update",
       "statement": "启动后可能出现版本更新弹窗，可通过「下次再说」关闭而不升级。",
-      "expected": {"dismiss": "下次再说"},
-      "applies_to": {"app": "motor_hm"},
-      "source": {"type": "repo_code", "ref": "app/config/motor_config.py:511-513, 546-548; app/service/vpd/vpd.py:2403-2412", "commit": "90545b9"},
+      "expected": {
+        "dismiss": "下次再说"
+      },
+      "applies_to": {
+        "app": "motor_hm"
+      },
+      "source": {
+        "type": "repo_code",
+        "ref": "app/config/motor_config.py:511-513, 546-548; app/service/vpd/vpd.py:2403-2412",
+        "commit": "90545b9"
+      },
       "status": "unconfirmed",
-      "history": [{"ts": "2026-09-29T00:00:00+08:00", "to": "unconfirmed", "why": "从仓库代码提取"}]
+      "history": [
+        {
+          "ts": "2026-09-29T00:00:00+08:00",
+          "to": "unconfirmed",
+          "why": "从仓库代码提取"
+        }
+      ]
     },
     {
       "id": "K-QK-001",
       "kind": "product_rule",
       "subject": "qiankun_hm.vpd.entry_success",
       "statement": "从爱车页点「ADS」进入泊车代驾后，加载完成的首页显示「默认车位」。",
-      "expected": {"entry": "ADS", "loading": "正在加载...", "home_marker": "默认车位"},
-      "applies_to": {"app": "qiankun_hm"},
-      "source": {"type": "repo_code", "ref": "app/config/mhero_config.py:264, 276, 279; app/service/vpd/vpd.py:571-656", "commit": "90545b9"},
+      "expected": {
+        "entry": "ADS",
+        "loading": "正在加载...",
+        "home_marker": "默认车位"
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "repo_code",
+        "ref": "app/config/mhero_config.py:264, 276, 279; app/service/vpd/vpd.py:571-656",
+        "commit": "90545b9"
+      },
       "status": "unconfirmed",
-      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}],
+      "history": [
+        {
+          "ts": "2026-09-29T09:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "为乾崑样例用例整理；待用户/评审确认"
+        }
+      ],
       "note": "原工程用它判断进入 VPD 成功（判断条件较弱：vpd.py:643-656 里「暂停不存在」也算成功）。"
     },
     {
@@ -75,11 +998,28 @@
       "kind": "product_rule",
       "subject": "qiankun_hm.vpd.start_enabled_rule",
       "statement": "算路完成后，「开始」按钮 opacity=1 表示可以激活；小于 1（置灰）表示当前不可激活。",
-      "expected": {"target": "开始", "enabled_when": {"opacity": 1.0}},
-      "applies_to": {"app": "qiankun_hm"},
-      "source": {"type": "repo_code", "ref": "app/config/mhero_config.py:309-316 start / start_enabled / start_btn; app/service/vpd/vpd.py:803-821", "commit": "90545b9"},
+      "expected": {
+        "target": "开始",
+        "enabled_when": {
+          "opacity": 1.0
+        }
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "repo_code",
+        "ref": "app/config/mhero_config.py:309-316 start / start_enabled / start_btn; app/service/vpd/vpd.py:803-821",
+        "commit": "90545b9"
+      },
       "status": "unconfirmed",
-      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}],
+      "history": [
+        {
+          "ts": "2026-09-29T09:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "为乾崑样例用例整理；待用户/评审确认"
+        }
+      ],
       "note": "这是原自动化脚本的判断方式，不是产品需求文档；置灰时 enabled 属性是否也为 false 未知。"
     },
     {
@@ -87,11 +1027,33 @@
       "kind": "ui_copy",
       "subject": "qiankun_hm.vpd.plan_fault_copy",
       "statement": "算路失败或当前不可激活时，页面显示以下提示之一：泊车代驾辅助暂不可用 / 路径规划失败 / 路线规划失败 / 抱歉，无可达路径；其中「泊车代驾辅助暂不可用」持续 10 秒以上视为失败。",
-      "expected": {"any": ["泊车代驾辅助暂不可用", "路径规划失败", "路线规划失败", "抱歉，无可达路径"], "persist_s": {"泊车代驾辅助暂不可用": 10}},
-      "applies_to": {"app": "qiankun_hm"},
-      "source": {"type": "repo_code", "ref": "app/service/vpd/vpd.py:2037-2056 power_on_stress_case; vpd.py:103-107 exception_map（暂不可用/泊车代驾异常退出/规划失败）", "commit": "90545b9"},
+      "expected": {
+        "any": [
+          "泊车代驾辅助暂不可用",
+          "路径规划失败",
+          "路线规划失败",
+          "抱歉，无可达路径"
+        ],
+        "persist_s": {
+          "泊车代驾辅助暂不可用": 10
+        }
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "repo_code",
+        "ref": "app/service/vpd/vpd.py:2037-2056 power_on_stress_case; vpd.py:103-107 exception_map（暂不可用/泊车代驾异常退出/规划失败）",
+        "commit": "90545b9"
+      },
       "status": "unconfirmed",
-      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}],
+      "history": [
+        {
+          "ts": "2026-09-29T09:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "为乾崑样例用例整理；待用户/评审确认"
+        }
+      ],
       "note": "原工程没有「故障」「无法激活」字样；有故障时实际显示哪条提示需在真机上确认。"
     },
     {
@@ -99,33 +1061,80 @@
       "kind": "ui_copy",
       "subject": "qiankun_hm.vpd.finish_copy",
       "statement": "泊入完成显示「车已泊入车位」；召唤完成显示「车已到达上车点」。",
-      "expected": {"parking": "车已泊入车位", "summon": "车已到达上车点"},
-      "applies_to": {"app": "qiankun_hm"},
-      "source": {"type": "repo_code", "ref": "app/config/mhero_config.py:413-416", "commit": "90545b9"},
+      "expected": {
+        "parking": "车已泊入车位",
+        "summon": "车已到达上车点"
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "repo_code",
+        "ref": "app/config/mhero_config.py:413-416",
+        "commit": "90545b9"
+      },
       "status": "unconfirmed",
-      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}]
+      "history": [
+        {
+          "ts": "2026-09-29T09:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "为乾崑样例用例整理；待用户/评审确认"
+        }
+      ]
     },
     {
       "id": "K-QK-005",
       "kind": "product_rule",
       "subject": "qiankun_hm.vpd.activate_sequence",
       "statement": "激活顺序：点「开始」→ 弹出「确定」→ 点「确定」后出现「暂停」即为激活成功。",
-      "expected": {"sequence": ["开始", "确定"], "success_marker": "暂停"},
-      "applies_to": {"app": "qiankun_hm"},
-      "source": {"type": "repo_code", "ref": "app/service/vpd/vpd.py:874-913 confirm_vpd; app/config/mhero_config.py:309, 320, 323", "commit": "90545b9"},
+      "expected": {
+        "sequence": [
+          "开始",
+          "确定"
+        ],
+        "success_marker": "暂停"
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "repo_code",
+        "ref": "app/service/vpd/vpd.py:874-913 confirm_vpd; app/config/mhero_config.py:309, 320, 323",
+        "commit": "90545b9"
+      },
       "status": "unconfirmed",
-      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}]
+      "history": [
+        {
+          "ts": "2026-09-29T09:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "为乾崑样例用例整理；待用户/评审确认"
+        }
+      ]
     },
     {
       "id": "K-QK-006",
       "kind": "domain_note",
       "subject": "qiankun_hm.vpd.route_planning_wakes_vehicle",
       "statement": "发起算路可能唤醒/上电车辆：原工程把算路等待≥5 秒记为「召唤上电」成功，把默认车位算路结果出现记为「上电成功」。",
-      "expected": {"route_planning_may_power_on": true},
-      "applies_to": {"app": "qiankun_hm"},
-      "source": {"type": "repo_code", "ref": "app/service/vpd/vpd.py:937-941, 2028-2033", "commit": "90545b9"},
+      "expected": {
+        "route_planning_may_power_on": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "repo_code",
+        "ref": "app/service/vpd/vpd.py:937-941, 2028-2033",
+        "commit": "90545b9"
+      },
       "status": "unconfirmed",
-      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}],
+      "history": [
+        {
+          "ts": "2026-09-29T09:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "为乾崑样例用例整理；待用户/评审确认"
+        }
+      ],
       "note": "只是原脚本的事件命名，是否真的上电未核实。据此 route_planning 保持 gated（需 --authorize），但不按运动类要求监护。"
     },
     {
@@ -133,11 +1142,29 @@
       "kind": "product_rule",
       "subject": "qiankun_hm.vpd.pause_controls",
       "statement": "运动中可点「暂停」；暂停后有「继续」（恢复运动）与「退出」（结束任务）。",
-      "expected": {"moving": "暂停", "paused": ["继续", "退出"]},
-      "applies_to": {"app": "qiankun_hm"},
-      "source": {"type": "repo_code", "ref": "app/config/mhero_config.py:323-329", "commit": "90545b9"},
+      "expected": {
+        "moving": "暂停",
+        "paused": [
+          "继续",
+          "退出"
+        ]
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "repo_code",
+        "ref": "app/config/mhero_config.py:323-329",
+        "commit": "90545b9"
+      },
       "status": "unconfirmed",
-      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}],
+      "history": [
+        {
+          "ts": "2026-09-29T09:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "为乾崑样例用例整理；待用户/评审确认"
+        }
+      ],
       "note": "原工程只定义了这三个按钮；暂停后页面的其他内容是 Skill 推测。"
     },
     {
@@ -145,22 +1172,49 @@
       "kind": "requirement",
       "subject": "qiankun_hm.env.test_vehicle",
       "statement": "测试账号下有问界 M5，车架号末位 7885，是本组样例用例的目标车辆。",
-      "expected": {"model": "M5", "vin_tail": "7885"},
-      "applies_to": {"app": "qiankun_hm"},
-      "source": {"type": "reviewer", "ref": "用户在本次会话中的描述（2026-09-29，PR #2 对应需求）"},
+      "expected": {
+        "model": "M5",
+        "vin_tail": "7885"
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "reviewer",
+        "ref": "用户在本次会话中的描述（2026-09-29，PR #2 对应需求）"
+      },
       "status": "unconfirmed",
-      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}]
+      "history": [
+        {
+          "ts": "2026-09-29T09:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "为乾崑样例用例整理；待用户/评审确认"
+        }
+      ]
     },
     {
       "id": "K-QK-USR-002",
       "kind": "requirement",
       "subject": "qiankun_hm.vpd.fault_blocks_activation",
       "statement": "车辆当前有故障时，进入 VPD 选默认车位算路后不能激活（「开始」不可用或不出现，并有不可用/故障提示）。",
-      "expected": {"activation_possible": false},
-      "applies_to": {"app": "qiankun_hm"},
-      "source": {"type": "reviewer", "ref": "用户在本次会话中的描述（2026-09-29，PR #2 对应需求）"},
+      "expected": {
+        "activation_possible": false
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "reviewer",
+        "ref": "用户在本次会话中的描述（2026-09-29，PR #2 对应需求）"
+      },
       "status": "unconfirmed",
-      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}],
+      "history": [
+        {
+          "ts": "2026-09-29T09:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "为乾崑样例用例整理；待用户/评审确认"
+        }
+      ],
       "note": "用户原话：预期当前有故障也无法激活。具体提示文案见 K-QK-003（来自原工程），两者一起作为判据。"
     },
     {
@@ -168,11 +1222,28 @@
       "kind": "requirement",
       "subject": "qiankun_hm.vpd.favorite_search_route",
       "statement": "VPD 地图上可以选中并收藏车位，收藏可以重命名、设置标签；在 VPD 首页按收藏名搜索可以发起算路，算路后可读到路线距离。",
-      "expected": {"favorite": true, "rename": true, "tag": true, "search_by_name": true, "distance_readable": true},
-      "applies_to": {"app": "qiankun_hm"},
-      "source": {"type": "reviewer", "ref": "用户在本次会话中的描述（2026-09-29，PR #2 对应需求）"},
+      "expected": {
+        "favorite": true,
+        "rename": true,
+        "tag": true,
+        "search_by_name": true,
+        "distance_readable": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "reviewer",
+        "ref": "用户在本次会话中的描述（2026-09-29，PR #2 对应需求）"
+      },
       "status": "unconfirmed",
-      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}],
+      "history": [
+        {
+          "ts": "2026-09-29T09:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "为乾崑样例用例整理；待用户/评审确认"
+        }
+      ],
       "note": "原工程没有这些功能的实现与文案；按钮文字、距离格式都是假设（targets.json 中 status=hypothesis）。"
     },
     {
@@ -180,11 +1251,25 @@
       "kind": "domain_note",
       "subject": "qiankun_hm.policy.vehicle_control",
       "statement": "车辆控制始终允许；只是探索阶段受限（无人保障时可能挡路、终点不对卡住）。实际需要观察不同场景下的 TOR 提示文案或异常显示、运动时的信息显示、控车启动后泊入泊出过程的不同显示、暂停退出、后台返回等场景。",
-      "expected": {"explore_motion": false, "supervised_motion": true},
-      "applies_to": {"app": "*"},
-      "source": {"type": "reviewer", "ref": "用户在本次会话中的描述（2026-09-29，PR #2 对应需求）"},
+      "expected": {
+        "explore_motion": false,
+        "supervised_motion": true
+      },
+      "applies_to": {
+        "app": "*"
+      },
+      "source": {
+        "type": "reviewer",
+        "ref": "用户在本次会话中的描述（2026-09-29，PR #2 对应需求）"
+      },
       "status": "unconfirmed",
-      "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "unconfirmed", "why": "为乾崑样例用例整理；待用户/评审确认"}],
+      "history": [
+        {
+          "ts": "2026-09-29T09:30:00+08:00",
+          "to": "unconfirmed",
+          "why": "为乾崑样例用例整理；待用户/评审确认"
+        }
+      ],
       "note": "这是测试边界要求而不是产品判据：落实为 policy-0.3 的 supervised 类（--authorize + --supervisor + safety）。"
     }
   ]
