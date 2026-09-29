@@ -13,6 +13,15 @@
 
 回归中允许的变化只有：定位策略顺序（经验 overlay）与已记录的执行恢复；断言、关键步骤、判据不变。
 
+## 需要授权的运行（登录、切车、算路、控车）
+
+1. 先读用例的 `authorizations` 与 `preconditions`，把需要的授权、账号前提、是否会让车移动告诉用户，由用户决定是否授予。
+2. 账号/密码只放环境变量：`$env:VPD_SECRET_QIANKUN_PHONE = '...'`（值由用户在自己的终端里设置，不经过你）。
+3. gated：`.\vpdtest.ps1 run TC-QK-101 --device $D --env account_state=logged_out --authorize account_state vehicle_selection vpd_entry route_planning`。
+4. 控车：`.\vpdtest.ps1 run TC-QK-103 --device $D --env account_state=logged_in --authorize vpd_entry route_planning vehicle_motion --supervisor <监护人>`。用例必须声明 `safety`；运行中出现首次失败、超时（`max_motion_s`）或用例结束仍在动，执行器自动执行安全停止并单独记录。
+5. 读报告：监视时间线（TOR、车速、故障文字的首次出现时间）、看门狗 `motion[]`、`safety_stops[]`。有 `action_required` 时立即转告用户人工接管。
+6. 单步控车同理（加 `--app qiankun_hm`）：`act tap --target qk_pause` 不需授权（safe_stop）；`act tap --target qk_continue --authorize vehicle_motion --supervisor <人>`。
+
 ## 探索
 
 1. 选起点（已声明状态）和目标：`.\vpdtest.ps1 explore --start car_tab --goal "我的页导航" --budget 30 --device $D [--prefer 设置 帮助]`。
