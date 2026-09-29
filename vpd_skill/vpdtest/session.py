@@ -221,9 +221,13 @@ def _to_case_step(it: dict, req: dict, session_dir: Path, test_data: dict, facts
                 target["allow_input"] = True
             step["point_basis"] = req.get("basis")
         if isinstance(target, dict):
-            resolved = last.get("resolved") or {}
+            # 取实际下发的那次尝试的解析结果；没有下发过（多匹配/被拒/中断）就没有 node，lint 会拦下
+            sent = next((a for a in reversed(rec.get("attempts") or [])
+                         if a.get("resolved") and (a.get("dispatch") or {}).get("sent")), None)
+            resolved = (sent or {}).get("resolved") or {}
             target["observed"] = {"session": session_dir.name, "seq": seq, "obs": resolved.get("obs") or it.get("obs_before"),
-                                  "outcome": it.get("outcome"), "node": resolved.get("node"),
+                                  "outcome": it.get("outcome") or it["kind"], "node": resolved.get("node"),
+                                  "dispatched": bool(sent),
                                   "layout_key": resolved.get("layout_key"), "app_version": facts.get("app_version"),
                                   "device_form": facts.get("device_form"),
                                   "validation_level": facts.get("validation_level")}

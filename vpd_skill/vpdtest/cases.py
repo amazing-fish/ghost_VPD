@@ -130,6 +130,11 @@ def lint(case: dict, app, knowledge, policy=None) -> list:
                 elif not kinds <= set(TREE_KINDS) or not t.get("observed"):
                     issues.append({"field": f"steps.{s['id']}", "problem": "内联目标需只含 text/id/xpath 策略并附 observed 来源"
                                                                            "（会话观测），否则请登记到 targets.json 并评审"})
+                elif not (t["observed"].get("node") and t["observed"].get("dispatched")):
+                    # 只要求"选择器在现场解析到了唯一节点并实际下发过"，不要求该步通过（缺陷复现步骤本身可能失败）
+                    issues.append({"field": f"steps.{s['id']}", "problem": f"内联选择器在会话中没有解析成功并下发过"
+                                                                           f"（会话结果 {t['observed'].get('outcome')}）：重新观察后"
+                                                                           "用能唯一定位的选择器再做一次，或写明理由排除该步"})
             elif s["action"] == "tap" and t not in app.targets:
                 issues.append({"field": f"steps.{s['id']}", "problem": f"目标 {t} 未登记"})
         if s.get("expect_state_unresolved"):

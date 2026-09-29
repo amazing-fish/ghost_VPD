@@ -186,14 +186,15 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
             oracle = knowledge.oracle_status(refs)
             if oracle["status"] == "confirmed":
                 findings.append({"kind": "step", "step": s["step_id"], "result": "failed", "attribution": "product",
-                                 "reason": s["reason"], "oracle": oracle})
+                                 "reason": s["reason"], "oracle": oracle, "mode": s.get("final_status")})
             else:
                 findings.append({"kind": "step", "step": s["step_id"], "result": "pending",
                                  "attribution": "requirement_unclear", "reason": f"{s['reason']}；{oracle['reason']}",
                                  "oracle": oracle})
         else:
             findings.append({"kind": "step", "step": s["step_id"], "result": "blocked",
-                             "attribution": s.get("attribution", "tool"), "reason": s.get("reason")})
+                             "attribution": s.get("attribution", "tool"), "reason": s.get("reason"),
+                             "mode": s.get("final_status")})
     for a in assertions:
         if a["advisory"]:
             if a["result"] in ("pending", "fail", "undeterminable"):
@@ -201,7 +202,7 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
             continue
         if a["result"] == "fail":
             findings.append({"kind": "assertion", "id": a["id"], "result": "failed", "attribution": "product",
-                             "reason": a.get("desc")})
+                             "reason": a.get("desc"), "mode": _assertion_mode(a)})
         elif a["result"] in ("pending", "undeterminable"):
             findings.append({"kind": "assertion", "id": a["id"], "result": "pending",
                              "attribution": "requirement_unclear" if a["result"] == "pending" else "tool",
@@ -256,5 +257,15 @@ def _final(verdict: str, attribution, findings: list, suggestions: list, steps: 
             "product_failed": any(f["result"] == "failed" and f.get("attribution") == "product" for f in findings),
             "not_verified": [{"id": a["id"], "at": a.get("at"), "reason": a.get("reason")} for a in assertions or []
                              if not a["advisory"] and a["result"] == "not_run"],
-            "failure_signature": sorted({f"{f['kind']}:{f.get('step') or f.get('id')}" for f in findings
+            # 失败特征含失败方式（步骤终态 / 断言的观测值）：同一步骤"崩溃"与"后置条件未满足"不是同一个缺陷
+            "failure_signature": sorted({f"{f['kind']}:{f.get('step') or f.get('id')}:{f.get('mode')}" for f in findings
                                          if f["result"] == "failed"})}
+
+
+def _assertion_mode(a: dict) -> str:
+    """断言失败方式的稳定特征：观测到的状态 / 实际文字 / 可用性等，没有这些时用断言类型。"""
+    ev = a.get("evidence") or {}
+    for k in ("observed_state", "actual_text", "enabled", "selected", "seen"):
+        if k in ev:
+            return f"{a['type']}={ev[k]}"
+    return a["type"]

@@ -159,6 +159,11 @@ def test_session_to_candidate_keeps_failure_trail(ws, tmp_path):
     assert case["goal"] == "从首页进入详情" and src["facts"]["validation_level"] == "offline_replay"
     fields = {i["field"] for i in out["issues"]}
     assert {"purpose", "assertions", "cleanup", "knowledge_used"} <= fields
+    assert "steps.S3" not in fields  # 解析成功并下发过的选择器可以留在用例里
+    # 不排除多匹配的 A2：它的选择器从没解析成功，lint 拦下，不能靠"有 observed 字段"混过去
+    kept = cli(ws, "case", "from-session", "--session", "s1", "--new-id", "TC-S-2", "--app", "motor_hm")
+    s2 = next(i for i in kept["issues"] if i["field"] == "steps.S2")
+    assert "没有解析成功" in s2["problem"]
 
 
 def test_point_tap_is_converted_only_when_a_unique_selector_exists(ws, tmp_path):
@@ -225,6 +230,18 @@ def test_required_cleanup_failure_blocks_pass(ws):
     assert "测试数据可能未恢复" in (ws.runs_dir / run["run_id"] / "report.md").read_text("utf-8")
     case["cleanup"][0]["required"] = False  # 显式声明非必需的清理：只记录
     assert run_case(ws, case=case, device_spec=world("motor_hm_base.json"))["verdict"]["verdict"] == "passed"
+
+
+def test_failure_signature_distinguishes_failure_modes(ws):
+    kn = KnowledgeStore(ws.root)
+    confirm(ws, "K-GEN-001")
+
+    def sig(status):
+        steps = [{"step_id": "S2", "outcome": "fail_candidate", "final_status": status, "reason": "x",
+                  "critical": True, "oracle_refs": ["K-GEN-001"]}]
+        return case_verdict({"ok": True}, {"ok": True}, steps, [], kn)["failure_signature"]
+    assert sig("anomaly") != sig("postcondition_not_met")  # 同一步骤"崩溃"与"没到预期页面"不是同一个缺陷
+    assert sig("anomaly") == sig("anomaly")
 
 
 def test_unconfirmed_safe_stop_outranks_product_failure(ws):
