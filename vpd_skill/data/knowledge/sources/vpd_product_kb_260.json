@@ -1,0 +1,6852 @@
+[
+ {
+  "title": "特定场景无法选中目标车位",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "需求转测气泡碰撞场景下，特定场景无法选中目标车位，疑似被车位扎标覆盖。",
+  "symptom": "特定场景下用户点选目标车位时无法选中，疑似被车位扎标浮层覆盖。",
+  "cause": "已知问题DTS2511030080080（rootCause仅注明该已知问题单号，无更多根因细节）。",
+  "keywords": [
+   "车位选择",
+   "车位扎标",
+   "无法选中",
+   "气泡碰撞",
+   "parking slot"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "0104安卓乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2530",
+   "dtsTicket": "DTS2601050081649",
+   "testDate": "46023",
+   "tracker": "黄子傲"
+  },
+  "dupHint": "rootCause为已知问题DTS2511030080080，与其他引用该单号的条目可能重复"
+ },
+ {
+  "title": "停泊图片显示上次停泊位置",
+  "category": "API集成",
+  "endpoint": "cloud",
+  "desc": "iOS乾崑车辆行驶至L1泊入车位未下电时，停泊图片显示上一次停泊的位置，不合理。",
+  "symptom": "泊入未下电场景下，App停泊图片显示的是上一次停泊的位置，与实际不符。",
+  "cause": "遗言图是否显示由接口返回的字段控制，图片信息为obs桶下载的图片，非SDK控制，已转云端查看（群917945294061236257）。",
+  "keywords": [
+   "遗言图",
+   "停泊图片",
+   "obs桶",
+   "接口字段",
+   "泊入未下电",
+   "cloud"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2531",
+   "dtsTicket": "DTS2512290081379",
+   "testDate": "46026",
+   "tracker": "黄子傲"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "算路期间开始按钮不停闪烁",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "车端不同意隐私时，App算路期间开始按钮不停闪烁。",
+  "symptom": "算路期间开始按钮反复闪烁，视觉上高亮被恢复，但按钮实际仍无法点击。",
+  "cause": "SDK问题：触发状态刷新时更新了底部视图，恢复了高亮样式，但按钮实际仍处于无法点击的状态。",
+  "keywords": [
+   "开始按钮",
+   "闪烁",
+   "状态刷新",
+   "底部视图",
+   "算路",
+   "按钮高亮"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2534",
+   "dtsTicket": "DTS2601060081519",
+   "testDate": "46026",
+   "tracker": "黄子傲"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "手机退后台后未流转算路",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "手机退到后台后车端点击离车泊入，下车后再打开手机未流转算路，杀掉重进后才流转成功。",
+  "symptom": "手机从后台恢复后未进行算路流转，需杀掉App重进才能流转成功。",
+  "cause": "重新提单：手机收到了ws的流转消息，但在等待状态机过程中没有收到RTC数据avpstate的信息，导致等待超时，不再进行算路流转。",
+  "keywords": [
+   "流转算路",
+   "ws消息",
+   "RTC",
+   "avpstate",
+   "状态机等待超时",
+   "离车泊入"
+  ],
+  "errorFeature": "",
+  "logFeature": "avpstate",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2535",
+   "dtsTicket": "DTS2601060081524",
+   "testDate": "46026",
+   "tracker": "黄子傲"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "未提示请获取车辆授权",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "授权临时用户未给位置权限时只能看到自检页，下方未提示请获取车辆授权。",
+  "symptom": "授权临时用户未授位置权限时，页面下方缺少“请获取车辆授权”提示。",
+  "cause": "控制显示错误文案的控件条件写错了，导致提示未按预期显示。",
+  "keywords": [
+   "临时用户",
+   "位置权限",
+   "车辆授权提示",
+   "自检页",
+   "控件条件"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2536",
+   "dtsTicket": "DTS2601050081626",
+   "testDate": "46026",
+   "tracker": "黄子傲"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "登陆后首次算路失败",
+  "category": "运行时",
+  "endpoint": "vehicle",
+  "desc": "乾崑NEXT登陆后第一次算路失败，实际车辆已上电。",
+  "symptom": "登录后首次算路失败并提示重试，但车辆实际已上电。",
+  "cause": "发送上电指令后SDK每100ms检查一次ws版本心跳返回的上电情况，一分钟后仍未上电即提示失败；已转车端定位，属车端上电状态上报问题。",
+  "keywords": [
+   "上电",
+   "算路失败",
+   "ws版本心跳",
+   "系统功能启动失败",
+   "首次算路"
+  ],
+  "errorFeature": "系统功能启动失败，请重试",
+  "logFeature": "ws版本心跳",
+  "version": "乾崑NEXT",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2541",
+   "dtsTicket": "非问题",
+   "testDate": "46026",
+   "tracker": "黄子傲"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "小车模型显示太小",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "安卓乾崑泊车页面小车模型显示太小。",
+  "symptom": "泊车页面中的小车模型尺寸过小。",
+  "cause": "非问题，请看DTS2511100080935要求（rootCause注明为非问题，按该单要求处理）。",
+  "keywords": [
+   "小车模型",
+   "模型大小",
+   "泊车页面",
+   "UI显示"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2542",
+   "dtsTicket": "已回归",
+   "testDate": "46026",
+   "tracker": "黄子傲"
+  },
+  "dupHint": "rootCause注明非问题、参照DTS2511100080935要求，疑似与该单重复"
+ },
+ {
+  "title": "部分路线提前置灰一秒",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "转漫游或算路后，部分路线会提前置灰一秒。",
+  "symptom": "转漫游或算路后，部分路线提前约一秒变灰。",
+  "cause": "前两帧已行驶距离异常，置灰距离未和路线匹配（同2594）。",
+  "keywords": [
+   "路线置灰",
+   "已行驶距离",
+   "置灰距离",
+   "路线匹配",
+   "转漫游",
+   "算路"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2543",
+   "dtsTicket": "DTS2601100080214",
+   "testDate": "46026",
+   "tracker": "黄子傲"
+  },
+  "dupHint": "rootCause注明同2594（置灰距离未和路线匹配），疑似重复"
+ },
+ {
+  "title": "泊出退出点返回按钮闪退",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "泊出暂停退出后点击左上角返回按钮，App闪退回桌面，下午闪退多次。",
+  "symptom": "泊出暂停退出后点击左上角返回按钮，App闪退回桌面，同日多次复现。",
+  "cause": "提单处理，同2529（rootCause仅注明同2529，无更多根因细节）。",
+  "keywords": [
+   "闪退",
+   "crash",
+   "泊出暂停退出",
+   "返回按钮",
+   "App闪退"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2545",
+   "dtsTicket": "DTS2601050081021",
+   "testDate": "46026",
+   "tracker": "黄子傲"
+  },
+  "dupHint": "rootCause注明同2529，疑似重复"
+ },
+ {
+  "title": "泊出距离显示733米不合理",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "算路后点击开始，泊出显示几秒733米，实际大约100米左右。",
+  "symptom": "泊出时距离显示733米并持续几秒，与实际约100米不符。",
+  "cause": "已知问题，同2466（rootCause仅注明同2466，无更多根因细节）。",
+  "keywords": [
+   "泊出距离",
+   "距离显示",
+   "733米",
+   "算路",
+   "显示异常"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2546",
+   "dtsTicket": "DTS2512270080120",
+   "testDate": "46026",
+   "tracker": "黄子傲"
+  },
+  "dupHint": "rootCause注明已知问题同2466，疑似重复"
+ },
+ {
+  "title": "结算页再算路底部卡片重叠",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "任意结算页车端算路后手机再算路，底部卡片重叠。",
+  "symptom": "结算页车端算路后再用手机算路，底部卡片UI重叠。",
+  "cause": "UI错误，已提单（rootCause仅注明ui错误，无更多根因细节）。",
+  "keywords": [
+   "底部卡片",
+   "卡片重叠",
+   "结算页",
+   "算路",
+   "UI错误"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2548",
+   "dtsTicket": "DTS2601050081635",
+   "testDate": "46026",
+   "tracker": "黄子傲"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "暂停退出总用时显示0秒",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "离车泊入暂停退出后，总用时显示0秒、行驶距离显示120米，不合理。",
+  "symptom": "离车泊入暂停退出后结算数据显示总用时0秒、行驶距离120米，与实际不符。",
+  "cause": "已知问题，同2466（rootCause仅注明同2466，无更多根因细节）。",
+  "keywords": [
+   "总用时",
+   "行驶距离",
+   "结算数据",
+   "离车泊入",
+   "暂停退出"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2549",
+   "dtsTicket": "DTS2512270080120",
+   "testDate": "46026",
+   "tracker": "黄子傲"
+  },
+  "dupHint": "rootCause注明已知问题同2466，与seq2546（泊出距离显示异常）引用同一已知问题，疑似重复"
+ },
+ {
+  "title": "离车泊入暂停退出无总用时",
+  "category": "业务逻辑",
+  "endpoint": "unclear",
+  "desc": "iOS离车泊入暂停退出后，未显示总用时。",
+  "symptom": "离车泊入暂停退出后结算页缺少总用时显示。",
+  "cause": "rootCause仅注明“请使用引望智行测试该问题”，未给出根因，需换端复测。",
+  "keywords": [
+   "总用时",
+   "离车泊入",
+   "暂停退出",
+   "结算页",
+   "显示缺失"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2550",
+   "dtsTicket": "已回归",
+   "testDate": "46026",
+   "tracker": "黄子傲"
+  },
+  "dupHint": "症状与seq2549（离车泊入暂停退出总用时异常）相似，但rootCause要求用引望智行复测"
+ },
+ {
+  "title": "结算页离车泊入手机无路线",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "任意结算页面使用离车泊入，手机没有路线显示。",
+  "symptom": "结算页使用离车泊入后手机端无路线显示，车辆启动后才有路线。",
+  "cause": "三端一致的SDK逻辑：完成页面不流转算路信息，因此没有路线；当车辆启动以后才会有路线显示。",
+  "keywords": [
+   "离车泊入",
+   "结算页",
+   "无路线",
+   "算路流转",
+   "三端一致"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2551",
+   "dtsTicket": "DTS2601100080203",
+   "testDate": "46026",
+   "tracker": "黄子傲"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "接通3秒后自动挂断",
+  "category": "业务逻辑",
+  "endpoint": "vehicle",
+  "desc": "车外语音对讲通话接通约3秒后即被挂断。",
+  "symptom": "接通3秒后挂断，通话无法持续。",
+  "cause": "车端使用错误userid，导致手机端收不到通话消息。",
+  "keywords": [
+   "车外语音对讲",
+   "userid",
+   "多用户",
+   "自动挂断",
+   "接通后挂断"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "1",
+   "dtsTicket": "DTS2608030082589",
+   "date": "46231",
+   "owner": ""
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "无悬浮窗权限时切后台无提示",
+  "category": "业务逻辑",
+  "endpoint": "host",
+  "desc": "未开启悬浮窗权限时，应用切到后台后没有任何界面提示。",
+  "symptom": "不开悬浮窗权限切到后台，无任何界面提示。",
+  "cause": "缺少无权限场景的提示逻辑，需补充无权限通知。",
+  "keywords": [
+   "悬浮窗权限",
+   "后台无提示",
+   "无权限通知",
+   "切后台",
+   "权限提示"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "3",
+   "dtsTicket": "DTS2608030085115",
+   "date": "46231",
+   "owner": ""
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "后台挂断且返回后报网络错误",
+  "category": "业务逻辑",
+  "endpoint": "vehicle",
+  "desc": "接通后切到后台，一段时间后通话被挂断且无提示，返回页面后提示网络错误。",
+  "symptom": "后台中挂断无提示，返回页面后提示网络错误。",
+  "cause": "车端使用错误userid，导致手机端收不到通话消息。",
+  "keywords": [
+   "userid",
+   "切后台挂断",
+   "网络错误",
+   "多用户",
+   "无提示挂断"
+  ],
+  "errorFeature": "网络错误",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "4",
+   "dtsTicket": "",
+   "date": "46231",
+   "owner": ""
+  },
+  "dupHint": "devConclusion标注同问题1，与seq1同根因（车端userid使用错误）。"
+ },
+ {
+  "title": "未开悬浮窗时偶现隐私提示缺失",
+  "category": "业务逻辑",
+  "endpoint": "host",
+  "desc": "未开启悬浮窗的情况下，偶现隐私提示未弹出。",
+  "symptom": "未开悬浮窗，偶现隐私提示没有弹出。",
+  "cause": "非ADS问题，属系统显示问题。",
+  "keywords": [
+   "悬浮窗",
+   "隐私提示",
+   "系统显示",
+   "提示未弹出",
+   "偶现"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "5",
+   "dtsTicket": "",
+   "date": "46231",
+   "owner": ""
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "前后视需滑动才能切换视图",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "车外对讲画面在前视和后视之间需要在画面上滑动才能切换视图。",
+  "symptom": "前视后视切换视图需在画面上手动滑动。",
+  "cause": "符合设计师预期：空白处不滑动即不切换。",
+  "keywords": [
+   "前视",
+   "后视",
+   "视图切换",
+   "滑动切换",
+   "画面切换"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "6",
+   "dtsTicket": "",
+   "date": "46231",
+   "owner": ""
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "关网发起通话无网络异常提示",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "关闭网络后发起车外通话，多个时间段内均无网络异常提示。",
+  "symptom": "关闭网络发起通话，长时间无网络异常提示。",
+  "cause": "同问题2：网络异常提示缺失，具体根因见问题2条目。",
+  "keywords": [
+   "关闭网络",
+   "网络异常提示",
+   "无提示",
+   "断网",
+   "发起通话"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "7",
+   "dtsTicket": "",
+   "date": "46233",
+   "owner": ""
+  },
+  "dupHint": "devConclusion标注同问题2，该问题条目（seq2）不在本切片。"
+ },
+ {
+  "title": "多账户通话手机端听不到声音",
+  "category": "业务逻辑",
+  "endpoint": "vehicle",
+  "desc": "一次上电多账户使用场景，拨通中车端可听见、手机听不见且手机通话提示音很小。",
+  "symptom": "多账户通话中车端能听见、手机听不见，手机通话提示音很小。",
+  "cause": "同问题1：userid问题导致消息未达手机端，车端重启后恢复。",
+  "keywords": [
+   "userid",
+   "多账户",
+   "多用户",
+   "听不见",
+   "提示音小",
+   "车端重启"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "8",
+   "dtsTicket": "DTS2608030082589",
+   "date": "46237",
+   "owner": ""
+  },
+  "dupHint": "与seq1同单号DTS2608030082589、同根因userid问题。"
+ },
+ {
+  "title": "开启浮窗权限后切回应用闪退",
+  "category": "运行时",
+  "endpoint": "host",
+  "desc": "开启悬浮窗权限后切回APP，应用发生闪退。",
+  "symptom": "开启浮窗权限后切回APP，应用闪退。",
+  "cause": "版本问题，待回归验证。",
+  "keywords": [
+   "悬浮窗权限",
+   "切回APP",
+   "闪退",
+   "crash",
+   "版本问题"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "9",
+   "dtsTicket": "DTS2608030082684",
+   "date": "46237",
+   "owner": ""
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "重新授权后通话偶现无法接通",
+  "category": "业务逻辑",
+  "endpoint": "vehicle",
+  "desc": "关闭麦克风权限后通过弹窗重新开启授权，再点车外通话偶现无法接通并自动挂断。",
+  "symptom": "重新开启麦克风授权后车外通话偶现无法接通、自动挂断或提示网络错误。",
+  "cause": "同问题1：车端多用户场景处理问题，类似userid问题，需和设计师沟通方案。",
+  "keywords": [
+   "麦克风权限",
+   "重新授权",
+   "无法接通",
+   "自动挂断",
+   "userid",
+   "多用户"
+  ],
+  "errorFeature": "网络错误",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "10",
+   "dtsTicket": "DTS2607210082707",
+   "date": "46237",
+   "owner": ""
+  },
+  "dupHint": "devConclusion标注同问题1，类似userid多用户问题。"
+ },
+ {
+  "title": "弱网下显示接通中后自动挂断",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "弱网下点击车外语音显示接通中，实际已能通话，60秒后自动挂断。",
+  "symptom": "弱网下界面显示接通中但实际已能通话，60秒后自动挂断。",
+  "cause": "两处时间点均为心跳断联，需手机端确认日志。",
+  "keywords": [
+   "弱网",
+   "心跳断联",
+   "接通中",
+   "60秒自动挂断",
+   "heartbeat",
+   "自动挂断"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "11",
+   "dtsTicket": "DTS2607210082707",
+   "date": "46237",
+   "owner": "陈寅瑞->展庆龙"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "通话中手机端声音偏小",
+  "category": "运行时",
+  "endpoint": "host",
+  "desc": "通话成功后手机声音较小，嘴离麦克风远一点车外就听不清楚。",
+  "symptom": "手机通话声音较小，稍远车外即听不清。",
+  "cause": "app权限问题：手机端未申请相关手机权限。",
+  "keywords": [
+   "声音小",
+   "音量",
+   "麦克风",
+   "app权限",
+   "未申请权限",
+   "听不清"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "12",
+   "dtsTicket": "DTS2608030085077",
+   "date": "46237",
+   "owner": ""
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "免提无效且手机无法调音量",
+  "category": "运行时",
+  "endpoint": "host",
+  "desc": "免提功能无效果，手机也无法调整音量。",
+  "symptom": "免提无效果，手机无法调整音量。",
+  "cause": "app权限问题：手机端未申请相关手机权限。",
+  "keywords": [
+   "免提",
+   "音量调整",
+   "app权限",
+   "handsfree",
+   "volume",
+   "未申请权限"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "13",
+   "dtsTicket": "DTS2608030085077",
+   "date": "46237",
+   "owner": ""
+  },
+  "dupHint": "与seq12同单号DTS2608030085077、同根因（手机端权限未申请）。"
+ },
+ {
+  "title": "切后台一段时间后应用闪退",
+  "category": "运行时",
+  "endpoint": "host",
+  "desc": "使用中切到后台，过一会儿应用闪退。",
+  "symptom": "切到后台过一会应用闪退。",
+  "cause": "同问题9：版本问题导致的闪退。",
+  "keywords": [
+   "切后台",
+   "闪退",
+   "crash",
+   "后台保活",
+   "版本问题"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "16",
+   "dtsTicket": "待提单",
+   "date": "46237",
+   "owner": ""
+  },
+  "dupHint": "devConclusion标注同问题9（开启浮窗权限后闪退）。"
+ },
+ {
+  "title": "使用中应用闪退",
+  "category": "运行时",
+  "endpoint": "host",
+  "desc": "车外语音对讲使用过程中应用闪退。",
+  "symptom": "使用中应用闪退。",
+  "cause": "同问题9：版本问题导致的闪退。",
+  "keywords": [
+   "闪退",
+   "crash",
+   "使用中",
+   "版本问题",
+   "应用崩溃"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "17",
+   "dtsTicket": "待提单",
+   "date": "46237",
+   "owner": ""
+  },
+  "dupHint": "devConclusion标注同问题9，与seq16同根因（版本问题闪退）。"
+ },
+ {
+  "title": "静音操作不生效",
+  "category": "运行时",
+  "endpoint": "host",
+  "desc": "104632时间点对讲静音操作不生效。",
+  "symptom": "静音不管用。",
+  "cause": "权限问题（与seq13同类）。",
+  "keywords": [
+   "静音",
+   "mute",
+   "权限问题",
+   "静音不生效",
+   "车外语音对讲"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "19",
+   "dtsTicket": "同13",
+   "date": "46238",
+   "owner": ""
+  },
+  "dupHint": "dtsTicket标注同13，与seq12/seq13同单同根因（权限问题）。"
+ },
+ {
+  "title": "泊车轨迹线告警线偏离车辆",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "NEXT乾崑泊车测试中泊入泊出轨迹与告警线显示异常。",
+  "symptom": "泊入泊出的轨迹线和告警线都偏离车辆位置显示。",
+  "cause": "已知问题，DTS2512250081163（rootCause仅注明已知问题单号，未给出具体机制）。",
+  "keywords": [
+   "泊车",
+   "轨迹线",
+   "告警线",
+   "偏离",
+   "parking trajectory"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2552",
+   "dtsTicket": "DTS2601050081639",
+   "testDate": "46026",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": "根因为已知问题，引用单号DTS2512250081163，疑似与其他条目重复。"
+ },
+ {
+  "title": "登录后广告页卡住不跳转",
+  "category": "业务逻辑",
+  "endpoint": "host",
+  "desc": "乾崑NEXT登录后进入ADS时页面停留在广告页。",
+  "symptom": "登录后点击ADS跳出广告页，1分钟一直未自动跳转，手动切tab后才跳转到VPD。",
+  "cause": "宿主传给SDK的VehicleId为空，导致SDK展示乾坤的广告页。",
+  "keywords": [
+   "登录",
+   "广告页",
+   "VehicleId",
+   "跳转",
+   "宿主集成"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "乾崑NEXT",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2556",
+   "dtsTicket": "DTS2601060081531",
+   "testDate": "46027",
+   "tracker": "黄子傲"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "首次算路失败验证码后恢复",
+  "category": "API集成",
+  "endpoint": "cloud",
+  "desc": "iOS乾崑登录后首次算路失败，重新进入后恢复。",
+  "symptom": "登录后算路失败，提示系统功能启动失败；杀后台重进弹出验证码后算路成功。",
+  "cause": "未收到RTC数据的mapid校验，导致未走到校验证书，第一次未唤起获取验证码刷新证书；第二次重新进入后刷新了mapid，进入刷新证书流程。",
+  "keywords": [
+   "算路失败",
+   "验证码",
+   "证书",
+   "mapid",
+   "RTC",
+   "certificate"
+  ],
+  "errorFeature": "系统功能启动失败",
+  "logFeature": "mapid",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2557",
+   "dtsTicket": "DTS2601060081532",
+   "testDate": "46027",
+   "tracker": "黄子傲"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "召回后路线未完全置灰",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "iOS乾崑召回功能测试中路线置灰显示异常。",
+  "symptom": "召回后路线未完全变灰。",
+  "cause": "SDK问题（rootCause仅注明SDK问题，未给出具体机制）。",
+  "keywords": [
+   "召回",
+   "路线置灰",
+   "显示",
+   "recall",
+   "路线状态"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2558",
+   "dtsTicket": "DTS2601100080204",
+   "testDate": "46028",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "转漫游目标车位未标橙色",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "iOS乾崑转漫游场景下车位标注显示问题。",
+  "symptom": "转漫游后目标车位未标记为橙色。",
+  "cause": "修复已在开发分支，还未合入转测分支。",
+  "keywords": [
+   "转漫游",
+   "目标车位",
+   "橙色标注",
+   "roaming",
+   "车位显示"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2559",
+   "dtsTicket": "",
+   "testDate": "46028",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "点击反馈等待10秒才成功",
+  "category": "运行时",
+  "endpoint": "cloud",
+  "desc": "iOS乾崑点击反馈功能响应缓慢。",
+  "symptom": "点击反馈后要等待约10秒才提示成功。",
+  "cause": "已知问题：obs桶上传文件耗时久导致反馈提交慢。",
+  "keywords": [
+   "点击反馈",
+   "上传耗时",
+   "obs",
+   "性能耗时",
+   "反馈提交"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2560",
+   "dtsTicket": "非问题",
+   "testDate": "46028",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "前视图下方黑色显示",
+  "category": "运行时",
+  "endpoint": "vehicle",
+  "desc": "iOS乾崑前视图画面显示异常。",
+  "symptom": "前视图下方区域显示为黑色。",
+  "cause": "摄像头画面问题或视频本身问题，SDK只显示视频本身（非SDK缺陷）。",
+  "keywords": [
+   "前视图",
+   "黑屏",
+   "摄像头画面",
+   "视频显示",
+   "video"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2562",
+   "dtsTicket": "非问题",
+   "testDate": "46028",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "泊入文案未提示靠左泊入",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "iOS乾崑一键泊入场景文案提示缺失。",
+  "symptom": "一键泊入时文案未提示将靠左泊入。",
+  "cause": "外部选择位姿后不提示，只有在泊车过程中选择才会提示（设计如此，非缺陷）。",
+  "keywords": [
+   "一键泊入",
+   "泊入文案",
+   "靠左泊入",
+   "位姿选择",
+   "提示"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2563",
+   "dtsTicket": "非问题",
+   "testDate": "46028",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "重进后无结算页停泊中",
+  "category": "运行时",
+  "endpoint": "unclear",
+  "desc": "iOS乾崑巡航中杀app后重进，泊车结算页缺失。",
+  "symptom": "巡航时杀掉app，泊入后重进，页面只显示停泊中，没有结算页面。",
+  "cause": "手机已加入房间但没有RTC数据过来，导致状态机没有刷新，无法更新到完成页面。",
+  "keywords": [
+   "结算页面",
+   "停泊中",
+   "RTC数据",
+   "状态机",
+   "房间",
+   "settlement"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2565",
+   "dtsTicket": "DTS2601060081524",
+   "testDate": "46028",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": "rootCause注明同2535，与seq 2535条目疑似同一问题。"
+ },
+ {
+  "title": "不可泊位置按钮样式不美观",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "iOS乾崑一键泊入选中不可泊位置时按钮样式问题。",
+  "symptom": "一键泊入选中不可泊位置时，按钮显示样式不美观。",
+  "cause": "SDK问题（rootCause仅注明SDK问题，未给出具体机制）。",
+  "keywords": [
+   "一键泊入",
+   "不可泊位置",
+   "按钮样式",
+   "UI显示",
+   "parking button"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2566",
+   "dtsTicket": "DTS2601070080017",
+   "testDate": "46028",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "结算页图片一直加载中",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "iOS乾崑巡航退后台重进后结算页图片加载异常。",
+  "symptom": "巡航时退到后台，泊入后打开，结算页面正常但图片一直加载中。",
+  "cause": "断开后重连时没有ws下载图片的消息，因此没有下载；已有优化单：超时15s未收到消息就主动触发下载图片（DTS2511110080126）。",
+  "keywords": [
+   "图片加载",
+   "ws消息",
+   "断链重连",
+   "下载图片",
+   "超时15s",
+   "websocket"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2567",
+   "dtsTicket": "DTS2511110080126",
+   "testDate": "46028",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": "根因引用已有优化单DTS2511110080126，与该单疑似同一问题。"
+ },
+ {
+  "title": "离车泊入退出无总用时",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "iOS乾崑离车泊入结算信息缺少总用时。",
+  "symptom": "离车泊入退出后没有显示总用时。",
+  "cause": "SDK问题：EPD的任务开始没有记录开始时间，导致总用时无法计算。",
+  "keywords": [
+   "离车泊入",
+   "总用时",
+   "EPD",
+   "开始时间",
+   "结算信息"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2568",
+   "dtsTicket": "DTS2601070080018",
+   "testDate": "46028",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "漫游显示一秒全图路线",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "安卓乾崑漫游场景路线显示时序异常。",
+  "symptom": "漫游时先显示一秒全图路线。",
+  "cause": "巡航状态比巡航路线返回得晚，导致先显示了全图路线（已提单）。",
+  "keywords": [
+   "漫游",
+   "全图路线",
+   "巡航状态",
+   "时序",
+   "roaming route"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2571",
+   "dtsTicket": "DTS2601070080023",
+   "testDate": "46028",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "泊入开始按钮卡顿5秒以上",
+  "category": "运行时",
+  "endpoint": "vehicle",
+  "desc": "NEXT乾崑PRUA X一键泊入启动响应慢（3/5偶现）。",
+  "symptom": "一键泊入点击开始后，开始按钮卡顿5秒以上才启动成功。",
+  "cause": "非问题：发送指令后需等待车辆返回报文，10秒内未返回报文才算问题。",
+  "keywords": [
+   "一键泊入",
+   "开始按钮",
+   "卡顿",
+   "车辆报文",
+   "响应耗时"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT乾崑（PRUA X）",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2573",
+   "dtsTicket": "非问题",
+   "testDate": "46028",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "杀后台重建后提示通话已断开",
+  "category": "运行时",
+  "endpoint": "unclear",
+  "desc": "车外对讲通话中切到后台后杀掉APP，再次重建进入时提示通话已断开。",
+  "symptom": "通话中切后台并杀掉APP，重新进入后提示通话已断开。",
+  "cause": "开发结论标注为同问题1（与序号1问题相同根因，通话断链类），未在本切片给出具体根因；备注close。",
+  "keywords": [
+   "车外对讲",
+   "通话已断开",
+   "切后台",
+   "杀APP",
+   "重建"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "20",
+   "dtsTicket": "待提单",
+   "date": "46238",
+   "owner": ""
+  },
+  "dupHint": "devConclusion为同问题1，与seq21同指向问题1根因，疑似重复。"
+ },
+ {
+  "title": "视频切换后通话两分钟内自动断开",
+  "category": "运行时",
+  "endpoint": "unclear",
+  "desc": "车外对讲通话中进行图片/视频切换后，通话不到两分钟自动断开。",
+  "symptom": "图片/视频切换后通话不到两分钟自己断开。",
+  "cause": "开发结论标注为同问题1（与序号1问题相同根因，通话断链类），未在本切片给出具体根因；备注close。",
+  "keywords": [
+   "车外对讲",
+   "通话自动断开",
+   "视频切换",
+   "图片切换",
+   "断链"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "21",
+   "dtsTicket": "",
+   "date": "46238",
+   "owner": ""
+  },
+  "dupHint": "devConclusion为同问题1，与seq20同指向问题1根因，疑似重复。"
+ },
+ {
+  "title": "EPA状态不可通话提示请挂P档",
+  "category": "业务逻辑",
+  "endpoint": "vehicle",
+  "desc": "EPA状态下无法进行车外对讲通话，提示请挂P档，且不显示视频和控车面板。",
+  "symptom": "EPA状态下不可通话，提示请挂P档，不显示视频和控车面板。",
+  "cause": "开发结论为非问题，EPA档位状态下按设计限制通话并提示挂P档，属车端档位状态的预期业务限制。",
+  "keywords": [
+   "EPA",
+   "请挂P档",
+   "不可通话",
+   "控车面板",
+   "档位限制",
+   "DTS2608100081151"
+  ],
+  "errorFeature": "请挂P档",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "25",
+   "dtsTicket": "DTS2608100081151",
+   "date": "46240",
+   "owner": "张恒铭"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "巡航滑动视频界面后加载中无影像",
+  "category": "运行时",
+  "endpoint": "vehicle",
+  "desc": "巡航过程中多次滑动巡航视频界面后，视频界面一直显示加载中、没有影像，必现。",
+  "symptom": "多次滑动巡航视频界面后，视频界面一直加载中，没有影像，必现。",
+  "cause": "车端问题，823之后的830rls版本可以验证修复。",
+  "keywords": [
+   "巡航视频",
+   "加载中",
+   "无影像",
+   "车端问题",
+   "视频界面",
+   "830rls"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "41",
+   "dtsTicket": "",
+   "date": "46253",
+   "owner": ""
+  },
+  "dupHint": "与seq42同症状同根因（滑动视频界面后加载中无影像，均为车端问题），疑似重复。"
+ },
+ {
+  "title": "巡航滑动视频界面偶现无影像",
+  "category": "运行时",
+  "endpoint": "vehicle",
+  "desc": "巡航过程中多次滑动视频界面后，巡航视频与通话视频界面偶现一直加载中、没有影像。",
+  "symptom": "多次滑动视频界面后，视频界面一直加载中、没有影像，巡航视频同样加载中无影像（偶现）。",
+  "cause": "车端问题，823之后的830rls版本可以验证修复。",
+  "keywords": [
+   "巡航视频",
+   "偶现",
+   "无影像",
+   "加载中",
+   "车端问题",
+   "830rls"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "42",
+   "dtsTicket": "",
+   "date": "46253",
+   "owner": "檀徐灿"
+  },
+  "dupHint": "与seq41同症状同根因（滑动视频界面后加载中无影像，均为车端问题），疑似重复。"
+ },
+ {
+  "title": "通话视频界面闪现英文文字提示",
+  "category": "业务逻辑",
+  "endpoint": "host",
+  "desc": "车外对讲通话视频界面闪现英文文字提示。",
+  "symptom": "通话视频界面闪现英文文字提示。",
+  "cause": "安卓侧问题，宿主APP界面提示文案异常，已修改。",
+  "keywords": [
+   "英文提示",
+   "通话视频界面",
+   "安卓",
+   "文案异常",
+   "DTS2608210081915"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "43",
+   "dtsTicket": "DTS2608210081915",
+   "date": "46253",
+   "owner": ""
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "EPD巡航全程无视频影像",
+  "category": "业务逻辑",
+  "endpoint": "host",
+  "desc": "EPD巡航过程中全程没有视频，巡航视频与通话视频均无影像。",
+  "symptom": "EPD巡航全程没有巡航视频，通话视频也没有影像。",
+  "cause": "安卓侧问题，标志位异常导致视频不显示，已修改。",
+  "keywords": [
+   "EPD巡航",
+   "无视频",
+   "标志位异常",
+   "通话视频",
+   "安卓",
+   "DTS2608220086566"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "44",
+   "dtsTicket": "DTS2608220086566",
+   "date": "46253",
+   "owner": "张恒铭"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "巡航展开折叠屏比例显示异常",
+  "category": "业务逻辑",
+  "endpoint": "host",
+  "desc": "VPD巡航过程中展开折叠屏后界面比例显示不正常。",
+  "symptom": "VPD巡航过程中展开折叠屏，显示比例不正常。",
+  "cause": "非问题：屏幕宽度在400-670区间按该方式展示，大于该区间按宽屏展示，符合预期设计。",
+  "keywords": [
+   "折叠屏",
+   "展开比例",
+   "宽屏",
+   "VPD巡航",
+   "屏幕宽度"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "45",
+   "dtsTicket": "",
+   "date": "46253",
+   "owner": "卢俊朋"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "展开折叠屏通话巡航视频不显示",
+  "category": "运行时",
+  "endpoint": "host",
+  "desc": "VPD召唤巡航过程中展开折叠屏后，通话视频长时间不显示，巡航视频全程不显示。",
+  "symptom": "展开折叠屏时通话视频长时间不显示，巡航视频全程不显示。",
+  "cause": "安卓侧问题，已修改待自测（责任人华敏）。",
+  "keywords": [
+   "折叠屏",
+   "通话视频",
+   "巡航视频",
+   "不显示",
+   "安卓",
+   "召唤巡航"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "46",
+   "dtsTicket": "",
+   "date": "46253",
+   "owner": "张恒铭"
+  },
+  "dupHint": "症状与seq44相近（巡航/通话视频不显示，均为安卓侧问题），疑似同根因。"
+ },
+ {
+  "title": "折叠屏关闭后点车位无算路信息",
+  "category": "业务逻辑",
+  "endpoint": "host",
+  "desc": "展开折叠屏召唤完成后关闭折叠，点击车位和路点不出现算路信息，点击列表出现算路但没有开始按钮。",
+  "symptom": "关闭折叠后点击车位和路点不出现算路信息；点击列表出现算路但没有对应的开始按钮。",
+  "cause": "安卓侧问题，已修改待自测（责任人华敏）。",
+  "keywords": [
+   "折叠屏",
+   "算路信息",
+   "车位",
+   "路点",
+   "开始按钮",
+   "安卓"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "47",
+   "dtsTicket": "",
+   "date": "46253",
+   "owner": "张恒铭"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "巡航状态仅俯视图不能切视角",
+  "category": "Native",
+  "endpoint": "sdk",
+  "desc": "巡航状态下视频只有俯视图，不能切换其他视角。",
+  "symptom": "巡航状态下只有俯视图视频，无法切换到其他视角。",
+  "cause": "native层问题（责任人徐灿），视角切换能力异常，已修改。",
+  "keywords": [
+   "俯视图",
+   "视角切换",
+   "巡航视频",
+   "native"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "48",
+   "dtsTicket": "",
+   "date": "46253",
+   "owner": "张恒铭"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "下电通话前二十秒车端无声音",
+  "category": "Native",
+  "endpoint": "sdk",
+  "desc": "下电状态下通话，前二十多秒车端没有声音，之后车端通话恢复有声音。",
+  "symptom": "下电状态通话前二十多秒车端没有声音，后面恢复有声音。",
+  "cause": "native层问题，音频起播阶段无兜底处理导致车端无声，已补充兜底处理。",
+  "keywords": [
+   "下电",
+   "车端无声音",
+   "通话",
+   "native",
+   "兜底处理"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "49",
+   "dtsTicket": "",
+   "date": "46253",
+   "owner": ""
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "听筒模式后两端声音明显变小",
+  "category": "运行时",
+  "endpoint": "vehicle",
+  "desc": "通话切换到听筒模式后，车端和手机端声音都明显变小，人离车两米之外两端都听不清。",
+  "symptom": "到听筒模式之后车端和手机端声音明显变小，人离车两米之外说话两端都听不清楚。",
+  "cause": "座舱问题（音频路由/音量在听筒模式下异常），待复测。",
+  "keywords": [
+   "听筒模式",
+   "声音变小",
+   "座舱",
+   "音频",
+   "DTS2608210082021"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "50",
+   "dtsTicket": "DTS2608210082021",
+   "date": "46253",
+   "owner": ""
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "上电车外对讲提示网络错误",
+  "category": "运行时",
+  "endpoint": "unclear",
+  "desc": "上电状态下发起车外对讲提示网络错误，通话失败，杀后台重进后恢复正常。",
+  "symptom": "上电状态车外对讲提示网络错误、通话失败，杀后台重进正常。",
+  "cause": "根因待定，SE待提供解决方案。",
+  "keywords": [
+   "网络错误",
+   "通话失败",
+   "上电",
+   "车外对讲",
+   "杀后台重进"
+  ],
+  "errorFeature": "网络错误",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "51",
+   "dtsTicket": "",
+   "date": "46253",
+   "owner": ""
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "iOS静音键不可用",
+  "category": "Native",
+  "endpoint": "sdk",
+  "desc": "iOS（引望）端车外对讲场景静音键不可用。",
+  "symptom": "iOS端静音键不可用，无法通过静音键静音。",
+  "cause": "端侧静音方案不可行，改为由Native层提供静音接口实现（责任人檀徐灿/郑志超）。",
+  "keywords": [
+   "iOS",
+   "静音键",
+   "native接口",
+   "引望",
+   "端侧静音"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "52",
+   "dtsTicket": "",
+   "date": "46258",
+   "owner": "郑志超/檀徐灿"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "泊入位姿选择按钮位置不美观",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "NEXT乾崑purax一键泊入场景下位姿选择按钮位置不美观，属app体验类问题。",
+  "symptom": "一键泊入时位姿选择按钮位置不美观。",
+  "cause": "UI设计问题，需设计侧确认。",
+  "keywords": [
+   "一键泊入",
+   "位姿选择",
+   "按钮位置",
+   "UI设计",
+   "purax",
+   "泊入"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT乾崑（PRUA X）",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2574",
+   "dtsTicket": "DTS2601100080206",
+   "testDate": "46028",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "结算页上方地图太小无法操作",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "结算页面上方地图太小，用户无法直接操作。",
+  "symptom": "结算页面上方地图过小，无法直接操作。",
+  "cause": "非问题，属方案设计：面板本身不允许滑动。",
+  "keywords": [
+   "结算页面",
+   "地图",
+   "面板滑动",
+   "方案设计",
+   "app体验"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT乾崑（PRUA X）",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2576",
+   "dtsTicket": "DTS2601100080208",
+   "testDate": "46028",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "召回后结算页地图卡住约20秒",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "巡航退到后台后召回再打开，结算页面正常但上方地图卡住约20秒。",
+  "symptom": "巡航退后台召回后再打开，结算页面正常，上方地图卡住约20秒，无法拖动查看。",
+  "cause": "已知问题，同2540（rootCause原样保留）。",
+  "keywords": [
+   "巡航",
+   "后台",
+   "召回",
+   "结算页面",
+   "地图卡住",
+   "20秒"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT乾崑（PRUA X）",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2577",
+   "dtsTicket": "DTS2601050082124",
+   "testDate": "46028",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": "根因注明'已知问题，同2540'，与seq 2540条目同症状同根因，疑似重复。"
+ },
+ {
+  "title": "离车泊入地图卡住视频布局过小",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "离车泊入场景车辆起步后打开手机，上方地图卡住滑不动，泊入界面视频布局太小。",
+  "symptom": "离车泊入车辆起步后打开手机，上方地图卡住滑不动，泊入界面视频布局太小。",
+  "cause": "UI设计问题，需设计侧确认。",
+  "keywords": [
+   "离车泊入",
+   "地图卡住",
+   "视频布局",
+   "UI设计",
+   "泊入界面"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT乾崑（PRUA X）",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2578",
+   "dtsTicket": "DTS2601100080210",
+   "testDate": "46028",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": "症状中'上方地图卡住滑不动'与seq 2577（已知问题，同2540）相似，疑似同源问题。"
+ },
+ {
+  "title": "账号下问界车辆列表不显示",
+  "category": "API集成",
+  "endpoint": "cloud",
+  "desc": "一个账号下只有两辆EHY车显示，其他问界车不显示。",
+  "symptom": "账号下仅显示两辆EHY车辆，其他问界车在车辆列表中不显示。",
+  "cause": "账号绑定了demoAPP，商用环境无此问题（非问题关闭）。",
+  "keywords": [
+   "账号",
+   "车辆列表",
+   "问界",
+   "不显示",
+   "demoAPP",
+   "车云"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "三端乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2580",
+   "dtsTicket": "非问题",
+   "testDate": "46029",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "上电后启动失败重试按钮置灰",
+  "category": "业务逻辑",
+  "endpoint": "vehicle",
+  "desc": "算路上电后有视频，随后提示系统功能启动失败，重试按钮置灰。",
+  "symptom": "算路上电后有视频，提示系统功能启动失败，重试按钮置灰，点击后弹出定位授权。",
+  "cause": "SDK发送上电指令后车辆上电（10:49:43.836–10:49:45.757）随后又下电，10:50:32.095轮询结果未上电，此时状态机为off导致按钮置灰。",
+  "keywords": [
+   "上电",
+   "下电",
+   "状态机",
+   "轮询",
+   "按钮置灰",
+   "系统启动失败"
+  ],
+  "errorFeature": "系统功能启动失败",
+  "logFeature": "",
+  "version": "安卓 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2581",
+   "dtsTicket": "",
+   "testDate": "46029",
+   "tracker": "黄子傲"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "转漫游短暂显示一秒全图路线",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "iOS乾崑转漫游时界面短暂显示一秒全图路线，与安卓现象相同。",
+  "symptom": "转漫游时界面短暂（约一秒）显示全图路线。",
+  "cause": "已知问题DTS2601070080023（rootCause仅单号，原样保留）。",
+  "keywords": [
+   "漫游",
+   "全图路线",
+   "显示一秒",
+   "iOS",
+   "同安卓现象"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2582",
+   "dtsTicket": "DTS2601070080023",
+   "testDate": "46029",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": "firstAnalysis注明'同安卓现象'，根因仅引用单号DTS2601070080023，疑与安卓端同现象条目重复。"
+ },
+ {
+  "title": "上电算路视频一直加载中",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "iOS乾崑上电算路后视频画面一直处于加载中（偶现）。",
+  "symptom": "上电算路后视频画面一直显示加载中（偶现）。",
+  "cause": "视频流被关闭，属代码问题（已提单DTS2601100080212）。",
+  "keywords": [
+   "上电算路",
+   "视频加载",
+   "视频流关闭",
+   "加载中",
+   "偶现"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2586",
+   "dtsTicket": "DTS2601100080212",
+   "testDate": "46029",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "漫游后结算页缺跨层信息",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "从B1巡航到L1漫游后，结算页面不显示跨层信息。",
+  "symptom": "从B1巡航L1漫游后，结算页面不显示跨层信息。",
+  "cause": "SDK计算起始点到终点的位置楼层错误，导致没有跨层信息出现。",
+  "keywords": [
+   "跨层信息",
+   "楼层",
+   "结算页面",
+   "漫游",
+   "B1巡航L1",
+   "SDK"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2588",
+   "dtsTicket": "DTS2601160080132",
+   "testDate": "46029",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "断网恢复后漫游路线未显示",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "泊出时断网、巡航时恢复网络后，巡航路线不置灰、漫游路线未显示。",
+  "symptom": "泊出时断网，巡航时打开网络，巡航路线不置灰，漫游路线未显示。",
+  "cause": "已知问题：退后台期间的漫游算路更新，16:10:34回前台后因尚未获取到漫游状态导致算路流转失败，SDK下个版本修改。",
+  "keywords": [
+   "断网",
+   "漫游路线",
+   "算路流转",
+   "漫游状态",
+   "回前台",
+   "巡航"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2590",
+   "dtsTicket": "DTS2601120080058",
+   "testDate": "46029",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "巡航路线提前置灰",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "巡航过程中路线提前置灰，表现不合理。",
+  "symptom": "巡航路线提前置灰，置灰时机不合理。",
+  "cause": "SDK部分数据没有及时清除，导致路线提前置灰。",
+  "keywords": [
+   "巡航路线",
+   "提前置灰",
+   "数据清除",
+   "置灰时机"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2591",
+   "dtsTicket": "DTS2601120080061",
+   "testDate": "46029",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "告警线轨迹线偏离车模",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "界面上告警线和轨迹线位置偏离车模。",
+  "symptom": "告警线和轨迹线位置偏离车模。",
+  "cause": "已知问题，已有问题单DTS2512250081163（原样保留）。",
+  "keywords": [
+   "告警线",
+   "轨迹线",
+   "车模",
+   "位置偏离",
+   "已知问题"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2592",
+   "dtsTicket": "DTS2512250081163",
+   "testDate": "46029",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": "根因引用已有问题单DTS2512250081163（与自身单号一致），为已知问题，疑与该单原始条目重复。"
+ },
+ {
+  "title": "算路后路线一秒内提前置灰",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "安卓VIVO折叠屏偶现算路后路线显示约一秒即提前置灰。",
+  "symptom": "算路后路线显示约一秒即提前置灰（偶现）。",
+  "cause": "置灰距离未和路线匹配（提单DTS2601100080214，同2543）。",
+  "keywords": [
+   "算路",
+   "提前置灰",
+   "置灰距离",
+   "路线匹配",
+   "偶现",
+   "折叠屏"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓  乾崑（VIVO折叠屏）",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2594",
+   "dtsTicket": "DTS2601100080214",
+   "testDate": "46030",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": "根因注明'同2543'，与seq 2543条目同症状同根因，疑似重复。"
+ },
+ {
+  "title": "任务退出后周围车位消失",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "任务退出后返回地图，小车周围车位消失（偶现）。",
+  "symptom": "任务退出后返回地图，小车周围车位消失（偶现）。",
+  "cause": "颜色设置判断条件出错，导致车位显示消失。",
+  "keywords": [
+   "任务退出",
+   "车位消失",
+   "颜色设置",
+   "判断条件",
+   "地图",
+   "偶现"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓  乾崑（VIVO折叠屏）",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2596",
+   "dtsTicket": "DTS2601100080217",
+   "testDate": "46030",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "iOS通话高概率异常断开",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "iOS引望车外对讲通话异常断开，5次出现3次，高概率复现。",
+  "symptom": "通话过程中异常断开，高概率（5次有3次）。",
+  "cause": "90秒内rtsa未初始化，触发无视频帧保活销毁机制，SDK保活逻辑误销毁通话，现已修复。",
+  "keywords": [
+   "车外对讲",
+   "通话断开",
+   "rtsa",
+   "未初始化",
+   "无视频帧保活",
+   "iOS"
+  ],
+  "errorFeature": "",
+  "logFeature": "rtsa未初始化",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "53",
+   "dtsTicket": "",
+   "date": "46258",
+   "owner": "展庆龙->温思远"
+  },
+  "dupHint": "与seq 61同根因（rtsa未初始化触发保活销毁）"
+ },
+ {
+  "title": "切后台返回后通话按钮无反应",
+  "category": "API集成",
+  "endpoint": "host",
+  "desc": "iOS引望车外对讲切后台再返回后通话异常中断，点击通话按钮闪烁一下无反应。",
+  "symptom": "切后台再返回后通话异常中断，点击通话按钮闪烁一下无反应。",
+  "cause": "iOS宿主未持续传输车辆状态，SDK收不到最新车辆状态导致通话流程无法继续；需iOS一直传车辆状态。",
+  "keywords": [
+   "车外对讲",
+   "切后台",
+   "车辆状态",
+   "通话按钮",
+   "无反应",
+   "iOS"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "54",
+   "dtsTicket": "",
+   "date": "46258",
+   "owner": "郑志超"
+  },
+  "dupHint": "与seq 55/59/60/62同一问题（devConclusion明确同一问题，需iOS一直传车辆状态）"
+ },
+ {
+  "title": "下电点击通话按钮无反应",
+  "category": "API集成",
+  "endpoint": "host",
+  "desc": "iOS引望下电状态点击车外对讲，车辆上电但点击通话按钮闪烁一下无反应。",
+  "symptom": "下电状态点击车外对讲，车辆上电成功，但点击通话按钮闪烁一下无反应。",
+  "cause": "iOS宿主未持续传输车辆状态，SDK收不到最新车辆状态导致通话无法发起；需iOS一直传车辆状态。",
+  "keywords": [
+   "车外对讲",
+   "下电",
+   "上电",
+   "车辆状态",
+   "通话按钮",
+   "iOS"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "55",
+   "dtsTicket": "",
+   "date": "46258",
+   "owner": "郑志超"
+  },
+  "dupHint": "与seq 54/59/60/62同一问题（需iOS一直传车辆状态）"
+ },
+ {
+  "title": "长时间切后台通话断开",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "iOS引望长时间切后台后车外对讲通话断开。",
+  "symptom": "长时间切后台，通话断开。",
+  "cause": "退后台后rtsa未知原因销毁导致对讲断链；退后台销毁逻辑native已做防护，但电话断开10:52:16后才走到RtcKeepalive的stop逻辑，触发无视频帧保活销毁，现已修复。",
+  "keywords": [
+   "车外对讲",
+   "切后台",
+   "通话断开",
+   "rtsa销毁",
+   "RtcKeepalive",
+   "保活"
+  ],
+  "errorFeature": "",
+  "logFeature": "RtcKeepalive",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "56",
+   "dtsTicket": "",
+   "date": "46258",
+   "owner": "郑志超->温思远"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "切后台无悬浮窗通话中断",
+  "category": "业务逻辑",
+  "endpoint": "host",
+  "desc": "iOS引望切后台再返回后通话异常中断，切后台时无悬浮窗。",
+  "symptom": "切后台再返回后通话异常中断，且切后台期间无悬浮窗显示。",
+  "cause": "悬浮窗是iOS宿主的问题，切后台时悬浮窗未展示，已修改待合入。",
+  "keywords": [
+   "车外对讲",
+   "切后台",
+   "悬浮窗",
+   "通话中断",
+   "iOS"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "57",
+   "dtsTicket": "",
+   "date": "46258",
+   "owner": "郑志超"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "对讲时前视界面黑屏",
+  "category": "运行时",
+  "endpoint": "vehicle",
+  "desc": "iOS引望对讲过程视频正常展示，但前视界面一直黑屏，点击重试后依旧失败。",
+  "symptom": "对讲过程视频正常展示，前视界面一直黑屏，点击重试后依旧失败。",
+  "cause": "非手机问题，车端前视图模块异常，前视画面无法正常输出。",
+  "keywords": [
+   "车外对讲",
+   "前视",
+   "黑屏",
+   "重试失败",
+   "车端"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "58",
+   "dtsTicket": "",
+   "date": "46258",
+   "owner": "郑志超"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "主驾无人却提示有人无法接通",
+  "category": "API集成",
+  "endpoint": "host",
+  "desc": "iOS引望主驾实际无人，但提示主驾有人无法接通，手机端和车端账号不一致。",
+  "symptom": "主驾实际无人，点击车外通话提示主驾有人无法接通。",
+  "cause": "iOS宿主未持续传输车辆状态，SDK基于过期车辆状态误判主驾有人；需iOS一直传车辆状态。",
+  "keywords": [
+   "车外对讲",
+   "主驾有人",
+   "无法接通",
+   "车辆状态",
+   "账号不一致",
+   "iOS"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "59",
+   "dtsTicket": "",
+   "date": "46258",
+   "owner": "郑志超"
+  },
+  "dupHint": "与seq 54/55/60/62同一问题（需iOS一直传车辆状态）"
+ },
+ {
+  "title": "离开驾驶座后误提示主驾有人",
+  "category": "API集成",
+  "endpoint": "host",
+  "desc": "iOS引望账号一致，人离开驾驶座后再次点击车外通话，提示主驾有人无法接通。",
+  "symptom": "人离开驾驶座后，再次点击车外通话提示主驾有人无法接通。",
+  "cause": "iOS宿主未持续传输车辆状态，SDK基于旧状态误判主驾有人；需iOS一直传车辆状态。",
+  "keywords": [
+   "车外对讲",
+   "主驾有人",
+   "离开驾驶座",
+   "车辆状态",
+   "无法接通",
+   "iOS"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "60",
+   "dtsTicket": "",
+   "date": "46258",
+   "owner": "郑志超"
+  },
+  "dupHint": "与seq 54/55/59/62同一问题（需iOS一直传车辆状态）"
+ },
+ {
+  "title": "切换账号后通话长时间无法接通",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "iOS引望账号一致主驾有人时点击车外通话，一直显示接通中，长时间无法接通后断开；期间曾在车上切换车端账号并重新登录手机端。",
+  "symptom": "点击车外通话一直显示接通中，长时间无法接通后断开，并提示主驾有人。",
+  "cause": "同问题53，rtsa未初始化，导致通话房间链路建立失败长时间无法接通。",
+  "keywords": [
+   "车外对讲",
+   "接通中",
+   "无法接通",
+   "rtsa",
+   "未初始化",
+   "账号切换"
+  ],
+  "errorFeature": "",
+  "logFeature": "rtsa未初始化",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "61",
+   "dtsTicket": "",
+   "date": "46258",
+   "owner": "郑志超->温思远"
+  },
+  "dupHint": "与seq 53同根因（rtsa未初始化）"
+ },
+ {
+  "title": "杀后台重进误提示请挂P档",
+  "category": "API集成",
+  "endpoint": "host",
+  "desc": "iOS引望APP杀后台重进后点击车外通话，提示请挂P档后重试，实际车端已是P档（之前挂N挡，主驾离开后自动变为P档）。",
+  "symptom": "杀后台重进点击车外通话，提示请挂P档后重试，实际车端已是P档。",
+  "cause": "iOS宿主未持续传输车辆状态，SDK持有的是旧的N挡状态导致档位校验误判；需iOS一直传车辆状态。",
+  "keywords": [
+   "车外对讲",
+   "P档",
+   "N挡",
+   "档位",
+   "车辆状态",
+   "杀后台"
+  ],
+  "errorFeature": "请挂P档后重试",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "62",
+   "dtsTicket": "",
+   "date": "46258",
+   "owner": "郑志超"
+  },
+  "dupHint": "与seq 54/55/59/60同一问题（需iOS一直传车辆状态）"
+ },
+ {
+  "title": "静音键无反应仍可通话",
+  "category": "Native",
+  "endpoint": "sdk",
+  "desc": "next乾崑车外对讲通话中按静音键无反应，依旧可以通话。",
+  "symptom": "通话中按静音键无反应，通话声音未被静音。",
+  "cause": "Native层静音状态位异常，静音指令未正确生效。",
+  "keywords": [
+   "车外对讲",
+   "静音",
+   "状态位",
+   "Native",
+   "通话"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "63",
+   "dtsTicket": "",
+   "date": "46258",
+   "owner": "檀徐灿"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "下电状态通话提示网络异常",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "next乾崑下电状态发起通话未接通，提示网络异常，必现。",
+  "symptom": "下电状态通话未接通，提示网络异常，必现。",
+  "cause": "收到native返回网络异常；同问题69，重复请求加入房间缺少保护导致加入房间失败，已增加重复请求加入房间保护。",
+  "keywords": [
+   "车外对讲",
+   "网络异常",
+   "下电",
+   "加入房间",
+   "重复请求",
+   "native"
+  ],
+  "errorFeature": "网络异常",
+  "logFeature": "收到native返回网络异常",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "64",
+   "dtsTicket": "",
+   "date": "46258",
+   "owner": "张引"
+  },
+  "dupHint": "与seq 69同根因（重复请求加入房间无保护）"
+ },
+ {
+  "title": "接通后通话异常且20秒后无声",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "next乾崑通话接通后通话时间显示异常，前二十秒车外有声音，二十秒后无声音，高概率；另一时间点提示网络错误断开通话。",
+  "symptom": "接通后通话时间显示异常，前二十秒车外有声音，二十秒后无声音，高概率；偶现提示网络错误断开。",
+  "cause": "SDK误判断车端已在房间，因此没有发送通知车端加入房间，具体原因无法确认；已补充三秒发一次通知逻辑。",
+  "keywords": [
+   "车外对讲",
+   "无声音",
+   "通话时间",
+   "加入房间",
+   "误判",
+   "房间通知"
+  ],
+  "errorFeature": "网络错误",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "65",
+   "dtsTicket": "",
+   "date": "46258",
+   "owner": "张引/檀徐灿"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "通话断开提示网络异常",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "next乾崑车外对讲通话异常断开，提示网络异常。",
+  "symptom": "通话异常断开，提示网络异常。",
+  "cause": "心跳断链；rtsa的视频帧监控问题导致心跳没发出去，对讲链路因心跳缺失被断开。",
+  "keywords": [
+   "车外对讲",
+   "心跳断链",
+   "视频帧监控",
+   "rtsa",
+   "网络异常"
+  ],
+  "errorFeature": "网络异常",
+  "logFeature": "心跳",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "66",
+   "dtsTicket": "",
+   "date": "46258",
+   "owner": "展庆龙"
+  },
+  "dupHint": "与seq 67同根因（rtsa视频帧监控导致心跳断链）"
+ },
+ {
+  "title": "接通后无声音随后网络错误断开",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "next乾崑通话接通后无声音，偶现；后期再次通话时异常断开并提示网络错误。",
+  "symptom": "接通后无声音，偶现；随后通话异常断开，提示网络错误。",
+  "cause": "心跳断链；rtsa的视频帧监控问题导致心跳没发出去，引起无声音及通话断开。",
+  "keywords": [
+   "车外对讲",
+   "无声音",
+   "心跳断链",
+   "视频帧监控",
+   "rtsa",
+   "网络错误"
+  ],
+  "errorFeature": "网络错误",
+  "logFeature": "心跳",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "67",
+   "dtsTicket": "",
+   "date": "46258",
+   "owner": "展庆龙"
+  },
+  "dupHint": "与seq 66同根因（rtsa视频帧监控导致心跳断链）"
+ },
+ {
+  "title": "取消收藏后地图残留车位图标",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "安卓乾崑（VIVO折叠屏）测试中，收藏车位已全部取消收藏，地图上仍显示残留图标。",
+  "symptom": "收藏车位已全部取消收藏，地图上还有残留的收藏车位（P车位）图标。",
+  "cause": "取消收藏后未将P车位图标去掉，地图图标刷新逻辑问题。",
+  "keywords": [
+   "收藏车位",
+   "取消收藏",
+   "车位图标",
+   "地图刷新",
+   "P车位",
+   "favorite"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓  乾崑（VIVO折叠屏）",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2597",
+   "dtsTicket": "DTS2601190080122",
+   "testDate": "46030",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "折叠屏展开泊入结算页全屏显示",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "VIVO折叠屏展开状态下完成泊入，结算界面以全屏方式显示。",
+  "symptom": "折叠屏展开后，泊入结算界面全屏显示。",
+  "cause": "UI显示问题。",
+  "keywords": [
+   "折叠屏",
+   "泊入结算界面",
+   "全屏显示",
+   "UI显示",
+   "foldable"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓  乾崑（VIVO折叠屏）",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2601",
+   "dtsTicket": "DTS2601100080219",
+   "testDate": "46030",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "折叠屏展开二次确认页俯视图偏小",
+  "category": "兼容性",
+  "endpoint": "sdk",
+  "desc": "VIVO折叠屏展开时的二次确认页面，其俯视图与巡航俯视图相比显示偏小。",
+  "symptom": "折叠屏展开的二次确认页面，和巡航的俯视图比较明显偏小。",
+  "cause": "折叠屏展开形态下UI适配问题。",
+  "keywords": [
+   "折叠屏",
+   "二次确认页面",
+   "俯视图",
+   "UI适配",
+   "显示偏小"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓  乾崑（VIVO折叠屏）",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2602",
+   "dtsTicket": "DTS2601100080221",
+   "testDate": "46030",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "折叠屏展开召回结算俯视图不居中",
+  "category": "兼容性",
+  "endpoint": "sdk",
+  "desc": "VIVO折叠屏展开状态下，召回结算页面的俯视图显示不居中。",
+  "symptom": "折叠屏展开的召回结算页面俯视图不居中。",
+  "cause": "折叠屏展开形态下UI适配问题。",
+  "keywords": [
+   "折叠屏",
+   "召回结算页面",
+   "俯视图",
+   "不居中",
+   "UI适配"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓  乾崑（VIVO折叠屏）",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2603",
+   "dtsTicket": "DTS2601100080223",
+   "testDate": "46030",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "折叠屏再折叠后收藏列表显示异常",
+  "category": "兼容性",
+  "endpoint": "sdk",
+  "desc": "VIVO折叠屏展开后再折叠回普通形态，地图页面收藏列表显示异常。",
+  "symptom": "折叠屏展开后再折叠，地图页面收藏列表显示异常。",
+  "cause": "折叠屏形态切换后UI适配问题。",
+  "keywords": [
+   "折叠屏",
+   "收藏列表",
+   "显示异常",
+   "UI适配",
+   "形态切换"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓  乾崑（VIVO折叠屏）",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2604",
+   "dtsTicket": "DTS2601100080224",
+   "testDate": "46030",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "行驶中小车模型未更新显示停泊中",
+  "category": "运行时",
+  "endpoint": "cloud",
+  "desc": "NEXT乾崑白名单高阶包SD图测试中，车辆行驶过程中地图小车模型位置未更新。",
+  "symptom": "车辆行驶中，地图上小车模型未更新位置，一直显示停泊中。",
+  "cause": "10:52:00收到116消息后被踢掉RTC链路，小车模型位置数据停止更新。",
+  "keywords": [
+   "RTC断链",
+   "116",
+   "小车模型",
+   "位置未更新",
+   "停泊中",
+   "RTC"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2606",
+   "dtsTicket": "DTS2601100080225",
+   "testDate": "46031",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "iOS APP运行崩溃提示",
+  "category": "运行时",
+  "endpoint": "unclear",
+  "desc": "iOS乾崑APP测试中提示APP奔溃（无打点）。",
+  "symptom": "使用中提示APP奔溃。",
+  "cause": "根因未记录，在824358338560062527群跟踪。",
+  "keywords": [
+   "APP崩溃",
+   "iOS",
+   "crash",
+   "奔溃",
+   "乾崑"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2609",
+   "dtsTicket": "DTS2601100080227",
+   "testDate": "46031",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "充电中提示错误（错误码解析失败）",
+  "category": "API集成",
+  "endpoint": "host",
+  "desc": "NEXT乾崑测试中车辆充电状态下APP提示错误。",
+  "symptom": "充电过程中APP提示错误。",
+  "cause": "SDK调用乾崑sendPowerOnCommand接口(remoteControlAvp)时捕捉到错误码但解析出错，待APP确认是否未正确映射error.code导致SDK解析不出来。",
+  "keywords": [
+   "sendPowerOnCommand",
+   "remoteControlAvp",
+   "error.code",
+   "错误码解析",
+   "充电",
+   "远程控制"
+  ],
+  "errorFeature": "",
+  "logFeature": "error.code",
+  "version": "NEXT 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2611",
+   "dtsTicket": "已回归",
+   "testDate": "46031",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "俯视图告警线与轨迹线严重偏移",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "NEXT乾崑测试中泊车俯视图的告警线和轨迹线显示严重偏移。",
+  "symptom": "俯视图中告警线和轨迹线严重偏移。",
+  "cause": "轨迹线用到的宽度值不对，SDK修正后预计0110版本合入。",
+  "keywords": [
+   "俯视图",
+   "告警线",
+   "轨迹线",
+   "偏移",
+   "宽度值",
+   "top view"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2612",
+   "dtsTicket": "已回归",
+   "testDate": "46031",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "泊出退出显示跨越楼层不合理",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "NEXT乾崑测试中泊出时选择退出，页面显示跨越楼层1层，疑似算路终点落在坡道引起。",
+  "symptom": "泊出时退出，显示跨越楼层1层，与实际不符。",
+  "cause": "SDK对坡道的跨楼层处理不准，SDK优化中。",
+  "keywords": [
+   "泊出",
+   "跨楼层",
+   "坡道",
+   "算路终点",
+   "楼层显示"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2613",
+   "dtsTicket": "DTS2601120080152",
+   "testDate": "46031",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "后视滑到俯视图片旋转90度",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "安卓乾崑测试中点击图片放大后滑动，从右后视切换到俯视时画面旋转90°。",
+  "symptom": "点击图片放大滑动，从右后视滑到俯视画面会旋转90°（必现）。",
+  "cause": "后视切换俯视时图片加载方式逻辑有误。",
+  "keywords": [
+   "图片放大",
+   "右后视",
+   "俯视",
+   "旋转90°",
+   "图片加载",
+   "滑动切换"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2615",
+   "dtsTicket": "DTS2601130080500",
+   "testDate": "46032",
+   "tracker": "黄子傲"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "点击全览地图被遮挡一半",
+  "category": "兼容性",
+  "endpoint": "sdk",
+  "desc": "NEXT乾崑测试中点击全览按钮，地图被遮挡一半。",
+  "symptom": "点击全览后，地图被挡住一半。",
+  "cause": "非问题，短屏形态下地图缩放暂无适配方案。",
+  "keywords": [
+   "全览",
+   "地图遮挡",
+   "短屏",
+   "地图缩放",
+   "适配"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2617",
+   "dtsTicket": "DTS2601130080518",
+   "testDate": "46032",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "生命周期销毁导致运行崩溃",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "VIVO折叠屏安卓乾崑使用中APP运行崩溃。",
+  "symptom": "运行中APP崩溃。",
+  "cause": "调用recountAndRestartRtcDataTimer()时requireActivity()已被销毁，页面生命周期导致的crash。",
+  "keywords": [
+   "crash",
+   "recountAndRestartRtcDataTimer",
+   "requireActivity",
+   "生命周期",
+   "运行崩溃"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓  乾崑（VIVO折叠屏）",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2618",
+   "dtsTicket": "DTS2601130080519",
+   "testDate": "46032",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "换层泊入后停泊图片未刷新",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "NEXT乾崑测试中车辆从B1驶入L1并泊入L1车位后，停泊图片仍显示B1车位。",
+  "symptom": "从B1驶入L1泊入L1车位后，不重进APP停泊图片仍显示B1的车位，需重进APP才刷新。",
+  "cause": "非问题，不重进APP不会重新获取停泊照片。",
+  "keywords": [
+   "换层",
+   "停泊图片",
+   "B1",
+   "L1",
+   "照片刷新",
+   "重进APP"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2619",
+   "dtsTicket": "DTS2601150080273",
+   "testDate": "46032",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "车外通话未接通提示网络异常",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "next乾崑多用户场景下车外通话未接通，提示网络异常。",
+  "symptom": "通话未接通，提示网络异常",
+  "cause": "车端未响应权限请求；rtsa的视频帧监控问题导致心跳没发出去，引发断链",
+  "keywords": [
+   "车外通话",
+   "未接通",
+   "网络异常",
+   "rtsa",
+   "视频帧监控",
+   "心跳"
+  ],
+  "errorFeature": "网络异常",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "68",
+   "dtsTicket": "需要和寅瑞定位的那几个鸿蒙问题定位好的",
+   "date": "46258",
+   "owner": "展庆龙"
+  },
+  "dupHint": "与seq70同根因（rtsa视频帧监控问题导致心跳未发出）"
+ },
+ {
+  "title": "首次车外通话未接通重试后网络错误",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "next乾崑首次车外通话未接通直接挂断，再次点击一直显示接通中，最后提示网络错误（必现）。",
+  "symptom": "第1次车外通话未接通直接挂断，再次点击车外通话一直显示接通中，最终提示网络错误",
+  "cause": "车端未加入房间，补充重复发送加房间请求（每3秒一次直到接通或挂断）；NEXT下SDK误判车端已在房间，未发送通知车端加房；新通话没有重置通话时间状态",
+  "keywords": [
+   "车外通话",
+   "接通中",
+   "网络错误",
+   "加入房间",
+   "房间状态误判",
+   "通话时长重置"
+  ],
+  "errorFeature": "网络错误",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "69",
+   "dtsTicket": "",
+   "date": "46258",
+   "owner": "展庆龙->张引"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "前视频通话车外无声后网络错误断开",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "next乾崑前视频界面通话异常，车外无声音，前期有声音后期无声音，提示网络错误断开。",
+  "symptom": "车外无声音，前期有声音后期无声音，提示网络错误断开",
+  "cause": "心跳断链；rtsa的视频帧监控问题导致心跳没发出去",
+  "keywords": [
+   "车外通话",
+   "无声",
+   "网络错误",
+   "心跳断链",
+   "rtsa",
+   "视频帧监控"
+  ],
+  "errorFeature": "网络错误",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "70",
+   "dtsTicket": "",
+   "date": "46258",
+   "owner": "展庆龙"
+  },
+  "dupHint": "与seq68同根因（rtsa视频帧监控问题导致心跳未发出）"
+ },
+ {
+  "title": "前视后视视频界面显示异常",
+  "category": "运行时",
+  "endpoint": "vehicle",
+  "desc": "next乾崑车外通话中前视、后视视频界面显示异常。",
+  "symptom": "视频界面显示异常（前视、后视画面异常）",
+  "cause": "SDK发送相机视角指令后收不到关键帧信息（车端问题）；车外通话视频宽度未适配宽屏设备",
+  "keywords": [
+   "视频界面",
+   "前视",
+   "后视",
+   "关键帧",
+   "相机视角指令",
+   "宽屏适配"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "71",
+   "dtsTicket": "",
+   "date": "46258",
+   "owner": "张引"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "亲友用车场景无法观看车外视频",
+  "category": "运行时",
+  "endpoint": "unclear",
+  "desc": "next乾崑VPD车外对讲在亲友用车（共享用车）场景中不能观看视频。",
+  "symptom": "亲友用车中无法观看车外视频",
+  "cause": "定位中，根因未确认（亲友用车即多用户共享场景下视频不可用）",
+  "keywords": [
+   "亲友用车",
+   "多用户",
+   "车外视频",
+   "不能看视频",
+   "VPD车外对讲"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "72",
+   "dtsTicket": "",
+   "date": "46259",
+   "owner": "张引"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "手机锁车下电后车外通话未结束",
+  "category": "业务逻辑",
+  "endpoint": "unclear",
+  "desc": "用手机点锁车下电后，车外通话没有结束（必现），归类为新需求跟踪。",
+  "symptom": "车辆下电后车外通话不挂断，通话持续",
+  "cause": "下电事件未联动结束车外通话，属新需求跟踪（下电自动挂断逻辑缺失）",
+  "keywords": [
+   "车辆下电",
+   "锁车下电",
+   "通话未结束",
+   "通话不挂断",
+   "下电联动挂断"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "73",
+   "dtsTicket": "",
+   "date": "46259",
+   "owner": "温思远"
+  },
+  "dupHint": "与seq74同症状同根因（下电后通话不结束，新需求跟踪）"
+ },
+ {
+  "title": "刷卡下电后车外通话未结束",
+  "category": "业务逻辑",
+  "endpoint": "unclear",
+  "desc": "用手机点锁车及钥匙在车端刷卡下电后，车外通话没有结束（必现），归类为新需求跟踪。",
+  "symptom": "车辆下电（刷卡下电）后车外通话不挂断，通话持续",
+  "cause": "下电事件未联动结束车外通话，属新需求跟踪（下电自动挂断逻辑缺失）",
+  "keywords": [
+   "车辆下电",
+   "刷卡下电",
+   "通话未结束",
+   "通话不挂断",
+   "下电联动挂断"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "74",
+   "dtsTicket": "",
+   "date": "46259",
+   "owner": "温思远"
+  },
+  "dupHint": "与seq73同症状同根因（下电后通话不结束，新需求跟踪）"
+ },
+ {
+  "title": "通话影像异常高概率复现",
+  "category": "运行时",
+  "endpoint": "vehicle",
+  "desc": "车外对讲相关影像异常（高概率复现），开发结论为非车外对讲问题。",
+  "symptom": "影像异常，高概率复现",
+  "cause": "编码器刷新时未先销毁老编码器再初始化，导致影像异常（非车外对讲问题）",
+  "keywords": [
+   "影像异常",
+   "编码器",
+   "编码器刷新",
+   "销毁初始化",
+   "高概率复现"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "75",
+   "dtsTicket": "",
+   "date": "46259",
+   "owner": "温思远"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "宽屏比例调整后召唤结算页消失",
+  "category": "业务逻辑",
+  "endpoint": "host",
+  "desc": "手机端调整完宽屏比例后，召唤结算页（展开状态）消失，关闭折叠结算页会恢复（必现）。",
+  "symptom": "调整宽屏比例后召唤结算页消失，关闭折叠结算页后恢复",
+  "cause": "已定位（宽屏比例调整触发召唤结算页显隐状态异常，具体细节未记录）",
+  "keywords": [
+   "宽屏比例",
+   "召唤结算页",
+   "结算页消失",
+   "界面显隐",
+   "展开状态"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "76",
+   "dtsTicket": "",
+   "date": "46259",
+   "owner": "卢俊朋"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "切换麦克风扬声器后无声音",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "车外通话中切换麦克风/扬声器后无声音，且默认应优先显示扬声器而不是听筒。",
+  "symptom": "切换麦克风/扬声器后无声音；默认显示听筒而非扬声器",
+  "cause": "无声音问题已定位（音频路由切换异常，具体细节未记录），上午验证仍存在问题待重新出包",
+  "keywords": [
+   "麦克风",
+   "扬声器",
+   "听筒",
+   "无声音",
+   "音频路由",
+   "音频切换"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "77",
+   "dtsTicket": "",
+   "date": "46259",
+   "owner": "郑志超/檀徐灿"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "首页退后台无悬浮窗",
+  "category": "运行时",
+  "endpoint": "host",
+  "desc": "只有全屏界面退后台有悬浮窗，首页退后台没有悬浮窗。",
+  "symptom": "首页退后台无悬浮窗，全屏界面退后台有悬浮窗",
+  "cause": "悬浮窗仅在全屏界面退后台时展示，首页场景需方案变更（工作量较大），827转测",
+  "keywords": [
+   "悬浮窗",
+   "退后台",
+   "首页",
+   "全屏界面",
+   "后台保活"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "78",
+   "dtsTicket": "",
+   "date": "46259",
+   "owner": "郑志超"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "通话断开无toast提示",
+  "category": "业务逻辑",
+  "endpoint": "host",
+  "desc": "车外通话断开时没有toast提示用户。",
+  "symptom": "通话断开时无任何toast提示",
+  "cause": "断开流程未添加toast提示逻辑，已修改补加",
+  "keywords": [
+   "通话断开",
+   "toast",
+   "提示",
+   "断开提示"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "79",
+   "dtsTicket": "",
+   "date": "46259",
+   "owner": "郑志超"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "接通后点击挂断界面卡死",
+  "category": "业务逻辑",
+  "endpoint": "host",
+  "desc": "车外通话接通后点击挂断，界面卡死。",
+  "symptom": "接通后点击挂断界面卡死",
+  "cause": "全屏界面出现重复退出，导致挂断时界面卡死；上午验证后仍存在问题，待重新出包验证",
+  "keywords": [
+   "挂断",
+   "界面卡死",
+   "全屏界面",
+   "重复退出"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "80",
+   "dtsTicket": "",
+   "date": "46259",
+   "owner": "郑志超"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "iOS蓝牙扬声器切换异常",
+  "category": "兼容性",
+  "endpoint": "host",
+  "desc": "iOS有蓝牙时，从默认蓝牙切换到扬声器后，无法再次切换回蓝牙。",
+  "symptom": "从默认蓝牙切换到扬声器后无法再切换回蓝牙；切换到蓝牙后图标显示为听筒",
+  "cause": "iOS蓝牙连接状态下默认扬声器播放，切换到蓝牙后音频路由图标显示为听筒（显示与实际状态不一致）",
+  "keywords": [
+   "蓝牙",
+   "扬声器",
+   "听筒",
+   "音频切换",
+   "iOS",
+   "音频路由"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "81",
+   "dtsTicket": "",
+   "date": "46259",
+   "owner": "郑志超/谭徐灿"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "点击全屏后界面卡死",
+  "category": "运行时",
+  "endpoint": "host",
+  "desc": "车外通话点击全屏后界面卡死。",
+  "symptom": "点击全屏后界面卡死",
+  "cause": "权限检测存在冲突（待验证），导致进入全屏时界面卡死",
+  "keywords": [
+   "全屏",
+   "界面卡死",
+   "权限冲突",
+   "权限检测"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "82",
+   "dtsTicket": "",
+   "date": "46259",
+   "owner": "郑志超"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "折叠屏展开前视图受俯视图影响变小",
+  "category": "兼容性",
+  "endpoint": "sdk",
+  "desc": "安卓VIVO折叠屏展开状态下，算路后点击开始进入二次确认页再取消，前视图受俯视图影响变小。",
+  "symptom": "折叠屏展开时，二次确认页面的俯视图导致前视图变小",
+  "cause": "折叠屏展开时视频宽度未适配（提单跟进），导致前视图受二次确认页俯视图影响而变小",
+  "keywords": [
+   "折叠屏",
+   "前视图",
+   "视频宽度",
+   "二次确认页",
+   "俯视图",
+   "UI适配"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓  乾崑（VIVO折叠屏）",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2620",
+   "dtsTicket": "DTS2601120080176",
+   "testDate": "46032",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": "与seq2621、2622同为VIVO折叠屏展开UI适配问题（同日同机测试），疑似同批适配缺陷"
+ },
+ {
+  "title": "折叠屏展开结算页上方信息被截断",
+  "category": "兼容性",
+  "endpoint": "sdk",
+  "desc": "安卓VIVO折叠屏展开状态下，泊入和召唤的结算页面上方信息被截断。",
+  "symptom": "折叠屏展开时泊入/召唤结算页上方信息被截断",
+  "cause": "UI适配问题：折叠屏展开时泊入和召唤结算页上方信息显示被截断（提单跟进）",
+  "keywords": [
+   "折叠屏",
+   "结算页面",
+   "信息截断",
+   "泊入",
+   "召唤",
+   "UI适配"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓  乾崑（VIVO折叠屏）",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2621",
+   "dtsTicket": "DTS2601130080523",
+   "testDate": "46032",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": "与seq2620、2622同为VIVO折叠屏展开UI适配问题（同日同机测试），疑似同批适配缺陷"
+ },
+ {
+  "title": "折叠屏结算页收藏布局不合理",
+  "category": "兼容性",
+  "endpoint": "sdk",
+  "desc": "安卓VIVO折叠屏展开状态下，结算页面点击收藏时布局不合理。",
+  "symptom": "折叠屏展开时结算页收藏功能布局不合理",
+  "cause": "折叠屏适配问题：展开态下结算页收藏布局未适配（UI适配问题）",
+  "keywords": [
+   "折叠屏",
+   "结算页面",
+   "收藏",
+   "布局",
+   "UI适配"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓  乾崑（VIVO折叠屏）",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2622",
+   "dtsTicket": "DTS2601120080177",
+   "testDate": "46032",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": "与seq2620、2621同为VIVO折叠屏展开UI适配问题（同日同机测试），疑似同批适配缺陷"
+ },
+ {
+  "title": "一键泊入结算页布局不符合预期",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "安卓乾崑一键泊入完成后，结算页布局不符合预期。",
+  "symptom": "一键泊入结算页布局不符合预期",
+  "cause": "UI错误：一键泊入结算页布局错误（提单跟进）",
+  "keywords": [
+   "一键泊入",
+   "结算页",
+   "布局",
+   "UI错误"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2624",
+   "dtsTicket": "DTS2601130080531",
+   "testDate": "46034",
+   "tracker": "黄子傲"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "召回路线未完全置灰打点后又变亮",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "iOS乾崑召回功能中，召回路线未完全置灰，打点反馈时路线又全部变亮。",
+  "symptom": "召回路线未完全置灰，打点反馈时又全部变亮",
+  "cause": "问题1为已知问题DTS2601100080204（原样保留）；问题2为手机SDK收到任务中小车当前位置为1（回到起点），导致路线置灰状态异常",
+  "keywords": [
+   "召回",
+   "路线置灰",
+   "打点反馈",
+   "小车当前位置",
+   "SDK"
+  ],
+  "errorFeature": "",
+  "logFeature": "小车当前位置",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2626",
+   "dtsTicket": "DTS2601190080136",
+   "testDate": "46034",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": "问题1（路线未完全置灰）为已知问题，根因引用DTS2601100080204"
+ },
+ {
+  "title": "泊入退出后总用时未显示",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "iOS乾崑泊入过程中退出，结算页面总用时未显示。",
+  "symptom": "泊入中途退出后，结算页面总用时未显示",
+  "cause": "已知问题：EPD场景下点击退出时时间统计有问题（已转提单给赵典孟，工号30029456）",
+  "keywords": [
+   "泊入",
+   "退出",
+   "总用时",
+   "EPD",
+   "时间统计"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2631",
+   "dtsTicket": "DTS2601150080277",
+   "testDate": "46034",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "泊入方向选靠右实际显示靠左",
+  "category": "业务逻辑",
+  "endpoint": "vehicle",
+  "desc": "iOS乾崑一键泊入选择靠右泊入，泊入时显示的是靠左且无任何提示。",
+  "symptom": "选择靠右泊入，泊入时显示靠左，无提示",
+  "cause": "车端问题：车端返回的可用位姿不含右（tailInAvailableParkSideType: 6，左侧栏目默认固定显示三个位姿，进入泊车后实际可选仅左2和中4），但数据中选中位姿为右，导致默认显示靠左；需在无默认方向时增加toast弹窗提示",
+  "keywords": [
+   "一键泊入",
+   "泊入方向",
+   "位姿",
+   "tailInAvailableParkSideType",
+   "toast提示"
+  ],
+  "errorFeature": "",
+  "logFeature": "tailInAvailableParkSideType",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2632",
+   "dtsTicket": "DTS2601150088371",
+   "testDate": "46034",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "转漫游初期探照圈闪烁过快",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "iOS乾崑转入漫游刚开始时，探照圈闪烁较快。",
+  "symptom": "转漫游刚开始时探照圈闪烁比较快",
+  "cause": "SDK问题：漫游切换初期探照圈闪烁频率异常，SDK侧已重新修改提交并回归关闭",
+  "keywords": [
+   "漫游",
+   "探照圈",
+   "闪烁",
+   "SDK"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2634",
+   "dtsTicket": "已回归",
+   "testDate": "46034",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "车辆驶出园区直接显示停泊图片",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "NEXT乾崑车辆驶出园区时，页面下方直接显示停泊图片。",
+  "symptom": "车辆驶出园区时，下方直接显示停泊图片",
+  "cause": "已知问题：方案已修改，合入开发分支（停泊图片显示状态异常）",
+  "keywords": [
+   "驶出园区",
+   "停泊图片",
+   "UI显示",
+   "状态显示"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2635",
+   "dtsTicket": "DTS2601150080278",
+   "testDate": "46034",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "泊入闪退重开后误弹结算页面",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "NEXT乾崑泊入过程中闪退，重新打开APP后选中车位弹出的是结算页面而非算路页面。",
+  "symptom": "泊入过程中闪退；重新打开APP选中车位后弹出结算页面，而不是算路页面",
+  "cause": "已知问题：0112已合入乾坤商发分支（泊入闪退及重开后页面状态恢复异常）",
+  "keywords": [
+   "泊入",
+   "闪退",
+   "crash",
+   "结算页面",
+   "算路页面",
+   "状态恢复"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2637",
+   "dtsTicket": "DTS2601130080533",
+   "testDate": "46034",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "召回接管退出界面显示788米不合理",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "NEXT乾崑召回靠边临停时拉方向接管，退出界面显示788米不合理。",
+  "symptom": "召回靠边临停拉方向接管后，退出界面显示788米，数值不合理",
+  "cause": "SDK侧问题：退出界面距离显示788米不合理，遗留到开发分支更改",
+  "keywords": [
+   "召回",
+   "靠边临停",
+   "接管",
+   "退出界面",
+   "距离显示",
+   "788米"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2638",
+   "dtsTicket": "DTS2601150080350",
+   "testDate": "46034",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "二次确认俯视图文案位置与其他视图不一致",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "NEXT乾崑算路后巡航退出，各视图文案位于正上方，仅二次确认页俯视图文案在右上方。",
+  "symptom": "巡航退出后视图文案在正上方，而二次确认页俯视图文案在右上方，位置不一致",
+  "cause": "UI问题，SDK侧修改：二次确认页俯视图文案位置与巡航视图文案位置（正上方）不一致",
+  "keywords": [
+   "巡航",
+   "俯视图",
+   "文案位置",
+   "二次确认页",
+   "UI布局"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2639",
+   "dtsTicket": "DTS2601130080536",
+   "testDate": "46034",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "进图显示一秒北京地图",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "iOS乾崑进图时短暂显示一秒北京地图后才刷新到实际位置。",
+  "symptom": "进图时先显示一秒北京地图（默认位置）才刷新到车辆实际位置",
+  "cause": "已知问题：请求位置信息有延迟，地图刷新时还未获取到车辆位置，导致进图短暂显示北京地图（默认位置）",
+  "keywords": [
+   "进图",
+   "北京地图",
+   "位置信息延迟",
+   "地图刷新",
+   "车辆位置"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2648",
+   "dtsTicket": "DTS2601190080140",
+   "testDate": "46035",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "起终点在路口算路后处于路口外",
+  "category": "业务逻辑",
+  "endpoint": "unclear",
+  "desc": "安卓乾崑起终点处于路口时，算路后必现起终点处于路口外。",
+  "symptom": "起终点处于路口时，算路后起终点必现于路口外（必现）",
+  "cause": "已知已解问题（原文如此，未附根因细节）：起终点处于路口时算路结果落在路口外",
+  "keywords": [
+   "算路",
+   "起终点",
+   "路口",
+   "路线规划",
+   "必现"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2671",
+   "dtsTicket": "待回归",
+   "testDate": "46037",
+   "tracker": "黄子傲"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "通话断开无toast提示",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "车外语音对讲首次进入界面后快速点击通话，通话断开且界面无任何提示。",
+  "symptom": "通话断开后界面无toast提示。",
+  "cause": "SDK通话断开流程未添加toast提示逻辑，已修改。",
+  "keywords": [
+   "车外语音对讲",
+   "通话断开",
+   "toast",
+   "提示",
+   "快速点击"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "83",
+   "dtsTicket": "",
+   "date": "46259",
+   "owner": "郑志超"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "通话断开无toast提示",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "车外语音对讲通话断开后界面无任何提示。",
+  "symptom": "通话断开后界面无toast提示。",
+  "cause": "SDK通话断开流程未添加toast提示逻辑，已修改。",
+  "keywords": [
+   "车外语音对讲",
+   "通话断开",
+   "toast",
+   "提示"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "84",
+   "dtsTicket": "",
+   "date": "46259",
+   "owner": "郑志超"
+  },
+  "dupHint": "与seq 83同症状同根因（通话断开未加toast，已修改），疑似重复"
+ },
+ {
+  "title": "全屏挂断无toast提示",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "车外语音对讲全屏界面挂断通话后界面无任何提示。",
+  "symptom": "全屏界面挂断后无toast提示。",
+  "cause": "SDK挂断流程未添加toast提示逻辑，已修改。",
+  "keywords": [
+   "车外语音对讲",
+   "全屏",
+   "挂断",
+   "toast",
+   "提示"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "85",
+   "dtsTicket": "",
+   "date": "46259",
+   "owner": "郑志超"
+  },
+  "dupHint": "与seq 83/84同根因（通话断开/挂断未加toast），疑似重复"
+ },
+ {
+  "title": "下电后再通话声音嘈杂偏小",
+  "category": "运行时",
+  "endpoint": "unclear",
+  "desc": "车辆下电后再次发起车外通话，出现特别大的嘈杂音。",
+  "symptom": "车辆下电后再次通话出现大嘈杂音，复现后表现为声音小。",
+  "cause": "复现后确认存在声音小的问题，音频链路具体原因未记录，已修改。",
+  "keywords": [
+   "车外语音对讲",
+   "下电",
+   "嘈杂音",
+   "声音小",
+   "音频"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "86",
+   "dtsTicket": "",
+   "date": "46259",
+   "owner": "郑志超/檀徐灿"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "巡航状态无法切换视角",
+  "category": "业务逻辑",
+  "endpoint": "unclear",
+  "desc": "VPD巡航状态下不能切换视角，非对讲状态时也无法切换。",
+  "symptom": "VPD巡航状态下视角无法切换。",
+  "cause": "开发确认非问题，已close。",
+  "keywords": [
+   "VPD巡航",
+   "切换视角",
+   "车外语音对讲"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "87",
+   "dtsTicket": "",
+   "date": "46259",
+   "owner": "张引"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "VPD结算页无通话语音按钮",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "安卓端VPD结算页没有车外通话语音按钮入口。",
+  "symptom": "VPD结算页缺少车外通话语音按钮。",
+  "cause": "结算页未提供通话语音按钮，方案需与华敏确认后修改，已修改。",
+  "keywords": [
+   "VPD结算页",
+   "通话语音按钮",
+   "安卓",
+   "车外语音对讲"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "88",
+   "dtsTicket": "",
+   "date": "46260",
+   "owner": "张恒铭"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "下电后再上电RTSA收不到视频流",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "iOS端车辆下电3分钟后再次上电，RTSA接收不到视频流。",
+  "symptom": "下电3分钟后再上电，车外通话影像无视频流。",
+  "cause": "下电再上电场景RTSA视频流接收未恢复，已修改待验证。",
+  "keywords": [
+   "RTSA",
+   "视频流",
+   "下电",
+   "上电",
+   "iOS",
+   "车外语音对讲"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "89",
+   "dtsTicket": "",
+   "date": "46260",
+   "owner": "郑志超"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "单框架退后台不显示影像",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "单框架首页退后台后，车外通话影像不显示。",
+  "symptom": "单框架首页退后台后影像不显示。",
+  "cause": "退后台后影像链路未恢复显示（rtsa退后台类问题），开发修复中。",
+  "keywords": [
+   "单框架",
+   "退后台",
+   "影像",
+   "rtsa",
+   "车外语音对讲"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "90",
+   "dtsTicket": "",
+   "date": "46260",
+   "owner": "张引"
+  },
+  "dupHint": "与seq 91同症状同根因（首页退后台影像不显示），疑似重复"
+ },
+ {
+  "title": "iOS退后台不显示影像",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "iOS端首页退后台后，车外通话影像不显示。",
+  "symptom": "iOS首页退后台后影像不显示。",
+  "cause": "退后台后影像链路未恢复显示（rtsa退后台类问题），已修改。",
+  "keywords": [
+   "iOS",
+   "退后台",
+   "影像",
+   "rtsa",
+   "车外语音对讲"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "91",
+   "dtsTicket": "",
+   "date": "46260",
+   "owner": "郑志超"
+  },
+  "dupHint": "与seq 90同症状同根因（首页退后台影像不显示），疑似重复"
+ },
+ {
+  "title": "车外通话影像比例不对",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "next乾崑巡航中车外通话影像显示比例不对，必现。",
+  "symptom": "巡航中车外通话影像比例显示错误。",
+  "cause": "SDK UI问题，影像比例渲染逻辑已定位但改动难度较大。",
+  "keywords": [
+   "车外通话影像",
+   "比例",
+   "SDK UI",
+   "next乾崑",
+   "巡航"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "93",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "曙光"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "通话切换后异常关闭视频卡住",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "next乾崑点击车外通话影像后，车外通话异常关闭，巡航界面视频卡住不实时更新。",
+  "symptom": "点击车外通话影像后通话异常关闭，巡航视频画面卡住不更新。",
+  "cause": "旧页面释放了新页面的decoder，导致新页面视频解码异常，原方案不可行需另寻方案。",
+  "keywords": [
+   "decoder",
+   "车外通话",
+   "异常关闭",
+   "视频卡住",
+   "单框架",
+   "next乾崑"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "94",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "张引/温思远"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "车外通话失败无提示",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "next乾崑VPD巡航过程中点击车外通话失败，界面无任何提示。",
+  "symptom": "点击车外通话失败且无任何提示。",
+  "cause": "主动挂断流程未补充toast提示，已定位修改。",
+  "keywords": [
+   "车外通话",
+   "通话失败",
+   "toast",
+   "主动挂断",
+   "巡航"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "95",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "张引"
+  },
+  "dupHint": "与seq 97同根因（主动挂断未补充toast），疑似重复"
+ },
+ {
+  "title": "巡航后通话失败提示网络异常",
+  "category": "运行时",
+  "endpoint": "vehicle",
+  "desc": "next乾崑VPD巡航结束后点击车外通话提示网络异常，通话失败，必现。",
+  "symptom": "巡航结束后点击车外通话提示网络异常且通话失败。",
+  "cause": "车端HMI未加入rtsa房间（车14:58-15:07不在房间，15:07:47才加房间），需828确认加房间逻辑。",
+  "keywords": [
+   "rtsa房间",
+   "网络异常",
+   "HMI",
+   "加房间",
+   "巡航结束",
+   "车外通话"
+  ],
+  "errorFeature": "网络异常",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "96",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "张引"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "通话被巡航中断且无文字提示",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "next乾崑先点击车外通话成功后启动VPD巡航，车外通话异常中断，车外有语音提示但手机端无文字提示。",
+  "symptom": "启动巡航后车外通话异常中断，手机端无文字提示。",
+  "cause": "主动挂断流程未补充toast提示，与seq 95同因。",
+  "keywords": [
+   "车外通话",
+   "巡航",
+   "通话中断",
+   "toast",
+   "文字提示"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "97",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "张引"
+  },
+  "dupHint": "与seq 95同根因（主动挂断未补充toast），疑似重复"
+ },
+ {
+  "title": "切听筒扬声器后蓝牙音频未切换",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "next乾崑蓝牙切到听筒和扬声器界面时，戴着蓝牙耳机车外声音仍在蓝牙耳机响起。",
+  "symptom": "切换听筒/扬声器后音频仍从蓝牙耳机播放，路由未切换。",
+  "cause": "设置蓝牙耳机失败，SDK调用系统接口报错，音频路由未按预期切换。",
+  "keywords": [
+   "音频路由",
+   "蓝牙耳机",
+   "听筒",
+   "扬声器",
+   "车外语音对讲",
+   "next乾崑"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "98",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "管增翰"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "算路后显示距离与实际距离不符",
+  "category": "业务逻辑",
+  "endpoint": "vehicle",
+  "desc": "安卓乾崑（VIVO折叠屏）研发专项测试中，算路完成后界面显示的距离与实际距离不一致，几乎必现。",
+  "symptom": "算路后界面显示的距离与实际距离不符，几乎必现。",
+  "cause": "已知问题，待车端定位（原记录未给出具体根因，HMI SERVER 模块）。",
+  "keywords": [
+   "算路",
+   "距离显示",
+   "实际距离不符",
+   "route distance",
+   "HMI SERVER"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓  乾崑（VIVO折叠屏）",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2673",
+   "dtsTicket": "已回归",
+   "testDate": "46037",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "多次泊入仅首次下电无后续提示",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "iOS 乾崑测试中，泊入后界面提示即将自动下电，但之后无已自动下电的提示，必现。",
+  "symptom": "泊入后界面显示即将自动下电，没有后续提示已自动下电。",
+  "cause": "代码问题：多次泊入时只有第一次会触发下电，后续泊入不再下电，导致无已自动下电提示。",
+  "keywords": [
+   "泊入",
+   "自动下电",
+   "下电提示",
+   "多次泊入",
+   "power off"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2680",
+   "dtsTicket": "DTS2601190080153",
+   "testDate": "46037",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "无法进入ADS界面提示车辆信息验证失败",
+  "category": "API集成",
+  "endpoint": "host",
+  "desc": "NEXT 乾崑测试中无法进入 ADS 界面，提示车辆信息验证失败且无法恢复，卸载重装后成功。",
+  "symptom": "无法进入ADS界面，提示车辆信息验证失败，无法恢复，卸载后成功。",
+  "cause": "app 为生产环境而 sdk 为预生产，环境不匹配导致 AccessToken 一直校验不对，进入异常提示页属正常防护逻辑；系覆盖更新导致，解决方式为预生产乾崑 app 更换包名。",
+  "keywords": [
+   "车辆信息验证失败",
+   "AccessToken",
+   "环境不匹配",
+   "预生产",
+   "包名",
+   "token"
+  ],
+  "errorFeature": "车辆信息验证失败",
+  "logFeature": "",
+  "version": "NEXT乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2708",
+   "dtsTicket": "非问题",
+   "testDate": "46042",
+   "tracker": "黄子傲"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "泊入后不收藏未显示推荐下车点",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "安卓 demo 环境泊入后未收藏车位，界面未显示推荐下车点，不符合测试预期。",
+  "symptom": "泊入后不收藏，未显示推荐下车点。",
+  "cause": "非问题：该场景下即不显示推荐下车点，符合设计。",
+  "keywords": [
+   "泊入",
+   "推荐下车点",
+   "收藏",
+   "不显示",
+   "drop-off point"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓  demo",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2724",
+   "dtsTicket": "非问题",
+   "testDate": "46045",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": "与 seq 2732 描述与根因完全相同（泊入后不收藏未显示推荐下车点），疑似重复条目"
+ },
+ {
+  "title": "车端收藏车位后手机未同步",
+  "category": "API集成",
+  "endpoint": "cloud",
+  "desc": "安卓 demo 环境下车端收藏车位后，手机端收藏列表未同步显示该车位。",
+  "symptom": "车端收藏车位后，手机未同步显示收藏。",
+  "cause": "收藏数据由云端接口 spot-collection/mobile/v3/avpCollection/query 返回，属云端数据链路，非本地同步问题。",
+  "keywords": [
+   "收藏车位",
+   "手机同步",
+   "avpCollection",
+   "spot-collection",
+   "云端接口"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓  demo",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2725",
+   "dtsTicket": "非问题",
+   "testDate": "46045",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "泊入后不收藏未显示推荐下车点",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "NEXT demo 环境泊入后未收藏车位，界面未显示推荐下车点，不符合测试预期。",
+  "symptom": "泊入后不收藏，未显示推荐下车点。",
+  "cause": "非问题：该场景下即不显示推荐下车点，符合设计。",
+  "keywords": [
+   "泊入",
+   "推荐下车点",
+   "收藏",
+   "不显示",
+   "drop-off point"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT  demo",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2732",
+   "dtsTicket": "非问题",
+   "testDate": "46045",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": "与 seq 2724 描述与根因完全相同（泊入后不收藏未显示推荐下车点），疑似重复条目"
+ },
+ {
+  "title": "停泊位置未显示车位号",
+  "category": "API集成",
+  "endpoint": "cloud",
+  "desc": "安卓乾崑测试中，车辆停泊后界面上的停泊位置未显示车位号，偶现。",
+  "symptom": "停泊位置未显示车位号，偶现。",
+  "cause": "车位号取自遗言接口 location/get 中的 parkSpaceNo 字段，该字段信息缺失导致未显示。",
+  "keywords": [
+   "车位号",
+   "停泊位置",
+   "parkSpaceNo",
+   "location/get",
+   "遗言接口"
+  ],
+  "errorFeature": "",
+  "logFeature": "parkSpaceNo",
+  "version": "安卓 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2766",
+   "dtsTicket": "无日志",
+   "testDate": "46052",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "跨应用算路后提示启动失败地图卡住",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "NEXT 乾崑先用乾崑算路后取消退到后台，再用鸿蒙智行算路提示系统功能启动失败，返回乾崑后地图卡住无法移动，必现。",
+  "symptom": "跨应用交替算路后提示系统功能启动失败，回到乾崑地图卡住无法移动。",
+  "cause": "非问题：跨应用防护仅在乾崑实现，鸿蒙智行（智选）尚无防护代码，验证方向反了。",
+  "keywords": [
+   "系统功能启动失败",
+   "地图卡住",
+   "跨应用切换",
+   "乾崑",
+   "鸿蒙智行",
+   "防护"
+  ],
+  "errorFeature": "系统功能启动失败",
+  "logFeature": "",
+  "version": "NEXT 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2776",
+   "dtsTicket": "非问题",
+   "testDate": "46053",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "泊出退出后未显示行驶距离和总用时",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "NEXT 乾崑泊出过程中退出，结算页面未显示行驶距离和总用时，必现。",
+  "symptom": "泊出时退出，结算页面没有显示行驶距离和总用时。",
+  "cause": "已知问题，已有新需求跟踪（AR20251226970966），原记录如此，无进一步根因细节。",
+  "keywords": [
+   "泊出",
+   "行驶距离",
+   "总用时",
+   "结算页面",
+   "AR20251226970966"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2783",
+   "dtsTicket": "非问题",
+   "testDate": "46055",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": "根因为已知问题并引用新需求单号 AR20251226970966 跟踪"
+ },
+ {
+  "title": "取消离车泊入后气泡显示驻车中",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "iOS 乾崑车端取消离车泊入后再退出导航，手机端停泊中气泡状态变为驻车中，必现。",
+  "symptom": "车端取消离车泊入并退出导航后，手机停泊中气泡变成驻车中。",
+  "cause": "非问题：RTC 连接状态下驻车 P 档即触发驻车中气泡，属新需求范畴。",
+  "keywords": [
+   "停泊中气泡",
+   "驻车中",
+   "离车泊入",
+   "P档",
+   "RTC连接状态"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "Ios 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2784",
+   "dtsTicket": "非问题",
+   "testDate": "46055",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "一键泊入主动退出结算显示异常退出",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "NEXT 乾崑一键泊入过程中主动暂停退出，结算页面显示为异常退出，必现。",
+  "symptom": "一键泊入时主动暂停退出，结算页面显示的是异常退出。",
+  "cause": "可泊车位场景下手动退出同样按异常退出结算，属逻辑判定结果。",
+  "keywords": [
+   "一键泊入",
+   "暂停退出",
+   "异常退出",
+   "结算页面"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2792",
+   "dtsTicket": "非问题",
+   "testDate": "46057",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "图外显示正在加载地图及爱车位置",
+  "category": "API集成",
+  "endpoint": "sdk",
+  "desc": "NEXT 乾崑在地图图外区域显示正在加载地图及爱车位置，界面加载异常。",
+  "symptom": "图外显示正在加载地图及爱车位置。",
+  "cause": "已知问题：缺少高德SD地图的 key 值，导致逆地理查询不生效。",
+  "keywords": [
+   "地图加载",
+   "爱车位置",
+   "逆地理查询",
+   "高德SD地图",
+   "key值"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2799",
+   "dtsTicket": "DTS2602050081039",
+   "testDate": "46058",
+   "tracker": "黄子傲"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "临停后界面显示正在泊出车位",
+  "category": "业务逻辑",
+  "endpoint": "vehicle",
+  "desc": "安卓鸿蒙智行临停后，手机界面错误显示正在泊出车位状态。",
+  "symptom": "临停后显示正在泊出车位。",
+  "cause": "问题时间点车端状态机未进入 PARK_PUT 状态，导致界面误显泊出中。",
+  "keywords": [
+   "临停",
+   "泊出车位",
+   "状态机",
+   "PARK_PUT"
+  ],
+  "errorFeature": "",
+  "logFeature": "PARK_PUT",
+  "version": "安卓鸿蒙智行",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2809",
+   "dtsTicket": "无日志",
+   "testDate": "46058",
+   "tracker": "黄子傲"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "算路过程中无法选点切换目标",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "安卓乾崑算路过程中无法在地图上选点切换目标目的地。",
+  "symptom": "算路过程中无法选点切换目标。",
+  "cause": "设计要求：算路 loading 中不能点选地图，算路成功后到开始启动过程中才可再点选目标切换。",
+  "keywords": [
+   "算路",
+   "选点",
+   "切换目标",
+   "loading",
+   "点选地图"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2813",
+   "dtsTicket": "DTS2602120080183",
+   "testDate": "46062",
+   "tracker": "黄子傲"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "断开蓝牙后蓝牙选项仍存在",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "断开蓝牙设备后车外通话界面仍显示蓝牙选项，挂断重新发起后恢复正常。",
+  "symptom": "断开蓝牙后界面仍保留蓝牙选项，挂断重开始恢复。",
+  "cause": "SDK仅在发起呼叫时判断是否支持蓝牙设备，通话中断开蓝牙不会更新选项状态（问题6，828已修改）。",
+  "keywords": [
+   "蓝牙",
+   "蓝牙选项",
+   "车外通话",
+   "发起呼叫",
+   "设备支持判断"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "99",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "张引"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "挂断后再通话车外无声音",
+  "category": "运行时",
+  "endpoint": "unclear",
+  "desc": "前次未接通主动挂断后再次点击车外通话，接通后车外无声音，但手机端可接收车外声音。",
+  "symptom": "再次接通后车外对讲无声音，后续再接通依旧无法进行车外对讲。",
+  "cause": "缺乏日志未复现；车机日志显示车下行音频已订阅、能收到手机音频，下行链路正常，上行音频异常原因未定位。",
+  "keywords": [
+   "车外无声音",
+   "主动挂断",
+   "再次接通",
+   "音频订阅",
+   "车下行音频"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "100",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "张引/檀徐灿"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "无网络通话卡片误显通话中",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "手机关闭网络后不杀后台直接发起车外通话，卡片显示通话中并有时间显示，实际未接通。",
+  "symptom": "无网络发起通话时卡片显示通话中且在计时，实际未接通。",
+  "cause": "SDK接到错误码4，通话岛已改为显示网络不稳文案（问题7，已修改）。",
+  "keywords": [
+   "无网络",
+   "错误码4",
+   "通话岛",
+   "网络不稳",
+   "通话中卡片"
+  ],
+  "errorFeature": "错误码4",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "101",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "管增翰"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "恢复网络后通话提示网络异常",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "无网络车外对讲后手机未杀后台重进，装手机卡连接网络后再次车外对讲，手机端提示网络异常。",
+  "symptom": "网络恢复后再次发起车外对讲，手机端文字提示网络异常，无法接通。",
+  "cause": "http断开导致rtsa初始化失败，已增加rtsa超时重新初始化机制。",
+  "keywords": [
+   "网络异常",
+   "rtsa初始化",
+   "http断开",
+   "超时重新初始化",
+   "车外对讲"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "102",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "温思远"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "WLAN切蜂窝后通话断开难重连",
+  "category": "运行时",
+  "endpoint": "unclear",
+  "desc": "WLAN切换蜂窝网络时提示网络异常、通话断开，异常断开后再次通话无法接通。",
+  "symptom": "WLAN切换蜂窝后提示网络异常、通话断开，之后再次通话无法接通。",
+  "cause": "车机日志显示车未收到加房间请求（155536-155803），结论同问题96，已修改。",
+  "keywords": [
+   "WLAN切换蜂窝",
+   "网络异常",
+   "加房间请求",
+   "通话断开",
+   "rtsa房间"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "103",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "张引/温思远"
+  },
+  "dupHint": "与seq104同结论\"同问题96\"，车机均未收到加房间请求，疑似同根因。"
+ },
+ {
+  "title": "主驾坐人通话中断再拨失败",
+  "category": "运行时",
+  "endpoint": "unclear",
+  "desc": "车外通话过程中主驾坐人导致通话异常中断，再次拨通时提示网络异常。",
+  "symptom": "主驾坐人后通话异常中断，再次拨通提示网络异常，无法接通。",
+  "cause": "车机日志显示车未收到加房间请求（160204-160452），结论同问题96，已修改。",
+  "keywords": [
+   "主驾坐人",
+   "通话异常中断",
+   "网络异常",
+   "加房间请求",
+   "再次拨通"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "104",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "张引/温思远"
+  },
+  "dupHint": "与seq103同结论\"同问题96\"，车机均未收到加房间请求，疑似同根因。"
+ },
+ {
+  "title": "通话后台十几秒自动挂断",
+  "category": "运行时",
+  "endpoint": "host",
+  "desc": "车外通话接通后放后台，十几秒自动挂断，重进应用时应用重启。",
+  "symptom": "通话放后台十几秒自动挂断，重进应用时应用重新启动。",
+  "cause": "鸿蒙无权限导致后台闪退，进程被杀后通话中断。",
+  "keywords": [
+   "后台挂断",
+   "后台闪退",
+   "鸿蒙无权限",
+   "应用重启",
+   "自动挂断"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "105",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "张引"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "主驾坐人挂断后全屏界面未刷新",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "全屏通话界面退后台后主驾坐人，悬浮窗toast提示主驾有人并自动挂断，悬浮窗仍显示，点击进入全屏后界面未刷新。",
+  "symptom": "自动挂断后点击进入全屏，全屏通话界面仍显示通话中，未刷新。",
+  "cause": "问题8初版方案不可行，已修改。",
+  "keywords": [
+   "悬浮窗",
+   "主驾坐人",
+   "自动挂断",
+   "全屏通话界面",
+   "界面未刷新"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "106",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "张引"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "iOS切后台回前台通话挂断",
+  "category": "兼容性",
+  "endpoint": "host",
+  "desc": "iOS通话中切到后台再切回前台，通话会挂断并提示通话已结束（必现）。",
+  "symptom": "切后台再回前台后通话挂断，提示通话已结束。",
+  "cause": "复测通过，可能是iOS系统版本问题。",
+  "keywords": [
+   "iOS",
+   "切后台",
+   "通话挂断",
+   "系统版本",
+   "后台保活"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "107",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "郑志超"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "iOS退后台无悬浮窗",
+  "category": "兼容性",
+  "endpoint": "host",
+  "desc": "iOS通话中界面退到后台后无悬浮窗显示（必现）。",
+  "symptom": "通话界面退到后台后没有悬浮窗。",
+  "cause": "测试的手机系统版本太低，不支持悬浮窗功能。",
+  "keywords": [
+   "iOS",
+   "悬浮窗",
+   "后台",
+   "系统版本低",
+   "不支持"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "108",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "郑志超"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "iOS静音后车端仍可听到",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "iOS车外语音通话中点击静音按钮，车端仍可以听到声音（必现）。",
+  "symptom": "点击静音按钮后车端仍能听到手机端声音。",
+  "cause": "静音状态未生效，新版本已解决。",
+  "keywords": [
+   "静音按钮",
+   "车端听到声音",
+   "iOS",
+   "静音状态",
+   "车外语音"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "109",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "谭徐灿"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "下电三分钟后接通视图不显示",
+  "category": "运行时",
+  "endpoint": "unclear",
+  "desc": "iOS车辆下电三分钟后接通车外通话，接通后视图加载不出来（必现）。",
+  "symptom": "车辆下电三分钟后接通通话，视图加载不出来。",
+  "cause": "08/27复测通过，无进一步定位结论。",
+  "keywords": [
+   "车辆下电",
+   "接通",
+   "视图加载",
+   "iOS",
+   "车外通话"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "110",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "郑志超"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "启动VPD时车外语音被下电挂断",
+  "category": "业务逻辑",
+  "endpoint": "vehicle",
+  "desc": "iOS算路完成后接通车外语音，再启动VPD，车外语音挂断并提示车辆下电、通话已断开（必现）。",
+  "symptom": "启动VPD后车外语音通话挂断，提示车辆下电通话已断开。",
+  "cause": "iOS收到车端状态的下电信号，误触发通话挂断。",
+  "keywords": [
+   "启动VPD",
+   "下电信号",
+   "通话挂断",
+   "车外语音",
+   "算路"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "111",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "郑志超"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "退出人找车后界面卡死",
+  "category": "业务逻辑",
+  "endpoint": "host",
+  "desc": "iOS人找车界面接通车外语音后退出人找车，界面卡死（偶现）。",
+  "symptom": "接通后退出人找车界面，界面卡死。",
+  "cause": "新版本已解决，具体机制未详述。",
+  "keywords": [
+   "人找车",
+   "界面卡死",
+   "iOS",
+   "偶现",
+   "退出界面"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "112",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "檀徐灿"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "多用户通话iOS接通即挂断",
+  "category": "Native",
+  "endpoint": "sdk",
+  "desc": "其他手机在通话中时iOS仍可接通，接通2秒后自动挂断并提示通话异常请重试（必现）。",
+  "symptom": "多用户场景下iOS接通2秒后自动挂断，提示通话异常请重试。",
+  "cause": "收到native报的error，疑似多用户冲突，需用车端多用户的包测试。",
+  "keywords": [
+   "多用户",
+   "自动挂断",
+   "native error",
+   "通话异常",
+   "iOS接通"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "113",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "檀徐灿"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "泊出暂停退出界面切换不流畅",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "安卓demo泊出暂停后点击退出时，退出界面切换不流畅，必现。",
+  "symptom": "泊出暂停后点击退出，退出界面切换卡顿不流畅。",
+  "cause": "经视频复核为非问题，实际切换表现顺畅。",
+  "keywords": [
+   "泊出",
+   "退出",
+   "界面切换",
+   "卡顿",
+   "泊出暂停"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓  demo",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2826",
+   "dtsTicket": "",
+   "testDate": "46077",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "车辆已下电仍提示即将自动下电",
+  "category": "API集成",
+  "endpoint": "host",
+  "desc": "IOS引望智行泊车流程中车辆实际已下电，界面仍一直提示即将自动下电。",
+  "symptom": "车辆已下电，界面持续提示即将自动下电，未收到已下电结果。",
+  "cause": "手机已发送下电请求，但宿主app未返回下电回调结果。",
+  "keywords": [
+   "下电",
+   "下电回调",
+   "下电请求",
+   "自动下电提示",
+   "引望智行",
+   "IOS"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "IOS 引望智行",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2831",
+   "dtsTicket": "demo问题",
+   "testDate": "46077",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "泊入返回后漫游探照圈残留",
+  "category": "业务逻辑",
+  "endpoint": "unclear",
+  "desc": "NEXT demo泊入后返回时，地图上漫游探照圈未消失，偶现。",
+  "symptom": "泊入后返回，地图漫游探照圈残留显示。",
+  "cause": "缺少该时间段日志，无法进一步定位。",
+  "keywords": [
+   "泊入",
+   "漫游",
+   "探照圈",
+   "残留",
+   "NEXT",
+   "UI残留"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT  demo",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2836",
+   "dtsTicket": "无日志",
+   "testDate": "46077",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "SD图未显示高德地图和比例尺",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "安卓demo在SD图中未显示高德地图及对应比例尺。",
+  "symptom": "SD图中高德地图和对应比例尺不显示。",
+  "cause": "非问题，按设计有RC图时才显示比例尺。",
+  "keywords": [
+   "SD图",
+   "比例尺",
+   "高德地图",
+   "RC图",
+   "地图显示"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓  demo",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2838",
+   "dtsTicket": "非问题",
+   "testDate": "46078",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "地图道路未显示方向箭头",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "安卓demo地图上的道路未显示方向箭头。",
+  "symptom": "地图道路缺少方向箭头显示。",
+  "cause": "使用最新版本复测已解决。",
+  "keywords": [
+   "地图",
+   "道路",
+   "方向箭头",
+   "导航显示",
+   "安卓"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓  demo",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2841",
+   "dtsTicket": "已解决",
+   "testDate": "46079",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "点击车位后附近车位号未隐藏",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "安卓demo点击某个车位后，其他附近车位号未隐藏，不符合预期。",
+  "symptom": "选中车位后，附近其他车位号仍显示未隐藏。",
+  "cause": "非问题，该需求还未实现。",
+  "keywords": [
+   "车位",
+   "车位号",
+   "选中车位",
+   "隐藏",
+   "UI显示"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓  demo",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2842",
+   "dtsTicket": "非问题",
+   "testDate": "46080",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "录音按钮点文字无响应",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "NEXT demo录音按钮只能点击图标触发录音，点击文字无反应，必现。",
+  "symptom": "录音按钮点击文字区域无响应，仅点图标可录音。",
+  "cause": "按钮点击热区方案待确认。",
+  "keywords": [
+   "录音",
+   "录音按钮",
+   "点击热区",
+   "无响应",
+   "NEXT"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT  demo",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2845",
+   "dtsTicket": "已闭环",
+   "testDate": "46080",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "上电失败提示系统功能启动失败",
+  "category": "API集成",
+  "endpoint": "host",
+  "desc": "NEXT demo上电高概率偶现失败，界面提示系统功能启动失败。",
+  "symptom": "上电失败，界面提示系统功能启动失败。",
+  "cause": "token失效，导致调用宿主app上电接口失败。",
+  "keywords": [
+   "上电",
+   "token失效",
+   "上电接口",
+   "系统功能启动失败",
+   "宿主app"
+  ],
+  "errorFeature": "系统功能启动失败",
+  "logFeature": "",
+  "version": "NEXT  demo",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2848",
+   "dtsTicket": "demo问题",
+   "testDate": "46080",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "泊入后未提示已锁车下电",
+  "category": "API集成",
+  "endpoint": "cloud",
+  "desc": "NEXT demo漫游泊入车位后仅提示即将锁车下电，后续未提示已锁车下电。",
+  "symptom": "漫游泊入后只提示即将锁车下电，缺少已锁车下电提示。",
+  "cause": "调用车云下电接口失败，返回错误码100015。",
+  "keywords": [
+   "锁车下电",
+   "车云下电接口",
+   "100015",
+   "下电提示",
+   "漫游泊入"
+  ],
+  "errorFeature": "100015",
+  "logFeature": "",
+  "version": "NEXT  demo",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2850",
+   "dtsTicket": "demo问题",
+   "testDate": "46080",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "泊入后未提示已下电",
+  "category": "API集成",
+  "endpoint": "host",
+  "desc": "IOS引望智行一键泊入结算页面正常，仅提示将自动下电，后续未提示已下电。",
+  "symptom": "一键泊入后只提示将自动下电，未出现已下电提示。",
+  "cause": "非问题，adssdk已发送下电请求，但引望智行app不支持下电回调。",
+  "keywords": [
+   "下电",
+   "下电回调",
+   "自动下电",
+   "引望智行",
+   "一键泊入",
+   "IOS"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "IOS 引望智行",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2852",
+   "dtsTicket": "demo问题",
+   "testDate": "46081",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": "与seq 2831症状及根因机制相似：均为引望智行侧下电回调缺失导致无已下电提示。"
+ },
+ {
+  "title": "充电中算路显示系统启动中",
+  "category": "业务逻辑",
+  "endpoint": "unclear",
+  "desc": "IOS引望智行在车辆充电中执行算路，界面显示系统启动中，不符合预期。",
+  "symptom": "车辆充电时算路，界面显示系统启动中。",
+  "cause": "缺少该时间点(1604)日志，无法定位。",
+  "keywords": [
+   "充电",
+   "算路",
+   "系统启动中",
+   "状态显示",
+   "IOS"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "IOS 引望智行",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2853",
+   "dtsTicket": "无日志",
+   "testDate": "46081",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "巡航退出结算距离用时异常",
+  "category": "业务逻辑",
+  "endpoint": "vehicle",
+  "desc": "安卓乾崑巡航退出后结算显示距离11米、总用时2分52秒，数据不合理。",
+  "symptom": "巡航退出结算页显示距离11米、总用时2分52秒，明显不合理。",
+  "cause": "车端未发送结算页信息，app使用本地数据展示。",
+  "keywords": [
+   "巡航",
+   "结算页",
+   "行驶距离",
+   "总用时",
+   "hmi-server",
+   "本地数据"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2883",
+   "dtsTicket": "非问题",
+   "testDate": "46086",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "泊出退出无行驶距离和用时",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "NEXT乾崑泊出退出后结算页无行驶距离和总用时数据。",
+  "symptom": "泊出退出结算缺少行驶距离和总用时显示。",
+  "cause": "老方案中数据由手机端自行计算后被筛掉，新方案已合入release。",
+  "keywords": [
+   "泊出",
+   "结算",
+   "行驶距离",
+   "总用时",
+   "本地计算",
+   "release"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2886",
+   "dtsTicket": "非问题",
+   "testDate": "46086",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "泊入按钮被遮挡四分之一",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "IOS乾崑一键泊入界面左下方靠左按钮被挡住1/4。",
+  "symptom": "一键泊入界面左下方靠左按钮被遮挡1/4。",
+  "cause": "已知问题DTS2603090080654：修复代码0309下午合入，当前测试包为上午构建，需使用新版本复测。",
+  "keywords": [
+   "一键泊入",
+   "按钮遮挡",
+   "UI布局",
+   "DTS2603090080654",
+   "IOS"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "IOS 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2908",
+   "dtsTicket": "DTS2603090080654",
+   "testDate": "46093",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": "根因为已知问题，引用单号DTS2603090080654。"
+ },
+ {
+  "title": "车外通话发起算路底部按钮与状态栏重叠",
+  "category": "业务逻辑",
+  "endpoint": "host",
+  "desc": "安卓车外语音通话中发起算路，底部按钮高度与状态栏重叠（必现）",
+  "symptom": "车外通话中发起算路，底部按钮与状态栏重叠",
+  "cause": "布局未加安全边距，需在根布局手动添加状态栏高度属性 fitsSystemWindows",
+  "keywords": [
+   "车外语音通话",
+   "算路",
+   "底部按钮",
+   "状态栏重叠",
+   "fitsSystemWindows",
+   "安卓布局"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "114",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "张恒铭"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "悬浮窗权限弹窗后界面卡住",
+  "category": "运行时",
+  "endpoint": "host",
+  "desc": "安卓弹出悬浮窗权限弹窗后界面卡住（偶现）",
+  "symptom": "弹出悬浮窗权限弹窗后界面卡住",
+  "cause": "页面触发GC导致卡顿，已增加保护措施",
+  "keywords": [
+   "悬浮窗",
+   "权限弹窗",
+   "界面卡顿",
+   "GC",
+   "安卓"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "115",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "华敏"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "通话退后台悬浮窗影像显示异常",
+  "category": "运行时",
+  "endpoint": "host",
+  "desc": "安卓泊入泊出时通话退后台，悬浮窗影像显示异常（必现）",
+  "symptom": "泊入泊出通话退后台后，悬浮窗影像显示异常",
+  "cause": "VPD场景下退到后台后视频俯视图比例适配被重置",
+  "keywords": [
+   "悬浮窗",
+   "泊入泊出",
+   "退后台",
+   "影像显示异常",
+   "俯视图比例",
+   "安卓"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "116",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "华敏/谭徐灿"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "主驾落座后悬浮窗通话不会挂断",
+  "category": "业务逻辑",
+  "endpoint": "host",
+  "desc": "安卓悬浮窗状态下主驾落座，通话不会挂断（必现）",
+  "symptom": "悬浮窗状态下主驾落座，通话不会挂断",
+  "cause": "LiveData上游数据源生命周期意外触发结束，下游observeForever监听收不到数据，需修改调用逻辑",
+  "keywords": [
+   "悬浮窗",
+   "主驾落座",
+   "通话不挂断",
+   "LiveData",
+   "observeForever",
+   "生命周期"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "117",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "华敏/张恒铭"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "锁车下电后发起通话影像加载失败",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "安卓锁车下电3分钟后手机发起车外通话，车辆上电正常但影像加载失败（偶现）",
+  "symptom": "锁车下电3分钟后发起车外通话，车辆上电正常但影像加载失败",
+  "cause": "车辆上电后缺少VPD业务心跳维持车端上电，车端加入房间后车外喊话未适配视频订阅机制和心跳机制；已增加计时器重置修复",
+  "keywords": [
+   "锁车下电",
+   "车外通话",
+   "影像加载失败",
+   "VPD心跳",
+   "视频订阅",
+   "计时器重置"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "118",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "华敏"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "通话接通退后台闪退",
+  "category": "运行时",
+  "endpoint": "unclear",
+  "desc": "单框架首页通话接通后退后台，应用闪退",
+  "symptom": "通话接通后退后台闪退",
+  "cause": "待定位（记录显示已修改）",
+  "keywords": [
+   "单框架",
+   "通话接通",
+   "退后台",
+   "闪退"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "119",
+   "dtsTicket": "",
+   "date": "46261",
+   "owner": "张引"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "退后台回前台切换播放设备无声",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "iOS悬浮窗退后台再回前台后切换播放设备，两端均无声音；不切换或未退过后台时切换均正常",
+  "symptom": "退后台回前台后切换播放设备，两边都没声音；不切换没问题，没退过后台切换也没问题",
+  "cause": "退后台回前台后切换播放设备场景缺少兜底逻辑，已增加兜底",
+  "keywords": [
+   "悬浮窗",
+   "退后台",
+   "回前台",
+   "切换播放设备",
+   "无声音",
+   "iOS"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "120",
+   "dtsTicket": "",
+   "date": "46262",
+   "owner": "志超/徐灿"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "首页退后台三秒通话异常断开",
+  "category": "运行时",
+  "endpoint": "unclear",
+  "desc": "iOS首页退后台三秒左右通话异常断开",
+  "symptom": "首页退后台三秒左右通话异常断开",
+  "cause": "网络问题，非SDK问题",
+  "keywords": [
+   "iOS",
+   "退后台",
+   "通话异常断开",
+   "网络问题"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "121",
+   "dtsTicket": "",
+   "date": "",
+   "owner": "郑志超/檀徐灿"
+  },
+  "dupHint": "与seq 126疑似同类：均为iOS网络异常导致通话中断"
+ },
+ {
+  "title": "断网恢复后通话打不通",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "iOS断网后再打开网络，通话打不通",
+  "symptom": "断网再开网后通话打不通",
+  "cause": "已知问题，SDK版本已带上修复",
+  "keywords": [
+   "iOS",
+   "断网恢复",
+   "打不通",
+   "重连"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "122",
+   "dtsTicket": "",
+   "date": "",
+   "owner": "郑志超/徐灿"
+  },
+  "dupHint": "与seq 124症状相近：均为iOS打不通且根因均涉网络，但触发场景不同（断网恢复 vs 下电状态）"
+ },
+ {
+  "title": "通话接通后卡死",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "iOS点击通话，接通后卡死，期间未进行任何操作",
+  "symptom": "点击通话接通后卡死，期间无任何操作",
+  "cause": "已由开发定位修复并合入（徐灿合入）",
+  "keywords": [
+   "iOS",
+   "通话接通",
+   "卡死"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "123",
+   "dtsTicket": "",
+   "date": "",
+   "owner": "郑志超/檀徐灿"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "下电状态通话打不通",
+  "category": "API集成",
+  "endpoint": "cloud",
+  "desc": "iOS下电状态通话打不通（偶现）",
+  "symptom": "下电状态通话打不通",
+  "cause": "调用上电接口失败，websocket不停重连，可能原因为网络问题或抢通道",
+  "keywords": [
+   "iOS",
+   "下电",
+   "打不通",
+   "上电接口",
+   "websocket重连",
+   "抢通道"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "124",
+   "dtsTicket": "",
+   "date": "",
+   "owner": "郑志超"
+  },
+  "dupHint": "与seq 122症状相近：均为iOS打不通且根因均涉网络，但触发场景不同（下电状态 vs 断网恢复）"
+ },
+ {
+  "title": "进VPD网络异常致通话结束",
+  "category": "运行时",
+  "endpoint": "unclear",
+  "desc": "iOS车外通话进VPD时触发网络异常，导致通话结束",
+  "symptom": "车外通话进VPD触发网络异常，通话被结束",
+  "cause": "待分析信号",
+  "keywords": [
+   "iOS",
+   "VPD",
+   "网络异常",
+   "通话结束"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "126",
+   "dtsTicket": "",
+   "date": "",
+   "owner": "郑志超"
+  },
+  "dupHint": "与seq 121疑似同类：均为iOS网络异常导致通话中断"
+ },
+ {
+  "title": "切蓝牙后扬声器听筒切换无效",
+  "category": "运行时",
+  "endpoint": "unclear",
+  "desc": "安卓切换到蓝牙耳机后，再切换扬声器/听筒必现无效，仍从蓝牙发声",
+  "symptom": "只要切换到蓝牙耳机，切换扬声器/听筒必现无效，依然从蓝牙发声",
+  "cause": "未复现，未定位根因",
+  "keywords": [
+   "蓝牙耳机",
+   "音频路由",
+   "扬声器",
+   "听筒",
+   "切换无效",
+   "安卓"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "127",
+   "dtsTicket": "",
+   "date": "",
+   "owner": ""
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "蓝牙首次打通对讲无声音",
+  "category": "运行时",
+  "endpoint": "unclear",
+  "desc": "安卓蓝牙首次打通对讲时蓝牙无声音，切换扬声器后恢复",
+  "symptom": "蓝牙首次打通对讲时蓝牙无声音，切换扬声器后恢复正常",
+  "cause": "待分析",
+  "keywords": [
+   "蓝牙",
+   "首次打通",
+   "无声音",
+   "切换扬声器",
+   "音频路由",
+   "安卓"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "129",
+   "dtsTicket": "",
+   "date": "",
+   "owner": "张恒铭/檀徐灿"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "拉起悬浮窗概率收不到RTC信息",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "单框架拉起悬浮窗时概率收不到RTC信息，车端主驾有人时无法挂断，再次拨打无法打通",
+  "symptom": "拉起悬浮窗概率收不到RTC信息，车端主驾有人时无法挂断，再次拨打无法打通",
+  "cause": "已知问题（RTC信息概率收不到）",
+  "keywords": [
+   "单框架",
+   "悬浮窗",
+   "RTC信息",
+   "无法挂断",
+   "再次拨打失败"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "130",
+   "dtsTicket": "",
+   "date": "",
+   "owner": "张引/温思远"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "泊入后结算页未显示已锁车下电",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "安卓乾崑车辆泊入完成后结算页面状态文案未更新。",
+  "symptom": "车辆泊入后，结算页面未显示已锁车下电（必现）。",
+  "cause": "泊入完成状态发送下电指令的开关只能生效一次，导致文案未变更。",
+  "keywords": [
+   "泊入",
+   "结算页",
+   "锁车下电",
+   "下电指令",
+   "文案未变更",
+   "SDK"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2973",
+   "dtsTicket": "DTS2603270080951",
+   "testDate": "46108",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "停泊图片显示异常只显示一半",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "IOS乾崑停泊图片渲染显示不完整。",
+  "symptom": "停泊图片显示异常，只显示一半（必现）。",
+  "cause": "SDK问题（rootCause未给出具体细节）。",
+  "keywords": [
+   "停泊图片",
+   "显示异常",
+   "图片渲染",
+   "IOS",
+   "SDK"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "IOS 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2974",
+   "dtsTicket": "DTS2603270080956",
+   "testDate": "46108",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "车端算路手机流转缺返回按钮",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "IOS乾崑车端算路后手机流转界面按钮布局异常。",
+  "symptom": "车端算路后手机流转的算路界面没有返回按钮，且反馈按钮位于中间（必现）。",
+  "cause": "SDK问题（rootCause未给出具体细节）。",
+  "keywords": [
+   "算路",
+   "手机流转",
+   "返回按钮",
+   "反馈按钮",
+   "UI布局",
+   "IOS"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "IOS 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2975",
+   "dtsTicket": "DTS2603270080960",
+   "testDate": "46108",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "安卓demo APP闪退",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "安卓demo运行中APP直接闪退退出。",
+  "symptom": "安卓APP闪退。",
+  "cause": "已知问题，可提单跟踪（rootCause原样保留，未给出具体根因）。",
+  "keywords": [
+   "闪退",
+   "crash",
+   "安卓",
+   "demo",
+   "APP",
+   "已知问题"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓  demo",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "2998",
+   "dtsTicket": "DTS2604160080672",
+   "testDate": "46126",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "反馈界面缺录音功能与标签",
+  "category": "业务逻辑",
+  "endpoint": "host",
+  "desc": "NEXT demo反馈界面能力与正式版本不一致。",
+  "symptom": "反馈界面没有录音功能，标签缺少3个。",
+  "cause": "非问题：智选车的demo不支持录音，标签缺失为demo能力范围所限。",
+  "keywords": [
+   "反馈界面",
+   "录音",
+   "标签缺失",
+   "NEXT",
+   "demo",
+   "非问题"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT  demo",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "3009",
+   "dtsTicket": "非问题",
+   "testDate": "46127",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "算路前视图楼层与回自车控件未对齐",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "安卓demo算路后前视图控件布局未对齐。",
+  "symptom": "算路后前视图中楼层和回自车控件未对齐。",
+  "cause": "非问题：设计并未明确规定对齐方式。",
+  "keywords": [
+   "前视图",
+   "楼层控件",
+   "回自车",
+   "控件对齐",
+   "UI布局",
+   "非问题"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓  demo",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "3054",
+   "dtsTicket": "非问题",
+   "testDate": "46141",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "离车泊入手机流转慢无巡航气泡",
+  "category": "运行时",
+  "endpoint": "vehicle",
+  "desc": "安卓乾崑离车泊入起步后手机流转性能差。",
+  "symptom": "【偶现】离车泊入起步后打开手机，手机流转较慢，且没有巡航气泡。",
+  "cause": "车端加入房间太晚：11:26:28.380车端才加入房间，导致手机流转慢。",
+  "keywords": [
+   "离车泊入",
+   "手机流转慢",
+   "巡航气泡",
+   "加入房间",
+   "join room",
+   "车端"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "3075",
+   "dtsTicket": "已修复",
+   "testDate": "46153",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "上电算路提示系统功能启动失败",
+  "category": "运行时",
+  "endpoint": "vehicle",
+  "desc": "安卓demo上电算路时车端房间加入失败导致启动超时。",
+  "symptom": "上电算路时，提示系统功能启动失败。",
+  "cause": "11:31:28.478 SDK发送上电指令，11:32:28.611超60秒报车辆上电异常，车端一直未加入房间。",
+  "keywords": [
+   "上电",
+   "系统功能启动失败",
+   "车辆上电异常",
+   "加入房间",
+   "60秒超时",
+   "power on"
+  ],
+  "errorFeature": "系统功能启动失败/车辆上电异常",
+  "logFeature": "",
+  "version": "安卓  demo",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "3078",
+   "dtsTicket": "待复现",
+   "testDate": "46154",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "智选车测试画面整体变长",
+  "category": "兼容性",
+  "endpoint": "host",
+  "desc": "IOS引望智行包上测试智选车出现画面显示异常。",
+  "symptom": "整体画面变长了。",
+  "cause": "该包为引望智行的乾坤包，在这里测试智选车会有打桩的奇怪问题。",
+  "keywords": [
+   "画面变长",
+   "引望智行",
+   "乾坤包",
+   "打桩",
+   "智选车",
+   "demo"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "IOS 引望智行",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "3080",
+   "dtsTicket": "demo优化",
+   "testDate": "46154",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "杀APP重进变成人找车界面",
+  "category": "兼容性",
+  "endpoint": "host",
+  "desc": "IOS引望智行包上杀APP重进后界面状态异常。",
+  "symptom": "杀掉了一次APP，重进后变成人找车界面。",
+  "cause": "该包为引望智行的乾坤包，在这里测试智选车会有打桩的奇怪问题。",
+  "keywords": [
+   "杀进程",
+   "重进",
+   "人找车",
+   "界面状态",
+   "引望智行",
+   "demo"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "IOS 引望智行",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "3081",
+   "dtsTicket": "demo优化",
+   "testDate": "46154",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": "与seq 3080（demo优化）根因相同：引望智行乾坤包测试智选车的打桩问题。"
+ },
+ {
+  "title": "车端退导航手机未提示路线清除",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "NEXT乾崑车端退出导航后手机侧toast提示逻辑争议。",
+  "symptom": "车端算路后手机流转卡片正常，随后车端退出导航，手机没有提示路线已清除。",
+  "cause": "非问题：手机侧没有算路渲染，不需要显示该toast。",
+  "keywords": [
+   "退出导航",
+   "路线已清除",
+   "toast",
+   "手机流转",
+   "NEXT",
+   "非问题"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "3121",
+   "dtsTicket": "非问题",
+   "testDate": "46169",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "多账号重进后需再次申请",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "安卓乾崑多账号场景下退后台重进后的申请流程争议。",
+  "symptom": "【多账号】车端允许后手机退到后台，重进后点击开始又要申请一次。",
+  "cause": "非问题（同华敏确认）：重新进去需要重新申请，属于正常场景。",
+  "keywords": [
+   "多账号",
+   "退后台重进",
+   "重新申请",
+   "车端允许",
+   "点击开始",
+   "非问题"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "安卓 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "3133",
+   "dtsTicket": "非问题",
+   "testDate": "46170",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "算路后地图缩成中国地图再恢复",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "NEXT乾崑算路后地图视野异常缩小再恢复。",
+  "symptom": "算路后地图缩小成中国地图，然后激活后慢慢恢复成正常地图。",
+  "cause": "已知问题，2026-05-29 20:00:19已合入release分支修复。",
+  "keywords": [
+   "算路",
+   "地图缩小",
+   "中国地图",
+   "地图渲染",
+   "激活恢复",
+   "NEXT"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "NEXT 乾崑",
+  "origin": {
+   "source": "OneBox VPD测试问题主表",
+   "seq": "3137",
+   "dtsTicket": "已回归",
+   "testDate": "46172",
+   "tracker": "吴郭凯"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "下电状态接通车外通话提示车辆下电断开",
+  "category": "业务逻辑",
+  "endpoint": "unclear",
+  "desc": "Next乾崑处于可下电状态，点击车外通话电话接通，提示车辆下电，通话已断开。",
+  "symptom": "下电状态接通车外通话后，提示车辆下电，通话被断开。",
+  "cause": "开发结论仅记录0903闭环，未给出具体根因；症状指向下电状态下的通话接续/状态机处理。",
+  "keywords": [
+   "车外通话",
+   "下电状态",
+   "车辆下电",
+   "通话断开",
+   "Next乾崑"
+  ],
+  "errorFeature": "车辆下电，通话已断开",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "131",
+   "dtsTicket": "",
+   "date": "",
+   "owner": "张引/陶俊芳"
+  },
+  "dupHint": "与seq133症状相同（下电状态通话提示车辆下电断开），疑似同一问题。"
+ },
+ {
+  "title": "通话中另一用户呼入无提示卡在接通中",
+  "category": "业务逻辑",
+  "endpoint": "vehicle",
+  "desc": "安卓乾崑其他用户通话中，另一用户点击车外通话，没有任何提示，一直显示接通中。",
+  "symptom": "一用户通话中另一用户发起车外通话，无冲突提示，界面一直停留在接通中。",
+  "cause": "多用户并发通话冲突问题，车端新包已解决。",
+  "keywords": [
+   "车外通话",
+   "多用户",
+   "userid冲突",
+   "接通中",
+   "安卓乾崑"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "132",
+   "dtsTicket": "",
+   "date": "",
+   "owner": ""
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "下电后立即通话提示车辆下电断开",
+  "category": "业务逻辑",
+  "endpoint": "unclear",
+  "desc": "安卓乾崑下电后立即通话，提示车辆下电，通话已断开。",
+  "symptom": "下电后立即发起车外通话，提示车辆下电，通话断开。",
+  "cause": "新版本已解决，08/29 15:02:37构建的旧包未带上该修复（具体机制未记录）。",
+  "keywords": [
+   "车外通话",
+   "下电",
+   "通话断开",
+   "旧包",
+   "安卓乾崑"
+  ],
+  "errorFeature": "车辆下电，通话已断开",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "133",
+   "dtsTicket": "",
+   "date": "",
+   "owner": ""
+  },
+  "dupHint": "与seq131症状相同（下电状态通话提示车辆下电断开），疑似同一问题。"
+ },
+ {
+  "title": "静音键开关后重进通话车辆无声音",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "Next乾崑静音键打开后关闭通话，再次进入通话车辆无声音，需重新开关静音键才恢复，中间无任何提示。",
+  "symptom": "开关静音键后再次进入通话，车辆端无声音，重新切换静音键才恢复正常。",
+  "cause": "静音状态位未正确复位，重新切换静音键可恢复（0902闭环，具体结论未记录）。",
+  "keywords": [
+   "车外通话",
+   "静音",
+   "静音键",
+   "无声音",
+   "音频",
+   "状态位"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "134",
+   "dtsTicket": "",
+   "date": "46266",
+   "owner": "张引"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "刚接通通话时长显示7分多钟异常",
+  "category": "业务逻辑",
+  "endpoint": "unclear",
+  "desc": "Next乾崑刚接通通话，通话时间显示7分多钟，通话时长异常（偶现）。",
+  "symptom": "刚接通车外通话，通话时长即显示7分多钟。",
+  "cause": "待定位；符合通话时长未复位的已知问题特征。",
+  "keywords": [
+   "车外通话",
+   "通话时长",
+   "时长显示异常",
+   "未重置",
+   "Next乾崑"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "135",
+   "dtsTicket": "",
+   "date": "46266",
+   "owner": "张引"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "未开悬浮窗权限退后台通话自动断开",
+  "category": "运行时",
+  "endpoint": "host",
+  "desc": "Next乾崑不打开悬浮窗权限，退后台会自动断开通话。",
+  "symptom": "未授予悬浮窗权限时，应用退后台后车外通话被自动断开。",
+  "cause": "悬浮窗权限缺失导致后台无法保活，需找乾坤增加权限，SE沟通中。",
+  "keywords": [
+   "车外通话",
+   "悬浮窗权限",
+   "退后台",
+   "自动断开",
+   "后台保活"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "136",
+   "dtsTicket": "",
+   "date": "46266",
+   "owner": "张引"
+  },
+  "dupHint": "与seq137/139同根因（悬浮窗权限缺失）。"
+ },
+ {
+  "title": "未开悬浮窗权限退后台无提示无悬浮窗",
+  "category": "业务逻辑",
+  "endpoint": "host",
+  "desc": "Next乾崑不打开悬浮窗权限，退后台没有任何提示，也没有悬浮窗。",
+  "symptom": "未授予悬浮窗权限时退后台，无任何提示且不出现悬浮窗。",
+  "cause": "悬浮窗权限缺失，需找乾坤增加权限，SE沟通中。",
+  "keywords": [
+   "车外通话",
+   "悬浮窗权限",
+   "退后台",
+   "无提示",
+   "悬浮窗"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "137",
+   "dtsTicket": "",
+   "date": "46266",
+   "owner": "张引"
+  },
+  "dupHint": "与seq136/139同根因（悬浮窗权限缺失）。"
+ },
+ {
+  "title": "开权限未开影像页退后台无悬浮窗提示",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "Next乾崑打开悬浮窗权限，但不点开影像界面，退后台没有悬浮窗，也没有任何打开悬浮窗的提示。",
+  "symptom": "已授悬浮窗权限但未打开影像界面时退后台，无悬浮窗且无提示。",
+  "cause": "已知问题，开发中；悬浮窗显示逻辑依赖影像界面打开状态。",
+  "keywords": [
+   "车外通话",
+   "悬浮窗",
+   "影像界面",
+   "退后台",
+   "无提示"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "138",
+   "dtsTicket": "",
+   "date": "46266",
+   "owner": "张引"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "开悬浮窗权限退后台超时通话仍断开",
+  "category": "运行时",
+  "endpoint": "host",
+  "desc": "Next乾崑打开悬浮窗权限，退后台一定时间会自动断开通话。",
+  "symptom": "已授悬浮窗权限，退后台一段时间后车外通话仍自动断开。",
+  "cause": "悬浮窗权限问题，需找乾坤增加权限，SE沟通中。",
+  "keywords": [
+   "车外通话",
+   "悬浮窗权限",
+   "退后台",
+   "自动断开",
+   "后台保活"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "139",
+   "dtsTicket": "",
+   "date": "46266",
+   "owner": "张引"
+  },
+  "dupHint": "与seq136同根因（悬浮窗权限缺失）。"
+ },
+ {
+  "title": "VPD巡航滑动影像通话异常中断",
+  "category": "业务逻辑",
+  "endpoint": "unclear",
+  "desc": "Next乾崑先通话后进入VPD巡航，打开通话影像界面向右连续滑动时通话异常中断。",
+  "symptom": "VPD巡航中向右连续滑动通话影像界面，通话异常中断。",
+  "cause": "161336手机侧发出挂断msg，APP主动挂断而非用户点击，具体原因需加日志复现。",
+  "keywords": [
+   "车外通话",
+   "VPD巡航",
+   "挂断msg",
+   "影像界面",
+   "通话中断",
+   "主动挂断"
+  ],
+  "errorFeature": "",
+  "logFeature": "挂断msg",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "140",
+   "dtsTicket": "",
+   "date": "46266",
+   "owner": "展庆龙->张引"
+  },
+  "dupHint": "与seq142/146现象类似（非用户点击的APP主动挂断），疑似同类根因。"
+ },
+ {
+  "title": "VPD过程中点击车外通话直接结束",
+  "category": "业务逻辑",
+  "endpoint": "unclear",
+  "desc": "Next乾崑VPD的过程中点击车外通话直接结束。",
+  "symptom": "VPD进行中发起车外通话，点击后通话直接结束。",
+  "cause": "16:17:40.388开始的通话，16:17:40.505即收到APP层挂断信号；161739心跳断开、161929进房、中途无日志，需确认是否为用户点击。",
+  "keywords": [
+   "车外通话",
+   "VPD",
+   "挂断信号",
+   "APP层",
+   "心跳断开",
+   "通话结束"
+  ],
+  "errorFeature": "",
+  "logFeature": "挂断信号",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "142",
+   "dtsTicket": "",
+   "date": "46266",
+   "owner": "展庆龙->张引"
+  },
+  "dupHint": "与seq140/146类似（通话发起后即收到APP挂断信号），疑似同类根因。"
+ },
+ {
+  "title": "泊入完成后通话异常挂断随后下电",
+  "category": "运行时",
+  "endpoint": "vehicle",
+  "desc": "Next乾崑VPD泊入过程中点击车外通话接通并通话，车辆泊入车位后通话异常挂断（车机屏幕还亮着），等待一会儿后车辆开始下电。",
+  "symptom": "泊入完成后车外通话异常挂断，稍后车辆下电。",
+  "cause": "161946心跳断开退房间，162425程序重启，中途无日志；符合泊入完成自动下电导致通话断链的特征。",
+  "keywords": [
+   "车外通话",
+   "VPD泊入",
+   "自动下电",
+   "心跳断开",
+   "退房间",
+   "通话挂断"
+  ],
+  "errorFeature": "",
+  "logFeature": "心跳断开",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "143",
+   "dtsTicket": "",
+   "date": "46266",
+   "owner": "陈寅瑞->张引"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "通话中戴上蓝牙耳机语音自动断开",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "Next乾崑车外通话过程中戴上蓝牙耳机，语音自动断开。",
+  "symptom": "车外通话中戴上蓝牙耳机，通话自动断开。",
+  "cause": "16:29:11到16:31:21系统监听未检测到蓝牙设备变更，且退后台后crash，音频路由切换处理异常。",
+  "keywords": [
+   "车外通话",
+   "蓝牙耳机",
+   "音频路由",
+   "设备变更",
+   "crash",
+   "自动断开"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "144",
+   "dtsTicket": "",
+   "date": "46266",
+   "owner": "张引"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "Wi-Fi切蜂窝后通话断开提示网络错误",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "Next乾崑 Wi-Fi切换为蜂窝后，通话异常断开，提示网络错误（必现）。",
+  "symptom": "Wi-Fi切换蜂窝网络后车外通话断开，提示网络错误，必现。",
+  "cause": "16:31:44.050收不到hmi心跳：网络重连速度较慢，心跳超时导致断链，需增加心跳超时时间优化。",
+  "keywords": [
+   "车外通话",
+   "Wi-Fi切换蜂窝",
+   "网络错误",
+   "hmi心跳",
+   "心跳超时",
+   "断链"
+  ],
+  "errorFeature": "网络错误",
+  "logFeature": "hmi心跳",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "145",
+   "dtsTicket": "",
+   "date": "46266",
+   "owner": "陈寅瑞->张引"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "EPD过程中点击车外通话无法接通",
+  "category": "业务逻辑",
+  "endpoint": "unclear",
+  "desc": "Next乾崑EPD过程中，点击车外通话无法接通。",
+  "symptom": "EPD进行中发起车外通话，通话无法接通。",
+  "cause": "163417车退房间，164314进房间，中途无日志；APP主动挂断，待带维测日志复现定位。",
+  "keywords": [
+   "车外通话",
+   "EPD",
+   "无法接通",
+   "APP主动挂断",
+   "退房间",
+   "进房间"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "146",
+   "dtsTicket": "",
+   "date": "46266",
+   "owner": "陈寅瑞->张引"
+  },
+  "dupHint": "与seq140/142类似（APP主动挂断待定位），疑似同类根因。"
+ },
+ {
+  "title": "静音关闭后下次进入对讲不回复",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "车外语音对讲测试中，静音关闭后再次进入对讲无回复。",
+  "symptom": "静音关闭后，下次进入车外对讲时不回复。",
+  "cause": "静音状态位未正确重置，静音关闭后状态残留，导致下次进入对讲异常（单框架，修复待合入）。",
+  "keywords": [
+   "静音",
+   "静音状态位",
+   "mute",
+   "车外对讲",
+   "状态未重置"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "147",
+   "dtsTicket": "",
+   "date": "46267",
+   "owner": "张引"
+  },
+  "dupHint": "与seq158（iOS静音开关后再次进入通话无声）疑似同根因：静音状态未重置"
+ },
+ {
+  "title": "车速单位错误致通话异常退出",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "车外通话过程中因车速单位问题导致通话异常退出。",
+  "symptom": "车外语音通话异常退出。",
+  "cause": "车速单位使用错误（单位换算缺陷）触发通话异常退出，已修改待验证。",
+  "keywords": [
+   "车速单位",
+   "单位换算",
+   "speed",
+   "通话异常退出",
+   "车外对讲"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "148",
+   "dtsTicket": "",
+   "date": "46267",
+   "owner": "张引"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "重复注册致APP异常退出",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "因重复注册导致APP进程异常退出。",
+  "symptom": "APP异常退出（崩溃）。",
+  "cause": "重复注册触发异常，导致APP进程崩溃退出（单框架，修复待合入）。",
+  "keywords": [
+   "注册重复",
+   "重复注册",
+   "register",
+   "异常退出",
+   "crash"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "149",
+   "dtsTicket": "",
+   "date": "46267",
+   "owner": "张引"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "手机退房间处理缺陷致上电失败",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "VPD上电失败，与手机端退出rtsa房间的处理逻辑相关。",
+  "symptom": "VPD上电失败，车外通话无法建立。",
+  "cause": "手机端退出rtsa房间的处理逻辑缺陷导致VPD上电链路失败（单框架，修复自验证后合入）。",
+  "keywords": [
+   "上电失败",
+   "VPD上电",
+   "退房间",
+   "rtsa房间",
+   "exit room",
+   "手机端"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "150",
+   "dtsTicket": "",
+   "date": "46267",
+   "owner": "温思远/陶俊芳"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "通话时间统计异常",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "车外通话时间统计/显示异常，前期待定位。",
+  "symptom": "通话时间显示/统计不正确。",
+  "cause": "通话时间统计异常（疑似通话时长未重置），定位后修复已待合入。",
+  "keywords": [
+   "通话时间",
+   "通话时长",
+   "时长未重置",
+   "call duration",
+   "计时"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "151",
+   "dtsTicket": "",
+   "date": "46267",
+   "owner": "张引"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "悬浮窗切换功能仍有缺陷",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "悬浮窗基本功能已完成，但切换场景仍存在bug。",
+  "symptom": "悬浮窗切换时表现异常。",
+  "cause": "悬浮窗切换场景处理逻辑仍有缺陷，计划0903闭环。",
+  "keywords": [
+   "悬浮窗",
+   "悬浮窗切换",
+   "floating window",
+   "切换异常",
+   "车外对讲"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "152",
+   "dtsTicket": "",
+   "date": "46267",
+   "owner": "张引/彭叙杰"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "巡航中对讲叠加渲染致APP卡顿",
+  "category": "运行时",
+  "endpoint": "host",
+  "desc": "Android巡航中拨通车外通话后APP整体卡顿，较之前版本明显劣化。",
+  "symptom": "巡航中拨通车外通话后APP卡顿：影像卡顿、泊入泊出影像变形严重、悬浮窗切换卡顿。",
+  "cause": "泊车影像渲染、通话视频渲染与ipm告警叠加，同时走surface+解码+rtc链路，导致GPU和CPU过载引起卡顿，暂无修改方案。",
+  "keywords": [
+   "卡顿",
+   "GPU过载",
+   "视频渲染",
+   "surface",
+   "解码",
+   "rtc",
+   "泊车影像"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "154",
+   "dtsTicket": "",
+   "date": "46266",
+   "owner": "张恒铭/温思远/檀徐灿"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "退后台悬浮窗车模显示过大",
+  "category": "业务逻辑",
+  "endpoint": "host",
+  "desc": "Android算路后发起车外通话，接通后退后台，悬浮窗影像中车模显示过大。",
+  "symptom": "接通后退后台，悬浮窗影像车模显示过大。",
+  "cause": "退后台场景未适配，悬浮窗影像显示异常，计划0903闭环。",
+  "keywords": [
+   "退后台",
+   "悬浮窗",
+   "车模显示过大",
+   "floating window",
+   "后台适配"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "155",
+   "dtsTicket": "",
+   "date": "46266",
+   "owner": "张恒铭"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "下电后立即通话无接通中且3秒挂断",
+  "category": "业务逻辑",
+  "endpoint": "host",
+  "desc": "Android车辆下电后立即发起车外通话，通话岛不显示接通中且3秒后自动挂断。",
+  "symptom": "车辆下电后立即发起车外通话，通话岛不显示“接通中”，3秒后自动挂断。",
+  "cause": "车辆下电后立即发起通话的场景未处理好通话建立/状态显示时序，导致无接通中提示并被自动挂断（已修改待验证，0902闭环）。",
+  "keywords": [
+   "车辆下电",
+   "下电",
+   "通话岛",
+   "接通中",
+   "自动挂断",
+   "上电时序"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "156",
+   "dtsTicket": "",
+   "date": "46266",
+   "owner": "华敏"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "主驾落座toast重复报两遍",
+  "category": "业务逻辑",
+  "endpoint": "host",
+  "desc": "Android车外语音通话中VPD任务结束，主驾落座toast重复提示两遍。",
+  "symptom": "VPD任务结束时主驾落座toast弹了两遍。",
+  "cause": "主驾落座通知/事件重复触发，toast重复上报（已修改待验证，0902闭环）。",
+  "keywords": [
+   "主驾落座",
+   "toast",
+   "重复提示",
+   "VPD任务结束",
+   "事件重复"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "157",
+   "dtsTicket": "",
+   "date": "46266",
+   "owner": "华敏"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "静音开关后再次进入通话无声",
+  "category": "业务逻辑",
+  "endpoint": "host",
+  "desc": "iOS 104623：静音键打开后关闭通话，再次进入通话车辆无声音，需重新开关静音键才恢复。",
+  "symptom": "静音键打开后关闭通话，再次进入通话车辆无声音，须把静音键打开再关闭才恢复，期间无任何提示。",
+  "cause": "静音接口由APP层控制，通话结束后静音状态位未重置，残留静音状态导致下次通话无声（验证ok待合入）。",
+  "keywords": [
+   "静音",
+   "静音键",
+   "静音状态",
+   "mute",
+   "无声音",
+   "iOS",
+   "状态未重置"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "158",
+   "dtsTicket": "",
+   "date": "46267",
+   "owner": "郑志超"
+  },
+  "dupHint": "与seq147（单框架静音关闭后下次进入不回复）疑似同根因：静音状态未重置"
+ },
+ {
+  "title": "对讲页未发VPD心跳致低风险模式",
+  "category": "运行时",
+  "endpoint": "host",
+  "desc": "iOS 105239：VPD过程中打开车外对讲影像，自车一直处于低风险模式，时速低于6。",
+  "symptom": "VPD过程中打开车外对讲影像后，自车一直处于低风险模式，时速低于6。",
+  "cause": "对讲全屏页没有发送VPD心跳，车辆状态（时速）未持续传输，需适配心跳发送逻辑（0902闭环）。",
+  "keywords": [
+   "VPD心跳",
+   "心跳",
+   "heartbeat",
+   "车辆状态",
+   "低风险模式",
+   "时速",
+   "对讲全屏页"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "161",
+   "dtsTicket": "",
+   "date": "46267",
+   "owner": "郑志超"
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "音频路由切换后手机车端均无声",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "iOS 111950：车外通话音频路由由蓝牙切到扬声器再切到听筒后，手机端和车端均无声音。",
+  "symptom": "蓝牙切扬声器再切听筒后，手机端和车端都听不到声音；无声前车端有嗡鸣声，听筒必定无声音、扬声器时有时无。",
+  "cause": "音频路由切换矩阵缺陷，蓝牙/扬声器/听筒多路由切换后音频链路异常，必现问题，增加维测本地复现定位（0903闭环）。",
+  "keywords": [
+   "音频路由",
+   "蓝牙",
+   "扬声器",
+   "听筒",
+   "audio route",
+   "无声音",
+   "嗡鸣声"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "163",
+   "dtsTicket": "",
+   "date": "46267",
+   "owner": "郑志超/谭徐灿"
+  },
+  "dupHint": "与seq164同属iOS音频路由切换问题，疑似同根因（音频路由切换矩阵）"
+ },
+ {
+  "title": "切至扬声器听筒后无法回蓝牙",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "iOS 112148：车外通话切换到扬声器和听筒模式之后，无法再切换回蓝牙模式。",
+  "symptom": "切换到扬声器和听筒模式之后，无法再切换到蓝牙模式。",
+  "cause": "音频路由切换矩阵缺陷，切换到扬声器/听筒后蓝牙路由无法恢复，已修复一版但验证失败，计划0903闭环。",
+  "keywords": [
+   "音频路由",
+   "蓝牙",
+   "扬声器",
+   "听筒",
+   "audio route",
+   "路由切换",
+   "iOS"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "164",
+   "dtsTicket": "",
+   "date": "46267",
+   "owner": "郑志超"
+  },
+  "dupHint": "与seq163同属iOS音频路由切换问题，疑似同根因（音频路由切换矩阵）"
+ },
+ {
+  "title": "再次进入对讲静音状态显示错误",
+  "category": "业务逻辑",
+  "endpoint": "host",
+  "desc": "iOS 112819：静音功能开启后返回VPD界面，再次进入车外对讲影像界面，静音功能显示未开启。",
+  "symptom": "静音开启后返回VPD界面再进入对讲影像界面，静音功能显示为未开启，与实际状态不一致。",
+  "cause": "APP层静音状态位异常，界面返回/重进后静音状态未正确同步显示（验证ok待合入）。",
+  "keywords": [
+   "静音",
+   "静音状态位",
+   "状态显示",
+   "mute",
+   "iOS",
+   "对讲影像界面"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "",
+  "origin": {
+   "source": "OneBox 车外语音对讲测试问题表",
+   "seq": "165",
+   "dtsTicket": "ADS Cloud DDI App",
+   "date": "46267",
+   "owner": "郑志超"
+  },
+  "dupHint": "与seq147/158疑似同属静音状态位问题（本条为状态显示不一致）"
+ },
+ {
+  "title": "二次确认弹窗视频一直加载中",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "二次确认弹窗（videoConfirmView）拉起后视频画面一直处于加载中状态",
+  "symptom": "二次确认弹窗显示视频一直加载中，无画面",
+  "cause": "videoConfirmView 拉起与 VideoPlayView 消失的先后顺序错误：VideoPlayView 消失触发了 rtsa 的销毁逻辑，导致 rtsa 被销毁后收不到视频帧回调",
+  "keywords": [
+   "视频加载中",
+   "rtsa",
+   "REMOTE_VIDEO_FRAME_DATA",
+   "RtsaViewModel",
+   "视频帧回调",
+   "videoConfirmView"
+  ],
+  "errorFeature": "",
+  "logFeature": "REMOTE_VIDEO_FRAME_DATA / RtsaViewModel",
+  "version": "",
+  "origin": {
+   "source": "wiki《VPD测试问题汇总》WIKI202511088959802",
+   "seq": "案例1",
+   "dtsTicket": "",
+   "testDate": "",
+   "tracker": ""
+  },
+  "dupHint": "视频加载中症状与案例8、案例4.5相关但根因不同"
+ },
+ {
+  "title": "预算路下电状态算路提示暂无可达路径",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "预算路下电状态发起算路，出现暂无可达路径提示（ios/next 055车）",
+  "symptom": "预算路下电状态发起算路，提示暂无可达路径",
+  "cause": "给 targetMapId 赋值时使用了 ?? 运算符（只检测 undefined/null），wsMapId 为空字符串时被判为有效值传入，导致 patchId 为空、数据服务接口拿不到地图数据；云端返回错误码 adscs.mobile.avp.nav.010007",
+  "keywords": [
+   "算路",
+   "暂无可达路径",
+   "patchId",
+   "wsMapId",
+   "targetMapId",
+   "??运算符空字符串"
+  ],
+  "errorFeature": "adscs.mobile.avp.nav.010007",
+  "logFeature": "mobile/avp/v1/vehicle/avpPath/calculate",
+  "version": "ios/next 055",
+  "origin": {
+   "source": "wiki《VPD测试问题汇总》WIKI202511088959802",
+   "seq": "案例2",
+   "dtsTicket": "",
+   "testDate": "2025/11/4",
+   "tracker": ""
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "一键泊入按钮先高亮后置灰不稳定",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "选择可泊车位后一键泊入按钮状态不稳定，先高亮后置灰",
+  "symptom": "一键泊入按钮先高亮后置灰，状态不稳定",
+  "cause": "按钮 enable 条件为 avpstate=1 且 apaPlanningV2.roadPoints 非空；日志显示 avpstate 恒为 1，但轨迹线数据（roadPoints）在该时间段多次判空后又恢复，导致按钮可用状态抖动",
+  "keywords": [
+   "一键泊入",
+   "按钮置灰",
+   "avpstate",
+   "apaPlanningV2.roadPoints",
+   "isValidTrackingLines",
+   "轨迹线"
+  ],
+  "errorFeature": "",
+  "logFeature": "isValidTrackingLines",
+  "version": "",
+  "origin": {
+   "source": "wiki《VPD测试问题汇总》WIKI202511088959802",
+   "seq": "案例3",
+   "dtsTicket": "",
+   "testDate": "",
+   "tracker": ""
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "断网重连后小车模型延迟数秒才恢复移动",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "断网10秒后网络恢复，地图上小车模型延迟几秒才恢复移动",
+  "symptom": "断网恢复后小车模型原地不动数秒",
+  "cause": "小车位置依赖 A（车端上报 setGuideMatchResult，0.1Hz，精确）和 B（rtc 实时位置，1Hz，有误差）：断网期间 A 未上报，恢复后 A 记录的位置与 B 实时位置偏差超限，位置更新策略切换为完全依赖 A，在 A 第二次上报（10s 周期）之前小车一直不动",
+  "keywords": [
+   "断网重连",
+   "小车模型不动",
+   "setGuideMatchResult",
+   "位置更新",
+   "A/B偏差"
+  ],
+  "errorFeature": "",
+  "logFeature": "setGuideMatchResult",
+  "version": "",
+  "origin": {
+   "source": "wiki《VPD测试问题汇总》WIKI202511088959802",
+   "seq": "案例4",
+   "dtsTicket": "",
+   "testDate": "",
+   "tracker": ""
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "下电5分钟算路误提示车辆位置距离较远",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "下电5分钟后算路，提示车辆位置距离较远，实际离车辆约4米",
+  "symptom": "算路误弹出车辆位置距离较远提示横幅",
+  "cause": "提示横幅显隐依赖自检结果 isVpdDistance 字段；该场景最后一个自检结果是进图后 RTC 版本自主生成的成功结果，生成时 isVpdDistance 取默认值 false，导致算路时误弹提示",
+  "keywords": [
+   "算路",
+   "距离较远提示",
+   "isVpdDistance",
+   "自检",
+   "fusionConditions",
+   "进图自检"
+  ],
+  "errorFeature": "",
+  "logFeature": "mobile/foundation-service/v2/fusionConditions/get",
+  "version": "",
+  "origin": {
+   "source": "wiki《VPD测试问题汇总》WIKI202511088959802",
+   "seq": "案例5",
+   "dtsTicket": "",
+   "testDate": "",
+   "tracker": ""
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "转漫游连跳两次辅助驾驶条件不满足",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "转漫游时连跳两次辅助驾驶条件不满足提示，按钮置灰",
+  "symptom": "转漫游时误显示两帧辅助驾驶条件不满足，正常应显示请始终注意观察车辆周边环境",
+  "cause": "warningTorId:74 触发面板更新时，getWarnTitleTipByTorIdPart1 对 TOR_74 只更新面板 title 不给 tip 赋值，tip 为空时 setPanelModelText 使用兜底文案辅助驾驶条件不满足",
+  "keywords": [
+   "转漫游",
+   "辅助驾驶条件不满足",
+   "warningTorId",
+   "TOR_74",
+   "setPanelModelText",
+   "兜底文案"
+  ],
+  "errorFeature": "",
+  "logFeature": "warningTorId:74",
+  "version": "",
+  "origin": {
+   "source": "wiki《VPD测试问题汇总》WIKI202511088959802",
+   "seq": "案例6",
+   "dtsTicket": "",
+   "testDate": "",
+   "tracker": ""
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "泊入退出返回地图提示车辆信息验证失败",
+  "category": "API集成",
+  "endpoint": "cloud",
+  "desc": "泊入中点击退出，返回地图后提示车辆信息验证失败",
+  "symptom": "返回地图进入自检失败页，提示车辆信息验证失败",
+  "cause": "自检接口返回 uToken Invalid；调用 refreshToken 刷新时报 error.code:100015——同一账号在多个设备登录会导致原 uToken 失效，且 refreshToken/sendPowerOn 等车云接口报 100015",
+  "keywords": [
+   "车辆信息验证失败",
+   "uToken",
+   "refreshToken",
+   "100015",
+   "多设备登录"
+  ],
+  "errorFeature": "error.code:100015 / uToken Invalid",
+  "logFeature": "refreshToken",
+  "version": "",
+  "origin": {
+   "source": "wiki《VPD测试问题汇总》WIKI202511088959802",
+   "seq": "案例7",
+   "dtsTicket": "",
+   "testDate": "",
+   "tracker": ""
+  },
+  "dupHint": "车辆信息验证失败系列：与案例10/11同症状不同根因"
+ },
+ {
+  "title": "A账户必现算路提示泊车代驾暂不可用",
+  "category": "运行时",
+  "endpoint": "sdk",
+  "desc": "特定账户必现算路后提示泊车代驾暂不可用，视频一直加载中",
+  "symptom": "算路后提示网络信号差且视频一直加载中，必现无法算路",
+  "cause": "连续5秒未收到状态机消息 SDK 自生成 902 tor 报弱网；实际是 rtsa 返回 error.code:116（服务器主动踢出用户）——重复的 userId 加入房间后之前的会被踢出，该账户每次加房都被踢，表现为一直无法算路",
+  "keywords": [
+   "泊车代驾暂不可用",
+   "rtsa",
+   "116",
+   "重复userId",
+   "踢出房间",
+   "弱网",
+   "902tor"
+  ],
+  "errorFeature": "error.code:116",
+  "logFeature": "rtsaviewmodel 连接状态",
+  "version": "",
+  "origin": {
+   "source": "wiki《VPD测试问题汇总》WIKI202511088959802",
+   "seq": "案例8",
+   "dtsTicket": "",
+   "testDate": "",
+   "tracker": ""
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "VPD转漫游鸿蒙不显示路线",
+  "category": "业务逻辑",
+  "endpoint": "sdk",
+  "desc": "VPD转漫游时鸿蒙端不显示路线（车位被占后重新算路场景）",
+  "symptom": "车位被占寻找新可泊车位时，手机端不显示路线",
+  "cause": "向云端请求重新算路 /v1/vehicle/avpPath/query，云端透传回车端加密数据，手机端解析得到 type=8 无效（代码规定 0~6 有效）；结论：需在 SDK 增加 type 7（预算路）和 8（转到下一个收藏车位）以适配车端新增返回",
+  "keywords": [
+   "转漫游",
+   "不显示路线",
+   "type invalid",
+   "avpPath/query",
+   "type 7 8",
+   "车位被占"
+  ],
+  "errorFeature": "type invalid (解析值8)",
+  "logFeature": "/v1/vehicle/avpPath/query",
+  "version": "预生产 2025-06-26",
+  "origin": {
+   "source": "wiki《VPD测试问题汇总》WIKI202511088959802",
+   "seq": "案例9",
+   "dtsTicket": "",
+   "testDate": "2025-06-26",
+   "tracker": ""
+  },
+  "dupHint": ""
+ },
+ {
+  "title": "点选车位去这里报车辆信息验证失败",
+  "category": "API集成",
+  "endpoint": "cloud",
+  "desc": "地图上点选车位再点击去这里按钮，loading后报车辆信息验证失败（pre环境）",
+  "symptom": "点选车位去这里后报车辆信息验证失败",
+  "cause": "signProtectData 是车主APP在 AdsVpdParam 接口注册的，需车云排查 signProtectData 日志——截至记录时未闭环",
+  "keywords": [
+   "车辆信息验证失败",
+   "signProtectData",
+   "AdsVpdParam",
+   "点选车位"
+  ],
+  "errorFeature": "",
+  "logFeature": "AdsVpdParam",
+  "version": "pre 2025-07-03",
+  "origin": {
+   "source": "wiki《VPD测试问题汇总》WIKI202511088959802",
+   "seq": "案例10",
+   "dtsTicket": "",
+   "testDate": "2025-07-03",
+   "tracker": ""
+  },
+  "dupHint": "未闭环案例，入库需注明"
+ },
+ {
+  "title": "比亚迪鸿蒙APP签名验签失败",
+  "category": "API集成",
+  "endpoint": "cloud",
+  "desc": "比亚迪鸿蒙APP联调遇到签名验签失败（生产环境）",
+  "symptom": "联调时签名验签失败",
+  "cause": "云端接口 mobile/avp/v1/E2E/syncCert 报 adscloud internal service error，属 ads 云内部错误——截至记录时未闭环",
+  "keywords": [
+   "签名验签失败",
+   "syncCert",
+   "E2E",
+   "internal service error",
+   "比亚迪"
+  ],
+  "errorFeature": "adscloud internal service error",
+  "logFeature": "mobile/avp/v1/E2E/syncCert",
+  "version": "生产 2025-07-03",
+  "origin": {
+   "source": "wiki《VPD测试问题汇总》WIKI202511088959802",
+   "seq": "案例11",
+   "dtsTicket": "",
+   "testDate": "2025-07-03",
+   "tracker": ""
+  },
+  "dupHint": "未闭环案例，入库需注明"
+ },
+ {
+  "title": "请求地图数据耗时27秒",
+  "category": "运行时",
+  "endpoint": "unclear",
+  "desc": "obs 请求地图数据太慢，耗时27秒",
+  "symptom": "请求地图数据耗时27秒",
+  "cause": "初步结论为网络信号差——截至记录时未深入闭环",
+  "keywords": [
+   "obs",
+   "地图数据",
+   "耗时27秒",
+   "网络信号差",
+   "性能"
+  ],
+  "errorFeature": "",
+  "logFeature": "",
+  "version": "2025-06-24",
+  "origin": {
+   "source": "wiki《VPD测试问题汇总》WIKI202511088959802",
+   "seq": "案例12",
+   "dtsTicket": "",
+   "testDate": "2025-06-24",
+   "tracker": ""
+  },
+  "dupHint": "未闭环案例，入库需注明"
+ },
+ {
+  "title": "VPD全过程视频资源无法加载",
+  "category": "运行时",
+  "endpoint": "vehicle",
+  "desc": "AVATR 手机APP反馈 VPD 全过程视频资源无法加载，所有车必现",
+  "symptom": "VPD 全过程视频资源无法加载，必现",
+  "cause": "手机端已成功加入房间，但车端一直未加入房间，手机端持续向车端发指令无响应；正常车端入房会打印 on REMOTE_USER_ONLINE，该日志中缺失",
+  "keywords": [
+   "视频无法加载",
+   "加入房间",
+   "REMOTE_USER_ONLINE",
+   "车端未入房",
+   "AVATR"
+  ],
+  "errorFeature": "",
+  "logFeature": "on REMOTE_USER_ONLINE",
+  "version": "2025-07-05",
+  "origin": {
+   "source": "wiki《VPD测试问题汇总》WIKI202511088959802",
+   "seq": "案例4.5",
+   "dtsTicket": "",
+   "testDate": "2025-07-05",
+   "tracker": ""
+  },
+  "dupHint": "视频加载中系列：与案例1（rtsa销毁）、案例8（被踢出）同症状不同根因"
+ },
+ {
+  "title": "提示手机系统时间不准确请重新设置",
+  "category": "API集成",
+  "endpoint": "cloud",
+  "desc": "众测反馈提示手机系统时间不准确，请重新设置",
+  "symptom": "误提示手机系统时间不准确",
+  "cause": "remoteTime（车端返回）与 systemTime（手机时间）偏差10秒，手机时间与日志时间对得上，推测云端转发时延导致——截至记录时待云端排查，未闭环",
+  "keywords": [
+   "时间不准确",
+   "remoteTime",
+   "systemTime",
+   "时间戳偏差",
+   "云端转发"
+  ],
+  "errorFeature": "",
+  "logFeature": "remoteTime / systemTime",
+  "version": "",
+  "origin": {
+   "source": "wiki《VPD测试问题汇总》WIKI202511088959802",
+   "seq": "案例13",
+   "dtsTicket": "",
+   "testDate": "",
+   "tracker": ""
+  },
+  "dupHint": "未闭环案例，入库需注明"
+ }
+]
