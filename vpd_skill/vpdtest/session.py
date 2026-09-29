@@ -77,8 +77,8 @@ def trail(session_dir: Path) -> dict:
                           obs_before=e.get("obs_before"), obs_after=e.get("obs_after"),
                           dispatched=e.get("dispatched"), record=rec.get("result"),
                           input_value=rec.get("input_value"))
-        elif ev == "session_facts":
-            items.append({"kind": "facts", "facts": e.get("facts"), "ts": e["ts"]})
+        elif ev in ("session_open", "session_facts"):  # session_facts：会话头之前的旧格式
+            items.append({"kind": "facts", "facts": e.get("facts"), "ts": e["ts"], "identity": e.get("identity")})
     for it in open_req.values():
         it.update(kind="incomplete", reason="有请求没有结果（进程中断/超时）：现场可能已经发生变化")
     return {"session": session_dir.name, "items": items}
@@ -124,10 +124,11 @@ def _derive_select(session_dir: Path, obs_id: Optional[str], point) -> Optional[
         return None
     holder = tree.clickable_container(node)
     for text in tree.subtree_texts(holder):
-        if len(tree.find_text(text)) == 1:
-            return {"kind": "text", "value": text, "derived_from_point": True}
+        hits = tree.find_text(text)
+        if len(hits) == 1:
+            return {"kind": "text", "value": text, "derived_from_point": True}, hits[0].brief()
     if holder.id and len(tree.find_id(holder.id)) == 1:
-        return {"kind": "id", "value": holder.id, "derived_from_point": True}
+        return {"kind": "id", "value": holder.id, "derived_from_point": True}, holder.brief()
     return None
 
 
@@ -212,13 +213,15 @@ def _to_case_step(it: dict, req: dict, session_dir: Path, test_data: dict, facts
         k, _, v = req["within"].partition("=")
         step["within"] = {k: v}
     if action in ("tap", "input"):
+        derived_node = None
         if req.get("select"):
             target = parse_select(req["select"], req.get("within"), req.get("side_effect") or "navigation",
                                   bool(req.get("allow_input")))
         elif req.get("target"):
             target = req["target"]
         else:
-            strat = _derive_select(session_dir, it.get("obs_before"), req.get("point"))
+            derived = _derive_select(session_dir, it.get("obs_before"), req.get("point"))
+            strat, derived_node = derived if derived else (None, None)
             target = {"label": f"from_point:{req.get('basis')}", "strategies": [strat] if strat else [],
                       "side_effect": req.get("side_effect") or "navigation", "origin": "derived_from_point"}
             if req.get("allow_input"):
@@ -229,8 +232,13 @@ def _to_case_step(it: dict, req: dict, session_dir: Path, test_data: dict, facts
             sent = next((a for a in reversed(rec.get("attempts") or [])
                          if a.get("resolved") and (a.get("dispatch") or {}).get("sent")), None)
             resolved = (sent or {}).get("resolved") or {}
+            node = resolved.get("node")
+            basis = "resolved"
+            if node is None and target.get("origin") == "derived_from_point" and sent:
+                # 坐标点击没有"解析节点"：用反推选择器时唯一命中的节点作证据（点击前的树），并标明是反推的
+                node, basis = derived_node, "derived_from_point"
             target["observed"] = {"session": session_dir.name, "seq": seq, "obs": resolved.get("obs") or it.get("obs_before"),
-                                  "outcome": it.get("outcome") or it["kind"], "node": resolved.get("node"),
+                                  "outcome": it.get("outcome") or it["kind"], "node": node, "node_basis": basis,
                                   "dispatched": bool(sent),
                                   "layout_key": resolved.get("layout_key"), "app_version": facts.get("app_version"),
                                   "device_form": facts.get("device_form"),

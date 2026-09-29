@@ -9,7 +9,12 @@ from typing import Optional
 
 from . import layout as layout_mod
 from .tree import UiTree
+import re
+
 from .util import append_jsonl, new_id, now_iso, sha256_file, write_json
+
+# 页面内失败提示：真机上见过「停车场信息加载失败，」「请重试」。只做提示，不参与判定
+ANOMALY_TEXT = re.compile(r"失败|异常|出错|错误|解析|请重试|重新加载|网络不给力|超时|无法连接|服务繁忙")
 
 
 class RunStore:
@@ -123,6 +128,13 @@ class Observer:
             self.last_layout_key = lk
         obs["page"] = self.states.identify(tree, fg, alive, lay, fg_err)
         obs["texts"] = tree.visible_texts()[:60] if tree else []
+        # 页面内的失败/异常提示（不是弹窗中断，状态识别照样能认出页面）：单独列出，Agent 与报告都要先处理它
+        hits = [t for t in (tree.visible_texts() if tree else []) if ANOMALY_TEXT.search(t)]
+        if hits:
+            obs["ui_alerts"] = {"texts": hits[:10], "ts": obs["ts"],
+                                "procedure": "先记录时间与截图，点右上角「反馈」填写（时间/页面/原文/前一步/车辆/版本）并提交，"
+                                             "再决定是否重试；首次异常保留在报告里"}
+            self.store.event("ui_alert", obs_id=oid, texts=hits[:10])
         write_json(d / "observation.json", obs, exclusive=True)
         self.store.event("observe", obs_id=oid, label=label, state=obs["page"]["state"],
                          tree=obs["tree"]["status"], screenshot=obs["screenshot"]["status"], layout=lk,

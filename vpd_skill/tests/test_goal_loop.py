@@ -14,7 +14,8 @@ from vpdtest.knowledge import KnowledgeStore, applicability
 from vpdtest.runner import run_case
 from vpdtest.search import search
 from vpdtest.tree import UiTree
-from vpdtest.util import append_jsonl, read_json, write_json
+from vpdtest.commands import REQUEST_FIELDS
+from vpdtest.util import append_jsonl, read_json, read_jsonl, write_json
 from vpdtest.verdict import case_verdict
 
 BUNDLE = "app.huawei.hmos.motor"
@@ -227,6 +228,38 @@ def test_point_tap_is_converted_only_when_a_unique_selector_exists(ws, tmp_path)
     tap = case["steps"][-1]
     assert tap["target"]["strategies"] == [{"kind": "text", "value": "唯一入口", "derived_from_point": True}]
     assert tap["point_basis"] and "point" not in tap
+    # 反推用到的节点就是证据：lint 不因"坐标点击没有解析节点"而拦下，但证据标明是反推的
+    obs = tap["target"]["observed"]
+    assert obs["node"]["text"] == "唯一入口" and obs["node_basis"] == "derived_from_point" and obs["dispatched"]
+    assert not any(i["field"] == tap["id"] or i["field"] == f"steps.{tap['id']}"
+                   for i in C.lint(case, ws.app("motor_hm"), KnowledgeStore(ws.root)))
+
+
+def test_session_identity_is_fixed_at_open(ws, tmp_path):
+    dev, other = _lab_world(tmp_path), _lab_world(tmp_path, "other")
+    _start(ws, dev, "id1")
+    head = [e for e in read_jsonl(ws.runs_dir / "session-id1" / "events.jsonl") if e["event"] == "session_open"]
+    assert len(head) == 1 and head[0]["identity"]["device"].endswith("lab.json")
+    with pytest.raises(PermissionError, match="不一致"):
+        cli(ws, "observe", "--app", "motor_hm", "--session", "id1", "--device", other)
+    with pytest.raises(PermissionError, match="不一致"):
+        cli(ws, "act", "back", "--app", "qiankun_hm", "--session", "id1", "--device", dev)
+    events = read_jsonl(ws.runs_dir / "session-id1" / "events.jsonl")
+    assert [e["event"] for e in events].count("session_mismatch_rejected") == 2
+    assert not [e for e in events if e["event"] == "act_request" and e["seq"] > 1]  # 被拒的调用没有写入动作
+
+
+def test_act_request_is_allowlisted_and_has_no_input_digest(ws, tmp_path):
+    dev = _input_world(tmp_path)
+    _start(ws, dev, "al1")
+    cli(ws, "act", "input", "--select", "xpath=//TextInput", "--text", "123456", "--app", "motor_hm",
+        "--session", "al1", "--device", dev)  # 未 --allow-input：被 policy 拒绝
+    req = [e["request"] for e in read_jsonl(ws.runs_dir / "session-al1" / "events.jsonl")
+           if e["event"] == "act_request"][-1]
+    assert set(req) <= set(REQUEST_FIELDS) and req["text_len"] == 6
+    assert not any("123456" in json.dumps(v) or len(str(v)) == 10 and k.endswith("sha") for k, v in req.items())
+    disk = "".join(p.read_text("utf-8") for p in (ws.runs_dir / "session-al1").rglob("*.json*"))
+    assert "123456" not in disk
 
 
 # ---- 判定修正 ----
@@ -384,3 +417,14 @@ def test_knowledge_search_roles_and_applicability(ws):
     # 标为 product_rule 但来源是单次观察：如实归为现场观察
     k12 = search(ws, "K-AV-012", "qiankun_hm")["results"]["observation"][0]
     assert k12["ref"] == "K-AV-012" and "现场观察" in k12["note"]
+
+
+def test_in_page_failure_text_is_flagged_as_ui_alert(ws, tmp_path):
+    # 真机：VPD 首页「停车场信息加载失败，」「请重试」——状态识别照样认出页面，必须单独提示
+    dev = _lab_world(tmp_path, "fail", {"home": {"root": {"t": "Column", "b": [0, 0, 1320, 2848], "children": [
+        {"t": "Text", "text": "停车场信息加载失败，", "b": [60, 200, 900, 280]},
+        {"t": "Button", "b": [60, 300, 600, 400], "click": True, "children": [{"t": "Text", "text": "请重试", "b": [80, 320, 580, 380]}]}]}}})
+    _start(ws, dev, "ua1")
+    out = cli(ws, "observe", "--app", "motor_hm", "--session", "ua1", "--device", dev)
+    assert out["ui_alerts"]["texts"] == ["停车场信息加载失败，", "请重试"] and "反馈" in out["ui_alerts"]["procedure"]
+    assert any(e["event"] == "ui_alert" for e in read_jsonl(ws.runs_dir / "session-ua1" / "events.jsonl"))

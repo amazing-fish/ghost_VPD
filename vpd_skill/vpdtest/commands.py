@@ -16,7 +16,7 @@ from .params import Params
 from .runner import run_case
 from .session import dispatched, effect_unknown, from_session, next_seq, parse_select, summarize, trail
 from .templates import crop
-from .util import append_jsonl, now_iso, read_json, read_jsonl, short_hash, write_json
+from .util import append_jsonl, now_iso, read_json, read_jsonl, write_json
 from .workspace import RunContext, Workspace
 
 
@@ -40,34 +40,63 @@ def cmd_doctor(ws: Workspace, a) -> dict:
     return out
 
 
+# 会话头：第一次 observe/act 时写入并固定；之后每次都与它比较，APP 或设备不同就拒绝
+SESSION_SCHEMA = 2
+# act_request 只记这些字段（白名单）：新加的命令行参数默认不落盘，输入文字只记长度
+REQUEST_FIELDS = ("action", "select", "within", "target", "point", "basis", "side_effect", "allow_input", "text_len",
+                  "expect", "expect_text", "timeout", "duration", "direction", "authorize", "supervisor")
+
+
+def _open_session(ws, a):
+    """observe/act 的共同入口：取会话、设备、上下文，写入或核对会话头，挂上脱敏。"""
+    app = ws.app(a.app)
+    store = _session(ws, a.session)
+    dev = ws.device(a.device, state_path=store.dir / "replay_state.json")
+    ctx = RunContext(ws, app, dev, store, ExperienceStore(ws.root, app.id).overlay(), mode="agent")
+    _session_redaction(ws, ctx, store)
+    ident = {"app": app.id, "bundle": app.bundle, "device": dev.spec,
+             "validation_level": "offline_replay" if dev.kind == "replay" else "real_device"}
+    events = read_jsonl(store.events_path)
+    head = next((e for e in events if e.get("event") == "session_open"), None)
+    if head is None and any(e.get("event") in ("act_request", "agent_observe") for e in events):
+        # 旧格式会话（没有会话头）：按第一条 session_facts 核对，不能核对就拒绝续写
+        old = next((e.get("facts") for e in events if e.get("event") == "session_facts"), None)
+        if not old:
+            raise PermissionError(f"会话 {store.run_id} 没有会话头，无法确认 APP/设备：请换一个新的 --session 名")
+        head = {"identity": {k: old.get(k) for k in ("app", "device", "validation_level")}}
+    if head is None:
+        disp = dev.display_info() if hasattr(dev, "display_info") else {}
+        store.event("session_open", schema=SESSION_SCHEMA, identity=ident,
+                    facts={**ident, "app_version": dev.app_version(app.bundle),
+                           "device_form": (disp or {}).get("device_form")},
+                    redaction={"secret_names": len(_secret_names(ws)), "fragments_min": 6})
+    else:
+        diff = {k: {"session": head["identity"].get(k), "now": ident[k]}
+                for k in ("app", "device", "validation_level") if head["identity"].get(k) != ident[k]}
+        if diff:
+            store.event("session_mismatch_rejected", diff=diff)
+            raise PermissionError(f"会话 {store.run_id} 已固定为 {head['identity']}，本次 {diff} 不一致："
+                                  "同一会话不能混用不同 APP/设备，请换一个 --session 名")
+    return app, store, dev, ctx
+
+
+def _secret_names(ws) -> set:
+    names = {k[len("VPD_SECRET_"):] for k, v in os.environ.items() if k.startswith("VPD_SECRET_") and v}
+    return names | {k for k, v in (ws.config.get("secrets") or {}).items() if v}
+
+
 def _session_redaction(ws, ctx, store) -> None:
     """会话没有用例参数：按已配置的密钥值（VPD_SECRET_* / config.local.json secrets）脱敏 UI 树与事件，
     页面上出现这些值时不截图——和 run 的脱敏规则一致。"""
-    names = {k[len("VPD_SECRET_"):] for k, v in os.environ.items() if k.startswith("VPD_SECRET_") and v}
-    names |= {k for k, v in (ws.config.get("secrets") or {}).items() if v}
+    names = _secret_names(ws)
     if names:
         p = Params({n: {"secret": n} for n in names}, ws.config.get("secrets"), store.run_id)
         ctx.params = ctx.observer.params = p
         store.redactor = p.redact
 
 
-def _session_facts(store, dev, app) -> None:
-    """每个会话记一次环境事实（只读查询）：生成用例与判断知识适用性时要知道是哪个版本、什么屏幕形态。"""
-    if any(e.get("event") == "session_facts" for e in read_jsonl(store.events_path)):
-        return
-    disp = dev.display_info() if hasattr(dev, "display_info") else {}
-    store.event("session_facts", facts={"app": app.id, "app_version": dev.app_version(app.bundle),
-                                        "device_form": (disp or {}).get("device_form"), "device": dev.spec,
-                                        "validation_level": "offline_replay" if dev.kind == "replay" else "real_device"})
-
-
 def cmd_observe(ws: Workspace, a) -> dict:
-    app = ws.app(a.app)
-    store = _session(ws, a.session)
-    dev = ws.device(a.device, state_path=store.dir / "replay_state.json")
-    ctx = RunContext(ws, app, dev, store, ExperienceStore(ws.root, app.id).overlay(), mode="agent")
-    _session_redaction(ws, ctx, store)
-    _session_facts(store, dev, app)
+    app, store, dev, ctx = _open_session(ws, a)
     obs, tree = ctx.observe(a.label or "observe")
     store.event("agent_observe", obs_id=obs["obs_id"], label=a.label or "observe", state=obs["page"]["state"])
     clickable = []
@@ -81,7 +110,7 @@ def cmd_observe(ws: Workspace, a) -> dict:
                                   "center": list(vis["center"]),
                                   "visible_fraction": vis["fraction"], "allowed": pol["allowed"], "why": pol["reason"]})
     return {"session": store.run_id, "obs_dir": str(store.dir / "obs" / obs["obs_id"]), "observation": obs,
-            "clickable": clickable[:40]}
+            "ui_alerts": obs.get("ui_alerts"), "clickable": clickable[:40]}
 
 
 def _last_window(store) -> Optional[list]:
@@ -94,25 +123,20 @@ def _last_window(store) -> Optional[list]:
 
 
 def cmd_act(ws: Workspace, a) -> dict:
-    app = ws.app(a.app)
-    store = _session(ws, a.session)
-    dev = ws.device(a.device, state_path=store.dir / "replay_state.json")
-    ctx = RunContext(ws, app, dev, store, ExperienceStore(ws.root, app.id).overlay(), mode="agent")
-    _session_redaction(ws, ctx, store)
-    _session_facts(store, dev, app)
+    app, store, dev, ctx = _open_session(ws, a)
     seq = next_seq(store)
     step_id = a.step_id or f"A{seq}"
     # 先记请求再执行：进程中途被杀时，会话里仍能看到"请求了什么、没有结果"
-    # 输入文字不进请求事件：policy 还没检查，可能是误输入的密码。只记长度与摘要；
+    # 输入文字不进请求事件（policy 还没检查，可能是误输入的密码），连摘要也不记：只记长度。
     # 允许输入、目标非敏感、且不等于任何已配置密钥时，才在执行记录里保留原文（供复测）
-    request = {"action": a.action, "select": a.select, "within": a.within, "target": a.target, "point": a.point,
-               "basis": a.basis, "side_effect": a.side_effect, "allow_input": a.allow_input,
-               "text_len": len(a.text) if a.text is not None else None,
-               "text_sha": short_hash(a.text, 10) if a.text else None,
-               "expect": a.expect, "expect_text": a.expect_text, "timeout": a.timeout, "duration": a.duration,
-               "direction": getattr(a, "direction", None), "authorize": sorted(set(a.authorize or [])),
-               "supervisor": bool(a.supervisor)}
-    store.event("act_request", seq=seq, step_id=step_id, request={k: v for k, v in request.items() if v not in (None, [], False)})
+    raw = {"action": a.action, "select": a.select, "within": a.within, "target": a.target, "point": a.point,
+           "basis": a.basis, "side_effect": a.side_effect, "allow_input": a.allow_input,
+           "text_len": len(a.text) if a.text is not None else None, "expect": a.expect,
+           "expect_text": a.expect_text, "timeout": a.timeout, "duration": a.duration,
+           "direction": getattr(a, "direction", None), "authorize": sorted(set(a.authorize or [])),
+           "supervisor": bool(a.supervisor)}
+    request = {k: raw[k] for k in REQUEST_FIELDS if raw.get(k) not in (None, [], False)}
+    store.event("act_request", seq=seq, step_id=step_id, request=request)
     try:
         step = _act_step(ctx, store, a, step_id)
     except (ValueError, PermissionError) as e:

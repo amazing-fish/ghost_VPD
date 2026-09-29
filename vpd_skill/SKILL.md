@@ -26,7 +26,10 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
    找不到独立判据时用 `knowledge add` 记一条 `source.type=test_goal` 的 unconfirmed 条目，结论会是待确认。
 3. **前置**：`doctor --device <spec>`。锁屏/离线/未安装、账号未登录、目标车辆未选好 → 报告阻塞，说明需要人做什么，
    不要解锁、猜密码或自动登录。**前台不是被测 APP（用户正在用手机）时不要 launch 抢前台**，报告等待。
-4. **观察与探索**：`observe` 看页面与可点元素（label/type/id），`act tap|input --select "text=…"` 现场定位，
+4. **观察与探索**：每次 observe 先看关键 UI：`ui_alerts`（页面内的「加载失败」「解析失败」「请重试」等）非空就是异常，
+   **先记录时间（obs 的 ts/obs_id）与截图，点右上角「反馈」填写时间、页面、异常原文、前一步操作、车辆、APP 版本并提交，
+   再决定是否重试**；首次异常保留在会话和报告里，作为产品问题候选。
+   `observe` 看页面与可点元素（label/type/id），`act tap|input --select "text=…"` 现场定位，
    或 `--target` 复用已登记目标。失败、被拒、超时都会留在会话里。允许修正定位、处理适用的弹窗、尝试其他入口；
    但如果原路径本身就是测试对象，替代路径成功不能替原路径判通过。
 5. **固化**：`case from-session --session <s> --new-id <id> --app <app> --goal "<原文>"`。与目标无关的试探可以

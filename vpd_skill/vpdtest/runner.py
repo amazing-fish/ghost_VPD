@@ -158,6 +158,13 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
            "motion": ctx.motion.history, "safety_stops": safety_stops,
            "measurements": [{"step": s["step_id"], **{k: v for k, v in s["measurement"].items()}}
                             for s in steps if s.get("measurement")]}
+    # 运行中所有观测里出现过的页面内失败提示（ui_alert 事件），按时间列出
+    alerts = []
+    for d in sorted((store.dir / "obs").iterdir()):
+        o = read_json(d / "observation.json", {})
+        if o.get("ui_alerts"):
+            alerts.append({"obs": o["obs_id"], "ts": o["ts"], "texts": o["ui_alerts"]["texts"]})
+    run["ui_alerts"] = alerts
     run = params.redact(run)
     run["experience_candidates"] = [c["id"] for c in xstore.propose_from_run(run)] if propose else []
     write_json(store.dir / "run.json", run)

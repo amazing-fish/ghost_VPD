@@ -132,6 +132,10 @@ def render_run(run: dict) -> str:
         ev = a.get("evidence", {})
         out.append(f"| {a['id']}{'（建议）' if a['advisory'] else ''} {_esc(a['desc'])} | {RESULT[a['result']]} | {_esc(refs)} "
                    f"| {_esc(ev.get('obs'))} {_esc(ev.get('screenshot') or '')} | {_esc(a.get('reason') or '')} |")
+    if run.get("ui_alerts"):
+        out += ["", "## 页面内的失败/异常提示（产品问题候选，需人工确认并反馈）", "",
+                "| 时间 | 观测 | 文字 |", "|---|---|---|"]
+        out += [f"| {_esc(u['ts'])} | {u['obs']} | {_esc('；'.join(u['texts']))} |" for u in run["ui_alerts"]]
     snap = {i["id"]: i for i in run.get("knowledge_snapshot") or []}
     if run.get("knowledge_used") or snap:
         f = run.get("facts") or {}
