@@ -99,6 +99,10 @@ class Observer:
             obs["screenshot"] = {"status": "withheld", "reason": "页面含已输入的敏感值，隐私策略不截图"}
         elif not self.policy.screenshot_allowed(fg):
             obs["screenshot"] = {"status": "withheld", "reason": f"前台为 {fg}，隐私策略不截图"}
+        elif fg == self.bundle and (obs.get("tree") or {}).get("status") == "empty":
+            # 真机：锁屏界面（带通知内容）盖在 APP 上时，aa dump 仍报 APP 在前台，但按 bundle 取的树只有空根。
+            # 屏幕上显示的不是被测 APP，不截图
+            obs["screenshot"] = {"status": "withheld", "reason": "前台报为被测 APP 但其布局树为空（锁屏/系统弹层覆盖），隐私策略不截图"}
         elif not self.policy.screenshot_allowed(fg2 := self.device.foreground()):
             # 取布局树要几秒：期间 APP 可能崩溃、退后台或被别的应用覆盖。截图前再确认一次，避免截到其他应用
             obs["screenshot"] = {"status": "withheld", "reason": f"取树后前台已变为 {fg2}，隐私策略不截图"}

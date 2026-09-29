@@ -46,6 +46,7 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--allow-input", action="store_true",
                    help="允许向 --select/--point 定位的输入框输入（非敏感测试数据；值会记入会话，密钥不能这样输入）")
     a.add_argument("--text")
+    a.add_argument("--clear", action="store_true", help="input 前先清空输入框（真机 inputText 是追加）")
     a.add_argument("--direction", choices=["up", "down"], help="swipe 方向（默认 up）")
     a.add_argument("--expect", help="期望到达的状态 ID")
     a.add_argument("--expect-text", help="动作后可见文字中应出现的正则（未声明状态的页面用它作后置条件）")

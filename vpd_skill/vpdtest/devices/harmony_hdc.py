@@ -260,6 +260,26 @@ class HdcDevice:
             return DeviceResult("key", False, False, "unsupported", f"不支持的按键 {name}")
         return self._shell("uitest", "uiInput", "keyEvent", KEYS[name], op=f"key_{name}")
 
+    def screen_locked(self) -> Optional[bool]:
+        """锁屏/熄屏 → True；查询失败 → None。锁屏时 aa dump 里没有 FOREGROUND mission，不能据此当成桌面。"""
+        power = self._shell("hidumper", "-s", "3301", "-a", "-a", op="power_state")
+        lock = self._shell("hidumper", "-s", "ScreenlockService", "-a", "-all", op="lock_state")
+        if not (power.ok and lock.ok):
+            return None
+        return parse_kv(power.raw, "Current State") != "AWAKE" or parse_kv(lock.raw, "screenLocked") != "false"
+
+    def clear_text(self, x: int, y: int, count: int) -> DeviceResult:
+        """真机 uiInput inputText 是追加：先点中输入框、光标移到末尾（MoveEnd=2082），再按 count 次退格（Del=2055）。"""
+        r = self.tap(x, y)
+        if not r.ok:
+            return r
+        self._shell("uitest", "uiInput", "keyEvent", "2082", op="key_move_end")
+        for _ in range(max(0, int(count))):
+            r = self._shell("uitest", "uiInput", "keyEvent", "2055", op="key_del")
+            if not r.ok:
+                return r
+        return DeviceResult("clear_text", True, True, None, None, f"deleted {count}")
+
     def launch(self, bundle: str, ability: str) -> DeviceResult:
         r = self._shell("aa", "start", "-a", ability, "-b", bundle, op="launch")
         if r.ok and "success" not in r.raw.lower():

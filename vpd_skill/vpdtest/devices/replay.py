@@ -370,6 +370,19 @@ class ReplayDevice:
                         self._go(box["on_input"])
         return self._res("input_text", raw="inputText")
 
+    def screen_locked(self) -> Optional[bool]:
+        return bool(self.state["locked"] or not self.state["screen_on"])
+
+    def clear_text(self, x: int, y: int, count: int) -> DeviceResult:
+        if self._in_app():
+            hits = _hits(self._live(self._screen_spec(self.current_screen())["root"]), x, y, self.world["screen"])
+            if hits:
+                spec, parents = max(hits, key=lambda sp: len(sp[1]))
+                box = next((n for n in (spec,) + tuple(reversed(parents)) if n.get("bind")), None)
+                if box is not None:
+                    self.bound.pop(box["bind"], None)
+        return self._res("clear_text", raw=f"deleted {count}")
+
     def key(self, name: str) -> DeviceResult:
         if name == "back" and self._in_app():
             self._back()

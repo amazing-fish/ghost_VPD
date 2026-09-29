@@ -35,6 +35,7 @@ STATUS_MAP = {
     "target_disabled": ("blocked", "environment", "目标控件当前不可用（置灰），按前置条件不满足处理，未点击"),
     "target_stale": ("blocked", "tool", "执行前复核发现目标已变化（页面刷新/弹窗/滚动/被替换），未下发"),
     "foreground_changed": ("blocked", "environment", "下发前前台已不是被测 APP（被切走或被其他应用覆盖），未下发"),
+    "screen_locked": ("blocked", "environment", "下发前手机已锁屏或熄屏，未下发；需要人解锁后重跑"),
 }
 # 这些动作会作用到"当前前台"：前台不是被测 APP 时不下发，避免点到/输入到用户正在用的其他应用
 FOREGROUND_BOUND = ("tap", "input", "swipe", "back", "home")
@@ -219,6 +220,17 @@ class Executor:
             att["resolved"] = _resolved(loc, obs)
             if not self._foreground_ok(att, step.get("revalidate")):
                 return att
+            if step.get("clear"):
+                # 真机输入是追加：先删掉框里已有的文字（按当前树里的长度 + 余量），再输入
+                node = _tree_node(tree, loc)
+                n_del = len((node.text if node is not None else "") or "") + 2
+                cr = ctx.device.clear_text(*loc["point"], n_del)
+                ctx.actions += 1
+                att["clear"] = {"deleted": n_del, "ok": cr.ok, "error": cr.error}
+                ctx.store.event("clear_text", step=step["id"], n=n, deleted=n_del, ok=cr.ok)
+                if not cr.ok:
+                    att.update(status="device_error", error_class=cr.error_class)
+                    return att
             res = ctx.device.input_text(*loc["point"], text)
         elif kind != "wait":
             att["status"] = "invalid_step"
@@ -379,8 +391,16 @@ class Executor:
         ctx = self.ctx
         if att["action"] not in FOREGROUND_BOUND:
             return True
+        locked = ctx.device.screen_locked() if hasattr(ctx.device, "screen_locked") else None
+        if locked:
+            # 锁屏/熄屏：按键会落在锁屏上（真机上曾被误判为产品失败），点击可能唤起解锁。一律不发，按环境阻塞
+            att.update(status="screen_locked", error_class="screen_locked",
+                       foreground_check={"screen_locked": True, "expected": ctx.app.bundle})
+            ctx.store.event("screen_locked_before_dispatch", step=att.get("step_id"), action=att["action"])
+            return False
         fg = ctx.device.foreground()
-        att["foreground_check"] = {"foreground": fg, "expected": ctx.app.bundle, "after_revalidate": bool(fresh)}
+        att["foreground_check"] = {"foreground": fg, "expected": ctx.app.bundle, "after_revalidate": bool(fresh),
+                                   "screen_locked": locked}
         if fg == ctx.app.bundle:
             return True
         # 桌面：回放设备报 sceneboard；真机桌面上所有 mission 都是 BACKGROUND，查询成功但没有前台应用

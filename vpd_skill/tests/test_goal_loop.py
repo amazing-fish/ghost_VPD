@@ -428,3 +428,31 @@ def test_in_page_failure_text_is_flagged_as_ui_alert(ws, tmp_path):
     out = cli(ws, "observe", "--app", "motor_hm", "--session", "ua1", "--device", dev)
     assert out["ui_alerts"]["texts"] == ["停车场信息加载失败，", "请重试"] and "反馈" in out["ui_alerts"]["procedure"]
     assert any(e["event"] == "ui_alert" for e in read_jsonl(ws.runs_dir / "session-ua1" / "events.jsonl"))
+
+
+def test_locked_screen_blocks_every_dispatch_including_back(ws, tmp_path):
+    # 真机：锁屏后 aa dump 没有前台 mission（foreground=None），曾被当成桌面放行返回键，结果误判为产品失败
+    dev = _lab_world(tmp_path)
+    _start(ws, dev, "lk1")
+    st = ws.runs_dir / "session-lk1" / "replay_state.json"
+    s = read_json(st)
+    s["locked"] = True
+    write_json(st, s)
+    for action in ("back", "home"):
+        out = cli(ws, "act", action, "--app", "motor_hm", "--session", "lk1", "--device", dev)
+        att = out["result"]["attempts"][-1]
+        assert att["status"] == "screen_locked" and "dispatch" not in att
+        assert out["result"]["attribution"] == "environment"
+
+
+def test_input_clear_replaces_instead_of_appending(ws, tmp_path):
+    dev = _input_world(tmp_path)
+    _start(ws, dev, "cl1")
+    base = ["act", "input", "--select", "xpath=//TextInput", "--allow-input", "--app", "motor_hm",
+            "--session", "cl1", "--device", dev]
+    out = cli(ws, *base, "--text", "新名字", "--clear")
+    att = out["result"]["attempts"][-1]
+    assert att["clear"]["ok"] and att["dispatch"]["executor_ok"]
+    case = __import__("vpdtest.session", fromlist=["from_session"]).from_session(
+        ws.runs_dir / "session-cl1", "TC-CL-1", ws.app("motor_hm"), None, ["A1=启动"])
+    assert case["steps"][0]["clear"] is True

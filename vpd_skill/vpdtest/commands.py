@@ -43,7 +43,7 @@ def cmd_doctor(ws: Workspace, a) -> dict:
 # 会话头：第一次 observe/act 时写入并固定；之后每次都与它比较，APP 或设备不同就拒绝
 SESSION_SCHEMA = 2
 # act_request 只记这些字段（白名单）：新加的命令行参数默认不落盘，输入文字只记长度
-REQUEST_FIELDS = ("action", "select", "within", "target", "point", "basis", "side_effect", "allow_input", "text_len",
+REQUEST_FIELDS = ("action", "select", "within", "target", "point", "basis", "side_effect", "allow_input", "text_len", "clear",
                   "expect", "expect_text", "timeout", "duration", "direction", "authorize", "supervisor")
 
 
@@ -131,7 +131,7 @@ def cmd_act(ws: Workspace, a) -> dict:
     # 允许输入、目标非敏感、且不等于任何已配置密钥时，才在执行记录里保留原文（供复测）
     raw = {"action": a.action, "select": a.select, "within": a.within, "target": a.target, "point": a.point,
            "basis": a.basis, "side_effect": a.side_effect, "allow_input": a.allow_input,
-           "text_len": len(a.text) if a.text is not None else None, "expect": a.expect,
+           "text_len": len(a.text) if a.text is not None else None, "clear": a.clear, "expect": a.expect,
            "expect_text": a.expect_text, "timeout": a.timeout, "duration": a.duration,
            "direction": getattr(a, "direction", None), "authorize": sorted(set(a.authorize or [])),
            "supervisor": bool(a.supervisor)}
@@ -206,6 +206,8 @@ def _act_step(ctx, store, a, step_id: str) -> dict:
         else:
             step["target"] = a.target
         step["text"] = a.text
+        if a.clear:
+            step["clear"] = True
     return step
 
 

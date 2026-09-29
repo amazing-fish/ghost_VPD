@@ -253,4 +253,6 @@ def _to_case_step(it: dict, req: dict, session_dir: Path, test_data: dict, facts
             else:
                 test_data[name] = {"missing_from_session": True, "length": req.get("text_len")}
             step["text"] = f"${{var:{name}}}"
+            if req.get("clear"):
+                step["clear"] = True
     return step
