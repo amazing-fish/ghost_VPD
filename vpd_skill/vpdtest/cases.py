@@ -165,6 +165,18 @@ def lint(case: dict, app, knowledge, policy=None) -> list:
     for a in case.get("assertions", []):
         if a.get("at") not in step_ids:
             issues.append({"field": f"assertions.{a.get('id')}", "problem": f"at={a.get('at')} 不是用例中的步骤 ID"})
+    for src in case.get("sources", []):
+        for r in src.get("rejected") or []:
+            if r.get("dispatched"):
+                issues.append({"field": f"sources.rejected.A{r.get('seq')}",
+                               "problem": "已下发过手势/按键的动作被记成了被拒：现场可能已改变，须作为效果未知的步骤保留，"
+                                          "或用 --drop 写明理由排除"})
+    for s in case.get("steps", []):
+        fs = s.get("from_session") or {}
+        if fs.get("effect_unknown") and not s.get("effect_reviewed"):
+            issues.append({"field": f"steps.{s['id']}", "problem": f"会话里这一步已下发但结果未确认（{fs.get('outcome')}）："
+                                                                   "看 obs_after 确认实际效果后写 effect_reviewed，"
+                                                                   "或用 --drop 写明理由排除"})
     if any(s.get("type") == "session" for s in case.get("sources", [])) and not case.get("knowledge_used"):
         issues.append({"field": "knowledge_used", "problem": "由会话生成的用例须说明用到了哪些知识、是否适用、怎样映射到动作"
                                                              "（没有可用知识也要写明，例如 [{\"id\": null, \"note\": \"...\"}]）"})

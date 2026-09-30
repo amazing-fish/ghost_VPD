@@ -579,3 +579,170 @@ def test_input_clear_replaces_instead_of_appending(ws, tmp_path):
     case = __import__("vpdtest.session", fromlist=["from_session"]).from_session(
         ws.runs_dir / "session-cl1", "TC-CL-1", ws.app("motor_hm"), None, ["A1=启动"])
     assert case["steps"][0]["clear"] is True
+
+
+# ---- R4：会话只从 trail() 读、以 dispatch 事件判定是否执行；设备查询三态 ----
+
+def test_act_error_after_dispatch_is_kept_as_effect_unknown(ws, tmp_path):
+    import re as _re
+    dev = _lab_world(tmp_path)
+    _start(ws, dev, "ae1")
+    # 点击已下发，之后 _post 里 expect_text 的正则出错：动作确实发生了，不能当成被拒丢掉
+    with pytest.raises(_re.error):
+        cli(ws, "act", "tap", "--select", "text=唯一入口", "--expect-text", "[", "--app", "motor_hm",
+            "--session", "ae1", "--device", dev)
+    sdir = ws.runs_dir / "session-ae1"
+    # 另一条下发前就出错的请求：没有 dispatch 事件 → 算被拒
+    append_jsonl(sdir / "events.jsonl", {"ts": "t", "event": "act_request", "seq": 3, "step_id": "A3",
+                                         "request": {"action": "back"}})
+    append_jsonl(sdir / "events.jsonl", {"ts": "t", "event": "act_error", "seq": 3, "reason": "RuntimeError: x"})
+    rows = {r["step"]: r for r in cli(ws, "session", "ae1")["trail"] if r["kind"] != "observe"}
+    assert rows["A2"]["kind"] == "error" and rows["A2"]["dispatched"] and rows["A2"]["effect_unknown"]
+    assert rows["A3"]["kind"] == "error" and not rows["A3"]["dispatched"]
+    out = cli(ws, "case", "from-session", "--session", "ae1", "--new-id", "TC-AE-1", "--app", "motor_hm",
+              "--drop", "A1=启动")
+    case = ws.load_case("TC-AE-1")
+    src = case["sources"][0]
+    assert [s["from_session"]["seq"] for s in case["steps"]] == [2]  # 已下发的 A2 保留为步骤
+    assert case["steps"][0]["from_session"]["effect_unknown"] is True
+    assert [r["seq"] for r in src["rejected"]] == [3] and src["effect_unknown"][0]["seq"] == 2
+    assert any(i["field"] == "steps.S2" and "已下发但结果未确认" in i["problem"] for i in out["issues"])
+    # 手工把已下发的动作塞进 rejected：lint 报错
+    case["sources"][0]["rejected"].append({"seq": 2, "dispatched": True})
+    assert any(i["field"] == "sources.rejected.A2" for i in C.lint(case, ws.app("motor_hm"), KnowledgeStore(ws.root)))
+    case["sources"][0]["rejected"].pop()
+    case["steps"][0]["effect_reviewed"] = "obs_after 显示已进入详情页"
+    assert not any(i["field"] == "steps.S2" and "已下发" in i["problem"]
+                   for i in C.lint(case, ws.app("motor_hm"), KnowledgeStore(ws.root)))
+
+
+def test_case_from_session_refuses_app_different_from_session(ws, tmp_path):
+    dev = _lab_world(tmp_path)
+    _start(ws, dev, "ap1")
+    cli(ws, "act", "tap", "--select", "text=唯一入口", "--app", "motor_hm", "--session", "ap1", "--device", dev)
+    with pytest.raises(PermissionError, match="不一致"):
+        cli(ws, "case", "from-session", "--session", "ap1", "--new-id", "TC-AP-1", "--app", "qiankun_hm")
+    assert not ws.case_path("TC-AP-1").exists()
+    # 没有会话头也没有 session_facts 的会话：无法确认身份，拒绝转换
+    bare = ws.runs_dir / "session-ap2"
+    bare.mkdir(parents=True)
+    append_jsonl(bare / "events.jsonl", {"ts": "t", "event": "act_request", "seq": 1, "step_id": "A1",
+                                         "request": {"action": "back"}})
+    with pytest.raises(PermissionError, match="没有会话头"):
+        cli(ws, "case", "from-session", "--session", "ap2", "--new-id", "TC-AP-2", "--app", "motor_hm")
+
+
+class _FakeHdc:
+    """HdcDevice 的 _shell 替身：按 op 返回预设输出（列表按调用顺序取；False = 命令失败），记录发出过的 op。"""
+
+    def __init__(self, monkeypatch, outputs):
+        from vpdtest.devices import harmony_hdc as H
+        monkeypatch.setattr(H.time, "sleep", lambda s: None)
+        self.dev = object.__new__(H.HdcDevice)
+        self.dev.serial, self.dev.spec, self.dev.last_query_error = "fake", "hdc:fake", None
+        self.ops, self.outputs, self.DR = [], outputs, H.DeviceResult
+        self.dev._shell = self._shell
+
+    def _shell(self, *args, op, timeout=None):
+        self.ops.append(op)
+        out = self.outputs.get(op)
+        out = out.pop(0) if isinstance(out, list) else out
+        if out is False:
+            return self.DR(op, True, False, "command_failed", "boom", "")
+        return self.DR(op, True, True, None, None, out or "")
+
+
+AWAKE, ASLEEP, UNLOCKED = "Current State: AWAKE", "Current State: SLEEP", "screenLocked: false"
+
+
+def test_screen_locked_is_tristate_and_wake_unlock_never_gestures_on_unknown(monkeypatch):
+    f = _FakeHdc(monkeypatch, {"power_state": AWAKE, "lock_state": False})
+    assert f.dev.screen_locked() is None
+    out = f.dev.wake_unlock("000000")
+    assert out["status"] == "indeterminate" and "pin_entered" not in out
+    assert not {"wakeup", "unlock_swipe", "tap"} & set(f.ops)  # 查询失败：一个手势都不发
+    assert _FakeHdc(monkeypatch, {"power_state": "garbled", "lock_state": UNLOCKED}).dev.screen_locked() is None
+    assert _FakeHdc(monkeypatch, {"power_state": ASLEEP}).dev.screen_locked() is True
+    assert _FakeHdc(monkeypatch, {"power_state": AWAKE, "lock_state": UNLOCKED}).dev.screen_locked() is False
+    # 明确熄屏 → 唤醒；唤醒后锁屏查询失败 → 不上滑
+    f = _FakeHdc(monkeypatch, {"power_state": [ASLEEP, AWAKE], "lock_state": [False]})
+    out = f.dev.wake_unlock("000000")
+    assert out["status"] == "indeterminate" and "wakeup" in f.ops and "unlock_swipe" not in f.ops
+
+
+def test_unlock_command_reports_indeterminate_as_action_required(ws, tmp_path, monkeypatch):
+    from vpdtest.devices.replay import ReplayDevice
+    monkeypatch.setattr(ReplayDevice, "_query_fails", lambda self, name: name == "screen_locked")
+    ws.config["secrets"] = {"LOCK_PIN": "246810"}
+    out = cli(ws, "unlock", "--device", _locked_world(tmp_path, "qf"))
+    assert out["status"] == "indeterminate" and out["action_required"]
+    assert not (ws.runs_dir / "unlock_guard.json").exists()  # 没输 PIN，不写防重入标记
+
+
+def test_clear_text_aborts_when_move_end_fails(monkeypatch):
+    f = _FakeHdc(monkeypatch, {"key_move_end": False})
+    f.dev.tap = lambda x, y: f.DR("tap", True, True)
+    r = f.dev.clear_text(10, 20, 5)
+    assert not r.ok and r.sent and "MoveEnd" in r.error and "key_del" not in f.ops
+
+
+def test_clear_failure_is_recorded_as_dispatched(ws, tmp_path, monkeypatch):
+    from vpdtest.devices import DeviceResult
+    from vpdtest.devices.replay import ReplayDevice
+    monkeypatch.setattr(ReplayDevice, "clear_text",
+                        lambda self, x, y, n: DeviceResult("clear_text", True, False, "command_failed", "MoveEnd 失败"))
+    dev = _input_world(tmp_path)
+    _start(ws, dev, "cf1")
+    out = cli(ws, "act", "input", "--select", "xpath=//TextInput", "--allow-input", "--clear", "--text", "新名字",
+              "--app", "motor_hm", "--session", "cf1", "--device", dev)
+    att = out["result"]["attempts"][0]
+    assert att["status"] == "device_error" and att["dispatch"]["sent"] and not att["dispatch"]["executor_ok"]
+    row = [r for r in cli(ws, "session", "cf1")["trail"] if r.get("step") == "A2"][0]
+    assert row["dispatched"] and row["effect_unknown"]
+
+
+def _set_state(ws, session, **kw):
+    st = ws.runs_dir / f"session-{session}" / "replay_state.json"
+    s = read_json(st)
+    s.update(kw)
+    write_json(st, s)
+
+
+def test_gesture_is_not_sent_when_lock_or_foreground_query_fails(ws, tmp_path):
+    dev = _lab_world(tmp_path)
+    _start(ws, dev, "qf1")
+    for q in ("screen_locked", "foreground"):
+        _set_state(ws, "qf1", query_fail=[q])
+        for action in ("back", "swipe"):
+            out = cli(ws, "act", action, "--app", "motor_hm", "--session", "qf1", "--device", dev)
+            att = out["result"]["attempts"][-1]
+            assert "dispatch" not in att and out["result"]["attribution"] == "environment", (q, action)
+            if q == "foreground" and action == "swipe":
+                # 滑动先按观测定滑动区域：前台查不到时观测本身就失败，在门禁之前已停下（同样不发）
+                assert att["status"] == "observation_failed"
+                continue
+            assert att["status"] == "state_indeterminate", (q, action)
+            assert att["state_check"]["query"] == q and out["diagnosis"]["action_required"]
+    _set_state(ws, "qf1", query_fail=[])
+    att = cli(ws, "act", "back", "--app", "motor_hm", "--session", "qf1", "--device", dev)["result"]["attempts"][-1]
+    assert att["dispatch"]["sent"]
+
+
+def test_scroll_search_does_not_swipe_when_lock_state_unknown(ws, tmp_path):
+    from vpdtest.execute import Executor
+    from vpdtest.experience import ExperienceStore
+    from vpdtest.observe import RunStore
+    from vpdtest.session import parse_select
+    from vpdtest.workspace import RunContext
+    app = ws.app("motor_hm")
+    store = RunStore(ws.runs_dir, "session-sc", kind="session")
+    dev = ws.device(_lab_world(tmp_path), state_path=store.dir / "replay_state.json")
+    dev.launch(BUNDLE, app.ability)
+    dev.state["query_fail"] = ["screen_locked"]
+    ctx = RunContext(ws, app, dev, store, ExperienceStore(ws.root, app.id).overlay(), mode="agent")
+    swipes = []
+    dev.swipe = lambda *a, **k: swipes.append(a)
+    target = {**parse_select("text=看不见的行"), "scroll": {"direction": "up", "max": 3}}
+    res = Executor(ctx).run_step({"id": "A1", "action": "tap", "retry": 0, "target": target}, "session")
+    att = res["attempts"][-1]
+    assert att["status"] == "state_indeterminate" and not swipes and "dispatch" not in att

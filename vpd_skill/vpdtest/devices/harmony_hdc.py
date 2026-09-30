@@ -304,29 +304,48 @@ class HdcDevice:
         return self._shell("uitest", "uiInput", "keyEvent", KEYS[name], op=f"key_{name}")
 
     def screen_locked(self) -> Optional[bool]:
-        """锁屏/熄屏 → True；查询失败 → None。锁屏时 aa dump 里没有 FOREGROUND mission，不能据此当成桌面。"""
+        """三态：锁屏/熄屏 → True；亮屏且已解锁 → False；查询失败或输出认不出 → None。
+        锁屏时 aa dump 里没有 FOREGROUND mission，不能据此当成桌面。"""
         power = self._shell("hidumper", "-s", "3301", "-a", "-a", op="power_state")
-        lock = self._shell("hidumper", "-s", "ScreenlockService", "-a", "-all", op="lock_state")
-        if not (power.ok and lock.ok):
+        state = parse_kv(power.raw, "Current State") if power.ok else None
+        if state is None:
             return None
-        return parse_kv(power.raw, "Current State") != "AWAKE" or parse_kv(lock.raw, "screenLocked") != "false"
+        if state != "AWAKE":
+            return True
+        lock = self._shell("hidumper", "-s", "ScreenlockService", "-a", "-all", op="lock_state")
+        return {"true": True, "false": False}.get(parse_kv(lock.raw, "screenLocked") if lock.ok else None)
 
     def wake_unlock(self, pin: Optional[str]) -> dict:
         """唤醒并解锁：先上滑（人脸/无密码会直接解开），仍锁着才输一次 PIN。
 
+        每个会发出手势/按键的步骤之前都要 screen_locked() 明确为 True；查询失败（None）就停下，返回
+        indeterminate，不发手势——已解锁的手机上一次上滑会划到用户正在用的应用里。
         只输一次：连续输错会锁机，重试由调用方（有防重入标记）决定。锁屏的全量布局只在内存里解析
         （通知内容会出现在里面），不落盘；PIN 和按键坐标都不进返回值。
         """
-        if self.screen_locked() is False:
+        def unknown(stage: str, **kw) -> dict:
+            return {"status": "indeterminate", "stage": stage, **kw,
+                    "reason": f"{stage}时查不到锁屏状态（hidumper 失败或输出认不出），未继续发手势：请人工确认屏幕状态"}
+
+        locked = self.screen_locked()
+        if locked is False:
             return {"status": "unlocked", "method": "already"}
+        if locked is None:
+            return unknown("唤醒前")
         self._shell("power-shell", "wakeup", op="wakeup")
         time.sleep(1.0)
-        if self.screen_locked() is False:
+        locked = self.screen_locked()
+        if locked is False:
             return {"status": "unlocked", "method": "wake"}
+        if locked is None:
+            return unknown("上滑前")
         self._shell("uitest", "uiInput", "swipe", 660, 2400, 660, 900, 3000, op="unlock_swipe")
         time.sleep(1.5)
-        if self.screen_locked() is False:
+        locked = self.screen_locked()
+        if locked is False:
             return {"status": "unlocked", "method": "swipe"}
+        if locked is None:
+            return unknown("输入 PIN 前")
         if not pin:
             return {"status": "locked", "reason": "需要 PIN：config.local.json secrets.LOCK_PIN 或 VPD_SECRET_LOCK_PIN 未设置"}
         remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.json"
@@ -340,11 +359,17 @@ class HdcDevice:
         if pad is None:
             return {"status": "locked", "reason": "没认出锁屏数字键盘（0-9 各一个、3 列排布），未输入"}
         for ch in pin:
-            self.tap(*pad[ch])
+            if not self.tap(*pad[ch]).ok:
+                # 输到一半：已输的位数不确定，按"输过一次 PIN"处理，由调用方写防重入标记
+                return unknown("输入 PIN 中", pin_entered=True)
             time.sleep(0.25)
         time.sleep(1.5)
-        return {"status": "unlocked", "method": "pin"} if self.screen_locked() is False else \
-            {"status": "pin_rejected", "reason": "输完 PIN 仍锁屏：不再重试，请人工核对"}
+        locked = self.screen_locked()
+        if locked is False:
+            return {"status": "unlocked", "method": "pin"}
+        if locked is None:
+            return unknown("输完 PIN 后", pin_entered=True)
+        return {"status": "pin_rejected", "reason": "输完 PIN 仍锁屏：不再重试，请人工核对"}
 
     def shown_windows(self) -> Optional[list]:
         """当前显示的窗口名；查询失败或格式认不出 → None。只取窗口名与层级，不取窗口内容。"""
@@ -356,7 +381,11 @@ class HdcDevice:
         r = self.tap(x, y)
         if not r.ok:
             return r
-        self._shell("uitest", "uiInput", "keyEvent", "2082", op="key_move_end")
+        r = self._shell("uitest", "uiInput", "keyEvent", "2082", op="key_move_end")
+        if not r.ok:
+            # 光标位置未知：此时退格会删掉中间的字，后续输入得到错值。不删，报错（输入框已被点过）
+            return DeviceResult("clear_text", True, False, r.error_class or "command_failed",
+                                f"MoveEnd 失败，未删除：{r.error or ''}".strip(), r.raw, r.duration_ms)
         for _ in range(max(0, int(count))):
             r = self._shell("uitest", "uiInput", "keyEvent", "2055", op="key_del")
             if not r.ok:

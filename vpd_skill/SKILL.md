@@ -33,7 +33,8 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
    或 `--target` 复用已登记目标。失败、被拒、超时都会留在会话里。允许修正定位、处理适用的弹窗、尝试其他入口；
    但如果原路径本身就是测试对象，替代路径成功不能替原路径判通过。
 5. **固化**：`case from-session --session <s> --new-id <id> --app <app> --goal "<原文>"`。与目标无关的试探可以
-   `--drop A4=理由` 排除，失败和效果未知的动作不能静默删掉。补齐 purpose / preconditions / assertions
+   `--drop A4=理由` 排除，失败和效果未知的动作不能静默删掉：已下发后才报错/中断的步骤会保留并被 lint 标出，
+   看 obs_after 确认实际效果后写 `effect_reviewed`（或写理由排除）。`--app` 必须与会话记录一致。补齐 purpose / preconditions / assertions
    （`oracle_refs` 必须独立于本会话）/ cleanup / `knowledge_used`（用了哪条知识、判断是否适用及理由、映射到哪一步），
    然后 `case lint`。
 6. **执行与判定**：`run <case> --device <spec> --authorize …`。结论只取执行器的 verdict；读 report 的
@@ -91,6 +92,7 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
 | 无 UI 树 / 定位失败 | `--select` 只覆盖有 UI 树的页面，地图等自绘区域（XComponent）不在树里。先考虑已有模板；可用 `template-crop` 从观测裁剪模板并提议登记。只有确有把握时才用 `act tap --point x,y --basis "<看到了什么>"`，且执行器仍会按 policy 拦截 |
 | `target_ambiguous` | 不要挑一个点；`diagnosis.candidates` 列出了各候选，用 `--within` 限定容器/分栏或改用 `id=`/`xpath=` |
 | `target_stale` / `foreground_changed` | 观察与下发之间页面变了 / 前台被切走：重新 observe 再决定；前台是其他应用时停止并报告 |
+| `state_indeterminate` / unlock `indeterminate` | 下发前查不到锁屏/前台状态，一个手势都没发（`action_required`）：确认手机状态后重新 observe，不要改用 `--point` 绕过 |
 | `target_partially_visible` | 目标被列表裁剪或被底部导航挡住；为目标补 `scroll` 声明，而不是改成点边缘 |
 | 只在宽屏/折叠屏上成立的用例 | 在用例上写 `layout_requirements`（如 `{"wide": true}`）；形态不符时判环境阻塞，不判失败 |
 | `observation_failed` | 设备连接或查询失败（如 hdc `E000004`），属环境问题；等连接恢复后重跑，不要改用例 |

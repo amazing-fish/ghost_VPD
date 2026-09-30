@@ -133,11 +133,18 @@ agent 模式的 `--point` 记录提出时的窗口尺寸（`point_window`）；�
 
 - `events.jsonl`：`session_facts`（版本/形态/验证级别，只记一次）、`agent_observe`、`act_request`（先于执行写入）、
   `act_rejected` / `act_error` / `act_result`（`outcome`、`dispatched`、`effect_unknown`、前后观测），以及执行器内部事件
-  （`attempt`、`revalidate`、`dispatch`、`recovery`、`foreground_changed`…）。有请求无结果 = 中断。
+  （`attempt`、`revalidate`、`dispatch`、`clear_text`、`scroll_search`、`recovery`、`foreground_changed`、
+  `state_indeterminate_before_dispatch`…）。有请求无结果 = 中断。
+- 会话只经 `session.trail()` 读取：它核对 `session_open` 身份（act/observe 核对 APP/设备/验证级别，from-session 核对 `--app`），
+  并以请求与结束事件之间的 `dispatch`/`clear_text`/`scroll_search` 判定是否已下发。`act_error` 在下发后出现 = 效果未知的步骤；
+  只有没下发的 `act_rejected`/`act_error` 才进 `rejected`。有请求无结果一律按效果未知处理。
+- 设备查询三态（True/False/None）：锁屏、前台查询失败（None）时不发任何手势或按键，判 `state_indeterminate`（环境阻塞、需人工确认）；
+  `unlock` 只在明确锁屏时唤醒/上滑/输 PIN，否则返回 `indeterminate`。`clear_text` 的 MoveEnd 失败即中止、不删字。
 - `steps.jsonl`：每个动作的完整执行记录；`attempts[].resolved` 记解析出的节点、bounds、可见比例、实际点击点、
   窗口 px、layout key、密度、形态，`attempts[].revalidate` 记下发前复核结果。
 - 会话生成的用例：每步 `from_session`（会话、序号、结果、`effect_unknown`、前后观测）；内联目标 `observed`（解析时的节点、
-  形态、版本、验证级别）；`sources[0]` 列出 `included` / `excluded`（带理由）/ `rejected` / `incomplete`。
+  形态、版本、验证级别）；`sources[0]` 列出 `included` / `excluded`（带理由）/ `rejected`（均未下发）/ `incomplete` /
+  `effect_unknown`。lint 对 `rejected` 里 `dispatched: true` 的记录和未写 `effect_reviewed` 的效果未知步骤报错。
 - 用例成熟度（`status`）与产品状态（`product_status`：`conforming` / `known_failure` + `issue` + `signature`）分开记录：
   当前内容哈希下至少 2 次确定且一致的重放才能晋级；待确认/阻塞的重放不计入并列在 `ignored`；通过与失败混合 → 不稳定。
   内容哈希在用例声明时包含 `authorizations` 与 `safety`。

@@ -36,6 +36,7 @@ STATUS_MAP = {
     "target_stale": ("blocked", "tool", "执行前复核发现目标已变化（页面刷新/弹窗/滚动/被替换），未下发"),
     "foreground_changed": ("blocked", "environment", "下发前前台已不是被测 APP（被切走或被其他应用覆盖），未下发"),
     "screen_locked": ("blocked", "environment", "下发前手机已锁屏或熄屏，未下发；需要人解锁后重跑"),
+    "state_indeterminate": ("blocked", "environment", "下发前查不到锁屏/前台状态（查询失败），未下发；需要人确认手机状态后重跑"),
 }
 # 这些动作会作用到"当前前台"：前台不是被测 APP 时不下发，避免点到/输入到用户正在用的其他应用
 FOREGROUND_BOUND = ("tap", "input", "swipe", "back", "home")
@@ -227,8 +228,11 @@ class Executor:
                 cr = ctx.device.clear_text(*loc["point"], n_del)
                 ctx.actions += 1
                 att["clear"] = {"deleted": n_del, "ok": cr.ok, "error": cr.error}
-                ctx.store.event("clear_text", step=step["id"], n=n, deleted=n_del, ok=cr.ok)
+                ctx.store.event("clear_text", step=step["id"], n=n, deleted=n_del, ok=cr.ok, sent=cr.sent)
                 if not cr.ok:
+                    # 输入框已被点过、可能删了一部分：记为已下发未确认，会话/判定都按效果未知处理
+                    att["dispatch"] = {"op": cr.op, "sent": cr.sent, "executor_ok": False, "error_class": cr.error_class,
+                                       "error": cr.error, "duration_ms": cr.duration_ms}
                     att.update(status="device_error", error_class=cr.error_class)
                     return att
             if is_ref or (ctx.params and ctx.params.contains_secret([text])):
@@ -366,9 +370,16 @@ class Executor:
         scroll = target.get("scroll")
         swipes, trail = 0, []
         while loc["status"] in ("not_found", "partially_visible") and scroll and swipes < int(scroll.get("max", 3)):
+            # 滚动查找也是手势：和正式下发一样先确认锁屏与前台，查不到/不对就停，不滑
+            gate = {"action": "swipe", "step_id": step.get("id")}
+            if not self._foreground_ok(gate):
+                loc = {**loc, "status": "blocked_state", "gate": {k: gate.get(k) for k in (
+                    "status", "error_class", "foreground_check", "state_check", "action_required") if k in gate}}
+                break
             swipes += 1
             before = tree.fingerprint() if (tree is not None and tree.status == "ok") else None
             r, info = self._swipe(scroll.get("direction", "up"), tree, lay, scroll.get("within"))
+            info["sent"] = r.sent
             if r.sent:
                 ctx.actions += 1
             obs, tree = ctx.observe(f"{step['id']}:scroll{swipes}")
@@ -395,7 +406,10 @@ class Executor:
         ctx = self.ctx
         if att["action"] not in FOREGROUND_BOUND:
             return True
+        # 三态：只有明确"未锁屏"且明确"前台是被测 APP"才发；查询失败（None）不猜，停下交给人
         locked = ctx.device.screen_locked() if hasattr(ctx.device, "screen_locked") else None
+        if locked is None:
+            return self._indeterminate(att, "screen_locked")
         if locked:
             # 锁屏/熄屏：按键会落在锁屏上（真机上曾被误判为产品失败），点击可能唤起解锁。一律不发，按环境阻塞
             att.update(status="screen_locked", error_class="screen_locked",
@@ -403,17 +417,27 @@ class Executor:
             ctx.store.event("screen_locked_before_dispatch", step=att.get("step_id"), action=att["action"])
             return False
         fg = ctx.device.foreground()
+        query_error = getattr(ctx.device, "last_query_error", None)
         att["foreground_check"] = {"foreground": fg, "expected": ctx.app.bundle, "after_revalidate": bool(fresh),
                                    "screen_locked": locked}
         if fg == ctx.app.bundle:
             return True
+        if fg is None and query_error:
+            return self._indeterminate(att, "foreground", query_error)
         # 桌面：回放设备报 sceneboard；真机桌面上所有 mission 都是 BACKGROUND，查询成功但没有前台应用
-        on_desktop = fg == LAUNCHER or (fg is None and not getattr(ctx.device, "last_query_error", None))
+        on_desktop = fg == LAUNCHER or fg is None
         if on_desktop and att["action"] in ("back", "home"):
             return True  # 在系统桌面上按返回/主页不会落到用户正在用的其他应用；其他应用在前台时一律不发
         att["foreground_check"]["process_alive"] = ctx.device.process_alive(ctx.app.bundle)
         att["status"] = "foreground_changed"
         ctx.store.event("foreground_changed", step=att.get("step_id"), foreground=fg, action=att["action"])
+        return False
+
+    def _indeterminate(self, att: dict, query: str, detail: Optional[str] = None) -> bool:
+        ctx = self.ctx
+        att.update(status="state_indeterminate", error_class="state_query_failed", action_required=True,
+                   state_check={"query": query, "result": None, "detail": detail, "expected": ctx.app.bundle})
+        ctx.store.event("state_indeterminate_before_dispatch", step=att.get("step_id"), action=att["action"], query=query)
         return False
 
     def _revalidate(self, tid, target, loc: dict, step: dict, n: int, att: dict) -> tuple:
@@ -732,6 +756,8 @@ def _resolved(loc: dict, obs: dict) -> dict:
 
 
 def _unresolved(loc: dict) -> str:
+    if loc["status"] == "blocked_state":  # 滚动查找前的锁屏/前台确认没过：沿用那次确认的状态（未滑动）
+        return loc["gate"]["status"]
     return {"ambiguous": "target_ambiguous", "partially_visible": "target_partially_visible"}.get(
         loc["status"], "target_unresolved")
 

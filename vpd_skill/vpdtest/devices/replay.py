@@ -153,6 +153,7 @@ class ReplayDevice:
                           "popup": None, "installed": init.get("installed", True), "events": 0}
         self.state.setdefault("flags", dict(self.world.get("initial_flags", {})))
         self.bound: dict = {}  # 输入框的输入值：只在内存里
+        self.last_query_error = None
 
     def _save(self):
         self.state["events"] += 1
@@ -252,7 +253,14 @@ class ReplayDevice:
         return {"ok": all(c["ok"] for c in checks), "checks": checks, "device": self.info(), "app_version": ver,
                 "display": self.display_info()}
 
+    def _query_fails(self, name: str) -> bool:
+        # 测试用：replay_state 里 query_fail 列出的查询返回"查询失败"（真机 hidumper/aa dump 偶发失败）
+        return name in (self.state.get("query_fail") or [])
+
     def foreground(self) -> Optional[str]:
+        self.last_query_error = "command_failed" if self._query_fails("foreground") else None
+        if self.last_query_error:
+            return None
         return LAUNCHER if self.state["locked"] else self.state["foreground"]
 
     def process_alive(self, bundle: str) -> Optional[bool]:
@@ -371,11 +379,16 @@ class ReplayDevice:
         return self._res("input_text", raw="inputText")
 
     def screen_locked(self) -> Optional[bool]:
+        if self._query_fails("screen_locked"):
+            return None
         return bool(self.state["locked"] or not self.state["screen_on"])
 
     def wake_unlock(self, pin: Optional[str]) -> dict:
         # 合成世界：initial.lock_pin 为锁屏 PIN；face_unlock=true 表示唤醒即解开
-        if not self.screen_locked():
+        locked = self.screen_locked()
+        if locked is None:
+            return {"status": "indeterminate", "stage": "唤醒前", "reason": "查不到锁屏状态，未发手势"}
+        if not locked:
             return {"status": "unlocked", "method": "already"}
         self.state["screen_on"] = True
         if self.world.get("initial", {}).get("face_unlock"):

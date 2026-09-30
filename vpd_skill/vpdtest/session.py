@@ -44,44 +44,89 @@ def parse_select(spec: str, within: Optional[str] = None, side_effect: str = "na
 
 
 def next_seq(store) -> int:
-    return 1 + sum(1 for e in read_jsonl(store.events_path) if e.get("event") == "act_request")
+    return 1 + sum(1 for it in trail(store.dir)["items"] if it.get("seq") is not None)
 
 
-def trail(session_dir: Path) -> dict:
-    """按事件顺序还原会话：agent_observe / act（请求 + 结果）/ rejected / error / incomplete。"""
+class SessionMismatch(PermissionError):
+    def __init__(self, msg: str, diff: dict):
+        super().__init__(msg)
+        self.diff = diff
+
+
+# 这些事件表示"已经向设备发出了手势/按键"：动作是否执行以它们为准，不看最后是结果还是报错
+SENT_EVENTS = ("dispatch", "clear_text", "scroll_search")
+IDENTITY_KEYS = ("app", "device", "validation_level")
+
+
+def _sent(e: dict) -> bool:
+    if e.get("sent") is not None:
+        return bool(e["sent"])
+    # 旧会话没有 sent 字段：clear_text 事件出现即已点过输入框；scroll_search 按 ok 判断
+    return bool(e.get("ok")) if e.get("event") == "scroll_search" else True
+
+
+def trail(session_dir: Path, expect: Optional[dict] = None) -> dict:
+    """读取会话的唯一入口：按事件顺序还原 agent_observe / act（请求 + 结果）/ rejected / error / incomplete，
+    并取出会话身份（session_open；旧格式按第一条 session_facts）。
+
+    - expect 给出时逐项与会话身份比较，不一致抛 SessionMismatch；会话里已有动作/观测却没有身份也拒绝。
+    - 每个请求是否已下发，以请求与结束事件之间的 dispatch/clear_text/scroll_search 为准（act 是单进程、
+      顺序执行，中间的事件都属于这个请求）。下发后才报错的 act_error 是"效果未知"，不是被拒。
+    """
     events = read_jsonl(session_dir / "events.jsonl")
     records = {r["seq"]: r for r in read_jsonl(session_dir / "steps.jsonl")}
-    items, open_req = [], {}
+    items, open_req, cur = [], {}, None
+    identity, secret_typed, used = None, False, False
     for e in events:
         ev = e.get("event")
         if ev == "agent_observe":
+            used = True
             items.append({"kind": "observe", "obs": e.get("obs_id"), "label": e.get("label"), "ts": e["ts"],
                           "state": e.get("state")})
         elif ev == "act_request":
-            open_req[e["seq"]] = {"kind": "act", "seq": e["seq"], "step_id": e.get("step_id"), "ts": e["ts"],
-                                  "request": e.get("request", {})}
-            items.append(open_req[e["seq"]])
-        elif ev == "act_rejected":
+            used = True
+            cur = e["seq"]
+            open_req[cur] = {"kind": "act", "seq": cur, "step_id": e.get("step_id"), "ts": e["ts"],
+                             "request": e.get("request", {}), "dispatched": False}
+            items.append(open_req[cur])
+        elif ev in SENT_EVENTS and cur in open_req and _sent(e):
+            open_req[cur]["dispatched"] = True
+        elif ev == "secret_typed":
+            secret_typed = True
+        elif ev in ("act_rejected", "act_error"):
             it = open_req.pop(e["seq"], None)
             if it is not None:
-                it.update(kind="rejected", reason=e.get("reason"))
-        elif ev == "act_error":
-            it = open_req.pop(e["seq"], None)
-            if it is not None:
-                it.update(kind="error", reason=e.get("reason"))
+                it.update(kind="rejected" if ev == "act_rejected" else "error", reason=e.get("reason"))
+                if ev == "act_error" and it["dispatched"]:
+                    it["effect_unknown"] = True  # 手势已发出后才出错：现场可能已经变了
         elif ev == "act_result":
             it = open_req.pop(e["seq"], None)
             if it is not None:
                 rec = records.get(e["seq"], {})
                 it.update(outcome=e.get("outcome"), effect_unknown=e.get("effect_unknown", False),
                           obs_before=e.get("obs_before"), obs_after=e.get("obs_after"),
-                          dispatched=e.get("dispatched"), record=rec.get("result"),
+                          dispatched=bool(e.get("dispatched")) or it["dispatched"], record=rec.get("result"),
                           input_value=rec.get("input_value"))
         elif ev in ("session_open", "session_facts"):  # session_facts：会话头之前的旧格式
+            if identity is None:
+                f = e.get("facts")
+                identity = e.get("identity") or ({k: f.get(k) for k in IDENTITY_KEYS} if f else None)
             items.append({"kind": "facts", "facts": e.get("facts"), "ts": e["ts"], "identity": e.get("identity")})
     for it in open_req.values():
-        it.update(kind="incomplete", reason="有请求没有结果（进程中断/超时）：现场可能已经发生变化")
-    return {"session": session_dir.name, "items": items}
+        # 进程在下发途中被杀时 dispatch 事件可能来不及写：没有结果的请求一律按效果未知处理
+        it.update(kind="incomplete", effect_unknown=True,
+                  reason="有请求没有结果（进程中断/超时）：现场可能已经发生变化")
+    tr = {"session": session_dir.name, "items": items, "identity": identity, "secret_typed": secret_typed}
+    if expect:
+        if identity is None:
+            if used:
+                raise PermissionError(f"会话 {session_dir.name} 没有会话头，无法确认 APP/设备：请换一个新的 --session 名")
+        else:
+            diff = {k: {"session": identity.get(k), "now": v} for k, v in expect.items() if identity.get(k) != v}
+            if diff:
+                raise SessionMismatch(f"会话 {session_dir.name} 已固定为 {identity}，本次 {diff} 不一致："
+                                      "同一会话不能混用不同 APP/设备，请换一个 --session 名", diff)
+    return tr
 
 
 def summarize(tr: dict) -> dict:
@@ -91,11 +136,12 @@ def summarize(tr: dict) -> dict:
             req = it.get("request", {})
             rows.append({"seq": it.get("seq"), "step": it.get("step_id"), "kind": it["kind"], "action": req.get("action"),
                          "select": req.get("select"), "target": req.get("target"), "point": req.get("point"),
-                         "outcome": it.get("outcome"), "effect_unknown": it.get("effect_unknown"),
+                         "outcome": it.get("outcome"), "dispatched": it.get("dispatched"),
+                         "effect_unknown": it.get("effect_unknown"),
                          "obs": [it.get("obs_before"), it.get("obs_after")], "reason": it.get("reason")})
         elif it["kind"] == "observe":
             rows.append({"kind": "observe", "obs": it["obs"], "label": it.get("label"), "state": it.get("state")})
-    return {"session": tr["session"], "trail": rows,
+    return {"session": tr["session"], "identity": tr["identity"], "trail": rows,
             "facts": next((it["facts"] for it in tr["items"] if it["kind"] == "facts"), None)}
 
 
@@ -149,27 +195,33 @@ def _parse_drops(drops: list) -> dict:
 
 def from_session(session_dir: Path, case_id: str, app, goal: Optional[str], drops: Optional[list] = None,
                  title: Optional[str] = None) -> dict:
-    tr = trail(session_dir)
+    # 会话身份与 --app 不一致就拒绝：观测和选择器来自会话里的 APP，换个 APP 标签会生成对错包重放的用例
+    tr = trail(session_dir, expect={"app": app.id})
     dropmap = _parse_drops(drops)
     facts = next((it["facts"] for it in tr["items"] if it["kind"] == "facts"), None) or {}
-    steps, excluded, rejected, incomplete, obs, used_effects, granted, test_data = [], [], [], [], [], set(), set(), {}
+    steps, excluded, rejected, incomplete, unknown = [], [], [], [], []
+    obs, used_effects, granted, test_data = [], set(), set(), {}
     for it in tr["items"]:
         seq = it.get("seq")
-        if it["kind"] in ("rejected", "error"):
+        if it["kind"] in ("rejected", "error") and not it.get("dispatched"):
+            # 只有没下发的才算被拒：它们没有改变现场，不进步骤
             rejected.append({"seq": seq, "step": it.get("step_id"), "kind": it["kind"], "reason": it.get("reason"),
-                             "request": it.get("request")})
+                             "request": it.get("request"), "dispatched": False})
             continue
-        if it["kind"] not in ("act", "incomplete"):
+        if it["kind"] not in ("act", "incomplete", "error"):
             continue
         req = it.get("request", {})
+        eff_unknown = bool(it.get("effect_unknown"))
         if seq in dropmap:
             excluded.append({"seq": seq, "step": it.get("step_id"), "action": req.get("action"),
                              "outcome": it.get("outcome") or it["kind"], "reason": dropmap[seq],
-                             "effect_unknown": bool(it.get("effect_unknown")) or it["kind"] == "incomplete",
-                             "obs": [it.get("obs_before"), it.get("obs_after")]})
+                             "effect_unknown": eff_unknown, "obs": [it.get("obs_before"), it.get("obs_after")]})
             continue
         if it["kind"] == "incomplete":
             incomplete.append({"seq": seq, "step": it.get("step_id"), "action": req.get("action")})
+        if eff_unknown:
+            unknown.append({"seq": seq, "step": it.get("step_id"), "kind": it["kind"], "action": req.get("action"),
+                            "reason": it.get("reason")})
         step = _to_case_step(it, req, session_dir, test_data, facts)
         steps.append(step)
         obs += [o for o in (it.get("obs_before"), it.get("obs_after")) if o]
@@ -189,7 +241,7 @@ def from_session(session_dir: Path, case_id: str, app, goal: Optional[str], drop
         "steps": steps, "assertions": [], "cleanup": [], "knowledge_used": [],
         "sources": [{"type": "session", "run": session_dir.name, "validation_level": facts.get("validation_level"),
                      "facts": facts, "included": [s["from_session"]["seq"] for s in steps], "excluded": excluded,
-                     "rejected": rejected, "incomplete": incomplete, "obs": obs,
+                     "rejected": rejected, "incomplete": incomplete, "effect_unknown": unknown, "obs": obs,
                      "trail": f"runs/{session_dir.name}/events.jsonl"}],
         "history": [{"ts": now_iso(), "to": "exploration_record",
                      "why": "由会话生成：待补齐目的、判据（独立来源）、清理与 knowledge_used"}]}

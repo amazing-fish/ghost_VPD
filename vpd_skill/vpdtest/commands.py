@@ -15,7 +15,8 @@ from .knowledge import KnowledgeStore, import_repo_selectors
 from .observe import RunStore
 from .params import Params
 from .runner import run_case
-from .session import dispatched, effect_unknown, from_session, next_seq, parse_select, summarize, trail
+from .session import (IDENTITY_KEYS, SessionMismatch, dispatched, effect_unknown, from_session, next_seq,
+                      parse_select, summarize, trail)
 from .templates import crop
 from .util import append_jsonl, now_iso, read_json, read_jsonl, write_json
 from .workspace import RunContext, Workspace
@@ -55,8 +56,9 @@ def cmd_unlock(ws: Workspace, a) -> dict:
     if not hasattr(dev, "wake_unlock"):
         return {"status": "unsupported", "device": dev.spec}
     res = dev.wake_unlock(str(pin) if pin is not None else None)
-    if res["status"] == "pin_rejected":
-        write_json(guard, {"ts": now_iso(), "device": dev.spec, "reason": res.get("reason")})
+    if res["status"] == "pin_rejected" or res.get("pin_entered"):
+        # 输过 PIN 却不能确认解开（被拒/输到一半/之后查不到状态）：同样停止自动输入，避免连续输错锁机
+        write_json(guard, {"ts": now_iso(), "device": dev.spec, "status": res["status"], "reason": res.get("reason")})
     return {"device": dev.spec, **res, "action_required": res["status"] != "unlocked"}
 
 
@@ -76,29 +78,20 @@ def _open_session(ws, a):
     _session_redaction(ws, ctx, store)
     ident = {"app": app.id, "bundle": app.bundle, "device": dev.spec,
              "validation_level": "offline_replay" if dev.kind == "replay" else "real_device"}
-    events = read_jsonl(store.events_path)
-    head = next((e for e in events if e.get("event") == "session_open"), None)
-    if head is None and any(e.get("event") in ("act_request", "agent_observe") for e in events):
-        # 旧格式会话（没有会话头）：按第一条 session_facts 核对，不能核对就拒绝续写
-        old = next((e.get("facts") for e in events if e.get("event") == "session_facts"), None)
-        if not old:
-            raise PermissionError(f"会话 {store.run_id} 没有会话头，无法确认 APP/设备：请换一个新的 --session 名")
-        head = {"identity": {k: old.get(k) for k in ("app", "device", "validation_level")}}
+    # 会话只从 trail() 读：身份核对（旧格式按第一条 session_facts）、没有会话头的旧会话拒绝续写都在里面
+    try:
+        tr = trail(store.dir, expect={k: ident[k] for k in IDENTITY_KEYS})
+    except SessionMismatch as e:
+        store.event("session_mismatch_rejected", diff=e.diff)
+        raise
     # 每条 act 是新进程：会话里输入过密钥（剪贴板可能留有原文）要沿用到后续观测
-    ctx.observer.secret_typed = any(e.get("event") == "secret_typed" for e in events)
-    if head is None:
+    ctx.observer.secret_typed = tr["secret_typed"]
+    if tr["identity"] is None:
         disp = dev.display_info() if hasattr(dev, "display_info") else {}
         store.event("session_open", schema=SESSION_SCHEMA, identity=ident,
                     facts={**ident, "app_version": dev.app_version(app.bundle),
                            "device_form": (disp or {}).get("device_form")},
                     redaction={"secret_names": len(_secret_names(ws)), "fragments_min": 6})
-    else:
-        diff = {k: {"session": head["identity"].get(k), "now": ident[k]}
-                for k in ("app", "device", "validation_level") if head["identity"].get(k) != ident[k]}
-        if diff:
-            store.event("session_mismatch_rejected", diff=diff)
-            raise PermissionError(f"会话 {store.run_id} 已固定为 {head['identity']}，本次 {diff} 不一致："
-                                  "同一会话不能混用不同 APP/设备，请换一个 --session 名")
     return app, store, dev, ctx
 
 
@@ -295,6 +288,12 @@ def diagnose(res: dict) -> Optional[dict]:
         out["hint"] = "前台不是被测 APP：可能用户正在用手机，停止操作并报告，不要拉起 APP 抢前台"
     elif st == "policy_denied":
         out["policy"] = last.get("policy") or last.get("policy_context")
+    elif st in ("state_indeterminate", "screen_locked"):
+        gate = (last.get("locate") or {}).get("gate") or last
+        out.update(state_check=gate.get("state_check"), foreground_check=gate.get("foreground_check"),
+                   action_required=True,
+                   hint="查不到锁屏/前台状态，没有发任何手势：先人工确认手机状态（必要时 vpdtest unlock），再重新 observe"
+                   if st == "state_indeterminate" else "手机锁屏/熄屏，没有下发：vpdtest unlock 后重新 observe")
     return out
 
 
