@@ -659,7 +659,7 @@ class _FakeHdc:
     def _shell(self, *args, op, timeout=None):
         self.ops.append(op)
         out = self.outputs.get(op)
-        out = out.pop(0) if isinstance(out, list) else out
+        out = (out.pop(0) if len(out) > 1 else out[0]) if isinstance(out, list) else out  # 列表取完后一直返回最后一项
         if out is False:
             return self.DR(op, True, False, "command_failed", "boom", "")
         return self.DR(op, True, True, None, None, out or "")
@@ -681,6 +681,14 @@ def test_screen_locked_is_tristate_and_wake_unlock_never_gestures_on_unknown(mon
     f = _FakeHdc(monkeypatch, {"power_state": [ASLEEP, AWAKE], "lock_state": [False]})
     out = f.dev.wake_unlock("000000")
     assert out["status"] == "indeterminate" and "wakeup" in f.ops and "unlock_swipe" not in f.ops
+
+
+def test_screen_locked_retries_transient_empty_dump(monkeypatch):
+    # 真机上 hidumper 偶发空输出：重查一次拿到明确值就用，不因一次空输出阻塞整条用例
+    f = _FakeHdc(monkeypatch, {"power_state": ["", AWAKE], "lock_state": UNLOCKED})
+    assert f.dev.screen_locked() is False and f.ops.count("power_state") == 2
+    f = _FakeHdc(monkeypatch, {"power_state": "", "lock_state": UNLOCKED})
+    assert f.dev.screen_locked() is None and f.ops.count("power_state") == 3  # 连续失败仍如实返回 None
 
 
 def test_unlock_command_reports_indeterminate_as_action_required(ws, tmp_path, monkeypatch):
@@ -878,3 +886,22 @@ def test_app_switch_during_capture_deletes_screenshot(ws, tmp_path, monkeypatch)
     assert o["screenshot"]["status"] == "withheld" and "已删除" in o["screenshot"]["reason"]
     assert o["foreground_after"] == "com.tencent.mm"
     assert not (ws.runs_dir / "session-bn3" / "obs" / o["obs_id"] / "screen.png").exists()
+
+
+def test_random_point_skips_points_covered_by_sheet():
+    # 真机 run-20261001-023742-e4dd：地图下半被底部面板盖住，随机点落到「附近充电站」tab 上被策略拒绝
+    from types import SimpleNamespace
+    from vpdtest.execute import Executor
+    mapx = {"attributes": {"type": "XComponent", "bounds": "[0,0][1000,2000]"}, "children": []}
+    sheet = {"attributes": {"type": "Column", "bounds": "[0,1000][1000,2000]"}, "children": [
+        {"attributes": {"type": "Text", "text": "附近充电站", "bounds": "[0,1000][1000,2000]", "clickable": "true"}, "children": []}]}
+    # 地图上方还有一层透明、不可点击的浮层容器：触摸会穿透它，不应被当成遮挡
+    veil = {"attributes": {"type": "Column", "bounds": "[0,0][1000,1000]"}, "children": []}
+    t = UiTree({"attributes": {"type": "root", "bounds": "[0,0][1000,2000]"}, "children": [mapx, veil, sheet]})
+    idx = next(n.idx for n in t.nodes if n.type == "XComponent")
+    ex = Executor.__new__(Executor)
+    ex.ctx = SimpleNamespace(seed="s")
+    loc = {"visible": (0, 0, 1000, 2000), "attempts": [{"status": "found", "node": {"idx": idx}}]}
+    for n in range(1, 8):
+        x, y = ex._point_in(loc, {"id": "S2", "random_point": True}, n, t)
+        assert y < 1000 and t.touch_target(x, y) is None

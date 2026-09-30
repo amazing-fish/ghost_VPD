@@ -96,6 +96,11 @@ class Executor:
             return self._monitor(step, att)
         obs, tree = ctx.observe(f"{step['id']}#{n}:before")
         att.update(obs_before=obs["obs_id"], state_before=obs["page"]["state"])
+        if kind not in ("launch", "stop_app", "wait"):
+            obs, tree, dismissed = self._clear_interrupts(obs, tree, f"{step['id']}#{n}:before")
+            if dismissed:
+                att["dismissed"] = dismissed
+                att["state_before"] = obs["page"]["state"]
         if obs["page"].get("observation_error") and kind in ("tap", "input", "swipe"):
             # 观测本身失败时不定位、不下发：否则会把连接问题记成"目标找不到"
             att.update(status="observation_failed", error_class=obs["page"]["observation_error"])
@@ -144,7 +149,7 @@ class Executor:
                     return att
             if step.get("at") or step.get("random_point"):
                 # 在目标容器内按比例取点（例如在地图上点一个车位）：比例相对可见区域现算，不写像素
-                loc = {**loc, "point": self._point_in(loc, step, n), "container_point": True}
+                loc = {**loc, "point": self._point_in(loc, step, n, tree), "container_point": True}
                 att["locate"] = loc
             pol = ctx.policy.check_tap(tree, loc["point"], loc["basis"], target,
                                        ctx.app.states.deny_for_page(obs["page"]), ctx.authorized,
@@ -433,6 +438,62 @@ class Executor:
         ctx.store.event("foreground_changed", step=att.get("step_id"), foreground=fg, action=att["action"])
         return False
 
+    def _clear_interrupts(self, obs: dict, tree, label: str, limit: int = 3) -> tuple:
+        """弹窗是常态（资源包下载、版本更新、权限提示……）：页面上只有"已评审的良性中断"时，
+        按声明的关闭方式（dismiss_target / dismiss_text）点掉再观察，最多连关 limit 个；
+        同时出现异常/阻塞/未评审中断时一个都不动，交给后续判定。每次关闭都记事件，弹窗画面的观测保留。"""
+        ctx, done = self.ctx, []
+        for k in range(limit):
+            ints = obs["page"].get("interrupts") or []
+            if any(not (i["class"] == "benign" and i["review"] == "reviewed") for i in ints):
+                break
+            if ints:
+                iid = ints[0]["id"]
+                spec = ctx.app.states.interrupts[iid]
+                if spec.get("dismiss_target"):
+                    tid, target = ctx.app.target(spec["dismiss_target"])
+                else:
+                    tid, target = f"dismiss:{iid}", {"desc": f"关闭 {iid}", "side_effect": "dismiss_dialog",
+                                                     "strategies": [{"kind": "text", "value": spec["dismiss_text"]}]}
+            else:
+                # 没登记的弹窗（文案变体、新弹窗）：按结构认出 Dialog，里面有"推迟/拒绝"语义的按钮就点掉，
+                # 弹窗文字和截图留在事件里，事后补登记；没有这类按钮的弹窗（例如被测的编辑框）不动
+                fb = self._unregistered_dialog_button(obs, tree)
+                if fb is None:
+                    break
+                iid, spec = f"unregistered_dialog:{fb['texts'][0] if fb['texts'] else '?'}", {"settle_s": 1.0}
+                tid, target = f"dismiss:{iid}", {"desc": f"关闭未登记弹窗 {fb['texts'][:3]}",
+                                                 "side_effect": "dismiss_dialog",
+                                                 "strategies": [{"kind": "text", "value": fb["button"]}]}
+            loc = resolve(tid, target, tree, ctx.observer.screenshot_abs(obs), ctx.app.dir, None, None, obs.get("layout"))
+            rec = {"interrupt": iid, "obs": obs["obs_id"], "target": tid, "locate": loc["status"]}
+            if loc["status"] != "found":
+                done.append({**rec, "ok": False})
+                break
+            gate = {"action": "tap", "step_id": label}
+            if not self._foreground_ok(gate):
+                done.append({**rec, "ok": False, "gate": gate.get("status")})
+                break
+            r = ctx.device.tap(*loc["point"])
+            ctx.actions += 1
+            rec.update(ok=r.ok, point=list(loc["point"]))
+            ctx.store.event("interrupt_dismissed", at=label, **rec)
+            done.append(rec)
+            if not r.ok:
+                break
+            ctx.sleep(float(spec.get("settle_s", 1.0)))
+            obs, tree = ctx.observe(f"{label}:dismissed{k + 1}")
+        return obs, tree, done
+
+    def _unregistered_dialog_button(self, obs: dict, tree) -> Optional[dict]:
+        policy = self.ctx.app.states.data.get("dialog_policy") or {}
+        safe = policy.get("safe_dismiss_text") or []
+        for d in reversed(obs["page"].get("dialogs") or []):  # 最上层的先处理
+            if d.get("interrupt") is None:
+                btn = next((t for t in d["texts"] if t in safe), None)
+                return {"texts": d["texts"], "button": btn} if btn else None
+        return None
+
     def _indeterminate(self, att: dict, query: str, detail: Optional[str] = None) -> bool:
         ctx = self.ctx
         att.update(status="state_indeterminate", error_class="state_query_failed", action_required=True,
@@ -480,16 +541,30 @@ class Executor:
             target = with_params(target, self.ctx.params, step.get("_flow_params"))
         return tid, target
 
-    def _point_in(self, loc: dict, step: dict, n: int) -> list:
-        """容器内取点：at=[fx, fy] 固定比例；random_point=true 按种子随机（每次尝试不同，重试时换一个点）。"""
+    def _point_in(self, loc: dict, step: dict, n: int, tree=None) -> list:
+        """容器内取点：at=[fx, fy] 固定比例；random_point=true 按种子随机（每次尝试不同，重试时换一个点）。
+        随机点必须真的落在容器上：地图常被底部面板/悬浮按钮盖住一部分，落在别的控件上的候选点丢掉换下一个。"""
         import random
         rect = loc.get("visible") or loc.get("bounds")
-        if step.get("random_point"):
-            rng = random.Random(f"{step.get('seed', self.ctx.seed)}:{step['id']}:{n}")
-            fx, fy = rng.uniform(0.25, 0.75), rng.uniform(0.25, 0.75)
-        else:
-            fx, fy = step["at"]
-        return [int(rect[0] + (rect[2] - rect[0]) * fx), int(rect[1] + (rect[3] - rect[1]) * fy)]
+
+        def at(fx, fy):
+            return [int(rect[0] + (rect[2] - rect[0]) * fx), int(rect[1] + (rect[3] - rect[1]) * fy)]
+        if not step.get("random_point"):
+            return at(*step["at"])
+        rng = random.Random(f"{step.get('seed', self.ctx.seed)}:{step['id']}:{n}")
+        hit = _found_node(loc)
+        box = tree.nodes[hit["idx"]] if (tree is not None and hit and hit["idx"] < len(tree.nodes)) else None
+        first = None
+        for _ in range(40):
+            pt = at(rng.uniform(0.25, 0.75), rng.uniform(0.25, 0.75))
+            first = first or pt
+            if box is None:
+                return pt
+            # 触摸会穿透透明浮层；只有被别的可点击控件（面板、tab、按钮）接走的点才换
+            node = tree.touch_target(*pt)
+            if node is None or tree.is_within(node, box) or tree.is_within(box, node):
+                return pt
+        return first
 
     def _random_swipe(self, tree, lay, step: dict) -> tuple:
         """可复现的随机滑动（如"随机拖动地图"）：种子记入证据，重跑时用同一种子得到同样的轨迹；
@@ -584,10 +659,12 @@ class Executor:
         timeout = ctx.overlay.wait_for(f"{case_id}:{step['id']}", default, ctx.policy.max_wait_s) \
             if ctx.overlay else min(default, ctx.policy.max_wait_s)
         interval = ctx.device.poll_interval
-        t0, polls = time.monotonic(), 0
+        t0, polls, post_dismissed = time.monotonic(), 0, []
         while True:
             polls += 1
             obs, tree = ctx.observe(f"{step['id']}#{n}:after")
+            obs, tree, dismissed = self._clear_interrupts(obs, tree, f"{step['id']}#{n}:after")
+            post_dismissed += dismissed
             page = obs["page"]
             # 动作前在 APP 内、动作后进程不在且不是主动结束/返回桌面 → 疑似崩溃
             crash = (was_in_app and page["state"] == "out_of_app" and page.get("process_alive") is False
@@ -620,7 +697,9 @@ class Executor:
             time.sleep(interval)
         return {"obs_id": obs["obs_id"], "expected": expect, "observed": page["state"], "met": status == "ok",
                 "status": status, "interrupts": page.get("interrupts", []), "suspected_crash": crash,
-                "anomalies": anomalies, "elapsed_s": elapsed, "timeout_s": timeout, "polls": polls}
+                "dialogs": page.get("dialogs", []),
+                "anomalies": anomalies, "elapsed_s": elapsed, "timeout_s": timeout, "polls": polls,
+                "dismissed": post_dismissed}
 
     # ---- 恢复 ----
     def _recover(self, step: dict, att: dict, case_id: str) -> dict:
@@ -632,7 +711,9 @@ class Executor:
                 return {"action": "none", "performed": False, "interrupt": bad[0]["id"],
                         "reason": f"中断 {bad[0]['id']} 未评审或非良性（{bad[0]['class']}/{bad[0]['review']}），不自动关闭"}
             spec = ctx.app.states.interrupts[ints[0]["id"]]
-            sub = {"id": f"{step['id']}.dismiss", "action": "tap", "target": spec["dismiss_target"],
+            dt = spec.get("dismiss_target") or {"label": f"关闭{ints[0]['id']}", "side_effect": "dismiss_dialog",
+                                                "strategies": [{"kind": "text", "value": spec["dismiss_text"]}]}
+            sub = {"id": f"{step['id']}.dismiss", "action": "tap", "target": dt,
                    "expect_state": step.get("expect_state"), "timeout_s": step.get("timeout_s", 8)}
             r = self._attempt(sub, 1, case_id)
             return {"action": "dismiss_interrupt", "performed": "dispatch" in r, "interrupt": ints[0]["id"],
@@ -660,6 +741,9 @@ class Executor:
         out = {"step_id": step["id"], "action": step["action"], "critical": bool(step.get("critical", True)),
                "oracle_refs": step.get("oracle_refs", []), "attempts": attempts, "recoveries": recoveries,
                "adapted": adapted}
+        dismissed = [d for a in attempts for d in (a.get("dismissed") or []) + ((a.get("post") or {}).get("dismissed") or [])]
+        if dismissed:
+            out["dismissed"] = dismissed
         if last.get("measurement"):
             out["measurement"] = last["measurement"]
         if last.get("monitor"):
@@ -682,11 +766,13 @@ class Executor:
     # ---- 到达已知状态 ----
     def _ensure_state(self, step: dict, case_id: str) -> dict:
         ctx, target = self.ctx, step["state"]
-        obs, _ = ctx.observe(f"{step['id']}:check")
+        obs, tree = ctx.observe(f"{step['id']}:check")
+        obs, _, dismissed = self._clear_interrupts(obs, tree, f"{step['id']}:check")
         base = {"step_id": step["id"], "action": "ensure_state", "critical": True, "oracle_refs": [],
                 "recoveries": [], "adapted": False}
         if ctx.app.states.is_state(obs["page"], target) and not obs["page"].get("interrupts"):
-            return {**base, "outcome": "passed", "attempts": [], "note": "已处于目标状态", "final_obs": obs["obs_id"]}
+            return {**base, "outcome": "passed", "attempts": [], "note": "已处于目标状态", "final_obs": obs["obs_id"],
+                    "dismissed": dismissed}
         recipe = ctx.app.states.recipes.get(target)
         if not recipe:
             return {**base, "outcome": "blocked", "attribution": "tool", "attempts": [],

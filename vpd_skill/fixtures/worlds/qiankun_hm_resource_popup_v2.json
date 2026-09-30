@@ -1,0 +1,20 @@
+{
+  "note": "资源包弹窗的文案变体（真机 2026-10-01 阔折叠 run-20261001-015856-6691 obs-0011）：「请下载更新后的车辆资源包」+「下次再说」/「立即更新」。",
+  "extends": "qiankun_hm_ready.json",
+  "launch_popup": "qk_resource_dialog",
+  "patch_screens": {
+    "qk_resource_dialog": {
+      "kind": "popup",
+      "root": {
+        "t": "Dialog", "b": [120, 1000, 1200, 1700],
+        "children": [
+          {"t": "Text", "text": "请下载更新后的车辆资源包", "b": [200, 1060, 1100, 1140]},
+          {"t": "Button", "b": [160, 1500, 640, 1640], "click": true, "go": "@dismiss",
+           "children": [{"t": "Text", "text": "下次再说", "b": [200, 1540, 600, 1600]}]},
+          {"t": "Button", "b": [680, 1500, 1160, 1640], "click": true,
+           "children": [{"t": "Text", "text": "立即更新", "b": [720, 1540, 1120, 1600]}]}
+        ]
+      }
+    }
+  }
+}

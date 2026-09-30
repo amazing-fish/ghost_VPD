@@ -1,0 +1,18 @@
+{
+  "note": "没登记、也没有推迟按钮的弹窗：执行层不能乱点，只能如实报被弹窗挡住，并把弹窗文字带进证据。",
+  "extends": "qiankun_hm_ready.json",
+  "launch_popup": "qk_new_dialog",
+  "patch_screens": {
+    "qk_new_dialog": {
+      "kind": "popup",
+      "root": {
+        "t": "Dialog", "b": [120, 1000, 1200, 1700],
+        "children": [
+          {"t": "Text", "text": "车辆服务协议已更新", "b": [200, 1060, 1100, 1140]},
+          {"t": "Button", "b": [680, 1500, 1160, 1640], "click": true, "go": "@dismiss",
+           "children": [{"t": "Text", "text": "同意", "b": [720, 1540, 1120, 1600]}]}
+        ]
+      }
+    }
+  }
+}

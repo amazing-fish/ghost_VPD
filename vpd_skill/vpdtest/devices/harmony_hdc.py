@@ -312,9 +312,20 @@ class HdcDevice:
             return DeviceResult("key", False, False, "unsupported", f"不支持的按键 {name}")
         return self._shell("uitest", "uiInput", "keyEvent", KEYS[name], op=f"key_{name}")
 
-    def screen_locked(self) -> Optional[bool]:
+    def screen_locked(self, tries: int = 3) -> Optional[bool]:
         """三态：锁屏/熄屏 → True；亮屏且已解锁 → False；查询失败或输出认不出 → None。
-        锁屏时 aa dump 里没有 FOREGROUND mission，不能据此当成桌面。"""
+        锁屏时 aa dump 里没有 FOREGROUND mission，不能据此当成桌面。
+        查询是只读的：hidumper 偶发空输出（2026-10-01 真机运行中出现，单独连查 20 次复现不了），
+        间隔 0.5s 重查，连续 tries 次都认不出才返回 None。"""
+        for i in range(max(1, tries)):
+            v = self._screen_locked_once()
+            if v is not None:
+                return v
+            if i + 1 < tries:
+                time.sleep(0.5)
+        return None
+
+    def _screen_locked_once(self) -> Optional[bool]:
         power = self._shell("hidumper", "-s", "3301", "-a", "-a", op="power_state")
         state = parse_kv(power.raw, "Current State") if power.ok else None
         if state is None:

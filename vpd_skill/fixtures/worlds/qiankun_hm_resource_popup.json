@@ -1,0 +1,20 @@
+{
+  "note": "在 qiankun_hm_ready 基础上：冷启动后盖一层「请下载车辆资源包」弹窗（真机 2026-09-30 阔折叠 run-20260930-212714-de11 出现过），验证执行层自动点「下次再说」再继续。",
+  "extends": "qiankun_hm_ready.json",
+  "launch_popup": "qk_resource_dialog",
+  "patch_screens": {
+    "qk_resource_dialog": {
+      "kind": "popup",
+      "root": {
+        "t": "Dialog", "b": [120, 1000, 1200, 1700],
+        "children": [
+          {"t": "Text", "text": "请下载车辆资源包", "b": [200, 1060, 1100, 1140]},
+          {"t": "Button", "b": [160, 1500, 640, 1640], "click": true, "go": "@dismiss",
+           "children": [{"t": "Text", "text": "下次再说", "b": [200, 1540, 600, 1600]}]},
+          {"t": "Button", "b": [680, 1500, 1160, 1640], "click": true,
+           "children": [{"t": "Text", "text": "立即下载", "b": [720, 1540, 1120, 1600]}]}
+        ]
+      }
+    }
+  }
+}

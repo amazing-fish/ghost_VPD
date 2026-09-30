@@ -16,6 +16,8 @@ _ATTR_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.-]*$")
 CLIP_TYPES = {"List", "Scroll", "Grid", "WaterFlow", "Swiper", "Refresh"}
 # 横向翻页容器不作为"上下滑动查找"的滚动容器
 HORIZONTAL_SCROLL_TYPES = {"Swiper", "Tabs", "TabBar"}
+# 模态层：ArkUI 的 Dialog 节点带全窗口蒙层，先序在它之前、被它盖住的页面节点用户看得到轮廓，但点击会被蒙层吞掉
+MODAL_TYPES = {"Dialog"}
 
 
 def intersect(a: Optional[tuple], b: Optional[tuple]) -> Optional[tuple]:
@@ -181,8 +183,28 @@ class UiTree:
                 inherited = win if n.parent is None else clip[n.parent]
                 vis[n.idx] = intersect(n.bounds, inherited) if n.visible else None
                 clip[n.idx] = (vis[n.idx] if n.type in CLIP_TYPES or n.scrollable else inherited)
+            for m in (n for n in self.nodes if n.type in MODAL_TYPES and vis[n.idx]):
+                anc = set(self._ancestor_idx(m))
+                box = vis[m.idx]
+                for n in self.nodes[:m.idx]:
+                    r = vis[n.idx]
+                    if r and n.idx not in anc and box[0] <= (r[0] + r[2]) // 2 < box[2] \
+                            and box[1] <= (r[1] + r[3]) // 2 < box[3]:
+                        vis[n.idx] = None  # 被模态层盖住：不算可见、不可定位、状态签名也看不到
             self._vis = vis
         return self._vis
+
+    def _ancestor_idx(self, node: Node) -> list:
+        out, cur = [], node.parent
+        while cur is not None:
+            out.append(cur)
+            cur = self.nodes[cur].parent
+        return out
+
+    def modal_layers(self) -> list:
+        """当前盖在页面上的模态层（Dialog），先序靠后的在上。"""
+        vis = self._visibility()
+        return [n for n in self.nodes if n.type in MODAL_TYPES and vis[n.idx]]
 
     def visible_rect(self, node: Node) -> Optional[tuple]:
         return self._visibility()[node.idx]
@@ -200,6 +222,13 @@ class UiTree:
                 and vis[n.idx][1] <= y < vis[n.idx][3]]
         # 先序靠后 = 绘制在上层（后兄弟盖住前兄弟，子节点盖住父节点）。弹层/底部面板是后加入的兄弟，
         # 按深度取会选中面板下面更深的页面节点（真机上登录面板下的「收藏」就这样被误认成点击对象）
+        return max(hits, key=lambda n: n.idx, default=None)
+
+    def touch_target(self, x: int, y: int) -> Optional[Node]:
+        """触摸实际交给谁：落点上最上层的可点击节点（透明、不可点击的浮层容器会被穿透）。"""
+        vis = self._visibility()
+        hits = [n for n in self.nodes if n.clickable and vis[n.idx] and vis[n.idx][0] <= x < vis[n.idx][2]
+                and vis[n.idx][1] <= y < vis[n.idx][3]]
         return max(hits, key=lambda n: n.idx, default=None)
 
     def is_within(self, node: Node, scope: Node) -> bool:

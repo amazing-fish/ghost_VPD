@@ -166,3 +166,57 @@ def test_qiankun_lint_and_explore_boundary(ws):
     assert exp["exit"]["reason"] == "frontier_exhausted"
     assert "ADS" in {s["label"] for s in exp["skipped"]}
     assert not any(t["to"] in ("qk_vpd_loading", "qk_vpd_home") for t in exp["transitions"])
+
+
+def test_102_resource_pack_popup_is_dismissed_inline(ws):
+    """冷启动后盖着「请下载车辆资源包」：执行层在动作前自动点「下次再说」，用例照常通过，不点「立即下载」。"""
+    run = run_case(ws, "TC-QK-102", device_spec=world("qiankun_hm_resource_popup.json"), propose=False,
+                   authorize=AUTH_102)
+    assert all(s["outcome"] == "passed" for s in run["steps"]), _outcomes(run)
+    events = [json.loads(x) for x in (ws.runs_dir / run["run_id"] / "events.jsonl").read_text("utf-8").splitlines()]
+    dis = [e for e in events if e["event"] == "interrupt_dismissed"]
+    assert dis and all(e["interrupt"] == "qk_vehicle_resource_dialog" and e["ok"] for e in dis)
+    taps = [a["locate"].get("target") for s in run["steps"] for x in s.get("sub_steps", [s])
+            for a in x["attempts"] if a.get("locate")]
+    assert not any("立即下载" in str(t) for t in taps)
+
+
+def _events(ws, run):
+    return [json.loads(x) for x in (ws.runs_dir / run["run_id"] / "events.jsonl").read_text("utf-8").splitlines()]
+
+
+def _tapped_texts(run):
+    return [str(a["locate"].get("target")) for s in run["steps"] for x in s.get("sub_steps", [s])
+            for a in x["attempts"] if a.get("locate")]
+
+
+def test_102_resource_pack_popup_variant_text_is_dismissed(ws):
+    """真机出现过的文案变体「请下载更新后的车辆资源包」/「立即更新」也要认出并点「下次再说」。"""
+    run = run_case(ws, "TC-QK-102", device_spec=world("qiankun_hm_resource_popup_v2.json"), propose=False,
+                   authorize=AUTH_102)
+    assert all(s["outcome"] == "passed" for s in run["steps"]), _outcomes(run)
+    dis = [e for e in _events(ws, run) if e["event"] == "interrupt_dismissed"]
+    assert dis and dis[0]["interrupt"] == "qk_vehicle_resource_dialog" and dis[0]["ok"]
+    assert not any("立即更新" in t for t in _tapped_texts(run))
+
+
+def test_102_unregistered_popup_with_defer_button_is_dismissed(ws):
+    """没登记的弹窗：按 Dialog 结构认出，里面有「以后再说」这类推迟按钮就点掉，不点「去开启」。"""
+    run = run_case(ws, "TC-QK-102", device_spec=world("qiankun_hm_unregistered_popup.json"), propose=False,
+                   authorize=AUTH_102)
+    assert all(s["outcome"] == "passed" for s in run["steps"]), _outcomes(run)
+    dis = [e for e in _events(ws, run) if e["event"] == "interrupt_dismissed"]
+    assert dis and dis[0]["interrupt"].startswith("unregistered_dialog:") and dis[0]["ok"]
+    assert not any("去开启" in t for t in _tapped_texts(run))
+
+
+def test_102_unregistered_popup_without_defer_button_is_not_touched(ws):
+    """没登记、只有「同意」的弹窗：不自动点，步骤失败时证据里带着弹窗文字。"""
+    run = run_case(ws, "TC-QK-102", device_spec=world("qiankun_hm_unknown_blocking_popup.json"), propose=False,
+                   authorize=AUTH_102)
+    assert not any(e["event"] == "interrupt_dismissed" for e in _events(ws, run))
+    assert not any("同意" in t for t in _tapped_texts(run))
+    assert run["verdict"]["verdict"] != "passed"
+    dialogs = [d for s in run["steps"] for x in s.get("sub_steps", [s]) for a in x["attempts"]
+               for d in (a.get("post") or {}).get("dialogs", [])]
+    assert any("车辆服务协议已更新" in d["texts"] for d in dialogs)
