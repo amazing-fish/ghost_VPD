@@ -61,6 +61,11 @@ class Params:
             return {k: self.subst(v, local) for k, v in obj.items()}
         return obj
 
+    def add_secret_values(self, values) -> None:
+        """只参与脱敏/敏感判断，不成为可引用的变量。"""
+        self._secret_values |= {str(v) for v in values if v}
+        self._frag_cache = None
+
     def _fragments(self) -> list:
         """密钥本身及其所有长度 ≥ MIN_FRAGMENT 的连续片段，长的在前。输入框可能截断、只收下一部分，
         或把密码的一段落进另一个框（真机上见过），只按全值替换会漏。"""

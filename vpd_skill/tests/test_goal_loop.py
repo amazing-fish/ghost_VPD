@@ -568,6 +568,19 @@ def test_unlock_uses_configured_pin_once_and_never_echoes_it(ws, tmp_path):
     assert cli(ws, "unlock", "--device", dev)["status"] == "refused"  # 不是纯数字：不输入
 
 
+def test_unlock_pin_secret_selects_key_by_name_only(ws, tmp_path):
+    ws.config["secrets"] = {"LOCK_PIN": "111111", "LOCK_PIN_TEST": "246810"}
+    out = cli(ws, "unlock", "--lock-secret", "LOCK_PIN_TEST", "--device", _locked_world(tmp_path, "t1"))
+    assert out["status"] == "unlocked" and out["method"] == "pin" and "246810" not in json.dumps(out)
+    # 键名之外的值（包括 PIN 本身、别的密钥名）一律拒绝，不会被当成 PIN 或去读别的密钥
+    for bad in ("246810", "QIANKUN_PASSWORD", "LOCK_PIN_test"):
+        with pytest.raises(ValueError) as e:
+            cli(ws, "unlock", "--lock-secret", bad, "--device", _locked_world(tmp_path, "t2"))
+        assert bad not in str(e.value)
+    with pytest.raises(SystemExit):  # 前缀缩写也不能把 PIN 塞进命令行
+        build_parser().parse_args(["unlock", "--pin", "1"])
+
+
 def test_input_clear_replaces_instead_of_appending(ws, tmp_path):
     dev = _input_world(tmp_path)
     _start(ws, dev, "cl1")
@@ -821,3 +834,47 @@ def test_unlock_swipe_scales_with_display_and_stops_without_size(monkeypatch):
     f.dev.display_info = lambda: {"width_px": None, "height_px": None}
     out = f.dev.wake_unlock("000000")
     assert out["status"] == "indeterminate" and "unlock_swipe" not in f.ops and "tap" not in f.ops
+
+
+def test_secret_outside_text_is_redacted_in_steps(ws, tmp_path, monkeypatch):
+    # 密钥出现在 --select / --expect-text 里：steps.jsonl 整条记录都要脱敏，不只 --text
+    dev = _lab_world(tmp_path)
+    _start(ws, dev, "rd1")
+    monkeypatch.setenv("VPD_SECRET_ACCT", "Acct-7h3x-9921")
+    cli(ws, "act", "tap", "--select", "text=唯一入口Acct-7h3x-9921", "--expect-text", "Acct-7h3x-9921",
+        "--app", "motor_hm", "--session", "rd1", "--device", dev)
+    cli(ws, "act", "tap", "--select", "text=唯一入口", "--expect-text", "详情Acct-7h3x",
+        "--app", "motor_hm", "--session", "rd1", "--device", dev)
+    sdir = ws.runs_dir / "session-rd1"
+    disk = "".join(p.read_text("utf-8") for p in sdir.rglob("*") if p.suffix in (".json", ".jsonl"))
+    assert "Acct-7h3x" not in disk and "7h3x-9921" not in disk
+
+
+def test_env_and_config_values_of_same_secret_are_both_redacted(ws, tmp_path, monkeypatch):
+    dev = _lab_world(tmp_path)
+    _start(ws, dev, "rd2")
+    monkeypatch.setenv("VPD_SECRET_PW", "EnvPass-4411")
+    ws.config["secrets"] = {"PW": "CfgPass-8822"}
+    for v in ("EnvPass-4411", "CfgPass-8822"):
+        cli(ws, "act", "tap", "--select", f"text={v}", "--app", "motor_hm", "--session", "rd2", "--device", dev)
+    disk = "".join(p.read_text("utf-8") for p in (ws.runs_dir / "session-rd2").rglob("*")
+                   if p.suffix in (".json", ".jsonl"))
+    assert "EnvPass-4411" not in disk and "CfgPass-8822" not in disk
+
+
+def test_app_switch_during_capture_deletes_screenshot(ws, tmp_path, monkeypatch):
+    # 截图期间别的普通应用到前台：private_windows 认不出，必须再查前台
+    from vpdtest.devices.replay import ReplayDevice
+    dev = _lab_world(tmp_path)
+    _start(ws, dev, "bn3")
+    real = ReplayDevice.screenshot
+
+    def shot_then_switch(self, path):
+        r = real(self, path)
+        self.state["foreground"] = "com.tencent.mm"
+        return r
+    monkeypatch.setattr(ReplayDevice, "screenshot", shot_then_switch)
+    o = cli(ws, "observe", "--app", "motor_hm", "--session", "bn3", "--device", dev)["observation"]
+    assert o["screenshot"]["status"] == "withheld" and "已删除" in o["screenshot"]["reason"]
+    assert o["foreground_after"] == "com.tencent.mm"
+    assert not (ws.runs_dir / "session-bn3" / "obs" / o["obs_id"] / "screen.png").exists()

@@ -43,7 +43,7 @@ def cmd_doctor(ws: Workspace, a) -> dict:
 
 
 def cmd_unlock(ws: Workspace, a) -> dict:
-    """唤醒并解锁设备。PIN 只从 secrets.LOCK_PIN / VPD_SECRET_LOCK_PIN 读，不接受命令行传入，也不回显。
+    """唤醒并解锁设备。PIN 只从 secrets.<--lock-secret，默认 LOCK_PIN> / VPD_SECRET_<同名> 读，不接受命令行传入，也不回显。
     防重入标记在可能输入 PIN 之前就以独占方式创建：进程中途被杀或两个进程同时解锁，标记都已在，
     下一次一律不再输入，直到人删除标记（连续输错会锁机）。只有确认已解锁、或确认没输过 PIN 才删掉。"""
     dev = ws.device(a.device)
@@ -51,9 +51,12 @@ def cmd_unlock(ws: Workspace, a) -> dict:
     if guard.exists():
         return {"status": "refused", "action_required": True, "guard": str(guard),
                 "reason": "上次 PIN 被拒，已停止自动解锁：请人工解锁并核对 PIN 后删除该文件"}
-    pin = os.environ.get("VPD_SECRET_LOCK_PIN") or (ws.config.get("secrets") or {}).get("LOCK_PIN")
+    key = getattr(a, "lock_secret", None) or "LOCK_PIN"
+    if not re.fullmatch(r"LOCK_PIN(_[A-Z0-9]+)?", key):
+        raise ValueError("--lock-secret 只接受 LOCK_PIN 或 LOCK_PIN_<名称> 形式的键名（传入值不回显）")
+    pin = os.environ.get(f"VPD_SECRET_{key}") or (ws.config.get("secrets") or {}).get(key)
     if pin is not None and not re.fullmatch(r"\d{4,16}", str(pin)):
-        return {"status": "refused", "action_required": True, "reason": "LOCK_PIN 不是 4-16 位数字，未输入"}
+        return {"status": "refused", "action_required": True, "reason": f"{key} 不是 4-16 位数字，未输入"}
     if not hasattr(dev, "wake_unlock"):
         return {"status": "unsupported", "device": dev.spec}
     if pin is not None:
@@ -117,6 +120,9 @@ def _session_redaction(ws, ctx, store) -> None:
     names = _secret_names(ws)
     if names:
         p = Params({n: {"secret": n} for n in names}, ws.config.get("secrets"), store.run_id)
+        # 同名密钥在环境变量和 config 里值可能不同：Params 只取优先的那个，脱敏要覆盖全部已配置值
+        p.add_secret_values([v for k, v in os.environ.items() if k.startswith("VPD_SECRET_") and v]
+                            + [v for v in (ws.config.get("secrets") or {}).values() if v])
         ctx.params = ctx.observer.params = p
         store.redactor = p.redact
 
@@ -175,9 +181,10 @@ def cmd_act(ws: Workspace, a) -> dict:
         raise
     first, last = (res.get("attempts") or [{}])[0], (res.get("attempts") or [{}])[-1]
     keep = _input_value_keepable(ctx, step, res)
-    append_jsonl(store.dir / "steps.jsonl", {"seq": seq, "ts": now_iso(), "step": _scrub_step(step),
-                                             "result": _scrub_input(res),
-                                             **({"input_value": a.text} if keep else {})})
+    rec = {"seq": seq, "ts": now_iso(), "step": _scrub_step(step), "result": _scrub_input(res)}
+    # 密钥可能出现在 --text 以外（--select text=<账号>、--expect-text、--basis）：整条记录过会话脱敏器
+    rec = store.redactor(rec) if store.redactor else rec
+    append_jsonl(store.dir / "steps.jsonl", {**rec, **({"input_value": a.text} if keep else {})})
     store.event("act_result", seq=seq, outcome=res["outcome"], effect_unknown=effect_unknown(res),
                 dispatched=dispatched(res), obs_before=first.get("obs_before"),
                 obs_after=res.get("final_obs") or last.get("obs_after"))

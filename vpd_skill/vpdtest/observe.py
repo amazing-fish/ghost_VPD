@@ -136,9 +136,15 @@ class Observer:
             obs["system_overlays"] = over
         else:
             r = self.device.screenshot(d / "screen.png")
-            # 截图要约 1 秒：期间弹出的横幅在截图前查不到，截完再查一次，查到就删掉
-            late = self.private_windows() if r.ok else []
-            if r.ok and late != [] and (d / "screen.png").exists():
+            # 截图要约 1 秒：期间可能弹出横幅，也可能切到别的 APP（private_windows 只认系统弹层，
+            # 认不出普通应用）。截完再查前台和系统窗口，任一不能确认就删掉
+            fg3 = self.device.foreground() if r.ok else self.bundle
+            late = self.private_windows() if r.ok and fg3 == self.bundle else []
+            if r.ok and fg3 != self.bundle and (d / "screen.png").exists():
+                (d / "screen.png").unlink()
+                obs["screenshot"] = {"status": "withheld", "reason": f"截图期间前台变为 {fg3}，已删除截图"}
+                obs["foreground_after"] = fg3
+            elif r.ok and late != [] and (d / "screen.png").exists():
                 (d / "screen.png").unlink()
                 obs["screenshot"] = {"status": "withheld", "reason": "截图期间出现系统弹层或无法确认，已删除截图"}
                 obs["system_overlays"] = late
