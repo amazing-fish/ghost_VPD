@@ -373,6 +373,24 @@ class ReplayDevice:
     def screen_locked(self) -> Optional[bool]:
         return bool(self.state["locked"] or not self.state["screen_on"])
 
+    def wake_unlock(self, pin: Optional[str]) -> dict:
+        # 合成世界：initial.lock_pin 为锁屏 PIN；face_unlock=true 表示唤醒即解开
+        if not self.screen_locked():
+            return {"status": "unlocked", "method": "already"}
+        self.state["screen_on"] = True
+        if self.world.get("initial", {}).get("face_unlock"):
+            self.state["locked"] = False
+            self._save()
+            return {"status": "unlocked", "method": "swipe"}
+        if not pin:
+            self._save()
+            return {"status": "locked", "reason": "需要 PIN"}
+        self.state["pin_attempts"] = self.state.get("pin_attempts", 0) + 1
+        ok = pin == str(self.world.get("initial", {}).get("lock_pin"))
+        self.state["locked"] = not ok
+        self._save()
+        return {"status": "unlocked", "method": "pin"} if ok else {"status": "pin_rejected", "reason": "PIN 不对"}
+
     def shown_windows(self) -> Optional[list]:
         # 合成世界默认只有被测 APP 的窗口；测试可在 replay_state 里放 windows（通知横幅等），null 表示查询失败
         return self.state.get("windows", ["app0"])

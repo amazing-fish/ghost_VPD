@@ -82,6 +82,31 @@ def parse_windows(dump: str) -> Optional[list]:
     return shown
 
 
+def find_pin_pad(tree_raw: dict) -> Optional[dict]:
+    """锁屏数字键盘：0-9 各恰好一个可点击容器，且 1-9 排成 3 列 × 3 行、0 在 8 的正下方。认不准 → None（不猜着点）。"""
+    from ..tree import UiTree
+    t = UiTree(tree_raw)
+    keys = {}
+    for n in t.nodes:
+        if n.text in "0123456789" and len(n.text or "") == 1 and t.shown(n):
+            h = t.clickable_container(n)
+            if not h.clickable:
+                continue
+            if n.text in keys and keys[n.text].bounds != h.bounds:
+                return None  # 同一数字出现两个可点击位置（比如通知里的数字按钮）：不认
+            keys[n.text] = h
+    if sorted(keys) != list("0123456789"):
+        return None
+    cx = {d: (keys[d].bounds[0] + keys[d].bounds[2]) // 2 for d in keys}
+    cy = {d: (keys[d].bounds[1] + keys[d].bounds[3]) // 2 for d in keys}
+    tol = max(8, (keys["1"].bounds[2] - keys["1"].bounds[0]) // 4)
+    rows, cols = ("123", "456", "789"), ("147", "258", "369")
+    grid_ok = all(abs(cy[r[0]] - cy[d]) <= tol for r in rows for d in r) \
+        and all(abs(cx[c[0]] - cx[d]) <= tol for c in cols for d in c) \
+        and abs(cx["0"] - cx["8"]) <= tol and cy["0"] > cy["8"] and cy["4"] > cy["1"] and cx["2"] > cx["1"]
+    return {d: (cx[d], cy[d]) for d in keys} if grid_ok else None
+
+
 _SECTION_RE = re.compile(r"^-+\s*(Screen|Display) ID:\s*(\d+)\s*-+$")
 _KV_RE = re.compile(r"^([A-Za-z][\w<>, ]*?):?\s{2,}(.+?)\s*,?\s*$")
 _FOLD_MAP = {"EXPAND": "expanded", "FOLDED": "folded", "HALF_FOLD": "half_folded", "UNKNOWN": "unknown"}
@@ -285,6 +310,41 @@ class HdcDevice:
         if not (power.ok and lock.ok):
             return None
         return parse_kv(power.raw, "Current State") != "AWAKE" or parse_kv(lock.raw, "screenLocked") != "false"
+
+    def wake_unlock(self, pin: Optional[str]) -> dict:
+        """唤醒并解锁：先上滑（人脸/无密码会直接解开），仍锁着才输一次 PIN。
+
+        只输一次：连续输错会锁机，重试由调用方（有防重入标记）决定。锁屏的全量布局只在内存里解析
+        （通知内容会出现在里面），不落盘；PIN 和按键坐标都不进返回值。
+        """
+        if self.screen_locked() is False:
+            return {"status": "unlocked", "method": "already"}
+        self._shell("power-shell", "wakeup", op="wakeup")
+        time.sleep(1.0)
+        if self.screen_locked() is False:
+            return {"status": "unlocked", "method": "wake"}
+        self._shell("uitest", "uiInput", "swipe", 660, 2400, 660, 900, 3000, op="unlock_swipe")
+        time.sleep(1.5)
+        if self.screen_locked() is False:
+            return {"status": "unlocked", "method": "swipe"}
+        if not pin:
+            return {"status": "locked", "reason": "需要 PIN：config.local.json secrets.LOCK_PIN 或 VPD_SECRET_LOCK_PIN 未设置"}
+        remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.json"
+        r = self._shell("uitest", "dumpLayout", "-p", remote, op="lock_dump", timeout=30)
+        raw = self._shell("cat", remote, op="lock_dump_read").raw if r.ok else ""
+        self._shell("rm", "-f", remote, op="cleanup")
+        try:
+            pad = find_pin_pad(json.loads(raw)) if raw else None
+        except ValueError:
+            pad = None
+        if pad is None:
+            return {"status": "locked", "reason": "没认出锁屏数字键盘（0-9 各一个、3 列排布），未输入"}
+        for ch in pin:
+            self.tap(*pad[ch])
+            time.sleep(0.25)
+        time.sleep(1.5)
+        return {"status": "unlocked", "method": "pin"} if self.screen_locked() is False else \
+            {"status": "pin_rejected", "reason": "输完 PIN 仍锁屏：不再重试，请人工核对"}
 
     def shown_windows(self) -> Optional[list]:
         """当前显示的窗口名；查询失败或格式认不出 → None。只取窗口名与层级，不取窗口内容。"""

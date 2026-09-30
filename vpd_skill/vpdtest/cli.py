@@ -23,6 +23,9 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("--device")
     d.add_argument("--app")
 
+    u = sub.add_parser("unlock", help="唤醒并解锁设备（人脸/上滑优先；PIN 只从 secrets.LOCK_PIN 读，只输一次）")
+    u.add_argument("--device")
+
     o = sub.add_parser("observe", help="采集一次观测（Agent 单步探索用）")
     o.add_argument("--app", default="motor_hm")
     o.add_argument("--device")
@@ -166,7 +169,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 HANDLERS = {"doctor": c.cmd_doctor, "observe": c.cmd_observe, "act": c.cmd_act, "run": c.cmd_run,
             "suite": c.cmd_suite, "explore": c.cmd_explore, "case": c.cmd_case, "knowledge": c.cmd_knowledge,
-            "experience": c.cmd_experience, "template-crop": c.cmd_template_crop, "session": c.cmd_session}
+            "experience": c.cmd_experience, "template-crop": c.cmd_template_crop, "session": c.cmd_session,
+            "unlock": c.cmd_unlock}
 
 
 def main(argv=None) -> int:

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 from pathlib import Path
 from typing import Optional
@@ -38,6 +39,25 @@ def cmd_doctor(ws: Workspace, a) -> dict:
         dev = ws.device(a.device)
         out["preflight"] = dev.preflight(app.bundle)
     return out
+
+
+def cmd_unlock(ws: Workspace, a) -> dict:
+    """唤醒并解锁设备。PIN 只从 secrets.LOCK_PIN / VPD_SECRET_LOCK_PIN 读，不接受命令行传入，也不回显。
+    PIN 被拒一次就写防重入标记：之后一律不再输入，直到人删除标记（连续输错会锁机）。"""
+    dev = ws.device(a.device)
+    guard = ws.runs_dir / "unlock_guard.json"
+    if guard.exists():
+        return {"status": "refused", "action_required": True, "guard": str(guard),
+                "reason": "上次 PIN 被拒，已停止自动解锁：请人工解锁并核对 PIN 后删除该文件"}
+    pin = os.environ.get("VPD_SECRET_LOCK_PIN") or (ws.config.get("secrets") or {}).get("LOCK_PIN")
+    if pin is not None and not re.fullmatch(r"\d{4,16}", str(pin)):
+        return {"status": "refused", "action_required": True, "reason": "LOCK_PIN 不是 4-16 位数字，未输入"}
+    if not hasattr(dev, "wake_unlock"):
+        return {"status": "unsupported", "device": dev.spec}
+    res = dev.wake_unlock(str(pin) if pin is not None else None)
+    if res["status"] == "pin_rejected":
+        write_json(guard, {"ts": now_iso(), "device": dev.spec, "reason": res.get("reason")})
+    return {"device": dev.spec, **res, "action_required": res["status"] != "unlocked"}
 
 
 # 会话头：第一次 observe/act 时写入并固定；之后每次都与它比较，APP 或设备不同就拒绝

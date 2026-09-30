@@ -515,6 +515,59 @@ def test_secret_input_hides_keyboard_screenshots_for_rest_of_session(ws, tmp_pat
     assert "Kx9-secret-value" not in ev.read_text(encoding="utf-8")
 
 
+def _pad(extra=()):
+    """锁屏键盘：1-9 三列三行、0 在 8 下方；extra 追加干扰节点。"""
+    keys = []
+    for i, d in enumerate("1234567890"):
+        col, row = (1, 3) if d == "0" else (i % 3, i // 3)
+        x, y = 200 + col * 330, 1400 + row * 260
+        keys.append({"attributes": {"type": "Button", "clickable": "true", "visible": "true",
+                                    "bounds": f"[{x},{y}][{x + 260},{y + 200}]", "text": ""},
+                     "children": [{"attributes": {"type": "Text", "visible": "true", "text": d,
+                                                  "bounds": f"[{x + 100},{y + 60}][{x + 160},{y + 140}]"}, "children": []}]})
+    return {"attributes": {"type": "root", "visible": "true", "bounds": "[0,0][1320,2848]"}, "children": keys + list(extra)}
+
+
+def test_pin_pad_recognised_only_when_unambiguous():
+    from vpdtest.devices.harmony_hdc import find_pin_pad
+    pad = find_pin_pad(_pad())
+    assert pad["1"] == (330, 1500) and pad["0"] == (660, 2280)
+    # 时钟之类不可点击的数字不算；通知里再出现一个可点击的「5」→ 不认，不猜着点
+    clock = {"attributes": {"type": "Text", "visible": "true", "text": "1", "bounds": "[10,100][60,160]"}, "children": []}
+    assert find_pin_pad(_pad([clock])) is not None
+    dup = {"attributes": {"type": "Button", "clickable": "true", "visible": "true", "bounds": "[10,300][300,400]"},
+           "children": [{"attributes": {"type": "Text", "visible": "true", "text": "5", "bounds": "[20,310][80,390]"}, "children": []}]}
+    assert find_pin_pad(_pad([dup])) is None
+    assert find_pin_pad({"attributes": {"type": "root", "bounds": "[0,0][1320,2848]"}, "children": []}) is None
+
+
+def _locked_world(tmp_path, name, pin="246810", locked=True):
+    p = tmp_path / f"{name}.json"
+    write_json(p, {"bundle": BUNDLE, "app_version": "3.0.3.200-replay", "device": {"model": "LAB", "os": "replay"},
+                   "screen": [1320, 2848], "initial": {"locked": locked, "lock_pin": pin, "installed": True},
+                   "launch_screen": "home", "screens": {"home": {"root": {"t": "Column", "b": [0, 0, 1320, 2848]}}}})
+    return f"replay:{p}"
+
+
+def test_unlock_uses_configured_pin_once_and_never_echoes_it(ws, tmp_path):
+    ws.config["secrets"] = {"LOCK_PIN": "246810"}
+    out = cli(ws, "unlock", "--device", _locked_world(tmp_path, "lk"))
+    assert out["status"] == "unlocked" and out["method"] == "pin" and "246810" not in json.dumps(out)
+    assert cli(ws, "unlock", "--device", _locked_world(tmp_path, "open", locked=False))["method"] == "already"
+    # PIN 不对：只输一次，写防重入标记；之后不再输入（连续输错会锁机）
+    dev = _locked_world(tmp_path, "other", pin="135790")
+    bad = cli(ws, "unlock", "--device", dev)
+    assert bad["status"] == "pin_rejected" and bad["action_required"]
+    again = cli(ws, "unlock", "--device", dev)
+    assert again["status"] == "refused" and (ws.runs_dir / "unlock_guard.json").exists()
+    assert "246810" not in (ws.runs_dir / "unlock_guard.json").read_text(encoding="utf-8")
+    with pytest.raises(SystemExit):  # 没有命令行传 PIN 的入口
+        build_parser().parse_args(["unlock", "--pin", "1"])
+    ws.config["secrets"] = {"LOCK_PIN": "12ab"}
+    (ws.runs_dir / "unlock_guard.json").unlink()
+    assert cli(ws, "unlock", "--device", dev)["status"] == "refused"  # 不是纯数字：不输入
+
+
 def test_input_clear_replaces_instead_of_appending(ws, tmp_path):
     dev = _input_world(tmp_path)
     _start(ws, dev, "cl1")
