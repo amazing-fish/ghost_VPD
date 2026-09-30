@@ -746,3 +746,78 @@ def test_scroll_search_does_not_swipe_when_lock_state_unknown(ws, tmp_path):
     res = Executor(ctx).run_step({"id": "A1", "action": "tap", "retry": 0, "target": target}, "session")
     att = res["attempts"][-1]
     assert att["status"] == "state_indeterminate" and not swipes and "dispatch" not in att
+
+
+# ---- R5/R6 ----
+
+def test_screenshot_withheld_when_foreground_switches_to_other_allowed_app(ws, tmp_path, monkeypatch):
+    from vpdtest.devices.replay import ReplayDevice
+    dev = _lab_world(tmp_path)
+    _start(ws, dev, "fg2")
+    orig, calls = ReplayDevice.foreground, []
+
+    def fg(self):
+        calls.append(1)
+        # 取树前是被测 APP；取树后换成白名单里的另一个 APP（乾崑）
+        return orig(self) if len(calls) == 1 else "com.yinwang.qiankunapp.hm"
+    monkeypatch.setattr(ReplayDevice, "foreground", fg)
+    obs = cli(ws, "observe", "--app", "motor_hm", "--session", "fg2", "--device", dev)["observation"]
+    assert obs["screenshot"]["status"] == "withheld" and obs["foreground_after"] == "com.yinwang.qiankunapp.hm"
+    assert not (ws.runs_dir / "session-fg2" / "obs" / obs["obs_id"] / "screen.png").exists()
+
+
+def test_act_surfaces_action_required_at_top_level_for_exit_code(ws, tmp_path):
+    dev = _lab_world(tmp_path)
+    _start(ws, dev, "ar1")
+    _set_state(ws, "ar1", query_fail=["screen_locked"])
+    out = cli(ws, "act", "back", "--app", "motor_hm", "--session", "ar1", "--device", dev)
+    assert out["diagnosis"]["action_required"] and out["action_required"] == out["diagnosis"]["action_required"]
+    _set_state(ws, "ar1", query_fail=[])
+    assert "action_required" not in cli(ws, "act", "back", "--app", "motor_hm", "--session", "ar1", "--device", dev)
+
+
+def test_input_containing_a_secret_is_not_recorded(ws, tmp_path, monkeypatch):
+    dev = _input_world(tmp_path)
+    _start(ws, dev, "i2")
+    monkeypatch.setenv("VPD_SECRET_FAKE_PW", "Fake#Pass9")
+    base = ["act", "input", "--select", "xpath=//TextInput", "--allow-input", "--app", "motor_hm", "--session", "i2",
+            "--device", dev]
+    assert cli(ws, *base, "--text", "前缀Fake#Pass9")["input_value_recorded"] is False   # 包含整段密钥
+    assert cli(ws, *base, "--text", "xFake#Pa")["input_value_recorded"] is False         # 包含 ≥6 位片段
+    assert cli(ws, *base, "--text", "测试名B")["input_value_recorded"] is True
+    disk = "".join(p.read_text("utf-8") for p in (ws.runs_dir / "session-i2").rglob("*") if p.suffix in (".json", ".jsonl"))
+    assert "Fake#Pa" not in disk and "测试名B" in disk
+
+
+def test_unlock_guard_is_written_before_pin_and_blocks_concurrent_or_crashed_runs(ws, tmp_path, monkeypatch):
+    from vpdtest.devices.replay import ReplayDevice
+    ws.config["secrets"] = {"LOCK_PIN": "246810"}
+    guard = ws.runs_dir / "unlock_guard.json"
+    seen = {}
+
+    def crash(self, pin):
+        seen["guard_during"] = guard.exists() and read_json(guard)["status"]
+        raise RuntimeError("进程在输 PIN 中途退出")
+    monkeypatch.setattr(ReplayDevice, "wake_unlock", crash)
+    with pytest.raises(RuntimeError):
+        cli(ws, "unlock", "--device", _locked_world(tmp_path, "c1"))
+    assert seen["guard_during"] == "in_progress" and guard.exists()   # 输 PIN 前已落标记，崩溃后仍在
+    monkeypatch.undo()
+    ws.config["secrets"] = {"LOCK_PIN": "246810"}
+    out = cli(ws, "unlock", "--device", _locked_world(tmp_path, "c2"))
+    assert out["status"] == "refused" and out["action_required"]      # 标记在：不再输 PIN
+    guard.unlink()
+    assert cli(ws, "unlock", "--device", _locked_world(tmp_path, "c3"))["status"] == "unlocked"
+    assert not guard.exists()                                           # 确认解锁才删
+
+
+def test_unlock_swipe_scales_with_display_and_stops_without_size(monkeypatch):
+    from vpdtest.devices.harmony_hdc import unlock_swipe_points
+    assert unlock_swipe_points({"width_px": 1320, "height_px": 2848}) == (660, 2400, 660, 899)
+    x1, y1, x2, y2 = unlock_swipe_points({"width_px": 2472, "height_px": 1648})   # 阔折叠展开
+    assert x1 == x2 == 1236 and 1648 * 0.8 < y1 < 1648 and y2 < 1648 * 0.4
+    assert unlock_swipe_points({"width_px": None, "height_px": 2848}) is None
+    f = _FakeHdc(monkeypatch, {"power_state": [AWAKE] * 3, "lock_state": ["screenLocked: true"] * 3})
+    f.dev.display_info = lambda: {"width_px": None, "height_px": None}
+    out = f.dev.wake_unlock("000000")
+    assert out["status"] == "indeterminate" and "unlock_swipe" not in f.ops and "tap" not in f.ops

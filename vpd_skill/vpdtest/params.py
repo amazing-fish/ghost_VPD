@@ -89,8 +89,13 @@ class Params:
             return {k: self.redact(v) for k, v in obj.items()}
         return obj
 
+    def is_sensitive(self, text) -> bool:
+        """落盘前判断明文的唯一出口：含任一已配置密钥或其长度 ≥ MIN_FRAGMENT 的片段就算敏感（不只比较全等）。"""
+        t = str(text or "")
+        return bool(t) and any(s in t for s in self._fragments())
+
     def contains_secret(self, texts) -> bool:
-        return any(s in t for s in self._fragments() for t in texts)
+        return any(self.is_sensitive(t) for t in texts)
 
 
 def with_params(target: dict, params: Optional[Params], local: Optional[dict] = None) -> dict:

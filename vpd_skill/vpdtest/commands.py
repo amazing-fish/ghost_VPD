@@ -44,7 +44,8 @@ def cmd_doctor(ws: Workspace, a) -> dict:
 
 def cmd_unlock(ws: Workspace, a) -> dict:
     """唤醒并解锁设备。PIN 只从 secrets.LOCK_PIN / VPD_SECRET_LOCK_PIN 读，不接受命令行传入，也不回显。
-    PIN 被拒一次就写防重入标记：之后一律不再输入，直到人删除标记（连续输错会锁机）。"""
+    防重入标记在可能输入 PIN 之前就以独占方式创建：进程中途被杀或两个进程同时解锁，标记都已在，
+    下一次一律不再输入，直到人删除标记（连续输错会锁机）。只有确认已解锁、或确认没输过 PIN 才删掉。"""
     dev = ws.device(a.device)
     guard = ws.runs_dir / "unlock_guard.json"
     if guard.exists():
@@ -55,10 +56,20 @@ def cmd_unlock(ws: Workspace, a) -> dict:
         return {"status": "refused", "action_required": True, "reason": "LOCK_PIN 不是 4-16 位数字，未输入"}
     if not hasattr(dev, "wake_unlock"):
         return {"status": "unsupported", "device": dev.spec}
-    res = dev.wake_unlock(str(pin) if pin is not None else None)
-    if res["status"] == "pin_rejected" or res.get("pin_entered"):
-        # 输过 PIN 却不能确认解开（被拒/输到一半/之后查不到状态）：同样停止自动输入，避免连续输错锁机
-        write_json(guard, {"ts": now_iso(), "device": dev.spec, "status": res["status"], "reason": res.get("reason")})
+    if pin is not None:
+        try:
+            write_json(guard, {"ts": now_iso(), "device": dev.spec, "status": "in_progress",
+                               "reason": "正在自动解锁；进程若中途退出，本文件保留，需人工确认屏幕状态后删除"}, exclusive=True)
+        except FileExistsError:  # 另一个进程刚开始解锁
+            return {"status": "refused", "action_required": True, "guard": str(guard),
+                    "reason": "另一个解锁进程正在进行或刚中途退出：请人工确认屏幕状态后删除该文件"}
+    res = dev.wake_unlock(str(pin) if pin is not None else None)  # 抛异常时输没输 PIN 不确定：标记保留
+    if pin is not None:
+        if res["status"] == "unlocked" or (res["status"] != "pin_rejected" and not res.get("pin_entered")):
+            guard.unlink()
+        else:
+            # 输过 PIN 却不能确认解开（被拒/输到一半/之后查不到状态）：保留标记，停止自动输入
+            write_json(guard, {"ts": now_iso(), "device": dev.spec, "status": res["status"], "reason": res.get("reason")})
     return {"device": dev.spec, **res, "action_required": res["status"] != "unlocked"}
 
 
@@ -163,15 +174,18 @@ def cmd_act(ws: Workspace, a) -> dict:
         store.event("act_error", seq=seq, reason=f"{type(e).__name__}: {e}")
         raise
     first, last = (res.get("attempts") or [{}])[0], (res.get("attempts") or [{}])[-1]
-    keep = _input_value_keepable(ctx, step, res, ws)
+    keep = _input_value_keepable(ctx, step, res)
     append_jsonl(store.dir / "steps.jsonl", {"seq": seq, "ts": now_iso(), "step": _scrub_step(step),
                                              "result": _scrub_input(res),
                                              **({"input_value": a.text} if keep else {})})
     store.event("act_result", seq=seq, outcome=res["outcome"], effect_unknown=effect_unknown(res),
                 dispatched=dispatched(res), obs_before=first.get("obs_before"),
                 obs_after=res.get("final_obs") or last.get("obs_after"))
+    diag = diagnose(res)
+    # cli 只看顶层 action_required 决定退出码 2：诊断里要求人工接管的，提到顶层
     return {"session": store.run_id, "seq": seq, "step_id": step_id, "result": _scrub_input(res),
-            "input_value_recorded": keep if step.get("action") == "input" else None, "diagnosis": diagnose(res)}
+            "input_value_recorded": keep if step.get("action") == "input" else None, "diagnosis": diag,
+            **({"action_required": diag["action_required"]} if (diag or {}).get("action_required") else {})}
 
 
 def _act_step(ctx, store, a, step_id: str) -> dict:
@@ -226,17 +240,13 @@ def _act_step(ctx, store, a, step_id: str) -> dict:
     return step
 
 
-def _known_secrets(ws) -> set:
-    vals = {v for k, v in os.environ.items() if k.startswith("VPD_SECRET_") and v}
-    return vals | {str(v) for v in (ws.config.get("secrets") or {}).values() if v}
-
-
-def _input_value_keepable(ctx, step: dict, res: dict, ws) -> bool:
+def _input_value_keepable(ctx, step: dict, res: dict) -> bool:
     if step.get("action") != "input" or not step.get("text"):
         return False
     _, target = ctx.app.target(step["target"])
     allowed = any((a.get("policy") or {}).get("allowed") for a in res.get("attempts", []))
-    return allowed and not target.get("secret") and step["text"] not in _known_secrets(ws)
+    # ctx.params 由 _session_redaction 按全部已配置密钥建立；包含密钥或其片段就不记原文
+    return allowed and not target.get("secret") and not (ctx.params and ctx.params.is_sensitive(step["text"]))
 
 
 def _scrub_step(step: dict) -> dict:

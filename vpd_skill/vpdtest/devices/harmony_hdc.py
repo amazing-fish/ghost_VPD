@@ -151,6 +151,15 @@ def parse_display(dump: str) -> dict:
             "fold_status_raw": fold_raw, "screens": len(screens)}
 
 
+def unlock_swipe_points(disp: dict) -> Optional[tuple]:
+    """锁屏上滑起止点按当前显示尺寸比例算（直板/折叠展开/横屏都适用）：水平居中，从 84% 高滑到 32% 高。
+    比例取自 Mate 80（1320×2848）上验证过的 660,2400→660,900。尺寸拿不到 → None，由调用方停下。"""
+    w, h = (disp or {}).get("width_px"), (disp or {}).get("height_px")
+    if not w or not h:
+        return None
+    return int(w * 0.5), int(h * 0.843), int(w * 0.5), int(h * 0.316)
+
+
 def infer_device_form(fold_param: Optional[str], fold_status: Optional[str]) -> tuple:
     """直板/折叠是设备属性，只用于记录与分组；布局判断看窗口 vp 宽度。"""
     if fold_param or fold_status in ("expanded", "folded", "half_folded"):
@@ -339,7 +348,11 @@ class HdcDevice:
             return {"status": "unlocked", "method": "wake"}
         if locked is None:
             return unknown("上滑前")
-        self._shell("uitest", "uiInput", "swipe", 660, 2400, 660, 900, 3000, op="unlock_swipe")
+        swipe = unlock_swipe_points(self.display_info())
+        if swipe is None:
+            return {"status": "indeterminate", "stage": "上滑前",
+                    "reason": "查不到屏幕尺寸，无法计算上滑位置，未发手势：请人工解锁"}
+        self._shell("uitest", "uiInput", "swipe", *swipe, 3000, op="unlock_swipe")
         time.sleep(1.5)
         locked = self.screen_locked()
         if locked is False:
