@@ -1,0 +1,1267 @@
+{
+  "id": "TC-QK-202",
+  "version": 1,
+  "status": "exploration_record",
+  "app": "qiankun_hm",
+  "title": "已有收藏「1号车位」清空重命名为 QKT201车位 后，切出再进入 VPD 地图按新名称搜索仍能找到同一车位",
+  "goal": "测试收藏车位重命名后，重新进入地图是否仍能按新名称找到它。",
+  "purpose": "验证收藏车位重命名后保存生效：在已有收藏「1号车位」（B1层-507）上用「编辑车位信息」清空输入框并改名为 QKT201车位、点「确认」；离开并重新进入 VPD 地图（爱车→ADS）后，在搜索页按新名称里独有的串 QKT201 仍能搜到该收藏，且指向同一车位（B1层 / 507）。改名用 input --clear（先删再输），所以清理可以把名称改回「1号车位」。不点「查看路线」「路线」「开始」，不算路、不让车动。",
+  "preconditions": [
+    "手机已解锁并保持亮屏，乾崑在前台（锁屏时先 vpdtest unlock）",
+    "已登录测试账号，默认车辆为问界 M5（车架号末位 007885）；声明 --env account_state=logged_in",
+    "乾崑已安装且登录；用例自己 stop_app→launch→等 10 s 复位到主 tab 页，再点 TabBar 的 ADS 进入 VPD 首页；停车场数据约 10 s 内加载完成（S2/S3 等待，K-QK-OBS-201）",
+    "账号已有收藏车位「1号车位」（B1层-507），且没有名称为 QKT201车位 的收藏；若上次失败残留 QKT201车位，先执行 cleanup 改回"
+  ],
+  "env_requirements": {
+    "account_state": "logged_in"
+  },
+  "test_data": {
+    "new_name": "QKT201车位",
+    "search_query": "QKT201",
+    "original_name": "1号车位"
+  },
+  "test_data_none": false,
+  "authorizations": [
+    "user_data",
+    "vpd_entry"
+  ],
+  "steps": [
+    {
+      "id": "S0a",
+      "action": "stop_app",
+      "desc": "复位到确定起点：上次停留页面（如 VPD 地图）会让 ADS 匹配到两处"
+    },
+    {
+      "id": "S0b",
+      "action": "launch",
+      "expect_state": "@in_app",
+      "timeout_s": 20
+    },
+    {
+      "id": "S0c",
+      "action": "wait",
+      "duration_s": 10.0,
+      "desc": "冷启动先是「华为乾崑」闪屏（state unknown），在闪屏上点 TabBar 会丢失（run-20260930-212714-de11 C3）"
+    },
+    {
+      "id": "S0d",
+      "action": "tap",
+      "skip_if_absent": "请下载车辆资源包",
+      "target": {
+        "label": "select:xpath=//Button[@text=\"下次再说\"]（车辆资源包弹窗）",
+        "side_effect": "navigation",
+        "origin": "agent_select",
+        "strategies": [
+          {
+            "kind": "xpath",
+            "value": "//Button[@text=\"下次再说\"]"
+          }
+        ],
+        "observed": {
+          "session": "session-qk-g2c",
+          "seq": 23,
+          "obs": "obs-0064",
+          "outcome": "fail_candidate",
+          "node": {
+            "idx": 163,
+            "type": "Button",
+            "text": "下次再说",
+            "id": "",
+            "bounds": [
+              135,
+              2538,
+              640,
+              2673
+            ],
+            "clickable": true,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": "1.0.26.100",
+          "device_form": "bar",
+          "validation_level": "real_device"
+        }
+      },
+      "note": "冷启动后「请下载车辆资源包」底部 Dialog 盖住 TabBar，点 ADS 被吞（run-20260930-213051-2acd S1，obs-0016）。按钮是 Button 节点自身带 text（obs-0063 树），会话 seq23 点击后 obs-0067 弹窗消失；该 seq 记为 fail_candidate 仅因 expect_text「!…」不是取反语法（expect_text 只做正则 search），故本步不设 expect_text，由 S1 的后置条件校验。「下次再说」只拒绝下载，在消弹窗白名单"
+    },
+    {
+      "id": "S1",
+      "action": "tap",
+      "timeout_s": 30.0,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-qk-g2c",
+        "seq": 1,
+        "step": "A1",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0002",
+        "obs_after": "obs-0005"
+      },
+      "expect_text": "搜索车位号设为目的地",
+      "revalidate": true,
+      "target": {
+        "label": "select:text=ADS",
+        "strategies": [
+          {
+            "kind": "text",
+            "value": "ADS",
+            "within": {
+              "type": "TabBar"
+            }
+          }
+        ],
+        "side_effect": "vpd_entry",
+        "origin": "agent_select",
+        "observed": {
+          "session": "session-qk-g2c",
+          "seq": 1,
+          "obs": "obs-0003",
+          "outcome": "passed",
+          "node": {
+            "idx": 106,
+            "type": "Text",
+            "text": "ADS",
+            "id": "",
+            "bounds": [
+              363,
+              2719,
+              430,
+              2754
+            ],
+            "clickable": false,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": "1.0.26.100",
+          "device_form": "bar",
+          "validation_level": "real_device"
+        }
+      },
+      "note": "只在底部 TabBar 内找 ADS：VPD 地图左下角也有「ADS」文字（run-20260930-212714-de11 S1 target_ambiguous）"
+    },
+    {
+      "id": "S2",
+      "action": "wait",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-qk-g2c",
+        "seq": 2,
+        "step": "A2",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0006",
+        "obs_after": "obs-0007"
+      },
+      "duration_s": 5.0,
+      "note": "等待停车场数据加载（会话中 A1 后首页先显示加载中，两次 5 s 等待后「共 N 个」与常去地点出现）"
+    },
+    {
+      "id": "S3",
+      "action": "wait",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-qk-g2c",
+        "seq": 3,
+        "step": "A3",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0008",
+        "obs_after": "obs-0009"
+      },
+      "duration_s": 5.0,
+      "note": "等待停车场数据加载（会话中 A1 后首页先显示加载中，两次 5 s 等待后「共 N 个」与常去地点出现）"
+    },
+    {
+      "id": "S4",
+      "action": "tap",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-qk-g2c",
+        "seq": 4,
+        "step": "A4",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0010",
+        "obs_after": "obs-0012"
+      },
+      "revalidate": true,
+      "target": {
+        "label": "select:text=更多",
+        "strategies": [
+          {
+            "kind": "text",
+            "value": "更多"
+          }
+        ],
+        "side_effect": "navigation",
+        "origin": "agent_select",
+        "observed": {
+          "session": "session-qk-g2c",
+          "seq": 4,
+          "obs": "obs-0011",
+          "outcome": "passed",
+          "node": {
+            "idx": 146,
+            "type": "Text",
+            "text": "更多",
+            "id": "",
+            "bounds": [
+              601,
+              2303,
+              682,
+              2350
+            ],
+            "clickable": false,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": "1.0.26.100",
+          "device_form": "bar",
+          "validation_level": "real_device"
+        }
+      },
+      "expect_text": "常去地点",
+      "note": "展开常去地点全部收藏（会话 A4 obs-0012 后出现全部收藏行与每行「⋮」）"
+    },
+    {
+      "id": "S5",
+      "action": "tap",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-qk-g2c",
+        "seq": 5,
+        "step": "A5",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0013",
+        "obs_after": "obs-0015"
+      },
+      "expect_text": "^编辑$",
+      "revalidate": true,
+      "target": {
+        "label": "select:xpath=//Row[Row//Text[@text=\"1号车位\"]]/Column[@clickable=\"true\"]",
+        "strategies": [
+          {
+            "kind": "xpath",
+            "value": "//Row[Row//Text[@text=\"1号车位\"]]/Column[@clickable=\"true\"]"
+          }
+        ],
+        "side_effect": "navigation",
+        "origin": "agent_select",
+        "observed": {
+          "session": "session-qk-g2c",
+          "seq": 5,
+          "obs": "obs-0014",
+          "outcome": "passed",
+          "node": {
+            "idx": 173,
+            "type": "Column",
+            "text": "",
+            "id": "",
+            "bounds": [
+              579,
+              2420,
+              660,
+              2501
+            ],
+            "clickable": true,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": "1.0.26.100",
+          "device_form": "bar",
+          "validation_level": "real_device"
+        }
+      },
+      "note": "点「1号车位」所在行右侧的「⋮」（UI 树里是文本为 ':' 的可点击 Column，行内另有名称 Row）；打开收藏车位面板（有「编辑」）"
+    },
+    {
+      "id": "S6",
+      "action": "tap",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-qk-g2c",
+        "seq": 6,
+        "step": "A6",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0016",
+        "obs_after": "obs-0018"
+      },
+      "expect_text": "编辑车位信息",
+      "revalidate": true,
+      "target": {
+        "label": "select:text=编辑",
+        "strategies": [
+          {
+            "kind": "text",
+            "value": "编辑"
+          }
+        ],
+        "side_effect": "user_data",
+        "origin": "agent_select",
+        "observed": {
+          "session": "session-qk-g2c",
+          "seq": 6,
+          "obs": "obs-0017",
+          "outcome": "passed",
+          "node": {
+            "idx": 72,
+            "type": "Text",
+            "text": "编辑",
+            "id": "",
+            "bounds": [
+              1125,
+              1497,
+              1206,
+              1544
+            ],
+            "clickable": false,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": "1.0.26.100",
+          "device_form": "bar",
+          "validation_level": "real_device"
+        }
+      }
+    },
+    {
+      "id": "S7",
+      "action": "input",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-qk-g2c",
+        "seq": 7,
+        "step": "A7",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0019",
+        "obs_after": "obs-0021"
+      },
+      "revalidate": true,
+      "target": {
+        "label": "select:xpath=//Dialog//TextInput",
+        "strategies": [
+          {
+            "kind": "xpath",
+            "value": "//Dialog//TextInput"
+          }
+        ],
+        "side_effect": "user_data",
+        "origin": "agent_select",
+        "allow_input": true,
+        "observed": {
+          "session": "session-qk-g2c",
+          "seq": 7,
+          "obs": "obs-0020",
+          "outcome": "passed",
+          "node": {
+            "idx": 158,
+            "type": "TextInput",
+            "text": "1号车位",
+            "id": "",
+            "bounds": [
+              161,
+              1301,
+              1160,
+              1463
+            ],
+            "clickable": true,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": "1.0.26.100",
+          "device_form": "bar",
+          "validation_level": "real_device"
+        }
+      },
+      "text": "${var:new_name}",
+      "clear": true,
+      "note": "--clear：点中→MoveEnd→删（当前长度+2）次，再输入；真机 A7 后输入框为「QKT201车位」（obs-0021），没有残留原名（K-QK-OP-202）"
+    },
+    {
+      "id": "S8",
+      "action": "tap",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-qk-g2c",
+        "seq": 8,
+        "step": "A8",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0022",
+        "obs_after": "obs-0024"
+      },
+      "expect_text": "QKT201车位",
+      "revalidate": true,
+      "target": {
+        "label": "select:xpath=//Dialog//Button[.//Text[@text=\"确认\"]]",
+        "strategies": [
+          {
+            "kind": "xpath",
+            "value": "//Dialog//Button[.//Text[@text=\"确认\"]]"
+          }
+        ],
+        "side_effect": "user_data",
+        "origin": "agent_select",
+        "observed": {
+          "session": "session-qk-g2c",
+          "seq": 8,
+          "obs": "obs-0023",
+          "outcome": "passed",
+          "node": {
+            "idx": 103,
+            "type": "Button",
+            "text": "",
+            "id": "",
+            "bounds": [
+              161,
+              1545,
+              1160,
+              1680
+            ],
+            "clickable": true,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": "1.0.26.100",
+          "device_form": "bar",
+          "validation_level": "real_device"
+        }
+      },
+      "note": "保存重命名：弹窗关闭，车位面板标题变为 QKT201车位（会话 A8 obs-0024）"
+    },
+    {
+      "id": "S9",
+      "action": "back",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-qk-g2c",
+        "seq": 9,
+        "step": "A9",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0025",
+        "obs_after": "obs-0026"
+      },
+      "expect_text": "常去地点",
+      "idempotent": true
+    },
+    {
+      "id": "S12",
+      "action": "tap",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-qk-g2c",
+        "seq": 12,
+        "step": "A12",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0031",
+        "obs_after": "obs-0033"
+      },
+      "revalidate": true,
+      "target": {
+        "label": "select:text=爱车",
+        "strategies": [
+          {
+            "kind": "text",
+            "value": "爱车"
+          }
+        ],
+        "side_effect": "navigation",
+        "origin": "agent_select",
+        "observed": {
+          "session": "session-qk-g2c",
+          "seq": 12,
+          "obs": "obs-0032",
+          "outcome": "passed",
+          "node": {
+            "idx": 178,
+            "type": "Text",
+            "text": "爱车",
+            "id": "",
+            "bounds": [
+              626,
+              2719,
+              694,
+              2754
+            ],
+            "clickable": false,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": "1.0.26.100",
+          "device_form": "bar",
+          "validation_level": "real_device"
+        }
+      },
+      "note": "离开 VPD 地图：切到爱车 tab。会话中第一次点击（A10）前台被 WeLink 抢占而 blocked，resume 后重做（A12）"
+    },
+    {
+      "id": "S13",
+      "action": "tap",
+      "timeout_s": 30.0,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-qk-g2c",
+        "seq": 13,
+        "step": "A13",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0034",
+        "obs_after": "obs-0036"
+      },
+      "expect_text": "常去地点",
+      "revalidate": true,
+      "target": {
+        "label": "select:text=ADS",
+        "strategies": [
+          {
+            "kind": "text",
+            "value": "ADS",
+            "within": {
+              "type": "TabBar"
+            }
+          }
+        ],
+        "side_effect": "vpd_entry",
+        "origin": "agent_select",
+        "observed": {
+          "session": "session-qk-g2c",
+          "seq": 13,
+          "obs": "obs-0035",
+          "outcome": "passed",
+          "node": {
+            "idx": 142,
+            "type": "Text",
+            "text": "ADS",
+            "id": "",
+            "bounds": [
+              363,
+              2719,
+              430,
+              2754
+            ],
+            "clickable": false,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": "1.0.26.100",
+          "device_form": "bar",
+          "validation_level": "real_device"
+        }
+      }
+    },
+    {
+      "id": "S14",
+      "action": "tap",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-qk-g2c",
+        "seq": 14,
+        "step": "A14",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0037",
+        "obs_after": "obs-0039"
+      },
+      "expect_text": "输入目的地或车位号",
+      "revalidate": true,
+      "target": {
+        "label": "select:text=搜索车位号设为目的地",
+        "strategies": [
+          {
+            "kind": "text",
+            "value": "搜索车位号设为目的地"
+          }
+        ],
+        "side_effect": "navigation",
+        "origin": "agent_select",
+        "observed": {
+          "session": "session-qk-g2c",
+          "seq": 14,
+          "obs": "obs-0038",
+          "outcome": "passed",
+          "node": {
+            "idx": 78,
+            "type": "Text",
+            "text": "搜索车位号设为目的地",
+            "id": "",
+            "bounds": [
+              216,
+              1653,
+              824,
+              1724
+            ],
+            "clickable": false,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": "1.0.26.100",
+          "device_form": "bar",
+          "validation_level": "real_device"
+        }
+      }
+    },
+    {
+      "id": "S15",
+      "action": "input",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-qk-g2c",
+        "seq": 15,
+        "step": "A15",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0040",
+        "obs_after": "obs-0042"
+      },
+      "revalidate": true,
+      "target": {
+        "label": "select:id=search_input",
+        "strategies": [
+          {
+            "kind": "id",
+            "value": "search_input"
+          }
+        ],
+        "side_effect": "navigation",
+        "origin": "agent_select",
+        "allow_input": true,
+        "observed": {
+          "session": "session-qk-g2c",
+          "seq": 15,
+          "obs": "obs-0041",
+          "outcome": "passed",
+          "node": {
+            "idx": 15,
+            "type": "Search",
+            "text": "",
+            "id": "search_input",
+            "bounds": [
+              175,
+              158,
+              1145,
+              293
+            ],
+            "clickable": true,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": "1.0.26.100",
+          "device_form": "bar",
+          "validation_level": "real_device"
+        }
+      },
+      "text": "${var:search_query}",
+      "note": "按新名称里独有的串搜索（原名「1号车位」不含 QKT201）；会话 A15 结果行：QKT201车位 / B1层 / 507 / 路线（obs-0042）"
+    }
+  ],
+  "assertions": [
+    {
+      "id": "A1",
+      "at": "S8",
+      "type": "text_absent",
+      "text": "编辑车位信息",
+      "desc": "点「确认」后编辑车位信息弹窗关闭（重命名被接受）",
+      "oracle_refs": [
+        "K-QK-TG-201",
+        "K-QK-USR-003"
+      ]
+    },
+    {
+      "id": "A2",
+      "at": "S8",
+      "type": "text_present",
+      "text": "QKT201车位",
+      "exact": true,
+      "desc": "确认后车位面板标题显示新名称（完整等于新名称，无原名残留）",
+      "oracle_refs": [
+        "K-QK-TG-201",
+        "K-QK-USR-003"
+      ]
+    },
+    {
+      "id": "A3",
+      "at": "S15",
+      "type": "target_present",
+      "target": {
+        "label": "搜索结果中含新名称的行",
+        "side_effect": "read_only",
+        "strategies": [
+          {
+            "kind": "xpath",
+            "value": "//*[@id=\"search_list\"]//__Common__[@clickable=\"true\"][.//Text[contains(@text,\"QKT201\")]]"
+          }
+        ]
+      },
+      "desc": "重新进入地图后按新名称搜索，结果列表里有该收藏（只看 search_list，排除输入框本身）",
+      "oracle_refs": [
+        "K-QK-TG-201",
+        "K-QK-USR-003"
+      ]
+    },
+    {
+      "id": "A4",
+      "at": "S15",
+      "type": "target_present",
+      "target": {
+        "label": "新名称结果行指向原车位 B1层-507",
+        "side_effect": "read_only",
+        "strategies": [
+          {
+            "kind": "xpath",
+            "value": "//*[@id=\"search_list\"]//__Common__[@clickable=\"true\"][.//Text[contains(@text,\"QKT201\")]][.//Text[contains(@text,\"B1\")]][.//Text[@text=\"507\"]]"
+          }
+        ]
+      },
+      "desc": "该结果行仍是 B1层 / 507（改名前「1号车位」的楼层与车位号，K-QK-OBS-202 记录），车位未因改名丢失",
+      "oracle_refs": [
+        "K-QK-TG-201"
+      ]
+    }
+  ],
+  "cleanup": [
+    {
+      "id": "C1",
+      "action": "stop_app",
+      "desc": "从任意中途页面复位（弹窗/面板/搜索页）"
+    },
+    {
+      "id": "C2",
+      "action": "launch",
+      "expect_state": "@in_app",
+      "timeout_s": 20
+    },
+    {
+      "id": "C2b",
+      "action": "wait",
+      "duration_s": 10.0,
+      "desc": "等闪屏结束、TabBar 可点"
+    },
+    {
+      "id": "C2c",
+      "action": "tap",
+      "skip_if_absent": "请下载车辆资源包",
+      "target": {
+        "label": "select:xpath=//Button[@text=\"下次再说\"]（车辆资源包弹窗）",
+        "side_effect": "navigation",
+        "origin": "agent_select",
+        "strategies": [
+          {
+            "kind": "xpath",
+            "value": "//Button[@text=\"下次再说\"]"
+          }
+        ],
+        "observed": {
+          "session": "session-qk-g2c",
+          "seq": 23,
+          "obs": "obs-0064",
+          "outcome": "fail_candidate",
+          "node": {
+            "idx": 163,
+            "type": "Button",
+            "text": "下次再说",
+            "id": "",
+            "bounds": [
+              135,
+              2538,
+              640,
+              2673
+            ],
+            "clickable": true,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": "1.0.26.100",
+          "device_form": "bar",
+          "validation_level": "real_device"
+        }
+      },
+      "note": "同 S0d：冷启动资源包弹窗，未出现则跳过"
+    },
+    {
+      "id": "C3",
+      "action": "tap",
+      "timeout_s": 30,
+      "expect_text": "搜索车位号设为目的地",
+      "target": {
+        "label": "select:text=ADS",
+        "side_effect": "vpd_entry",
+        "origin": "agent_select",
+        "strategies": [
+          {
+            "kind": "text",
+            "value": "ADS",
+            "within": {
+              "type": "TabBar"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "C4",
+      "action": "wait",
+      "duration_s": 10.0,
+      "desc": "等停车场数据与常去地点加载"
+    },
+    {
+      "id": "C5",
+      "action": "tap",
+      "expect_text": "常去地点",
+      "target": {
+        "label": "select:text=更多",
+        "side_effect": "navigation",
+        "origin": "agent_select",
+        "strategies": [
+          {
+            "kind": "text",
+            "value": "更多"
+          }
+        ]
+      }
+    },
+    {
+      "id": "C6",
+      "action": "tap",
+      "skip_if_absent": "^QKT201车位$",
+      "expect_text": "^编辑$",
+      "target": {
+        "label": "select:QKT201车位 行的「⋮」",
+        "side_effect": "navigation",
+        "origin": "agent_select",
+        "strategies": [
+          {
+            "kind": "xpath",
+            "value": "//Row[Row//Text[@text=\"QKT201车位\"]]/Column[@clickable=\"true\"]"
+          }
+        ]
+      },
+      "note": "没有 QKT201车位 收藏（重命名没成功）时跳过，其后各步也跳过；会话 A19 obs-0050→0052 验证"
+    },
+    {
+      "id": "C7",
+      "action": "tap",
+      "skip_if_absent": "^编辑$",
+      "expect_text": "编辑车位信息",
+      "target": {
+        "label": "select:text=编辑",
+        "side_effect": "user_data",
+        "origin": "agent_select",
+        "strategies": [
+          {
+            "kind": "text",
+            "value": "编辑"
+          }
+        ]
+      }
+    },
+    {
+      "id": "C8",
+      "action": "input",
+      "skip_if_absent": "编辑车位信息",
+      "clear": true,
+      "text": "${var:original_name}",
+      "target": {
+        "label": "select:xpath=//Dialog//TextInput",
+        "side_effect": "user_data",
+        "origin": "agent_select",
+        "allow_input": true,
+        "strategies": [
+          {
+            "kind": "xpath",
+            "value": "//Dialog//TextInput"
+          }
+        ]
+      }
+    },
+    {
+      "id": "C9",
+      "action": "tap",
+      "skip_if_absent": "编辑车位信息",
+      "expect_text": "^1号车位$",
+      "target": {
+        "label": "select:xpath=//Dialog//Button[.//Text[@text=\"确认\"]]",
+        "side_effect": "user_data",
+        "origin": "agent_select",
+        "strategies": [
+          {
+            "kind": "xpath",
+            "value": "//Dialog//Button[.//Text[@text=\"确认\"]]"
+          }
+        ]
+      },
+      "note": "会话 A22 obs-0061 验证改回后面板标题为「1号车位」；执行后请人工核对常去地点"
+    }
+  ],
+  "knowledge_used": [
+    {
+      "id": "K-QK-TG-201",
+      "use": "判据：重命名保存、重新进入后按新名称可搜到且指向同一车位",
+      "applicability": "applies",
+      "rationale": "test_goal 来源，applies_to app=qiankun_hm；unconfirmed → 相关断言只能判待确认",
+      "steps": [
+        "S8",
+        "S15"
+      ]
+    },
+    {
+      "id": "K-QK-USR-003",
+      "use": "判据（部分）：收藏可重命名、按收藏名可搜索",
+      "applicability": "applies",
+      "rationale": "只用 rename / search_by_name 两项；unconfirmed",
+      "steps": [
+        "S8",
+        "S15"
+      ]
+    },
+    {
+      "id": "K-GEN-001",
+      "use": "判据：全程不崩溃、不出现无响应",
+      "applicability": "applies",
+      "rationale": "confirmed 通用不变量，执行器自动套用",
+      "steps": []
+    },
+    {
+      "id": "K-QK-OBS-202",
+      "use": "操作经验：常去地点「⋮」→ 收藏面板 →「编辑」→「编辑车位信息」→「确认」；「1号车位」= B1层 / 507",
+      "applicability": "applies",
+      "rationale": "本机 1.0.26.100 直板 session-g1 实测；observation 不作判据，A4 的 B1/507 取值来自它",
+      "steps": [
+        "S4",
+        "S5",
+        "S6",
+        "S8"
+      ]
+    },
+    {
+      "id": "K-QK-OBS-201",
+      "use": "操作经验：进入 VPD 后停车场数据需要加载时间",
+      "applicability": "applies",
+      "rationale": "本机实测；因此 S2/S3 与 C4 等待",
+      "steps": [
+        "S2",
+        "S3"
+      ]
+    },
+    {
+      "id": "K-QK-OP-201",
+      "use": "操作经验：真机 input 追加；执行器新增 --clear",
+      "applicability": "applies",
+      "rationale": "用 clear 后可以在已有收藏上改名并改回，不必新收藏一次性车位",
+      "steps": [
+        "S7",
+        "C8"
+      ]
+    },
+    {
+      "id": "K-QK-OP-202",
+      "use": "操作经验：真机 --clear 可清干净预填名称；改名路径全程验证",
+      "applicability": "applies",
+      "rationale": "本次会话 session-qk-g2c 验证后新增；observation，不作判据",
+      "steps": [
+        "S7",
+        "S8",
+        "C6",
+        "C8",
+        "C9"
+      ]
+    },
+    {
+      "id": "K-QK-006",
+      "use": "背景：算路可能唤醒车辆",
+      "applicability": "applies",
+      "rationale": "本用例不点「查看路线」「路线」，不申请 route_planning",
+      "steps": []
+    },
+    {
+      "id": "auto-vpd/troubleshooting.md §11",
+      "use": "操作经验：地图 XComponent 不在 UI 树，搜索栏是确定性入口",
+      "applicability": "unknown",
+      "rationale": "debug 版文档；本机按其建议全程走搜索，不点地图",
+      "steps": [
+        "S14"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "type": "session",
+      "run": "session-qk-g2c",
+      "validation_level": "real_device",
+      "facts": {
+        "app": "qiankun_hm",
+        "bundle": "com.yinwang.qiankunapp.hm",
+        "device": "hdc:5MT0225B05000904",
+        "validation_level": "real_device",
+        "app_version": "1.0.26.100",
+        "device_form": "bar"
+      },
+      "included": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        12,
+        13,
+        14,
+        15
+      ],
+      "excluded": [
+        {
+          "seq": 10,
+          "step": "A10",
+          "action": "tap",
+          "outcome": "blocked",
+          "reason": "前台被 WeLink 抢占，未下发（blocked），A11 resume 后 A12 重做同一步",
+          "effect_unknown": false,
+          "obs": [
+            "obs-0027",
+            "obs-0027"
+          ]
+        },
+        {
+          "seq": 11,
+          "step": "A11",
+          "action": "resume",
+          "outcome": "passed",
+          "reason": "前台被 WeLink 抢占，未下发（blocked），A11 resume 后 A12 重做同一步",
+          "effect_unknown": false,
+          "obs": [
+            "obs-0029",
+            "obs-0030"
+          ]
+        },
+        {
+          "seq": 16,
+          "step": "A16",
+          "action": "back",
+          "outcome": "passed",
+          "reason": "恢复原名的清理动作，已改写进 cleanup C1-C9",
+          "effect_unknown": false,
+          "obs": [
+            "obs-0043",
+            "obs-0044"
+          ]
+        },
+        {
+          "seq": 17,
+          "step": "A17",
+          "action": "back",
+          "outcome": "passed",
+          "reason": "恢复原名的清理动作，已改写进 cleanup C1-C9",
+          "effect_unknown": false,
+          "obs": [
+            "obs-0045",
+            "obs-0046"
+          ]
+        },
+        {
+          "seq": 18,
+          "step": "A18",
+          "action": "tap",
+          "outcome": "passed",
+          "reason": "恢复原名的清理动作，已改写进 cleanup C1-C9",
+          "effect_unknown": false,
+          "obs": [
+            "obs-0047",
+            "obs-0049"
+          ]
+        },
+        {
+          "seq": 19,
+          "step": "A19",
+          "action": "tap",
+          "outcome": "passed",
+          "reason": "恢复原名的清理动作，已改写进 cleanup C1-C9",
+          "effect_unknown": false,
+          "obs": [
+            "obs-0050",
+            "obs-0052"
+          ]
+        },
+        {
+          "seq": 20,
+          "step": "A20",
+          "action": "tap",
+          "outcome": "passed",
+          "reason": "恢复原名的清理动作，已改写进 cleanup C1-C9",
+          "effect_unknown": false,
+          "obs": [
+            "obs-0053",
+            "obs-0055"
+          ]
+        },
+        {
+          "seq": 21,
+          "step": "A21",
+          "action": "input",
+          "outcome": "passed",
+          "reason": "恢复原名的清理动作，已改写进 cleanup C1-C9",
+          "effect_unknown": false,
+          "obs": [
+            "obs-0056",
+            "obs-0058"
+          ]
+        },
+        {
+          "seq": 22,
+          "step": "A22",
+          "action": "tap",
+          "outcome": "passed",
+          "reason": "恢复原名的清理动作，已改写进 cleanup C1-C9",
+          "effect_unknown": false,
+          "obs": [
+            "obs-0059",
+            "obs-0061"
+          ]
+        }
+      ],
+      "rejected": [],
+      "incomplete": [],
+      "effect_unknown": [],
+      "obs": [
+        "obs-0002",
+        "obs-0005",
+        "obs-0006",
+        "obs-0007",
+        "obs-0008",
+        "obs-0009",
+        "obs-0010",
+        "obs-0012",
+        "obs-0013",
+        "obs-0015",
+        "obs-0016",
+        "obs-0018",
+        "obs-0019",
+        "obs-0021",
+        "obs-0022",
+        "obs-0024",
+        "obs-0025",
+        "obs-0026",
+        "obs-0031",
+        "obs-0033",
+        "obs-0034",
+        "obs-0036",
+        "obs-0037",
+        "obs-0039",
+        "obs-0040",
+        "obs-0042"
+      ],
+      "trail": "runs/session-qk-g2c/events.jsonl"
+    }
+  ],
+  "history": [
+    {
+      "ts": "2026-09-30T21:22:40.814+08:00",
+      "to": "exploration_record",
+      "why": "由会话生成：待补齐目的、判据（独立来源）、清理与 knowledge_used"
+    }
+  ],
+  "replays": [
+    {
+      "run_id": "run-20260930-212714-de11",
+      "verdict": "blocked",
+      "hash": "220e216bbf18",
+      "validation_level": "real_device",
+      "device": "hdc:5MT0225B05000904",
+      "ts": "2026-09-30T21:29:05.108+08:00",
+      "failure_signature": [],
+      "alerts": 0,
+      "not_verified": 4,
+      "facts": {
+        "account_state": "logged_in",
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100",
+        "device_form": "bar"
+      }
+    },
+    {
+      "run_id": "run-20260930-213051-2acd",
+      "verdict": "blocked",
+      "hash": "f2c593f70482",
+      "validation_level": "real_device",
+      "device": "hdc:5MT0225B05000904",
+      "ts": "2026-09-30T21:33:38.811+08:00",
+      "failure_signature": [],
+      "alerts": 0,
+      "not_verified": 4,
+      "facts": {
+        "account_state": "logged_in",
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100",
+        "device_form": "bar"
+      }
+    }
+  ]
+}

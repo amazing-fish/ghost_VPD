@@ -1611,6 +1611,68 @@
       ]
     },
     {
+      "id": "K-QK-OBS-203",
+      "kind": "observation",
+      "subject": "qiankun_hm.vpd_home.parking_load_failed",
+      "statement": "1.0.26.100 直板，2026-09-30 21:53~22:27：冷启动后点 ADS 进 VPD，首页多次出现「停车场信息加载失败，请重试」，常去地点只剩「默认车位/默认上车点」占位，没有「更多」和收藏列表（run-20260930-214910-2087 obs-0060/0061；session-qk-g2c obs-0068）。点「请重试」后能恢复（session-qk-g2c A30 obs-0083 出现常去地点），但之后仍会复现（obs-0156/0159/0160）。已于 22:02 通过右上角「反馈」→「立即反馈」提交（obs-0075/0078）。执行器行为：必需清理某步阻塞后仍继续后续清理步骤，带 skip_if_absent 的步骤因目标不存在被判为通过，所以报告里 C6~C9 显示通过但实际没有执行改回，要人工核对。",
+      "expected": {
+        "load_failed_seen": true,
+        "retry_recovers": true,
+        "cleanup_skip_after_block_reports_passed": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100",
+        "device_form": "bar"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "run-20260930-214910-2087 obs-0060~0065；session-qk-g2c obs-0068/0075/0078/0083/0156/0159/0160",
+        "run": "session-qk-g2c"
+      },
+      "note": "现象记录，不是判据。用例清理里进入 VPD 后宜先等待并在出现『请重试』时点一次再找「更多」。",
+      "status": "unconfirmed",
+      "created": "2026-09-30T22:43:21.782+08:00",
+      "history": [
+        {
+          "ts": "2026-09-30T22:43:21.782+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-OBS-204",
+      "kind": "observation",
+      "subject": "qiankun_hm.vpd_home.feedback_panel",
+      "statement": "1.0.26.100 直板：VPD 首页右上角「反馈」打开「问题反馈」面板（问题类型：园区不支持/车位缺失/AR定位不准/偏离寻车路线/路线绕路/我的定位漂移/延迟；描述 TextArea 带「N/100」计数；「点击开始录音」；按钮「取消反馈」「立即反馈」）。描述上限 100 字，超出部分被截断（输入 105 字后只保留前 100 字，obs-0007）。点「立即反馈」后面板关闭并出现 toast「感谢您的宝贵建议」（obs-0022）。点「取消反馈」关闭面板，重新打开时描述为空（0/100）。",
+      "expected": {
+        "desc_max_len": 100,
+        "submit_toast": "感谢您的宝贵建议",
+        "cancel_resets_desc": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100",
+        "device_form": "bar"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "session-qk-g3 obs-0005/0007/0014/0017/0020/0022",
+        "run": "session-qk-g3"
+      },
+      "note": "现象记录，不是判据。反馈描述宜控制在 100 字内（时间;页面;原文;前一步;车辆;版本，用分号压缩），一次输入。",
+      "status": "unconfirmed",
+      "created": "2026-09-30T23:11:42.181+08:00",
+      "history": [
+        {
+          "ts": "2026-09-30T23:11:42.181+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
       "id": "K-QK-OP-201",
       "kind": "operation",
       "subject": "harmony.uitest.input_text_appends",
@@ -1635,6 +1697,67 @@
       "history": [
         {
           "ts": "2026-09-30T05:46:45.755+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-OP-202",
+      "kind": "operation",
+      "subject": "harmony.uitest.input_clear_rename",
+      "statement": "真机（OpenHarmony 7.0，Mate 80 Pro Max，乾崑 1.0.26.100 直板）上 input 加 clear 能清干净「编辑车位信息」TextInput 的预填名称：run-20260930-214910-2087 S7 clear_text deleted=6 后输入 QKT201车位，obs-0029 输入框为 QKT201车位；S8 点 //Dialog//Button[.//Text[@text=\"确认\"]] 后弹窗关闭、车位面板标题为 QKT201车位（obs-0032）。改回原名同样可行（session-qk-g2c，obs-0219 常去地点为 1号车位）。vpdtest act 的 input 必须带 --allow-input，否则输入被拦截、框内文字不变，这时再点「确认」只会保存原来的名称。",
+      "expected": {
+        "clear_supported": true,
+        "rename_and_restore": true,
+        "act_input_needs_allow_input": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100",
+        "device_form": "bar"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "run-20260930-214910-2087 S7/S8 obs-0029 obs-0032；session-qk-g2c 恢复 obs-0219",
+        "run": "run-20260930-214910-2087"
+      },
+      "note": "操作经验，不是判据。补全 K-QK-OP-201 note 里『真机是否清干净待核对』。",
+      "status": "unconfirmed",
+      "created": "2026-09-30T22:43:21.575+08:00",
+      "history": [
+        {
+          "ts": "2026-09-30T22:43:21.575+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-OP-203",
+      "kind": "operation",
+      "subject": "vpdtest.input.clear.textarea",
+      "statement": "真机（OpenHarmony 7.0，Mate 80 Pro Max，乾崑 1.0.26.100）上 act input 加 --clear 对反馈面板的多行 TextArea 清不干净：已有 100 字描述时 clear 报告 deleted=102、ok=true，但输入后框内仍残留原文前段并在其后追加新文本（session-qk-g3 A3，obs-0008→obs-0010）。对单行 TextInput（编辑车位信息）clear 有效（K-QK-OP-202，本次 run-20260930-225630-e456 S7/C8 再次成立）。",
+      "expected": {
+        "textarea_clear_complete": false,
+        "clear_reports_ok": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100",
+        "device_form": "bar"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "session-qk-g3 A3 obs-0008/0010",
+        "run": "session-qk-g3"
+      },
+      "note": "clear 的 ok=true 不代表已清空，input 后要读回框内文本核对。反馈描述写错时用「取消反馈」再重开面板一次性输入。",
+      "status": "unconfirmed",
+      "created": "2026-09-30T23:11:42.328+08:00",
+      "history": [
+        {
+          "ts": "2026-09-30T23:11:42.328+08:00",
           "to": "unconfirmed",
           "why": "新增"
         }
