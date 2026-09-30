@@ -28,13 +28,13 @@
       "review": "pending"
     },
     "qk_vpd_home": {
-      "desc": "VPD 首页（有「默认车位」，尚未算路）",
-      "require_text": ["默认车位"],
+      "desc": "VPD 首页（有搜索栏「搜索车位号设为目的地」，尚未算路）",
+      "require_text": ["搜索车位号设为目的地"],
       "forbid_text": ["开始", "暂停", "继续"],
       "forbid_text_pattern": ["路线规划中"],
-      "source": "app/config/mhero_config.py:279 vpd_success「默认车位」；原工程把它作为进入 VPD 成功的标志（vpd.py:643-656）",
+      "source": "原工程用「默认车位」（app/config/mhero_config.py:279）；1.0.26.100 真机上它只出现在停车场数据加载失败的占位页（session-g1 obs-0001），加载完成的首页没有（session-g1 obs-0016、session-qk-maint obs-0030），两种页面都有搜索栏。见 K-QK-OBS-201",
       "review": "pending",
-      "review_note": "算路后「默认车位」是否仍在页面上未知：若仍在，靠 forbid_text「开始」与算路结果页区分"
+      "review_note": "2026-09-30 按真机两种首页改签名；加载失败页也命中本状态，失败提示由观测的 ui_alerts 单独报出。算路结果页是否仍有搜索栏未核对，靠 forbid_text「开始」区分"
     },
     "qk_route_planning": {
       "desc": "算路中",

@@ -15,6 +15,11 @@ from .util import append_jsonl, new_id, now_iso, sha256_file, write_json
 
 # 页面内失败提示：真机上见过「停车场信息加载失败，」「请重试」。只做提示，不参与判定
 ANOMALY_TEXT = re.compile(r"失败|异常|出错|错误|解析|请重试|重新加载|网络不给力|超时|无法连接|服务繁忙")
+# 盖在被测 APP 上、会带出个人内容的系统窗口（窗口名前缀；hidumper 把名称截到 20 个字符）。
+# 2026-09-30 真机：聊天通知横幅盖住乾崑搜索栏，按 bundle 取的树里被遮部分消失，截图带出了消息内容
+PRIVATE_WINDOWS = ("SCBBannerNotificatio", "SCBScreenLock", "SCBDropdownPanel", "SCBNegativeScreen", "SCBGlobalSearch")
+# uitest inputText 经系统剪贴板输入，输入法的「来自剪贴板」栏会显示最近一次输入的原文
+KEYBOARD_WINDOWS = ("softKeyboard", "SCBKeyboardPanel")
 
 
 class RunStore:
@@ -53,6 +58,17 @@ class Observer:
         self.last_layout_key = None
         self.layouts_seen: dict = {}    # layout key -> 首次出现的 obs_id
         self.params = None              # 用于脱敏；由 runner 设置
+        self.secret_typed = False       # 本次运行/会话输入过密钥：之后输入法显示时不截图（剪贴板栏会显示原文）
+
+    def private_windows(self) -> Optional[list]:
+        """正在显示的、会带出个人内容的系统窗口；设备不支持窗口查询 → []，查询失败 → None。"""
+        if not hasattr(self.device, "shown_windows"):
+            return []
+        shown = self.device.shown_windows()
+        if shown is None:
+            return None
+        names = PRIVATE_WINDOWS + (KEYBOARD_WINDOWS if self.secret_typed else ())
+        return [w for w in shown if w.startswith(names)]
 
     def _display_for(self, tree: Optional[UiTree]) -> Optional[dict]:
         win = tree.window_rect() if (tree is not None and tree.status == "ok") else None
@@ -107,13 +123,26 @@ class Observer:
             # 取布局树要几秒：期间 APP 可能崩溃、退后台或被别的应用覆盖。截图前再确认一次，避免截到其他应用
             obs["screenshot"] = {"status": "withheld", "reason": f"取树后前台已变为 {fg2}，隐私策略不截图"}
             obs["foreground_after"] = fg2
+        elif (over := self.private_windows()) is None or over:
+            # 通知横幅/下拉栏/锁屏盖在 APP 上时 aa dump 仍报 APP 在前台，按 bundle 取的树也不含这些窗口
+            obs["screenshot"] = {"status": "withheld", "reason": "窗口查询失败，无法确认没有系统弹层，隐私策略不截图"
+                                 if over is None else f"系统窗口 {over} 正在显示（通知/锁屏/输入法剪贴板），隐私策略不截图"}
+            obs["system_overlays"] = over
         else:
             r = self.device.screenshot(d / "screen.png")
-            if r.ok and (d / "screen.png").exists():
+            # 截图要约 1 秒：期间弹出的横幅在截图前查不到，截完再查一次，查到就删掉
+            late = self.private_windows() if r.ok else []
+            if r.ok and late != [] and (d / "screen.png").exists():
+                (d / "screen.png").unlink()
+                obs["screenshot"] = {"status": "withheld", "reason": "截图期间出现系统弹层或无法确认，已删除截图"}
+                obs["system_overlays"] = late
+            elif r.ok and (d / "screen.png").exists():
                 obs["screenshot"] = {"status": "ok", "path": self.store.rel(d / "screen.png"),
                                      "sha256": sha256_file(d / "screen.png")[:16]}
             else:
                 obs["screenshot"] = {"status": "error", "error_class": r.error_class, "error": r.error}
+        if "system_overlays" in obs:  # 查询失败（None）也记：报告里写"查询失败"
+            self.store.event("system_overlay", obs_id=oid, windows=obs["system_overlays"])
 
         display = self._display_for(tree)
         lay = layout_mod.profile(tree, display, self.layout_cfg)

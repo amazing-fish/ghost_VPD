@@ -14,7 +14,7 @@ from .observe import RunStore
 from .params import Params
 from .report import render_run
 from .tree import UiTree
-from .util import now_iso, read_json, write_json
+from .util import now_iso, read_json, read_jsonl, write_json
 from .verdict import PASSED, case_verdict, evaluate_assertion
 from .workspace import RunContext, Workspace
 
@@ -165,6 +165,10 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
         if o.get("ui_alerts"):
             alerts.append({"obs": o["obs_id"], "ts": o["ts"], "texts": o["ui_alerts"]["texts"]})
     run["ui_alerts"] = alerts
+    # 截图被系统弹层挡下的观测、输入过密钥（剪贴板残留）：都列进报告，由人收尾
+    run["system_overlays"] = [{"obs": e["obs_id"], "ts": e["ts"], "windows": e["windows"]}
+                              for e in read_jsonl(store.events_path) if e.get("event") == "system_overlay"]
+    run["clipboard_may_hold_secret"] = ctx.observer.secret_typed
     run = params.redact(run)
     run["experience_candidates"] = [c["id"] for c in xstore.propose_from_run(run)] if propose else []
     write_json(store.dir / "run.json", run)

@@ -253,11 +253,16 @@
       ]
     },
     "qk_spot_input": {
-      "desc": "「输入车位号设为目的地」入口",
+      "desc": "VPD 首页搜索栏（1.0.26.100 真机文字「搜索车位号设为目的地」，原工程为「输入车位号设为目的地」）",
       "side_effect": "navigation",
       "status": "unverified",
       "source_flow": "app/service/vpd/vpd_harmony.py:17-54 input_parking_space",
       "strategies": [
+        {
+          "kind": "text",
+          "value": "搜索车位号设为目的地",
+          "source": "真机 1.0.26.100：session-g1 obs-0001/obs-0016、session-qk-maint obs-0030"
+        },
         {
           "kind": "xpath",
           "value": "//*[@text=\"输入车位号设为目的地\"]",

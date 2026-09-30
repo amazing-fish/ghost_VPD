@@ -445,6 +445,76 @@ def test_locked_screen_blocks_every_dispatch_including_back(ws, tmp_path):
         assert out["result"]["attribution"] == "environment"
 
 
+WMS_DUMP = """----------------------------------WindowManagerService----------------------------------
+-------------------------------------ScreenGroup 0-------------------------------------
+WindowName           DisplayId Pid     WinId Type Mode Flag ZOrd Orientation [ x    y    w    h    ] [ OffsetX OffsetY ]
+SCBBannerNotificatio 0         5333    14    2106 1    0    103  0           [ 0    0    1320 2848 ] [ 0       0       ]
+SCBStatusBar23       0         5333    26    2108 1    0    2202 0           [ 0    0    1320 131  ] [ 0       0       ]
+hm0                  0         57218   255   1    1    0    101  0           [ 0    0    1320 2848 ] [ 0       0       ]
+---------------------------------------------------------------------------------------
+SCBScreenLock12      0         5333    15    2110 1    0    -1   0           [ 0    0    1320 2848 ] [ 0       0       ]
+SCBScenePanel1       0         5333    3     2109 1    0    5    0           [ 0    0    0    0    ] [ 0       0       ]
+"""
+
+
+def test_window_list_parses_only_shown_windows():
+    from vpdtest.devices.harmony_hdc import parse_windows
+    # ZOrd=-1（隐藏）和零面积的窗口不算显示；认不出表头 → None（不能当成"没有弹层"）
+    assert parse_windows(WMS_DUMP) == ["SCBBannerNotificatio", "SCBStatusBar23", "hm0"]
+    assert parse_windows("[Fail] permission denied") is None
+
+
+def _set_windows(ws, session, windows):
+    st = ws.runs_dir / f"session-{session}" / "replay_state.json"
+    s = read_json(st)
+    s["windows"] = windows
+    write_json(st, s)
+
+
+def test_notification_banner_withholds_screenshot(ws, tmp_path):
+    # 真机：聊天通知横幅盖住 APP 顶部，aa dump 仍报 APP 在前台，按 bundle 取的树不含横幅——截图会带出消息内容
+    dev = _lab_world(tmp_path)
+    _start(ws, dev, "bn1")
+    _set_windows(ws, "bn1", ["SCBBannerNotificatio", "app0"])
+    out = cli(ws, "observe", "--app", "motor_hm", "--session", "bn1", "--device", dev)
+    o = out["observation"]
+    assert o["screenshot"]["status"] == "withheld" and o["system_overlays"] == ["SCBBannerNotificatio"]
+    assert not (ws.runs_dir / "session-bn1" / "obs" / o["obs_id"] / "screen.png").exists()
+    assert o["tree"]["status"] == "ok"  # 树照样取：Agent 还能按树判断
+    _set_windows(ws, "bn1", None)  # 查询失败：无法确认，也不截图
+    o = cli(ws, "observe", "--app", "motor_hm", "--session", "bn1", "--device", dev)["observation"]
+    assert o["screenshot"]["status"] == "withheld" and "查询失败" in o["screenshot"]["reason"]
+    _set_windows(ws, "bn1", ["app0"])
+    o = cli(ws, "observe", "--app", "motor_hm", "--session", "bn1", "--device", dev)["observation"]
+    assert o["screenshot"]["status"] == "ok"
+
+
+def test_banner_during_capture_deletes_screenshot(ws, tmp_path, monkeypatch):
+    from vpdtest.devices.replay import ReplayDevice
+    dev = _lab_world(tmp_path)
+    _start(ws, dev, "bn2")
+    calls = iter([["app0"], ["SCBBannerNotificatio", "app0"]])  # 截图前没有，截完出现
+    monkeypatch.setattr(ReplayDevice, "shown_windows", lambda self: next(calls))
+    o = cli(ws, "observe", "--app", "motor_hm", "--session", "bn2", "--device", dev)["observation"]
+    assert o["screenshot"]["status"] == "withheld" and "已删除" in o["screenshot"]["reason"]
+    assert not (ws.runs_dir / "session-bn2" / "obs" / o["obs_id"] / "screen.png").exists()
+
+
+def test_secret_input_hides_keyboard_screenshots_for_rest_of_session(ws, tmp_path):
+    # uitest inputText 经剪贴板：输入法「来自剪贴板」栏会显示刚输入的原文
+    dev = _input_world(tmp_path)
+    _start(ws, dev, "kb1")
+    _set_windows(ws, "kb1", ["softKeyboard1", "app0"])
+    o = cli(ws, "observe", "--app", "motor_hm", "--session", "kb1", "--device", dev)["observation"]
+    assert o["screenshot"]["status"] == "ok"  # 没输入过密钥：输入法在场也照常截图
+    ws.config["secrets"] = {"PW": "Kx9-secret-value"}
+    ev = ws.runs_dir / "session-kb1" / "events.jsonl"
+    append_jsonl(ev, {"ts": "t", "event": "secret_typed", "step": "A9"})  # 前一条 act 输入过密钥
+    o = cli(ws, "observe", "--app", "motor_hm", "--session", "kb1", "--device", dev)["observation"]
+    assert o["screenshot"]["status"] == "withheld" and o["system_overlays"] == ["softKeyboard1"]
+    assert "Kx9-secret-value" not in ev.read_text(encoding="utf-8")
+
+
 def test_input_clear_replaces_instead_of_appending(ws, tmp_path):
     dev = _input_world(tmp_path)
     _start(ws, dev, "cl1")

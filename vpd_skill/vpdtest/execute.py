@@ -231,6 +231,10 @@ class Executor:
                 if not cr.ok:
                     att.update(status="device_error", error_class=cr.error_class)
                     return att
+            if is_ref or (ctx.params and ctx.params.contains_secret([text])):
+                # inputText 经系统剪贴板：之后输入法的剪贴板栏会显示原文，本会话里输入法在场时不再截图
+                ctx.observer.secret_typed = True
+                ctx.store.event("secret_typed", step=step["id"], note="剪贴板可能留有密钥原文：结束后请人工清空剪贴板")
             res = ctx.device.input_text(*loc["point"], text)
         elif kind != "wait":
             att["status"] = "invalid_step"

@@ -64,6 +64,8 @@ def _open_session(ws, a):
         if not old:
             raise PermissionError(f"会话 {store.run_id} 没有会话头，无法确认 APP/设备：请换一个新的 --session 名")
         head = {"identity": {k: old.get(k) for k in ("app", "device", "validation_level")}}
+    # 每条 act 是新进程：会话里输入过密钥（剪贴板可能留有原文）要沿用到后续观测
+    ctx.observer.secret_typed = any(e.get("event") == "secret_typed" for e in events)
     if head is None:
         disp = dev.display_info() if hasattr(dev, "display_info") else {}
         store.event("session_open", schema=SESSION_SCHEMA, identity=ident,
@@ -263,7 +265,8 @@ def diagnose(res: dict) -> Optional[dict]:
         elif out["offscreen"]:
             out["hint"] = "树里有但在可视区外：先 act swipe 再试"
         else:
-            out["hint"] = "当前 UI 树里没有：看截图确认文字；地图等自绘区域（XComponent）不在 UI 树里，选择器无法覆盖"
+            out["hint"] = ("当前 UI 树里没有：看截图确认文字；地图等自绘区域（XComponent）不在 UI 树里，选择器无法覆盖；"
+                           "通知横幅盖住的部分也会从树里消失，几秒后重新 observe 再试")
     elif st == "target_stale":
         out["revalidate"] = last.get("revalidate")
         out["hint"] = "观察与下发之间页面变了：重新 observe 后再决定"

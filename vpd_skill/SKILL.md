@@ -63,7 +63,9 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
   vehicle_selection、vpd_entry、route_planning、user_data）要 `--authorize <副作用>` 且目标声明同一副作用；
   supervised（vehicle_motion、vehicle_control）另需 `--supervisor`，vehicle_motion 还要用例 `safety`。缺任何一项 → 运行前判阻塞，一步都不执行。
 - 账号、密码只写成 `{"secret": "NAME"}`，值来自环境变量 `VPD_SECRET_NAME`。不要把用户在对话里给的账号、密码、锁屏密码写进任何文件或命令行；
-  锁屏始终由人手动解开。执行器会在 UI 树、run.json、events.jsonl 落盘前脱敏，页面含已输入敏感值时不截图。
+  锁屏始终由人手动解开。执行器会在 UI 树、run.json、events.jsonl 落盘前脱敏，页面含已输入敏感值时不截图；
+  通知横幅/下拉栏/锁屏盖在 APP 上时也不截图（`system_overlays`），被盖住的控件会从树里消失，稍后重新 observe。
+  真机 `input` 经系统剪贴板输入：输入过密钥后报告会提示清空剪贴板；输入文字不能含空白。
 - 控车过程用 `monitor` 观察（状态序列、TOR/接管、车速、故障文字），主观感受用 advisory `visual_review`。
   运动中出现首次失败、超时或用例结束仍未停 → 执行器自动安全停止并单独记录，首次失败保留；报告要求人工接管时立即转告用户。
 - 点击前要确认控件可用的步骤写 `require_enabled`（例如「开始」置灰表示有故障）：不可用时判阻塞，不点。

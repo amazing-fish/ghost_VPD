@@ -136,7 +136,13 @@ def render_run(run: dict) -> str:
         out += ["", "## 页面内的失败/异常提示（产品问题候选，需人工确认并反馈）", "",
                 "| 时间 | 观测 | 文字 |", "|---|---|---|"]
         out += [f"| {_esc(u['ts'])} | {u['obs']} | {_esc('；'.join(u['texts']))} |" for u in run["ui_alerts"]]
-    snap = {i["id"]: i for i in run.get("knowledge_snapshot") or []}
+    if run.get("system_overlays"):
+        out += ["", "## 被系统弹层挡下的截图", "", "| 时间 | 观测 | 窗口 |", "|---|---|---|"]
+        out += [f"| {_esc(u['ts'])} | {u['obs']} | {_esc(', '.join(u['windows'] or ['查询失败']))} |"
+                for u in run["system_overlays"]]
+    if run.get("clipboard_may_hold_secret"):
+        out += ["", "> 本次通过 uitest inputText 输入过密钥：它经系统剪贴板输入，剪贴板可能仍留有原文，请在手机上清空剪贴板。"]
+    snap ={i["id"]: i for i in run.get("knowledge_snapshot") or []}
     if run.get("knowledge_used") or snap:
         f = run.get("facts") or {}
         out += ["", "## 用到的知识与适用性", "",

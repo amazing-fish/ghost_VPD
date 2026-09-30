@@ -373,6 +373,10 @@ class ReplayDevice:
     def screen_locked(self) -> Optional[bool]:
         return bool(self.state["locked"] or not self.state["screen_on"])
 
+    def shown_windows(self) -> Optional[list]:
+        # 合成世界默认只有被测 APP 的窗口；测试可在 replay_state 里放 windows（通知横幅等），null 表示查询失败
+        return self.state.get("windows", ["app0"])
+
     def clear_text(self, x: int, y: int, count: int) -> DeviceResult:
         if self._in_app():
             hits = _hits(self._live(self._screen_spec(self.current_screen())["root"]), x, y, self.world["screen"])

@@ -11,7 +11,8 @@
 | `source` | `hdc`（真机）或 `replay`（离线替身） |
 | `foreground` / `process_alive` | 前台 bundle、目标进程是否存活（`pidof`） |
 | `tree.status` | `ok` 有可用内容 / `empty` 调用成功但只有占位根节点 / `unavailable` 页面不提供 UI 树 / `error` 采集或解析失败 / `not_collected` 目标不在前台，按隐私策略不采 |
-| `screenshot.status` | `ok` / `withheld`（前台非目标 APP，不截图）/ `error` / `skipped` |
+| `screenshot.status` | `ok` / `withheld`（前台非目标 APP、树为空、页面含已输入密钥、系统弹层在显示或窗口查询失败，都不截图；`reason` 写明）/ `error` / `skipped` |
+| `system_overlays` | 截图前后查到的、会带出个人内容的系统窗口（通知横幅、下拉栏、锁屏、负一屏、全局搜索；输入过密钥后还包括输入法），`null` 表示窗口查询失败。截完才出现的会把截图删掉。这些窗口不在按 bundle 取的树里，被盖住的控件会从树里消失 |
 | `page.state` | 已声明状态 ID，或 `unknown`（附 `signature`）、`ambiguous`（附 `candidates`）、`undetermined`（无可用树）、`out_of_app`（附 `suspected_crash`） |
 | `page.interrupts` | 命中的中断：`{id, class: benign/anomaly/unknown, review: reviewed/pending}` |
 | `texts` | 可见文本（前 60 条），便于 Agent 快速判断 |

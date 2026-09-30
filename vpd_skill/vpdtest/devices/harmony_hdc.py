@@ -64,6 +64,24 @@ def parse_version(dump: str) -> Optional[str]:
     return None
 
 
+_WIN_ROW_RE = re.compile(r"^(\S+)\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+(-?\d+)\s+\d+\s+\[\s*-?\d+\s+-?\d+\s+(\d+)\s+(\d+)\s*\]")
+
+
+def parse_windows(dump: str) -> Optional[list]:
+    """解析 `hidumper -s WindowManagerService -a -a` 的窗口表，返回正在显示的窗口名（ZOrd≠-1 且有面积）。
+
+    名称被截断到 20 个字符（如 SCBBannerNotificatio）。认不出表头时返回 None：格式不明不能当成"没有弹层"。
+    """
+    if "WindowName" not in (dump or ""):
+        return None
+    shown = []
+    for line in dump.splitlines():
+        m = _WIN_ROW_RE.match(line.strip())
+        if m and m.group(2) != "-1" and int(m.group(3)) > 0 and int(m.group(4)) > 0:
+            shown.append(m.group(1))
+    return shown
+
+
 _SECTION_RE = re.compile(r"^-+\s*(Screen|Display) ID:\s*(\d+)\s*-+$")
 _KV_RE = re.compile(r"^([A-Za-z][\w<>, ]*?):?\s{2,}(.+?)\s*,?\s*$")
 _FOLD_MAP = {"EXPAND": "expanded", "FOLDED": "folded", "HALF_FOLD": "half_folded", "UNKNOWN": "unknown"}
@@ -267,6 +285,11 @@ class HdcDevice:
         if not (power.ok and lock.ok):
             return None
         return parse_kv(power.raw, "Current State") != "AWAKE" or parse_kv(lock.raw, "screenLocked") != "false"
+
+    def shown_windows(self) -> Optional[list]:
+        """当前显示的窗口名；查询失败或格式认不出 → None。只取窗口名与层级，不取窗口内容。"""
+        r = self._shell("hidumper", "-s", "WindowManagerService", "-a", "-a", op="window_list")
+        return parse_windows(r.raw) if r.ok else None
 
     def clear_text(self, x: int, y: int, count: int) -> DeviceResult:
         """真机 uiInput inputText 是追加：先点中输入框、光标移到末尾（MoveEnd=2082），再按 count 次退格（Del=2055）。"""
