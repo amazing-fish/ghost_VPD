@@ -1546,6 +1546,129 @@
       "note": "原工程只定义了这三个按钮；暂停后页面的其他内容是 Skill 推测。"
     },
     {
+      "id": "K-QK-OBS-201",
+      "kind": "observation",
+      "subject": "qiankun_hm.vpd.home_parking_data_loading",
+      "statement": "1.0.26.100 直板（Mate 80 Pro Max，391 vp）VPD 首页：停车场数据未加载时显示「停车场信息加载失败，请重试」与「默认车位 点击车位去设置 / 默认上车点」，此时搜索车位无结果；数据加载完成后变为「华为练秋湖研发中心 泊车代驾 共 13308 个」与常去地点网格（3号车位[默认] / 1号停车点[上车点] / … / 更多），「默认车位」文字消失，states.json 的 qk_vpd_home 签名（require_text 默认车位）不再命中，page.state=unknown。",
+      "expected": {
+        "loading_failed_text": "停车场信息加载失败，请重试",
+        "loaded_marker": "共 N 个",
+        "qk_vpd_home_signature_matches_after_load": false,
+        "search_results_before_load": "none"
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100",
+        "device_form": "bar"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "runs/session-g1 obs-0001（加载失败）、obs-0009（搜 486 无结果）、obs-0016/obs-0017（加载完成，state=unknown）",
+        "run": "session-g1"
+      },
+      "note": "现场观察，不是判据。影响：ensure_state qk_vpd_home 的 recipe 在数据加载完成的首页上可能等不到签名；qk_vpd_home 签名需人工评审修订（本次未改 states.json）。2026-09-30 维护者补记：qk_vpd_home 已改为 require_text「搜索车位号设为目的地」（两种首页都有，session-qk-maint obs-0030 复核），qk_spot_input 加了同名文字策略。",
+      "status": "unconfirmed",
+      "created": "2026-09-30T05:46:45.484+08:00",
+      "history": [
+        {
+          "ts": "2026-09-30T05:46:45.484+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-OBS-202",
+      "kind": "observation",
+      "subject": "qiankun_hm.favorites.manage_entry_release",
+      "statement": "1.0.26.100 直板：常去地点网格每项右侧有「⋮」（UI 树文本为 ':' 的可点击 Column），点击打开收藏车位面板（名称 / 楼层 / 车位号 /「编辑」/「默认」复选框 / 添加标签 / 停车位姿 / 收藏★ / 查看路线）；「编辑」弹出「编辑车位信息」Dialog（TextInput 预填当前名称、按钮「确认」、右上角关闭图标）。搜索页按收藏名（如「1号车位」）能搜到该收藏（行：1号车位 / B1层 / 507 / 路线）。搜索结果行打开的车位面板上点「收藏」，账号已有 5 个收藏车位时提示「收藏失败，最多可收藏5个车位」（点击已送达、业务层拒绝）。本账号当时收藏车位 5 个（3号车位[默认]、1号车位、4号车位、5号车位×2），另有 1/2/3号停车点。",
+      "expected": {
+        "manage_entry": "row_menu_dots",
+        "rename_entry": "编辑 → 编辑车位信息 → 确认",
+        "search_by_favorite_name": true,
+        "favorite_quota_spots": 5,
+        "favorite_tap_reaches_handler": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100",
+        "device_form": "bar"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "runs/session-g1 obs-0037（常去地点展开）、obs-0041（收藏面板）、obs-0063（编辑车位信息 Dialog）、obs-0049（按「1号车位」搜索）、obs-0031（收藏失败提示）",
+        "run": "session-g1"
+      },
+      "note": "现场观察，不是判据。与 K-AV-010（debug 版 phone_fc78649：更多只展开、无管理/编辑/重命名入口）和 K-AV-009（收藏点击被 XComponent 吞）在本版本上不一致；两者 applies_to 版本不可比较，建议负责人 knowledge resolve/标注版本差异。重命名确认后的行为（是否保存、新名称是否可搜）本次未验证。",
+      "status": "unconfirmed",
+      "created": "2026-09-30T05:46:45.620+08:00",
+      "history": [
+        {
+          "ts": "2026-09-30T05:46:45.620+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-OP-201",
+      "kind": "operation",
+      "subject": "harmony.uitest.input_text_appends",
+      "statement": "真机（OpenHarmony 7.0，Mate 80 Pro Max）上执行器的 input（uitest uiInput inputText）在已有内容的输入框里是追加：预填「1号车位」的编辑框输入「QK改名测试」后变为「1号车位QK改名测试」；中文经剪贴板输入（输入法显示「来自剪贴板」，剪贴板残留测试文字）。执行器没有清空/删除/全选动作，回放设备 input_text 是替换语义，与真机不一致。因此重命名只能写成『原名+后缀』，需要恢复原名的清理无法执行；按名搜索用后缀（原名中不存在的子串）区分新旧名称。",
+      "expected": {
+        "input_semantics": "append",
+        "clear_supported": false,
+        "cjk_via_clipboard": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "device_form": "bar"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "runs/session-g1 A22 obs-0066/obs-0067（追加）、obs-0049 截图（来自剪贴板）；vpdtest/devices/replay.py input_text 为替换",
+        "run": "session-g1"
+      },
+      "note": "操作经验，不是判据。空搜索框输入不受影响（A8/A16/A30）。补齐方式（需人工评审执行器改动）：增加 clear/keyEvent Del/全选能力，或在 input 前清空。2026-09-30 维护者补记：执行器已加 act/步骤的 --clear（点中→MoveEnd→按当前文字长度+2 次 Del），回放设备同步为先清空；真机上是否清干净待下一次会话核对。",
+      "status": "unconfirmed",
+      "created": "2026-09-30T05:46:45.755+08:00",
+      "history": [
+        {
+          "ts": "2026-09-30T05:46:45.755+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-TG-201",
+      "kind": "requirement",
+      "subject": "qiankun_hm.favorite.rename_persist_search",
+      "statement": "收藏车位重命名（编辑车位信息→确认）后保存成功；离开并重新进入 VPD 地图（ADS）后，在「搜索车位号设为目的地」里按新名称仍能搜到该收藏车位，且指向同一车位（楼层/车位号不变）。",
+      "expected": {
+        "rename_saved": true,
+        "found_by_new_name_after_reentry": true,
+        "same_spot": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "test_goal",
+        "ref": "测试目标原文（2026-09-30，会话 g1）：「测试收藏车位重命名后，重新进入地图是否仍能按新名称找到它。」"
+      },
+      "note": "来自测试目标本身的期望，不是独立需求；负责人 knowledge confirm 前，引用它的断言只能判待确认。『重新进入地图』在 TC-QK-201 中实现为 爱车→ADS 切换 tab；冷启动后重新进入未覆盖。",
+      "status": "unconfirmed",
+      "created": "2026-09-30T05:46:45.346+08:00",
+      "history": [
+        {
+          "ts": "2026-09-30T05:46:45.346+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
       "id": "K-QK-USR-001",
       "kind": "requirement",
       "subject": "qiankun_hm.env.test_vehicle",
