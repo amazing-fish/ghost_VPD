@@ -557,8 +557,7 @@ class Executor:
             if box is None:
                 return pt
             # 触摸会穿透透明浮层；只有被别的可点击控件（面板、tab、按钮）接走的点才换
-            node = tree.touch_target(*pt)
-            if node is None or tree.is_within(node, box) or tree.is_within(box, node):
+            if tree.touch_check(*pt, box)["allowed"]:
                 return pt
         return first
 

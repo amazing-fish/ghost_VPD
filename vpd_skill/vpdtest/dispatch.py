@@ -119,17 +119,19 @@ class Dispatcher:
         if loc["status"] != "found":
             return {"status": "target_unresolved"}
         node = None
+        touch = None
         if tree is not None and tree.status == "ok":
             hit = next((a["node"] for a in loc.get("attempts", []) if a.get("status") == "found" and a.get("node")), None)
             node = tree.nodes[hit["idx"]] if hit is not None else tree.node_at(*loc["point"])
-            scope = tree.clickable_container(node) if node is not None else None
-            actual = tree.touch_target(*loc["point"])
-            if scope is None or actual is None or not tree.is_within(actual, scope):
-                return {"status": "target_obscured", "blocker": actual.brief() if actual else None,
-                        "expected": scope.brief() if scope else None}
+            if node is None:
+                return {"status": "target_unresolved"}
+            touch = tree.touch_check(*loc["point"], node)
+            if not touch["allowed"]:
+                return {"status": "target_obscured", "blocker": touch["receiver"],
+                        "expected": touch["scope"], "touch": touch}
         policy = self.ctx.policy.check_tap(tree, loc["point"], loc["basis"], target,
                                            tap.get("state_deny"), self.ctx.authorized, node=node)
-        return {"status": "ok" if policy["allowed"] else "policy_denied", "policy": policy}
+        return {"status": "ok" if policy["allowed"] else "policy_denied", "policy": policy, "touch": touch}
 
     def _reject(self, op, preconditions, checks, att):
         result = DeviceResult(op, False, False, att["status"], "前置状态复核未通过，未下发")

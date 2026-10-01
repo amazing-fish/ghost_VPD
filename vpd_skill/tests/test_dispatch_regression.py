@@ -55,6 +55,33 @@ def test_topmost_overlay_blocks_normal_and_dismiss_tap(ws, tmp_path, dismiss):
     assert taps == []
 
 
+@pytest.mark.parametrize("covered", [False, True])
+@pytest.mark.parametrize("clickable_parent", [False, True])
+def test_nonclickable_target_uses_same_touch_rule_for_point_and_dispatch(ws, tmp_path, covered, clickable_parent):
+    spec = _lab_world(tmp_path)
+    data = read_json(spec.split(":", 1)[1])
+    data["screens"]["home"]["root"]["click"] = clickable_parent
+    children = [{"t": "XComponent", "id": "canvas", "b": [100, 400, 1200, 1600], "click": False}]
+    if covered:
+        children.append({"t": "Button", "b": [100, 400, 1200, 1600], "click": True,
+                         "children": [{"t": "Text", "text": "遮挡面板", "b": [100, 400, 1200, 1600]}]})
+    data["screens"]["home"]["root"]["children"] = children
+    write_json(spec.split(":", 1)[1], data)
+    ctx = _ctx(ws, spec)
+    taps = []
+    ctx.device.tap = lambda *p: taps.append(p) or DeviceResult("tap", True, True)
+    out = Executor(ctx).run_step({"id": "A1", "action": "tap", "retry": 0,
+                                  "target": parse_select("id=canvas"), "random_point": True}, "session")
+    events = [e for e in read_jsonl(ctx.store.events_path) if e["event"] == "dispatch"]
+    if covered:
+        assert taps == [] and out["final_status"] == "target_obscured"
+        assert events[-1]["checks"]["tap"]["blocker"]["type"] == "Button"
+    else:
+        assert len(taps) == 1 and out["outcome"] == "passed"
+        assert events[-1]["checks"]["tap"]["touch"]["basis"] == (
+            "receiver_ancestor" if clickable_parent else "no_clickable_receiver")
+
+
 @pytest.mark.parametrize("changed", [False, None])
 def test_pin_stops_before_next_digit_when_lock_changes(monkeypatch, changed):
     dev = object.__new__(HdcDevice)

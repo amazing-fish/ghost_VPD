@@ -231,6 +231,20 @@ class UiTree:
                 and vis[n.idx][1] <= y < vis[n.idx][3]]
         return max(hits, key=lambda n: n.idx, default=None)
 
+    def touch_check(self, x: int, y: int, scope: Node) -> dict:
+        """选点和下发共用：无接收节点可穿透；目标子树及其可点击祖先属于同一触摸路径。"""
+        actual = self.touch_target(x, y)
+        if actual is None:
+            allowed, basis = True, "no_clickable_receiver"
+        elif self.is_within(actual, scope):
+            allowed, basis = True, "receiver_in_target"
+        elif self.is_within(scope, actual):
+            allowed, basis = True, "receiver_ancestor"
+        else:
+            allowed, basis = False, "unrelated_receiver"
+        return {"allowed": allowed, "basis": basis, "receiver": actual.brief() if actual else None,
+                "scope": scope.brief()}
+
     def is_within(self, node: Node, scope: Node) -> bool:
         cur = node.idx
         while cur is not None:
