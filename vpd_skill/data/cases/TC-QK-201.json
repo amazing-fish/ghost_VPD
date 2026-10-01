@@ -818,18 +818,14 @@
           }
         ]
       },
-      "note": "只在已收藏面板（有「编辑」）上点「收藏」取消；取消是否直接生效还是另有确认弹窗未验证，执行后请人工确认常去地点中已无 QKT201"
+      "note": "只在已收藏面板（有「编辑」）上点「收藏」取消。2026-10-01 阔折叠真机核对（session-qk-fav-probe obs-0035→obs-0038）：取消直接生效，无确认弹窗，toast「已取消收藏」，面板回到未收藏形态（无「编辑」）"
     },
     {
       "id": "C8",
       "action": "back",
-      "required": false
-    },
-    {
-      "id": "C9",
-      "action": "back",
       "required": false,
-      "expect_text": "常去地点"
+      "expect_text": "常去地点",
+      "note": "从搜索结果打开的车位面板按一次返回就回到 VPD 首页（搜索列表不保留，session-qk-fav-probe obs-0040）；再按一次会退出 APP（obs-0042），所以只按一次"
     }
   ],
   "knowledge_used": [
