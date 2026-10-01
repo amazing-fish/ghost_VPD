@@ -220,6 +220,26 @@ def test_gate_checks_declared_foreground_without_app_context():
     assert not res.sent and res.error_class == "foreground_changed" and taps == []
 
 
+@pytest.mark.parametrize("action", ["back", "home"])
+@pytest.mark.parametrize("foreground", [None, "com.ohos.sceneboard", "com.example.other"])
+def test_navigation_requires_identified_app_or_desktop(ws, tmp_path, action, foreground):
+    from vpdtest.dispatch import Dispatcher
+    ctx = _ctx(ws, _lab_world(tmp_path))
+    keys = []
+    ctx.device.foreground = lambda: foreground
+    ctx.device.last_query_error = None
+    ctx.device.key = lambda name: keys.append(name) or DeviceResult("key", True, True)
+    dispatcher = Dispatcher(ctx.device, ctx.store, ctx)
+    result = dispatcher.send("key", action, preconditions=dispatcher.app_conditions(action))
+    event = read_jsonl(ctx.store.events_path)[-1]
+    assert event["checks"]["foreground"]["actual"] == foreground
+    if foreground == "com.ohos.sceneboard":
+        assert result.sent and keys == [action]
+    else:
+        assert not result.sent and keys == []
+        assert result.error_class == ("state_indeterminate" if foreground is None else "foreground_changed")
+
+
 def test_unlocked_does_not_require_valid_pin_config(ws, tmp_path):
     from test_goal_loop import _locked_world
     spec = _locked_world(tmp_path, "already", locked=False)

@@ -13,7 +13,7 @@ class Dispatcher:
     def app_conditions(self, action):
         allowed = [self.ctx.app.bundle]
         if action in ("back", "home"):
-            allowed += [LAUNCHER, None]
+            allowed.append(LAUNCHER)
         return {"screen_locked": False, "foreground": allowed, "recover_unlock": True}
 
     def app_state(self, att, fresh=False):
@@ -50,8 +50,8 @@ class Dispatcher:
             checks["foreground"] = {"actual": fg, "expected": expected, "query_error": error}
             att["foreground_check"] = {"foreground": fg, "expected": expected,
                                        "screen_locked": checks.get("screen_locked", {}).get("actual")}
-            if fg is None and error:
-                att.update(status="state_indeterminate", error_class="state_query_failed", action_required=True,
+            if fg is None:
+                att.update(status="state_indeterminate", error_class="state_query_failed" if error else "foreground_unknown", action_required=True,
                            state_check={"query": "foreground", "result": None, "detail": error})
                 return False, checks
             if fg not in allowed:

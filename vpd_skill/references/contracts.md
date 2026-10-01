@@ -59,7 +59,7 @@
 | `launch` | 设备在线、未锁屏、已安装 | — | `expect_state`（常用 `@in_app`） | 步骤 `timeout_s`，上限 policy `max_wait_s` | ≤2 | 启动/恢复 APP |
 | `stop_app` | — | — | 无 | 同上 | ≤2 | 结束进程 |
 | `tap` | 目标唯一定位；policy 允许 | `target` 或（agent 模式）`point`+`basis` | `expect_state` | 同上 | ≤2 | 取决于目标 `side_effect` |
-| `back` / `home` | APP 在前台 | — | `expect_state` | 同上 | ≤2 | 导航 |
+| `back` / `home` | 未锁屏；明确识别被测 APP 或桌面在前台 | — | `expect_state` | 同上 | ≤2 | 导航 |
 | `swipe` | 有可滚动容器或已知窗口尺寸 | `direction`，可选 `within` | `expect_state` | 同上 | ≤2 | 滚动；起止点取容器可见区域的 75%/25% 高度，分栏时不会滑到另一栏；滑动前后内容指纹不变记为 `scroll_end` |
 | `input` | policy 开启输入且目标允许；非敏感框 | `target`,`text` | `expect_state` | 同上 | ≤2 | 改变输入框内容 |
 | `ensure_state` | recipe 存在 | `state` | 到达该状态且无中断 | 由子步骤决定 | 子步骤各自 | recipe 中动作的副作用 |
@@ -68,6 +68,10 @@
 | `read` | 目标唯一定位，或 `read_scope: page` | `target`、`read_scope`（node 节点文字 / self 节点子树 / page 整页）、`pattern`（取第 1 组） | 读到值（`measurement.value` 非空） | 同上 | ≤2 | 无 |
 | `monitor` | — | `duration_s`、`interval_s`、`watch{名: 正则}`、`until_state` / `until_text` / `until_text_gone`、`stop_on`、`abort_on` | 见下方「监视」 | `duration_s`（上限 `max_monitor_s`） | 不重试 | 无（只观测） |
 | `flow` | `flows.json` 中存在 | `flow`、`params` | 每个子步骤各自的后置条件 | 子步骤各自 | 子步骤默认 1 | 子步骤的副作用 |
+
+前台查询返回未知（`None`）时，`back`/`home` 按 `state_indeterminate` 停下，即使查询命令成功也不下发。
+已识别的桌面允许导航；真机 `aa dump` 没有前台 mission 不能作为桌面证据，当前适配器保持返回未知，
+直到有未锁屏桌面及系统层窗口的样本支持正面识别。
 
 `tap`/`input` 的可选字段：
 
