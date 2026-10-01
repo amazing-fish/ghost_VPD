@@ -515,16 +515,22 @@ def test_secret_input_hides_keyboard_screenshots_for_rest_of_session(ws, tmp_pat
     assert "Kx9-secret-value" not in ev.read_text(encoding="utf-8")
 
 
-def _pad(extra=()):
-    """锁屏键盘：1-9 三列三行、0 在 8 下方；extra 追加干扰节点。"""
+def _pad(extra=(), original_text=False):
+    """锁屏键盘：1-9 三列三行、0 在 8 下方；extra 追加干扰节点。original_text=True 模拟 Pura X Max：
+    数字 text 为空、只在 originalText 里，另有一个 text 为空、originalText 为字母的角标节点。"""
     keys = []
     for i, d in enumerate("1234567890"):
         col, row = (1, 3) if d == "0" else (i % 3, i // 3)
         x, y = 200 + col * 330, 1400 + row * 260
-        keys.append({"attributes": {"type": "Button", "clickable": "true", "visible": "true",
+        digit = {"type": "Text", "visible": "true", "bounds": f"[{x + 100},{y + 60}][{x + 160},{y + 140}]"}
+        digit.update({"text": "", "originalText": d} if original_text else {"text": d})
+        kids = [{"attributes": digit, "children": []}]
+        if original_text:
+            kids.append({"attributes": {"type": "Text", "visible": "true", "text": "", "originalText": "ABC",
+                                        "bounds": f"[{x + 60},{y + 150}][{x + 200},{y + 190}]"}, "children": []})
+        keys.append({"attributes": {"type": "Stack", "clickable": "true", "visible": "true",
                                     "bounds": f"[{x},{y}][{x + 260},{y + 200}]", "text": ""},
-                     "children": [{"attributes": {"type": "Text", "visible": "true", "text": d,
-                                                  "bounds": f"[{x + 100},{y + 60}][{x + 160},{y + 140}]"}, "children": []}]})
+                     "children": kids})
     return {"attributes": {"type": "root", "visible": "true", "bounds": "[0,0][1320,2848]"}, "children": keys + list(extra)}
 
 
@@ -541,6 +547,13 @@ def test_pin_pad_recognised_only_when_unambiguous():
     assert find_pin_pad({"attributes": {"type": "root", "bounds": "[0,0][1320,2848]"}, "children": []}) is None
 
 
+def test_pin_pad_digits_from_original_text():
+    # Pura X Max 锁屏键盘：text 全空、数字在 originalText 里
+    from vpdtest.devices.harmony_hdc import find_pin_pad
+    pad = find_pin_pad(_pad(original_text=True))
+    assert pad is not None and pad["1"] == (330, 1500) and pad["0"] == (660, 2280)
+
+
 def _locked_world(tmp_path, name, pin="246810", locked=True):
     p = tmp_path / f"{name}.json"
     write_json(p, {"bundle": BUNDLE, "app_version": "3.0.3.200-replay", "device": {"model": "LAB", "os": "replay"},
@@ -551,21 +564,24 @@ def _locked_world(tmp_path, name, pin="246810", locked=True):
 
 def test_unlock_uses_configured_pin_once_and_never_echoes_it(ws, tmp_path):
     ws.config["secrets"] = {"LOCK_PIN": "246810"}
-    out = cli(ws, "unlock", "--device", _locked_world(tmp_path, "lk"))
+    dev = _locked_world(tmp_path, "lk")
+    ws.config["unlock_secrets"] = {dev: "LOCK_PIN"}
+    out = cli(ws, "unlock", "--device", dev)
     assert out["status"] == "unlocked" and out["method"] == "pin" and "246810" not in json.dumps(out)
     assert cli(ws, "unlock", "--device", _locked_world(tmp_path, "open", locked=False))["method"] == "already"
-    # PIN 不对：只输一次，写防重入标记；之后不再输入（连续输错会锁机）
     dev = _locked_world(tmp_path, "other", pin="135790")
+    ws.config["unlock_secrets"][dev] = "LOCK_PIN"
     bad = cli(ws, "unlock", "--device", dev)
     assert bad["status"] == "pin_rejected" and bad["action_required"]
     again = cli(ws, "unlock", "--device", dev)
-    assert again["status"] == "refused" and (ws.runs_dir / "unlock_guard.json").exists()
-    assert "246810" not in (ws.runs_dir / "unlock_guard.json").read_text(encoding="utf-8")
-    with pytest.raises(SystemExit):  # 没有命令行传 PIN 的入口
+    guard = next(ws.runs_dir.glob("unlock-guard-*.json"))
+    assert again["status"] == "pin_rejected" and guard.exists()
+    assert "246810" not in guard.read_text(encoding="utf-8")
+    with pytest.raises(SystemExit):
         build_parser().parse_args(["unlock", "--pin", "1"])
     ws.config["secrets"] = {"LOCK_PIN": "12ab"}
-    (ws.runs_dir / "unlock_guard.json").unlink()
-    assert cli(ws, "unlock", "--device", dev)["status"] == "refused"  # 不是纯数字：不输入
+    guard.unlink()
+    assert cli(ws, "unlock", "--device", dev)["status"] == "missing_secret"
 
 
 def test_unlock_pin_secret_selects_key_by_name_only(ws, tmp_path):
@@ -678,7 +694,7 @@ def test_screen_locked_is_tristate_and_wake_unlock_never_gestures_on_unknown(mon
     assert _FakeHdc(monkeypatch, {"power_state": ASLEEP}).dev.screen_locked() is True
     assert _FakeHdc(monkeypatch, {"power_state": AWAKE, "lock_state": UNLOCKED}).dev.screen_locked() is False
     # 明确熄屏 → 唤醒；唤醒后锁屏查询失败 → 不上滑
-    f = _FakeHdc(monkeypatch, {"power_state": [ASLEEP, AWAKE], "lock_state": [False]})
+    f = _FakeHdc(monkeypatch, {"power_state": [ASLEEP, ASLEEP, AWAKE], "lock_state": [False]})
     out = f.dev.wake_unlock("000000")
     assert out["status"] == "indeterminate" and "wakeup" in f.ops and "unlock_swipe" not in f.ops
 
@@ -703,7 +719,8 @@ def test_unlock_command_reports_indeterminate_as_action_required(ws, tmp_path, m
 def test_clear_text_aborts_when_move_end_fails(monkeypatch):
     f = _FakeHdc(monkeypatch, {"key_move_end": False})
     f.dev.tap = lambda x, y: f.DR("tap", True, True)
-    r = f.dev.clear_text(10, 20, 5)
+    from vpdtest.dispatch import Dispatcher
+    r = f.dev.clear_text(10, 20, 5, Dispatcher(f.dev), {})
     assert not r.ok and r.sent and "MoveEnd" in r.error and "key_del" not in f.ops
 
 
@@ -711,7 +728,7 @@ def test_clear_failure_is_recorded_as_dispatched(ws, tmp_path, monkeypatch):
     from vpdtest.devices import DeviceResult
     from vpdtest.devices.replay import ReplayDevice
     monkeypatch.setattr(ReplayDevice, "clear_text",
-                        lambda self, x, y, n: DeviceResult("clear_text", True, False, "command_failed", "MoveEnd 失败"))
+                        lambda self, x, y, n, **kw: DeviceResult("clear_text", True, False, "command_failed", "MoveEnd 失败"))
     dev = _input_world(tmp_path)
     _start(ws, dev, "cf1")
     out = cli(ws, "act", "input", "--select", "xpath=//TextInput", "--allow-input", "--clear", "--text", "新名字",
@@ -811,25 +828,29 @@ def test_input_containing_a_secret_is_not_recorded(ws, tmp_path, monkeypatch):
 
 
 def test_unlock_guard_is_written_before_pin_and_blocks_concurrent_or_crashed_runs(ws, tmp_path, monkeypatch):
-    from vpdtest.devices.replay import ReplayDevice
+    from vpdtest.util import sha256_obj
     ws.config["secrets"] = {"LOCK_PIN": "246810"}
-    guard = ws.runs_dir / "unlock_guard.json"
+    dev = _locked_world(tmp_path, "c1")
+    ws.config["unlock_secrets"] = {dev: "LOCK_PIN"}
+    guard = ws.runs_dir / f"unlock-guard-{sha256_obj(dev)[:12]}.json"
     seen = {}
-
-    def crash(self, pin):
+    def crash(device, pin, dispatcher):
         seen["guard_during"] = guard.exists() and read_json(guard)["status"]
         raise RuntimeError("进程在输 PIN 中途退出")
-    monkeypatch.setattr(ReplayDevice, "wake_unlock", crash)
+    monkeypatch.setattr("vpdtest.unlock.wake_unlock", crash)
     with pytest.raises(RuntimeError):
-        cli(ws, "unlock", "--device", _locked_world(tmp_path, "c1"))
-    assert seen["guard_during"] == "in_progress" and guard.exists()   # 输 PIN 前已落标记，崩溃后仍在
+        cli(ws, "unlock", "--device", dev)
+    assert seen["guard_during"] == "in_progress" and guard.exists()
     monkeypatch.undo()
-    ws.config["secrets"] = {"LOCK_PIN": "246810"}
-    out = cli(ws, "unlock", "--device", _locked_world(tmp_path, "c2"))
-    assert out["status"] == "refused" and out["action_required"]      # 标记在：不再输 PIN
+    out = cli(ws, "unlock", "--device", dev)
+    assert out["status"] == "pin_rejected" and out["action_required"]
+    # 不同设备的防重入记录互不污染。
+    other = _locked_world(tmp_path, "c2")
+    ws.config["unlock_secrets"][other] = "LOCK_PIN"
+    assert cli(ws, "unlock", "--device", other)["status"] == "unlocked"
     guard.unlink()
-    assert cli(ws, "unlock", "--device", _locked_world(tmp_path, "c3"))["status"] == "unlocked"
-    assert not guard.exists()                                           # 确认解锁才删
+    assert cli(ws, "unlock", "--device", dev)["status"] == "unlocked"
+    assert not guard.exists()
 
 
 def test_unlock_swipe_scales_with_display_and_stops_without_size(monkeypatch):

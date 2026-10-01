@@ -13,7 +13,10 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
 
@@ -43,8 +46,42 @@ def parse_select(spec: str, within: Optional[str] = None, side_effect: str = "na
     return target
 
 
+@contextmanager
+def session_lock(session_dir: Path, timeout_s: float = 30):
+    """跨进程互斥完整会话操作；进程退出由 OS 释放，锁文件无需删除或猜测陈旧性。"""
+    session_dir.mkdir(parents=True, exist_ok=True)
+    with (session_dir / ".session.lock").open("a+b") as handle:
+        handle.seek(0, os.SEEK_END)
+        if handle.tell() == 0:
+            handle.write(b"\0")
+            handle.flush()
+        deadline = time.monotonic() + timeout_s
+        while True:
+            try:
+                handle.seek(0)
+                if os.name == "nt":
+                    import msvcrt
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError("同一会话正在执行另一个操作，等待会话锁超时")
+                time.sleep(0.05)
+        try:
+            yield
+        finally:
+            handle.seek(0)
+            if os.name == "nt":
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
 def next_seq(store) -> int:
-    return 1 + sum(1 for it in trail(store.dir)["items"] if it.get("seq") is not None)
+    return 1 + max((it["seq"] for it in trail(store.dir)["items"] if it.get("seq") is not None), default=0)
 
 
 class SessionMismatch(PermissionError):
@@ -256,9 +293,12 @@ def _to_case_step(it: dict, req: dict, session_dir: Path, test_data: dict, facts
             "from_session": {"session": session_dir.name, "seq": seq, "step": it.get("step_id"),
                              "outcome": it.get("outcome") or it["kind"], "effect_unknown": bool(it.get("effect_unknown")),
                              "obs_before": it.get("obs_before"), "obs_after": it.get("obs_after")}}
-    for k in ("expect", "expect_text", "duration"):
+    # monitor 的期望状态是结束条件 until_state（执行层只认它）；写成 expect_state 会让重放跑满时长后判通过
+    names = {"expect": "until_state" if action == "monitor" else "expect_state", "duration": "duration_s",
+             "interval": "interval_s"}
+    for k in ("expect", "expect_text", "duration", "interval", "watch"):
         if req.get(k):
-            step[{"expect": "expect_state", "duration": "duration_s"}.get(k, k)] = req[k]
+            step[names.get(k, k)] = req[k]
     if action == "swipe" and req.get("direction"):
         step["direction"] = req["direction"]
     if action == "swipe" and req.get("within"):

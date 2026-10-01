@@ -290,6 +290,13 @@ class ReplayDevice:
 
     # ---- 动作 ----
     def tap(self, x: int, y: int) -> DeviceResult:
+        if self.state["locked"] and hasattr(self, "_pin_buffer"):
+            self._pin_buffer += str(x)
+            expected = str(self.world.get("initial", {}).get("lock_pin", ""))
+            if len(self._pin_buffer) >= len(expected):
+                self.state["pin_attempts"] = self.state.get("pin_attempts", 0) + 1
+                self.state["locked"] = self._pin_buffer != expected
+            return self._res("tap", raw="PIN digit")
         if not self._in_app():
             return self._res("tap", raw="tap outside target app")
         sid = self.current_screen()
@@ -383,32 +390,23 @@ class ReplayDevice:
             return None
         return bool(self.state["locked"] or not self.state["screen_on"])
 
-    def wake_unlock(self, pin: Optional[str]) -> dict:
-        # 合成世界：initial.lock_pin 为锁屏 PIN；face_unlock=true 表示唤醒即解开
-        locked = self.screen_locked()
-        if locked is None:
-            return {"status": "indeterminate", "stage": "唤醒前", "reason": "查不到锁屏状态，未发手势"}
-        if not locked:
-            return {"status": "unlocked", "method": "already"}
+    def wake(self):
         self.state["screen_on"] = True
-        if self.world.get("initial", {}).get("face_unlock"):
-            self.state["locked"] = False
-            self._save()
-            return {"status": "unlocked", "method": "swipe"}
-        if not pin:
-            self._save()
-            return {"status": "locked", "reason": "需要 PIN"}
-        self.state["pin_attempts"] = self.state.get("pin_attempts", 0) + 1
-        ok = pin == str(self.world.get("initial", {}).get("lock_pin"))
-        self.state["locked"] = not ok
-        self._save()
-        return {"status": "unlocked", "method": "pin"} if ok else {"status": "pin_rejected", "reason": "PIN 不对"}
+        return self._res("wake")
+
+    def lock_pin_pad(self):
+        self._pin_buffer = ""
+        return {str(n): (n, 0) for n in range(10)}
+
+    def wake_unlock(self, pin, dispatcher=None):
+        from ..unlock import wake_unlock
+        return wake_unlock(self, pin, dispatcher, sleep=lambda _: None)
 
     def shown_windows(self) -> Optional[list]:
         # 合成世界默认只有被测 APP 的窗口；测试可在 replay_state 里放 windows（通知横幅等），null 表示查询失败
         return self.state.get("windows", ["app0"])
 
-    def clear_text(self, x: int, y: int, count: int) -> DeviceResult:
+    def clear_text(self, x: int, y: int, count: int, dispatcher, preconditions) -> DeviceResult:
         if self._in_app():
             hits = _hits(self._live(self._screen_spec(self.current_screen())["root"]), x, y, self.world["screen"])
             if hits:

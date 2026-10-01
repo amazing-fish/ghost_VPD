@@ -16,7 +16,7 @@ from .observe import RunStore
 from .params import Params
 from .runner import run_case
 from .session import (IDENTITY_KEYS, SessionMismatch, dispatched, effect_unknown, from_session, next_seq,
-                      parse_select, summarize, trail)
+                      parse_select, summarize, trail, session_lock)
 from .templates import crop
 from .util import append_jsonl, now_iso, read_json, read_jsonl, write_json
 from .workspace import RunContext, Workspace
@@ -43,44 +43,18 @@ def cmd_doctor(ws: Workspace, a) -> dict:
 
 
 def cmd_unlock(ws: Workspace, a) -> dict:
-    """唤醒并解锁设备。PIN 只从 secrets.<--lock-secret，默认 LOCK_PIN> / VPD_SECRET_<同名> 读，不接受命令行传入，也不回显。
-    防重入标记在可能输入 PIN 之前就以独占方式创建：进程中途被杀或两个进程同时解锁，标记都已在，
-    下一次一律不再输入，直到人删除标记（连续输错会锁机）。只有确认已解锁、或确认没输过 PIN 才删掉。"""
+    from .unlock import unlock_device
     dev = ws.device(a.device)
-    guard = ws.runs_dir / "unlock_guard.json"
-    if guard.exists():
-        return {"status": "refused", "action_required": True, "guard": str(guard),
-                "reason": "上次 PIN 被拒，已停止自动解锁：请人工解锁并核对 PIN 后删除该文件"}
-    key = getattr(a, "lock_secret", None) or "LOCK_PIN"
-    if not re.fullmatch(r"LOCK_PIN(_[A-Z0-9]+)?", key):
-        raise ValueError("--lock-secret 只接受 LOCK_PIN 或 LOCK_PIN_<名称> 形式的键名（传入值不回显）")
-    pin = os.environ.get(f"VPD_SECRET_{key}") or (ws.config.get("secrets") or {}).get(key)
-    if pin is not None and not re.fullmatch(r"\d{4,16}", str(pin)):
-        return {"status": "refused", "action_required": True, "reason": f"{key} 不是 4-16 位数字，未输入"}
-    if not hasattr(dev, "wake_unlock"):
-        return {"status": "unsupported", "device": dev.spec}
-    if pin is not None:
-        try:
-            write_json(guard, {"ts": now_iso(), "device": dev.spec, "status": "in_progress",
-                               "reason": "正在自动解锁；进程若中途退出，本文件保留，需人工确认屏幕状态后删除"}, exclusive=True)
-        except FileExistsError:  # 另一个进程刚开始解锁
-            return {"status": "refused", "action_required": True, "guard": str(guard),
-                    "reason": "另一个解锁进程正在进行或刚中途退出：请人工确认屏幕状态后删除该文件"}
-    res = dev.wake_unlock(str(pin) if pin is not None else None)  # 抛异常时输没输 PIN 不确定：标记保留
-    if pin is not None:
-        if res["status"] == "unlocked" or (res["status"] != "pin_rejected" and not res.get("pin_entered")):
-            guard.unlink()
-        else:
-            # 输过 PIN 却不能确认解开（被拒/输到一半/之后查不到状态）：保留标记，停止自动输入
-            write_json(guard, {"ts": now_iso(), "device": dev.spec, "status": res["status"], "reason": res.get("reason")})
-    return {"device": dev.spec, **res, "action_required": res["status"] != "unlocked"}
+    store = RunStore(ws.runs_dir, kind="unlock")
+    return unlock_device(ws, dev, store, getattr(a, "lock_secret", None))
 
 
 # 会话头：第一次 observe/act 时写入并固定；之后每次都与它比较，APP 或设备不同就拒绝
 SESSION_SCHEMA = 2
 # act_request 只记这些字段（白名单）：新加的命令行参数默认不落盘，输入文字只记长度
 REQUEST_FIELDS = ("action", "select", "within", "target", "point", "basis", "side_effect", "allow_input", "text_len", "clear",
-                  "expect", "expect_text", "timeout", "duration", "direction", "authorize", "supervisor")
+                  "expect", "expect_text", "timeout", "duration", "interval", "watch", "direction", "authorize",
+                  "supervisor")
 
 
 def _open_session(ws, a):
@@ -128,6 +102,11 @@ def _session_redaction(ws, ctx, store) -> None:
 
 
 def cmd_observe(ws: Workspace, a) -> dict:
+    with session_lock(ws.runs_dir / f"session-{a.session}"):
+        return _cmd_observe(ws, a)
+
+
+def _cmd_observe(ws: Workspace, a) -> dict:
     app, store, dev, ctx = _open_session(ws, a)
     obs, tree = ctx.observe(a.label or "observe")
     store.event("agent_observe", obs_id=obs["obs_id"], label=a.label or "observe", state=obs["page"]["state"])
@@ -155,6 +134,11 @@ def _last_window(store) -> Optional[list]:
 
 
 def cmd_act(ws: Workspace, a) -> dict:
+    with session_lock(ws.runs_dir / f"session-{a.session}"):
+        return _cmd_act(ws, a)
+
+
+def _cmd_act(ws: Workspace, a) -> dict:
     app, store, dev, ctx = _open_session(ws, a)
     seq = next_seq(store)
     step_id = a.step_id or f"A{seq}"
@@ -165,6 +149,8 @@ def cmd_act(ws: Workspace, a) -> dict:
            "basis": a.basis, "side_effect": a.side_effect, "allow_input": a.allow_input,
            "text_len": len(a.text) if a.text is not None else None, "clear": a.clear, "expect": a.expect,
            "expect_text": a.expect_text, "timeout": a.timeout, "duration": a.duration,
+           "interval": a.interval if a.action == "monitor" else None,
+           "watch": dict(kv.split("=", 1) for kv in a.watch or []) if a.action == "monitor" else None,
            "direction": getattr(a, "direction", None), "authorize": sorted(set(a.authorize or [])),
            "supervisor": bool(a.supervisor)}
     request = {k: raw[k] for k in REQUEST_FIELDS if raw.get(k) not in (None, [], False)}

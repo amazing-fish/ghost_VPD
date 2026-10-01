@@ -7,6 +7,7 @@ bm dump、hidumper）。适配：参数用列表传递（不拼 shell 字符串�
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import time
@@ -16,7 +17,7 @@ from typing import Optional
 
 from . import DeviceResult
 
-KEYS = {"back": "Back", "home": "Home"}
+KEYS = {"back": "Back", "home": "Home", "move_end": "2082", "delete": "2055"}
 _FAIL_MARKERS = ("[fail]", "error:", "error code:")
 _LOCKED_MARKERS = ("10106102", "screen is locked")
 # 2026-09-29 真机运行中出现：hdc 通道重建期间所有命令都返回该错误，几秒后自行恢复
@@ -83,18 +84,21 @@ def parse_windows(dump: str) -> Optional[list]:
 
 
 def find_pin_pad(tree_raw: dict) -> Optional[dict]:
-    """锁屏数字键盘：0-9 各恰好一个可点击容器，且 1-9 排成 3 列 × 3 行、0 在 8 的正下方。认不准 → None（不猜着点）。"""
+    """锁屏数字键盘：0-9 各恰好一个可点击容器，且 1-9 排成 3 列 × 3 行、0 在 8 的正下方。认不准 → None（不猜着点）。
+    数字取 text，text 为空时取 originalText：Pura X Max（OpenHarmony 6.1.1.135）锁屏键盘的 text 全空、数字只在
+    originalText 里（2026-10-01 真机 dumpLayout）；Mate 80 上 text 就是数字。"""
     from ..tree import UiTree
     t = UiTree(tree_raw)
     keys = {}
     for n in t.nodes:
-        if n.text in "0123456789" and len(n.text or "") == 1 and t.shown(n):
+        digit = n.text or str(n.attrs.get("originalText", "") or "")
+        if len(digit) == 1 and digit in "0123456789" and t.shown(n):
             h = t.clickable_container(n)
             if not h.clickable:
                 continue
-            if n.text in keys and keys[n.text].bounds != h.bounds:
+            if digit in keys and keys[digit].bounds != h.bounds:
                 return None  # 同一数字出现两个可点击位置（比如通知里的数字按钮）：不认
-            keys[n.text] = h
+            keys[digit] = h
     if sorted(keys) != list("0123456789"):
         return None
     cx = {d: (keys[d].bounds[0] + keys[d].bounds[2]) // 2 for d in keys}
@@ -184,7 +188,8 @@ class HdcDevice:
         cmd = [self.hdc] + (["-t", self.serial] if with_target and self.serial else []) + args
         t0 = time.monotonic()
         try:
-            r = subprocess.run(cmd, capture_output=True, timeout=timeout or self.timeout_s)
+            r = subprocess.run(cmd, capture_output=True, timeout=timeout or self.timeout_s,
+                               creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
         except FileNotFoundError:
             return DeviceResult(op, False, False, "tool_missing", f"找不到 {self.hdc}，请确认已加入 PATH")
         except subprocess.TimeoutExpired as e:
@@ -335,86 +340,31 @@ class HdcDevice:
         lock = self._shell("hidumper", "-s", "ScreenlockService", "-a", "-all", op="lock_state")
         return {"true": True, "false": False}.get(parse_kv(lock.raw, "screenLocked") if lock.ok else None)
 
-    def wake_unlock(self, pin: Optional[str]) -> dict:
-        """唤醒并解锁：先上滑（人脸/无密码会直接解开），仍锁着才输一次 PIN。
+    def wake(self) -> DeviceResult:
+        return self._shell("power-shell", "wakeup", op="wakeup")
 
-        每个会发出手势/按键的步骤之前都要 screen_locked() 明确为 True；查询失败（None）就停下，返回
-        indeterminate，不发手势——已解锁的手机上一次上滑会划到用户正在用的应用里。
-        只输一次：连续输错会锁机，重试由调用方（有防重入标记）决定。锁屏的全量布局只在内存里解析
-        （通知内容会出现在里面），不落盘；PIN 和按键坐标都不进返回值。
-        """
-        def unknown(stage: str, **kw) -> dict:
-            return {"status": "indeterminate", "stage": stage, **kw,
-                    "reason": f"{stage}时查不到锁屏状态（hidumper 失败或输出认不出），未继续发手势：请人工确认屏幕状态"}
-
-        locked = self.screen_locked()
-        if locked is False:
-            return {"status": "unlocked", "method": "already"}
-        if locked is None:
-            return unknown("唤醒前")
-        self._shell("power-shell", "wakeup", op="wakeup")
-        time.sleep(1.0)
-        locked = self.screen_locked()
-        if locked is False:
-            return {"status": "unlocked", "method": "wake"}
-        if locked is None:
-            return unknown("上滑前")
-        swipe = unlock_swipe_points(self.display_info())
-        if swipe is None:
-            return {"status": "indeterminate", "stage": "上滑前",
-                    "reason": "查不到屏幕尺寸，无法计算上滑位置，未发手势：请人工解锁"}
-        self._shell("uitest", "uiInput", "swipe", *swipe, 3000, op="unlock_swipe")
-        time.sleep(1.5)
-        locked = self.screen_locked()
-        if locked is False:
-            return {"status": "unlocked", "method": "swipe"}
-        if locked is None:
-            return unknown("输入 PIN 前")
-        if not pin:
-            return {"status": "locked", "reason": "需要 PIN：config.local.json secrets.LOCK_PIN 或 VPD_SECRET_LOCK_PIN 未设置"}
+    def lock_pin_pad(self):
         remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.json"
         r = self._shell("uitest", "dumpLayout", "-p", remote, op="lock_dump", timeout=30)
         raw = self._shell("cat", remote, op="lock_dump_read").raw if r.ok else ""
         self._shell("rm", "-f", remote, op="cleanup")
         try:
-            pad = find_pin_pad(json.loads(raw)) if raw else None
+            return find_pin_pad(json.loads(raw)) if raw else None
         except ValueError:
-            pad = None
-        if pad is None:
-            return {"status": "locked", "reason": "没认出锁屏数字键盘（0-9 各一个、3 列排布），未输入"}
-        for ch in pin:
-            if not self.tap(*pad[ch]).ok:
-                # 输到一半：已输的位数不确定，按"输过一次 PIN"处理，由调用方写防重入标记
-                return unknown("输入 PIN 中", pin_entered=True)
-            time.sleep(0.25)
-        time.sleep(1.5)
-        locked = self.screen_locked()
-        if locked is False:
-            return {"status": "unlocked", "method": "pin"}
-        if locked is None:
-            return unknown("输完 PIN 后", pin_entered=True)
-        return {"status": "pin_rejected", "reason": "输完 PIN 仍锁屏：不再重试，请人工核对"}
+            return None
+
+    def wake_unlock(self, pin, dispatcher=None):
+        from ..unlock import wake_unlock
+        return wake_unlock(self, pin, dispatcher, sleep=time.sleep)
 
     def shown_windows(self) -> Optional[list]:
         """当前显示的窗口名；查询失败或格式认不出 → None。只取窗口名与层级，不取窗口内容。"""
         r = self._shell("hidumper", "-s", "WindowManagerService", "-a", "-a", op="window_list")
         return parse_windows(r.raw) if r.ok else None
 
-    def clear_text(self, x: int, y: int, count: int) -> DeviceResult:
-        """真机 uiInput inputText 是追加：先点中输入框、光标移到末尾（MoveEnd=2082），再按 count 次退格（Del=2055）。"""
-        r = self.tap(x, y)
-        if not r.ok:
-            return r
-        r = self._shell("uitest", "uiInput", "keyEvent", "2082", op="key_move_end")
-        if not r.ok:
-            # 光标位置未知：此时退格会删掉中间的字，后续输入得到错值。不删，报错（输入框已被点过）
-            return DeviceResult("clear_text", True, False, r.error_class or "command_failed",
-                                f"MoveEnd 失败，未删除：{r.error or ''}".strip(), r.raw, r.duration_ms)
-        for _ in range(max(0, int(count))):
-            r = self._shell("uitest", "uiInput", "keyEvent", "2055", op="key_del")
-            if not r.ok:
-                return r
-        return DeviceResult("clear_text", True, True, None, None, f"deleted {count}")
+    def clear_text(self, x, y, count, dispatcher, preconditions):
+        from ..dispatch import clear_text
+        return clear_text(self, x, y, count, dispatcher, preconditions)
 
     def launch(self, bundle: str, ability: str) -> DeviceResult:
         r = self._shell("aa", "start", "-a", ability, "-b", bundle, op="launch")

@@ -32,6 +32,8 @@ def render_run(run: dict) -> str:
             + ("　（另有产品失败，见下文）" if v.get("alerts") and v.get("product_failed") else ""), ""]
     if run.get("goal"):
         out.append(f"> 测试目标（原文）：{_esc(run['goal'])}\n")
+    if v.get("product_status_stale"):
+        out.append(f"> {v['product_status_stale']['note']}\n")
     ki = v.get("known_issue")
     if ki:
         out.append(f"> 已知缺陷用例（{_esc(ki.get('ref'))}）：{ki['note']}；预期失败特征 `{ki.get('expected_signature')}`，"

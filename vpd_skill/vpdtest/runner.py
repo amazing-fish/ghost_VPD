@@ -53,6 +53,20 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     store.event("run_start", case=case["id"], device=device.spec, overlay=overlay.describe())
 
     pre = device.preflight(app.bundle)
+    screen_checks = {"screen_awake", "screen_unlocked"}
+    if any(c["check"] in screen_checks and not c["ok"] for c in pre["checks"]) and all(
+            c["ok"] for c in pre["checks"] if c["check"] not in screen_checks):
+        from .unlock import unlock_device
+        before_checks = [dict(c) for c in pre["checks"]]
+        unlocked = unlock_device(ws, device, store)
+        if unlocked["status"] == "unlocked":
+            pre = device.preflight(app.bundle)
+        else:
+            pre["checks"].append({"check": "unlock_capability", "ok": False,
+                                  "error_class": unlocked["status"], "value": unlocked.get("reason")})
+        pre["unlock"] = unlocked
+        store.event("preflight_before_unlock", checks=before_checks)
+
     store.event("preflight", ok=pre["ok"], checks=pre["checks"])
     ctx.observer.display = pre.get("display")  # 复用前置检查读到的显示参数，不重复查询
     facts = {**device.env_facts(), **(env or {})}
@@ -129,7 +143,10 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     verdict = case_verdict(pre, envc, steps, assertions, knowledge, safety_stops, cleanup,
                            step_ids={s["id"] for s in case["steps"]})
     known = case.get("product_status") or {}
-    if known.get("status") == "known_failure":
+    if known.get("status") == "known_failure" and known.get("since_hash") != content_hash(case):
+        verdict["product_status_stale"] = {"since_hash": known.get("since_hash"), "content_hash": content_hash(case),
+                                           "note": "用例内容已变更，需要重新晋级"}
+    elif known.get("status") == "known_failure":
         # 已知缺陷用例：结论照常判定，另外说明缺陷是否仍按同一特征复现（不把失败改成通过）
         sig = verdict.get("failure_signature")
         verdict["known_issue"] = {"ref": known.get("issue"), "expected_signature": known.get("signature"),

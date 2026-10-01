@@ -23,9 +23,9 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("--device")
     d.add_argument("--app")
 
-    u = sub.add_parser("unlock", help="唤醒并解锁设备（人脸/上滑优先；PIN 只从 secrets 读（--lock-secret 选键名），只输一次）")
+    u = sub.add_parser("unlock", help="按设备状态唤醒并解锁（PIN 按本地设备映射读取；--lock-secret 可显式选键名，只输一次）")
     u.add_argument("--device")
-    u.add_argument("--lock-secret", default="LOCK_PIN",
+    u.add_argument("--lock-secret",
                    help="用哪个 secrets 键的 PIN（只传键名，如 LOCK_PIN_TEST；不接受 PIN 本身）")
 
     o = sub.add_parser("observe", help="采集一次观测（Agent 单步探索用）")

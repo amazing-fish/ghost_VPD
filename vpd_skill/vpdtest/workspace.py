@@ -84,6 +84,8 @@ class RunContext:
                  display: Optional[dict] = None):
         self.ws, self.app, self.device, self.store, self.overlay, self.mode = ws, app, device, store, overlay, mode
         self.policy = ws.policy()
+        from .dispatch import Dispatcher
+        self.dispatcher = Dispatcher(device, store, self)
         self.observer = Observer(device, app.bundle, self.policy, app.states, store, ws.layout_config(), display)
         self.params = None        # 用例参数（含密钥引用），由 runner 设置
         self.authorized = set()   # 本次运行由人显式授予的 gated/supervised 副作用

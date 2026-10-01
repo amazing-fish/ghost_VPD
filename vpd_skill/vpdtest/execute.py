@@ -35,12 +35,12 @@ STATUS_MAP = {
     "target_disabled": ("blocked", "environment", "目标控件当前不可用（置灰），按前置条件不满足处理，未点击"),
     "target_stale": ("blocked", "tool", "执行前复核发现目标已变化（页面刷新/弹窗/滚动/被替换），未下发"),
     "foreground_changed": ("blocked", "environment", "下发前前台已不是被测 APP（被切走或被其他应用覆盖），未下发"),
-    "screen_locked": ("blocked", "environment", "下发前手机已锁屏或熄屏，未下发；需要人解锁后重跑"),
+    "screen_locked": ("blocked", "environment", "自动解锁未完成，按能力结果阻塞"),
+    "target_obscured": ("blocked", "tool", "落点最顶层触摸节点不属于目标，重新定位后仍被遮挡，未下发"),
     "state_indeterminate": ("blocked", "environment", "下发前查不到锁屏/前台状态（查询失败），未下发；需要人确认手机状态后重跑"),
 }
 # 这些动作会作用到"当前前台"：前台不是被测 APP 时不下发，避免点到/输入到用户正在用的其他应用
 FOREGROUND_BOUND = ("tap", "input", "swipe", "back", "home")
-LAUNCHER = "com.ohos.sceneboard"
 
 
 def classify(att: dict) -> tuple:
@@ -94,6 +94,9 @@ class Executor:
             return att
         if kind == "monitor":
             return self._monitor(step, att)
+        if kind in FOREGROUND_BOUND and ctx.device.screen_locked() is True:
+            if not self._foreground_ok(att):
+                return att
         obs, tree = ctx.observe(f"{step['id']}#{n}:before")
         att.update(obs_before=obs["obs_id"], state_before=obs["page"]["state"])
         if kind not in ("launch", "stop_app", "wait"):
@@ -161,7 +164,9 @@ class Executor:
             att["resolved"] = _resolved(loc, obs)
             if not self._foreground_ok(att, step.get("revalidate")):
                 return att
-            res = ctx.device.tap(*loc["point"])
+            res = self._send_target("tap", loc, obs, tree, target, tid, step, att)
+            if att.get("status"):
+                return att
             if res.ok and target.get("side_effect") == "vehicle_motion":
                 # 先挂上看门狗再做后置观测：后置观测里出现的停止状态会按规则解除
                 ctx.motion.arm(step["id"], pol.get("label") or tid, obs["page"]["state"])
@@ -181,7 +186,9 @@ class Executor:
         elif kind in ("back", "home"):
             if not self._foreground_ok(att):
                 return att
-            res = ctx.device.key(kind)
+            res = ctx.dispatcher.send("key", kind, preconditions=ctx.dispatcher.app_conditions(kind), att=att)
+            if att.get("status"):
+                return att
         elif kind == "swipe":
             if not self._foreground_ok(att):
                 return att
@@ -230,8 +237,8 @@ class Executor:
                 # 真机输入是追加：先删掉框里已有的文字（按当前树里的长度 + 余量），再输入
                 node = _tree_node(tree, loc)
                 n_del = len((node.text if node is not None else "") or "") + 2
-                cr = ctx.device.clear_text(*loc["point"], n_del)
-                ctx.actions += 1
+                cr = self._send_target("clear_text", loc, obs, tree, target, tid, step, att, n_del)
+                ctx.actions += int(cr.sent)
                 att["clear"] = {"deleted": n_del, "ok": cr.ok, "error": cr.error}
                 ctx.store.event("clear_text", step=step["id"], n=n, deleted=n_del, ok=cr.ok, sent=cr.sent)
                 if not cr.ok:
@@ -244,15 +251,21 @@ class Executor:
                 # inputText 经系统剪贴板：之后输入法的剪贴板栏会显示原文，本会话里输入法在场时不再截图
                 ctx.observer.secret_typed = True
                 ctx.store.event("secret_typed", step=step["id"], note="剪贴板可能留有密钥原文：结束后请人工清空剪贴板")
-            res = ctx.device.input_text(*loc["point"], text)
+            res = self._send_target("input_text", loc, obs, tree, target, tid, step, att, text)
+            if att.get("status"):
+                return att
         elif kind != "wait":
             att["status"] = "invalid_step"
             return att
         if res is not None:
-            ctx.actions += 1
+            ctx.actions += int(res.sent)
             att["dispatch"] = {"op": res.op, "sent": res.sent, "executor_ok": res.ok, "error_class": res.error_class,
                                "error": res.error, "duration_ms": res.duration_ms}
-            ctx.store.event("dispatch", step=step["id"], n=n, **att["dispatch"])
+            if kind in ("launch", "resume", "stop_app"):
+                ctx.store.event("dispatch", step=step["id"], n=n, preconditions={}, checks={}, **att["dispatch"])
+            if not res.sent and res.error_class in STATUS_MAP:
+                att.update(status=res.error_class, error_class=res.error_class)
+                return att
             if not res.ok:
                 o, _ = ctx.observe(f"{step['id']}#{n}:after-error")
                 att.update(status="device_error", error_class=res.error_class, obs_after=o["obs_id"])
@@ -407,36 +420,26 @@ class Executor:
         return loc, obs, tree
 
     def _foreground_ok(self, att: dict, fresh: bool = False) -> bool:
-        """下发前的最后一道确认：前台仍是被测 APP。执行前观测到下发之间用户可能切走、系统可能弹出别的应用。"""
-        ctx = self.ctx
         if att["action"] not in FOREGROUND_BOUND:
             return True
-        # 三态：只有明确"未锁屏"且明确"前台是被测 APP"才发；查询失败（None）不猜，停下交给人
-        locked = ctx.device.screen_locked() if hasattr(ctx.device, "screen_locked") else None
-        if locked is None:
-            return self._indeterminate(att, "screen_locked")
-        if locked:
-            # 锁屏/熄屏：按键会落在锁屏上（真机上曾被误判为产品失败），点击可能唤起解锁。一律不发，按环境阻塞
-            att.update(status="screen_locked", error_class="screen_locked",
-                       foreground_check={"screen_locked": True, "expected": ctx.app.bundle})
-            ctx.store.event("screen_locked_before_dispatch", step=att.get("step_id"), action=att["action"])
-            return False
-        fg = ctx.device.foreground()
-        query_error = getattr(ctx.device, "last_query_error", None)
-        att["foreground_check"] = {"foreground": fg, "expected": ctx.app.bundle, "after_revalidate": bool(fresh),
-                                   "screen_locked": locked}
-        if fg == ctx.app.bundle:
-            return True
-        if fg is None and query_error:
-            return self._indeterminate(att, "foreground", query_error)
-        # 桌面：回放设备报 sceneboard；真机桌面上所有 mission 都是 BACKGROUND，查询成功但没有前台应用
-        on_desktop = fg == LAUNCHER or fg is None
-        if on_desktop and att["action"] in ("back", "home"):
-            return True  # 在系统桌面上按返回/主页不会落到用户正在用的其他应用；其他应用在前台时一律不发
-        att["foreground_check"]["process_alive"] = ctx.device.process_alive(ctx.app.bundle)
-        att["status"] = "foreground_changed"
-        ctx.store.event("foreground_changed", step=att.get("step_id"), foreground=fg, action=att["action"])
-        return False
+        return self.ctx.dispatcher.app_state(att, fresh)
+
+    def _send_target(self, op, loc, obs, tree, target, tid, step, att, *extra):
+        ctx = self.ctx
+        def pack(loc, obs, tree):
+            return {"loc": loc, "tree": tree, "target": target,
+                    "state_deny": ctx.app.states.deny_for_page(obs["page"])}
+        def refresh():
+            o, t = ctx.observe(f"{step['id']}:dispatch-relocate", screenshot=False)
+            l = resolve(tid, target, t, ctx.observer.screenshot_abs(o), ctx.app.dir,
+                        None, step.get("point"), o.get("layout"))
+            if l["status"] != "found":
+                return None
+            if step.get("at") or step.get("random_point"):
+                l = {**l, "point": self._point_in(l, step, 1, t), "container_point": True}
+            att["resolved"] = _resolved(l, o)
+            return pack(l, o, t)
+        return ctx.dispatcher.send(op, *loc["point"], *extra, preconditions={**ctx.dispatcher.app_conditions(att["action"]), "target_subtree": True}, att=att, tap=pack(loc, obs, tree), refresh=refresh)
 
     def _clear_interrupts(self, obs: dict, tree, label: str, limit: int = 3) -> tuple:
         """弹窗是常态（资源包下载、版本更新、权限提示……）：页面上只有"已评审的良性中断"时，
@@ -474,9 +477,9 @@ class Executor:
             if not self._foreground_ok(gate):
                 done.append({**rec, "ok": False, "gate": gate.get("status")})
                 break
-            r = ctx.device.tap(*loc["point"])
-            ctx.actions += 1
-            rec.update(ok=r.ok, point=list(loc["point"]))
+            r = self._send_target("tap", loc, obs, tree, target, tid, {"id": label}, gate)
+            ctx.actions += int(r.sent)
+            rec.update(ok=r.ok, point=list(loc["point"]), gate=gate.get("status"))
             ctx.store.event("interrupt_dismissed", at=label, **rec)
             done.append(rec)
             if not r.ok:
@@ -493,13 +496,6 @@ class Executor:
                 btn = next((t for t in d["texts"] if t in safe), None)
                 return {"texts": d["texts"], "button": btn} if btn else None
         return None
-
-    def _indeterminate(self, att: dict, query: str, detail: Optional[str] = None) -> bool:
-        ctx = self.ctx
-        att.update(status="state_indeterminate", error_class="state_query_failed", action_required=True,
-                   state_check={"query": query, "result": None, "detail": detail, "expected": ctx.app.bundle})
-        ctx.store.event("state_indeterminate_before_dispatch", step=att.get("step_id"), action=att["action"], query=query)
-        return False
 
     def _revalidate(self, tid, target, loc: dict, step: dict, n: int, att: dict) -> tuple:
         """执行前复核：下发前重新取一次 UI 树（不截图）并重新解析同一目标，与执行前观测里的解析结果比较。
@@ -589,7 +585,7 @@ class Executor:
         p2 = [rect[0] + int(w * fx2), rect[1] + int(h * fy2)]
         info.update(area=list(rect), fractions=[round(fx1, 3), round(fy1, 3), round(fx2, 3), round(fy2, 3)],
                     **{"from": p1, "to": p2})
-        return self.ctx.device.swipe(*p1, *p2), info
+        return self.ctx.dispatcher.send("swipe", *p1, *p2, preconditions=self.ctx.dispatcher.app_conditions("swipe")), info
 
     def _flow(self, step: dict, case_id: str) -> dict:
         """流程 = 带参数的原子能力序列（flows.json）。展开后逐步执行，每个子步骤仍走完整的观测/定位/策略/后置条件。"""
@@ -649,7 +645,7 @@ class Executor:
         top, bottom = rect[1] + int((rect[3] - rect[1]) * 0.25), rect[1] + int((rect[3] - rect[1]) * 0.75)
         y1, y2 = (bottom, top) if direction == "up" else (top, bottom)
         info["from"], info["to"] = [x, y1], [x, y2]
-        return self.ctx.device.swipe(x, y1, x, y2), info
+        return self.ctx.dispatcher.send("swipe", x, y1, x, y2, preconditions=self.ctx.dispatcher.app_conditions("swipe")), info
 
     # ---- 后置条件 ----
     def _post(self, step: dict, n: int, case_id: str, was_in_app: bool = True) -> dict:
@@ -850,7 +846,7 @@ def _unresolved(loc: dict) -> str:
 
 def _failure_detail(att: dict) -> dict:
     d = {"status": att["status"]}
-    for k in ("error_class", "policy", "dispatch", "motion"):
+    for k in ("error_class", "policy", "dispatch", "dispatch_recheck", "motion"):
         if att.get(k):
             d[k] = att[k]
     if att.get("monitor"):
