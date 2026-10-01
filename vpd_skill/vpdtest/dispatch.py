@@ -33,7 +33,7 @@ class Dispatcher:
                 att["unlock"] = checks["unlock"] = result
                 if result["status"] != "unlocked":
                     status = result.get("error_class")
-                    if status not in ("budget_exhausted", "motion_timeout"):
+                    if status not in ("budget_exhausted", "motion_timeout", "safety_hold"):
                         status = "screen_locked" if result["status"] in ("pin_rejected", "missing_secret") else "state_indeterminate"
                     att.update(status=status, error_class=result["status"], action_required=True)
                     return False, checks
@@ -127,12 +127,14 @@ class Dispatcher:
             raise ValueError(f"未知物理动作 {op}")
         if result.sent and op != "clear_text" and self.ctx is not None:
             self.ctx.actions += 1
-        if not result.ok and result.error_class in ("budget_exhausted", "motion_timeout"):
+        if not result.ok and result.error_class in ("budget_exhausted", "motion_timeout", "safety_hold"):
             att["status"] = result.error_class
         self._record(op, preconditions, checks, result, att)
         return result
 
     def _limits(self, att, checks):
+        if not self._hold_check(att, checks):
+            return False
         ctx, exempt = self.ctx, bool(att.get("_safety"))
         checks["budget"] = {"applicable": ctx is not None, "exempt": exempt,
                             "used": ctx.actions if ctx else None,
@@ -147,6 +149,22 @@ class Dispatcher:
                 att["status"] = "budget_exhausted"
                 return False
         return True
+
+    def _hold_check(self, att, checks):
+        hold = self.ctx.safety_hold if self.ctx is not None else None
+        exempt = bool(att.get("_safety"))
+        checks["safety_hold"] = {"active": hold is not None, "evidence": hold, "exempt": exempt}
+        if hold is not None and not exempt:
+            att.update(status="safety_hold", action_required=True)
+            return False
+        return True
+
+    def held_step(self, att):
+        """逻辑步骤也在定位/观察/展开前复用同一暂停判定，不执行清理副作用。"""
+        checks = {}
+        if not self._hold_check(att, checks):
+            return self._reject(att["action"], {}, checks, att)
+        return None
 
     def _tap_check(self, tap):
         tree, loc, target = tap["tree"], tap["loc"], tap["target"]

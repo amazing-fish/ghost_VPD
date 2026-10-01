@@ -161,3 +161,16 @@ agent 模式的 `--point` 记录提出时的窗口尺寸（`point_window`）；�
 - 用例成熟度（`status`）与产品状态（`product_status`：`conforming` / `known_failure` + `issue` + `signature`）分开记录：
   当前内容哈希下至少 2 次确定且一致的重放才能晋级；待确认/阻塞的重放不计入并列在 `ignored`；通过与失败混合 → 不稳定。
   内容哈希在用例声明时包含 `authorizations` 与 `safety`。
+
+
+### 未确认停止后的运行暂停
+
+`safe_stop` 未确认停止时，运行上下文登记 `safety_hold`（触发、时间、原因），本次运行不解除。
+下发关口拒绝所有普通动作，返回 `safety_hold` 并记录未下发的 dispatch；逻辑步骤也在观测、定位与展开前复用该判定。
+只有明确继承 `_safety` 的停止步骤可继续执行，状态及 policy 检查仍保留。
+清理步骤记为 `not_run`，原因为“安全停止未确认，清理暂停，需人工接管”；`cleanup_done` 仍写入。
+判定及报告将这些清理列为尚未验证，而不是清理失败，安全停止 alert 保留人工接管信号。
+
+lint 共用 `iter_case_steps` 遍历主步骤、cleanup、safe_stop 和引用的 flow/recipe 子步骤。
+`tap` 与 `input` 都必须引用已登记目标，内联目标仍须满足现场选择器来源要求；像素坐标、未声明终点及缺失 recipe 的检查适用于全部来源。
+问题字段保留来源路径，如 `cleanup.C2`、`safe_stop.X1`、`steps.F1→flow:...X1`；递归引用会报错，不无限展开。

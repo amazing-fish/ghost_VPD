@@ -26,22 +26,36 @@ def content_hash(case: dict) -> str:
     return sha256_obj(body)[:12]
 
 
-def _all_steps(case: dict, app):
-    """用例步骤 + 清理 + 安全停止 + 展开后的流程子步骤与 ensure_state 的 recipe 步骤（授权要覆盖它们会点的目标）。"""
-    for s in case.get("steps", []) + case.get("cleanup", []) + (case.get("safety") or {}).get("safe_stop", []):
-        yield s, None
-        if s.get("action") == "flow" and s.get("flow") in app.flows:
-            for sub in app.flows[s["flow"]].get("steps", []):
-                yield sub, s
-        if s.get("action") == "ensure_state":
-            for sub in app.states.recipes.get(s.get("state"), []):
-                yield sub, s
+def iter_case_steps(case: dict, app):
+    """步骤、清理、安全停止和引用的 flow/recipe 共用来源；保留可定位的字段路径。"""
+    def walk(step, parent, where, ancestry=()):
+        action = step.get("action")
+        children, key = [], None
+        if action == "flow":
+            key = (action, step.get("flow"))
+            children = (app.flows.get(key[1]) or {}).get("steps", [])
+        elif action == "ensure_state":
+            key = (action, step.get("state"))
+            children = app.states.recipes.get(key[1], [])
+        if key is not None and key in ancestry:
+            yield {**step, "_lint_cycle": True}, parent, where
+            return
+        yield step, parent, where
+        for i, sub in enumerate(children):
+            label = f"{where}→{action}:{key[1]}.{sub.get('id', f'S{i + 1}')}"
+            yield from walk(sub, step, label, ancestry + (key,))
+    sources = [("steps", case.get("steps", [])), ("cleanup", case.get("cleanup", [])),
+               ("safe_stop", (case.get("safety") or {}).get("safe_stop", []))]
+    for source, steps in sources:
+        prefix = {"steps": "S", "cleanup": "C", "safe_stop": "SAFE"}[source]
+        for i, step in enumerate(steps):
+            yield from walk(step, None, f"{source}.{step.get('id', f'{prefix}{i + 1}')}")
 
 
 def hypothesis_targets(case: dict, app) -> list:
     """用例（含流程/recipe 展开）会用到的 status=hypothesis 目标：原工程没有、未经真机校准的控件。"""
     used = []
-    for s, _ in _all_steps(case, app):
+    for s, _, _ in iter_case_steps(case, app):
         t = s.get("target")
         if isinstance(t, str) and (app.targets.get(t) or {}).get("status") == "hypothesis" and t not in used:
             used.append(t)
@@ -60,8 +74,7 @@ def _lint_effects(case: dict, app, policy) -> list:
     requested = {a["effect"] if isinstance(a, dict) else a for a in case.get("authorizations", [])}
     authorizable = policy.authorizable if policy else set()
     secrets = {k for k, v in (case.get("test_data") or {}).items() if isinstance(v, dict) and "secret" in v}
-    for s, parent in _all_steps(case, app):
-        where = f"steps.{(parent or s).get('id', '?')}" + (f"→{s.get('action')}" if parent else "")
+    for s, parent, where in iter_case_steps(case, app):
         if s.get("action") == "flow":
             spec = app.flows.get(s.get("flow"))
             if spec is None:
@@ -122,33 +135,35 @@ def lint(case: dict, app, knowledge, policy=None) -> list:
         if isinstance(v, dict) and v.get("missing_from_session"):
             issues.append({"field": f"test_data.{k}", "problem": "会话没有保留这次输入的原文（不允许输入/敏感框/疑似密钥）："
                                                                  "非敏感数据请直接填值，账号密码改写为 {\"secret\": NAME}"})
-    for s in case.get("steps", []):
+    for s, _, where in iter_case_steps(case, app):
+        if s.get("_lint_cycle"):
+            issues.append({"field": where, "problem": "flow/recipe 存在递归引用，不能展开执行"})
         if s["action"] in ("tap", "input"):
             t = s.get("target")
             if isinstance(t, dict):
                 # 现场选择器：只用 UI 树策略、且附有"在哪次观测中解析成功"的来源，才可以直接留在用例里
                 kinds = {st.get("kind") for st in t.get("strategies", [])}
                 if not kinds:
-                    issues.append({"field": f"steps.{s['id']}", "problem": "内联目标没有定位策略（会话里是坐标点击且无法"
+                    issues.append({"field": where, "problem": "内联目标没有定位策略（会话里是坐标点击且无法"
                                                                            "从 UI 树推出选择器）：请补文本/id/xpath 选择器或模板"})
                 elif not kinds <= set(TREE_KINDS) or not t.get("observed"):
-                    issues.append({"field": f"steps.{s['id']}", "problem": "内联目标需只含 text/id/xpath 策略并附 observed 来源"
+                    issues.append({"field": where, "problem": "内联目标需只含 text/id/xpath 策略并附 observed 来源"
                                                                            "（会话观测），否则请登记到 targets.json 并评审"})
                 elif not (t["observed"].get("node") and t["observed"].get("dispatched")):
                     # 只要求"选择器在现场解析到了唯一节点并实际下发过"，不要求该步通过（缺陷复现步骤本身可能失败）
-                    issues.append({"field": f"steps.{s['id']}", "problem": f"内联选择器在会话中没有解析成功并下发过"
+                    issues.append({"field": where, "problem": f"内联选择器在会话中没有解析成功并下发过"
                                                                            f"（会话结果 {t['observed'].get('outcome')}）：重新观察后"
                                                                            "用能唯一定位的选择器再做一次，或写明理由排除该步"})
-            elif s["action"] == "tap" and t not in app.targets:
-                issues.append({"field": f"steps.{s['id']}", "problem": f"目标 {t} 未登记"})
+            elif not isinstance(t, str) or t not in app.targets:
+                issues.append({"field": where, "problem": f"目标 {t} 未登记"})
         if s.get("expect_state_unresolved"):
-            issues.append({"field": f"steps.{s['id']}", "problem": "终点是未声明状态，缺少可判定的后置条件"})
+            issues.append({"field": where, "problem": "终点是未声明状态，缺少可判定的后置条件"})
         if s.get("point") is not None or (isinstance(s.get("target"), dict) and any(
                 st.get("kind") == "point" for st in s["target"].get("strategies", []))):
-            issues.append({"field": f"steps.{s['id']}", "problem": "用例中不能写像素坐标：屏幕尺寸/密度/折叠状态不同坐标就失效，"
+            issues.append({"field": where, "problem": "用例中不能写像素坐标：屏幕尺寸/密度/折叠状态不同坐标就失效，"
                                                                    "请登记为 targets.json 中的文本/xpath/id/模板目标"})
         if s["action"] == "ensure_state" and s.get("state") not in app.states.recipes:
-            issues.append({"field": f"steps.{s['id']}", "problem": f"没有到达 {s.get('state')} 的 recipe"})
+            issues.append({"field": where, "problem": f"没有到达 {s.get('state')} 的 recipe"})
     from .layout import REQUIREMENT_KEYS
     for k in case.get("layout_requirements", {}):
         if k not in REQUIREMENT_KEYS:
@@ -171,10 +186,10 @@ def lint(case: dict, app, knowledge, policy=None) -> list:
                 issues.append({"field": f"sources.rejected.A{r.get('seq')}",
                                "problem": "已下发过手势/按键的动作被记成了被拒：现场可能已改变，须作为效果未知的步骤保留，"
                                           "或用 --drop 写明理由排除"})
-    for s in case.get("steps", []):
+    for s, _, where in iter_case_steps(case, app):
         fs = s.get("from_session") or {}
         if fs.get("effect_unknown") and not s.get("effect_reviewed"):
-            issues.append({"field": f"steps.{s['id']}", "problem": f"会话里这一步已下发但结果未确认（{fs.get('outcome')}）："
+            issues.append({"field": where, "problem": f"会话里这一步已下发但结果未确认（{fs.get('outcome')}）："
                                                                    "看 obs_after 确认实际效果后写 effect_reviewed，"
                                                                    "或用 --drop 写明理由排除"})
     if any(s.get("type") == "session" for s in case.get("sources", [])) and not case.get("knowledge_used"):

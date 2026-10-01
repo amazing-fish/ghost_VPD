@@ -125,5 +125,8 @@ def safe_stop(executor, trigger: str, detail: Optional[dict] = None) -> dict:
     rec["confirmed_stopped"] = guard.armed is None
     if not rec["confirmed_stopped"]:
         rec["action_required"] = "未能通过观测确认车辆已停止：请现场监护人立即人工接管"
+        if ctx.safety_hold is None:
+            ctx.safety_hold = {"trigger": trigger, "ts": now_iso(), "reason": rec["action_required"]}
+            ctx.store.event("safety_hold", **ctx.safety_hold)
     ctx.store.event("safety_stop_end", confirmed=rec["confirmed_stopped"])
     return rec

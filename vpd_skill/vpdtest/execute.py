@@ -25,6 +25,7 @@ STATUS_MAP = {
     "policy_denied": ("blocked", "tool", "动作被安全策略拒绝"),
     "unobservable": ("blocked", "tool", "动作后无法取得可判定的观测（无 UI 树或解析失败）"),
     "budget_exhausted": ("blocked", "tool", "动作预算耗尽"),
+    "safety_hold": ("blocked", "environment", "安全停止未确认，执行暂停，需人工接管"),
     "invalid_step": ("blocked", "tool", "步骤定义无效"),
     "interrupted": ("blocked", "requirement_unclear", "出现未评审或非良性的中断，未自动处理，需确认其性质"),
     "anomaly": ("fail_candidate", "product", "出现异常中断或疑似崩溃"),
@@ -58,6 +59,11 @@ class Executor:
 
     # ---- 对外入口 ----
     def run_step(self, step: dict, case_id: str) -> dict:
+        att = {"n": 1, "action": step["action"], "step_id": step["id"], "_safety": bool(step.get("_safety"))}
+        held = self.ctx.dispatcher.held_step(att)
+        if held is not None:
+            att["dispatch"] = {"sent": held.sent, "executor_ok": held.ok, "error_class": held.error_class}
+            return self._summarize(step, [att], [])
         if step["action"] == "ensure_state":
             return self._ensure_state(step, case_id)
         if step["action"] == "flow":
@@ -101,7 +107,7 @@ class Executor:
             if dismissed:
                 att["dismissed"] = dismissed
                 att["state_before"] = obs["page"]["state"]
-                if dismissed[-1].get("gate") in ("budget_exhausted", "motion_timeout"):
+                if dismissed[-1].get("gate") in ("budget_exhausted", "motion_timeout", "safety_hold"):
                     att["status"] = dismissed[-1]["gate"]
                     return att
         if obs["page"].get("observation_error") and kind in ("tap", "input", "swipe"):
@@ -400,7 +406,7 @@ class Executor:
             info.update(n=swipes, ok=r.ok, error=r.error, content_changed=before != after if before else None)
             trail.append(info)
             ctx.store.event("scroll_search", target=tid, **info)
-            if r.error_class in ("budget_exhausted", "motion_timeout"):
+            if r.error_class in ("budget_exhausted", "motion_timeout", "safety_hold"):
                 loc = {**loc, "status": "blocked_state", "gate": {"status": r.error_class}}
                 break
             loc = resolve(tid, target, tree, ctx.observer.screenshot_abs(obs), ctx.app.dir, pref, point, lay)
@@ -670,7 +676,7 @@ class Executor:
             if crash or anomalies:
                 status = "anomaly"
                 break
-            if dismissed and dismissed[-1].get("gate") in ("budget_exhausted", "motion_timeout"):
+            if dismissed and dismissed[-1].get("gate") in ("budget_exhausted", "motion_timeout", "safety_hold"):
                 status = dismissed[-1]["gate"]
                 break
             if met:
@@ -766,7 +772,7 @@ class Executor:
                 "recoveries": [], "adapted": False}
         obs, tree = ctx.observe(f"{step['id']}:check")
         obs, _, dismissed = self._clear_interrupts(obs, tree, f"{step['id']}:check", safety=bool(step.get("_safety")))
-        if dismissed and dismissed[-1].get("gate") in ("budget_exhausted", "motion_timeout"):
+        if dismissed and dismissed[-1].get("gate") in ("budget_exhausted", "motion_timeout", "safety_hold"):
             status = dismissed[-1]["gate"]
             return {**base, "outcome": "blocked", "attribution": "tool", "attempts": [],
                     "reason": STATUS_MAP[status][2], "final_status": status, "final_obs": obs["obs_id"], "dismissed": dismissed}

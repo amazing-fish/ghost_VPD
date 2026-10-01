@@ -224,6 +224,10 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
             findings.append({"kind": "assertion", "id": a["id"], "result": "not_verified", "attribution": None,
                              "reason": a.get("reason")})
     for c in cleanup or []:
+        if c["outcome"] == "not_run" and c.get("final_status") == "safety_hold":
+            findings.append({"kind": "cleanup", "step": c["step_id"], "result": "not_verified",
+                             "attribution": None, "reason": c.get("reason")})
+            continue
         if c["outcome"] not in PASSED and c.get("required", True):
             # 清理没完成：账号/车辆数据可能没恢复，整体不能判通过
             findings.append({"kind": "cleanup", "step": c["step_id"], "result": "blocked",
@@ -253,6 +257,10 @@ def _final(verdict: str, attribution, findings: list, suggestions: list, steps: 
            alerts: Optional[list] = None, assertions: Optional[list] = None) -> dict:
     first = next(({"step": s["step_id"], **s["first_failure"]} for s in steps if s.get("first_failure")), None)
     alerts = alerts or []
+    not_verified = [{"id": a["id"], "at": a.get("at"), "reason": a.get("reason")} for a in assertions or []
+                    if not a["advisory"] and a["result"] == "not_run"]
+    not_verified += [{"id": f["step"], "at": f["step"], "kind": "cleanup", "reason": f.get("reason")}
+                     for f in findings if f["kind"] == "cleanup" and f["result"] == "not_verified"]
     return {"verdict": verdict, "label": LABEL[verdict], "attribution": attribution,
             "attribution_label": ATTR_LABEL.get(attribution), "findings": findings,
             "suggestions": [{"id": s["id"], "desc": s["desc"], "reason": s.get("reason")} for s in suggestions],
@@ -263,8 +271,7 @@ def _final(verdict: str, attribution, findings: list, suggestions: list, steps: 
             "alerts": alerts, "action_required": alerts[0]["action_required"] if alerts else None,
             # 产品层面：有确定失败即为 failed（即使结论因安全停止被提升为阻塞，也不丢）
             "product_failed": any(f["result"] == "failed" and f.get("attribution") == "product" for f in findings),
-            "not_verified": [{"id": a["id"], "at": a.get("at"), "reason": a.get("reason")} for a in assertions or []
-                             if not a["advisory"] and a["result"] == "not_run"],
+            "not_verified": not_verified,
             # 失败特征含失败方式（步骤终态 / 断言的观测值）：同一步骤"崩溃"与"后置条件未满足"不是同一个缺陷
             "failure_signature": sorted({f"{f['kind']}:{f.get('step') or f.get('id')}:{f.get('mode')}" for f in findings
                                          if f["result"] == "failed"})}

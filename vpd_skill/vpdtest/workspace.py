@@ -92,6 +92,7 @@ class RunContext:
         self.supervisor = None    # 在场监护人（supervised 类授权的前提），记入证据
         self.seed = store.run_id  # 随机动作的默认种子，记入证据以便复现
         self.actions = 0
+        self.safety_hold = None  # 本运行停止未确认后的暂停记录；不自动解除
         self.last_obs, self.last_tree = None, None
         self._virtual_s = 0.0     # 回放设备不真等待：等待/监视时长累加到虚拟时钟，保证离线可复现
         from .safety import MotionGuard

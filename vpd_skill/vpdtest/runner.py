@@ -124,6 +124,8 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
             safety_stops.append(safety_mod.safe_stop(ex, "case_end_still_moving"))
         for i, c in enumerate(case.get("cleanup", [])):
             res = ex.run_step({"critical": False, "retry": 0, **c, "id": c.get("id", f"C{i + 1}")}, case["id"])
+            if res.get("final_status") == "safety_hold":
+                res.update(outcome="not_run", reason="安全停止未确认，清理暂停，需人工接管")
             res["required"] = c.get("required", True)  # 默认必需：清理没完成就不能判通过
             cleanup.append(res)
             store.event("cleanup_done", step=res["step_id"], outcome=res["outcome"], required=res["required"])
@@ -172,7 +174,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
            "supervision": {"supervisor": supervisor,
                            "supervised_granted": sorted(ctx.authorized & ctx.policy.supervised_side_effects),
                            "safety": case.get("safety")},
-           "motion": ctx.motion.history, "safety_stops": safety_stops,
+           "motion": ctx.motion.history, "safety_stops": safety_stops, "safety_hold": ctx.safety_hold,
            "measurements": [{"step": s["step_id"], **{k: v for k, v in s["measurement"].items()}}
                             for s in steps if s.get("measurement")]}
     # 运行中所有观测里出现过的页面内失败提示（ui_alert 事件），按时间列出
