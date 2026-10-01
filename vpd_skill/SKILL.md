@@ -24,8 +24,9 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
    （targets/flows/状态签名/校准笔记，看 status 与适用性）；**现场观察**回答"某次实际发生了什么"（不能证明"应该是什么"）。
    适用范围无法确认时就写"未知"，不要因为页面相似就当作适用。测试目标里的期望不等于已确认的产品要求：
    找不到独立判据时用 `knowledge add` 记一条 `source.type=test_goal` 的 unconfirmed 条目，结论会是待确认。
-3. **前置**：`doctor --device <spec>`。锁屏/离线/未安装、账号未登录、目标车辆未选好 → 报告阻塞，说明需要人做什么，
-   不要解锁、猜密码或自动登录。**前台不是被测 APP（用户正在用手机）时不要 launch 抢前台**，报告等待。
+3. **前置**：`doctor --device <spec>` 只读检查。解锁是执行器自动调用的原子能力：`run` 的前置检查与动作下发前
+   发现熄屏/锁屏时，先观察状态，再唤醒、上滑，必要时读取该设备映射的 PIN 输入一次；已解锁直接返回。
+   查询失败、缺少 PIN 或 PIN 被拒时，按能力返回的证据与原因阻塞。离线/未安装、账号未登录、车辆未选好仍报告具体条件。**前台不是被测 APP（用户正在用手机）时不要 launch 抢前台**，报告等待。
 4. **观察与探索**：每次 observe 先看关键 UI：`ui_alerts`（页面内的「加载失败」「解析失败」「请重试」等）非空就是异常，
    **先记录时间（obs 的 ts/obs_id）与截图，点右上角「反馈」填写时间、页面、异常原文、前一步操作、车辆、APP 版本并提交，
    再决定是否重试**；首次异常保留在会话和报告里，作为产品问题候选。
@@ -64,8 +65,11 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
   vehicle_selection、vpd_entry、route_planning、user_data）要 `--authorize <副作用>` 且目标声明同一副作用；
   supervised（vehicle_motion、vehicle_control）另需 `--supervisor`，vehicle_motion 还要用例 `safety`。缺任何一项 → 运行前判阻塞，一步都不执行。
 - 账号、密码只写成 `{"secret": "NAME"}`，值来自环境变量 `VPD_SECRET_NAME`。不要把用户在对话里给的账号、密码、锁屏密码写进任何文件或命令行；
-  锁屏用 `vpdtest unlock`：先唤醒、上滑（人脸/无密码直接解开），仍锁着才用 `secrets.LOCK_PIN` 输一次（多台设备 PIN 不同时用 `--lock-secret LOCK_PIN_TEST` 只传键名选另一把）；被拒就写
-  `runs/unlock_guard.json` 并停止，之后一律拒绝，由人解锁、核对后删除该文件（连续输错会锁机，不要自己绕过）。
+  解锁能力自动用于回归和动作恢复，也可通过 `vpdtest unlock` 单独调用。`config.local.json` 的
+  `unlock_secrets` 按设备描述映射 secret 名（例如 `"hdc:<serial>": "LOCK_PIN_TEST"`），值从 `secrets` 或
+  `VPD_SECRET_<名称>` 读取；不默认选择 LOCK_PIN。CLI 的 `--lock-secret` 仅用于显式指定键名。
+  每位 PIN 输入前必须确认仍锁屏；状态为 False 或未知就停止，记录已输入位数。被拒或输入效果未知会保留
+  `runs/unlock-guard-<设备摘要>.json`，该设备不再自动尝试；人工核对后清除此记录，不影响其他设备。
   执行器会在 UI 树、run.json、events.jsonl 落盘前脱敏，页面含已输入敏感值时不截图；
   通知横幅/下拉栏/锁屏盖在 APP 上时也不截图（`system_overlays`），被盖住的控件会从树里消失，稍后重新 observe。
   真机 `input` 经系统剪贴板输入：输入过密钥后报告会提示清空剪贴板；输入文字不能含空白。
@@ -92,7 +96,7 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
 | 无 UI 树 / 定位失败 | `--select` 只覆盖有 UI 树的页面，地图等自绘区域（XComponent）不在树里。先考虑已有模板；可用 `template-crop` 从观测裁剪模板并提议登记。只有确有把握时才用 `act tap --point x,y --basis "<看到了什么>"`，且执行器仍会按 policy 拦截 |
 | `target_ambiguous` | 不要挑一个点；`diagnosis.candidates` 列出了各候选，用 `--within` 限定容器/分栏或改用 `id=`/`xpath=` |
 | `target_stale` / `foreground_changed` | 观察与下发之间页面变了 / 前台被切走：重新 observe 再决定；前台是其他应用时停止并报告 |
-| `state_indeterminate` / unlock `indeterminate` | 下发前查不到锁屏/前台状态，一个手势都没发（`action_required`）：确认手机状态后重新 observe，不要改用 `--point` 绕过 |
+| `state_indeterminate` / unlock `indeterminate` | 下发前查不到锁屏/前台状态，停止后续动作（此前已下发的动作保留证据，`action_required`）：确认手机状态后重新 observe，不要改用 `--point` 绕过 |
 | `target_partially_visible` | 目标被列表裁剪或被底部导航挡住；为目标补 `scroll` 声明，而不是改成点边缘 |
 | 只在宽屏/折叠屏上成立的用例 | 在用例上写 `layout_requirements`（如 `{"wide": true}`）；形态不符时判环境阻塞，不判失败 |
 | `observation_failed` | 设备连接或查询失败（如 hdc `E000004`），属环境问题；等连接恢复后重跑，不要改用例 |
