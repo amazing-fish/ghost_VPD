@@ -113,6 +113,7 @@ class Observer:
         else:
             obs["tree"] = {"status": "not_collected", "reason": "目标 APP 不在前台，不采集其他 APP 的布局"}
 
+        foreground_before_shot = fg
         if not screenshot:
             obs["screenshot"] = {"status": "skipped"}
         elif obs.get("redacted"):
@@ -124,11 +125,10 @@ class Observer:
             # 真机：锁屏界面（带通知内容）盖在 APP 上时，aa dump 仍报 APP 在前台，但按 bundle 取的树只有空根。
             # 屏幕上显示的不是被测 APP，不截图
             obs["screenshot"] = {"status": "withheld", "reason": "前台报为被测 APP 但其布局树为空（锁屏/系统弹层覆盖），隐私策略不截图"}
-        elif not self._shot_ok(fg2 := self.device.foreground()):
+        elif not self._shot_ok(foreground_before_shot := self.device.foreground()):
             # 取布局树要几秒：期间 APP 可能崩溃、退后台或被别的应用（包括白名单里的另一个被测 APP）覆盖。
             # 截图前再确认一次，必须仍是本次的被测 APP
-            obs["screenshot"] = {"status": "withheld", "reason": f"取树后前台已变为 {fg2}，隐私策略不截图"}
-            obs["foreground_after"] = fg2
+            obs["screenshot"] = {"status": "withheld", "reason": f"取树后前台已变为 {foreground_before_shot}，隐私策略不截图"}
         elif (over := self.private_windows()) is None or over:
             # 通知横幅/下拉栏/锁屏盖在 APP 上时 aa dump 仍报 APP 在前台，按 bundle 取的树也不含这些窗口
             obs["screenshot"] = {"status": "withheld", "reason": "窗口查询失败，无法确认没有系统弹层，隐私策略不截图"
@@ -138,13 +138,8 @@ class Observer:
             r = self.device.screenshot(d / "screen.png")
             # 截图要约 1 秒：期间可能弹出横幅，也可能切到别的 APP（private_windows 只认系统弹层，
             # 认不出普通应用）。截完再查前台和系统窗口，任一不能确认就删掉
-            fg3 = self.device.foreground() if r.ok else self.bundle
-            late = self.private_windows() if r.ok and fg3 == self.bundle else []
-            if r.ok and fg3 != self.bundle and (d / "screen.png").exists():
-                (d / "screen.png").unlink()
-                obs["screenshot"] = {"status": "withheld", "reason": f"截图期间前台变为 {fg3}，已删除截图"}
-                obs["foreground_after"] = fg3
-            elif r.ok and late != [] and (d / "screen.png").exists():
+            late = self.private_windows() if r.ok else []
+            if r.ok and late != [] and (d / "screen.png").exists():
                 (d / "screen.png").unlink()
                 obs["screenshot"] = {"status": "withheld", "reason": "截图期间出现系统弹层或无法确认，已删除截图"}
                 obs["system_overlays"] = late
@@ -157,6 +152,29 @@ class Observer:
             self.store.event("system_overlay", obs_id=oid, windows=obs["system_overlays"])
 
         display = self._display_for(tree)
+        # 所有设备采集（含显示参数）结束后复查；不能只删除截图而沿用旧树。
+        fg_after = self.device.foreground()
+        final_error = getattr(self.device, "last_query_error", None)
+        obs["foreground_after"] = fg_after  # 仅保留查询记录；消费者看 foreground/page/fresh。
+        obs["fresh"] = fg_after is not None and fg_after == fg == foreground_before_shot
+        if not obs["fresh"]:
+            reason = final_error or ("foreground_unknown" if fg_after is None else "foreground_changed")
+            alive = self.device.process_alive(self.bundle)
+            obs.update(foreground=fg_after, process_alive=alive, foreground_before=fg)
+            obs["tree"] = {**obs["tree"], "captured_status": obs["tree"]["status"], "status": "stale", "reason": reason}
+            tree, fg = None, fg_after
+            fg_err = reason if fg_after is None else None
+            if fg_err:
+                obs["foreground_error"] = fg_err
+            else:
+                obs.pop("foreground_error", None)
+            if (d / "screen.png").exists():
+                (d / "screen.png").unlink()
+                obs["screenshot"] = {"status": "withheld", "reason": f"观测期间前台变为 {fg_after}，已删除截图"}
+            self.store.event("observation_stale", obs_id=oid, foreground_before=obs["foreground_before"],
+                             foreground_before_shot=foreground_before_shot, foreground_after=fg_after,
+                             reason=reason)
+
         lay = layout_mod.profile(tree, display, self.layout_cfg)
         win = tree.window_rect() if (tree is not None and tree.status == "ok") else None
         if win:
@@ -183,7 +201,7 @@ class Observer:
         write_json(d / "observation.json", obs, exclusive=True)
         self.store.event("observe", obs_id=oid, label=label, state=obs["page"]["state"],
                          tree=obs["tree"]["status"], screenshot=obs["screenshot"]["status"], layout=lk,
-                         panes=len(lay["panes"]))
+                         panes=len(lay["panes"]), fresh=obs["fresh"])
         return obs, tree
 
     def screenshot_abs(self, obs: dict) -> Optional[str]:

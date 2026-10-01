@@ -17,8 +17,15 @@
 | `page.interrupts` | 命中的中断：`{id, class: benign/anomaly/unknown, review: reviewed/pending}` |
 | `texts` | 可见文本（前 60 条），便于 Agent 快速判断 |
 | `foreground_error` | 前台查询失败的原因（如 `transport_unavailable`）；此时 `page.state=undetermined`，不当成"不在 APP 内" |
+| `fresh` | 采集结束时前台明确、与初次及截图前查询一致；否则为 false，旧树只留作证据 |
+| `foreground_before` / `foreground_after` | 过时观测的初始前台 / 末次前台查询记录；判定使用规范化后的 `foreground`、`page` 和 `fresh` |
 | `layout` | 窗口形态，见下 |
 | `page.active` / `page.panes` | 当前生效的状态（分栏时可能多个）/ 每栏各自命中的状态 |
+
+所有分支（无截图、失败、被拦及成功）在设备采集结束后复查前台。截图前的前台检查仍保留，决定能否截图。
+前台变化、切走后切回，或末次前台未知时，`fresh=false`、`tree.status=stale`，返回的树为 `None`，旧 `tree.json` 保留。
+同时重查目标进程存活，用末次前台和无树重新识别页面，清空旧树派生的 texts/ui_alerts，记录 `observation_stale`。
+已离开目标 APP 为 out_of_app；末次前台未知为 undetermined，不用旧树制造后置通过。Observer 不自动重采，重试由调用方决定。
 
 ### 窗口形态 `layout`
 
