@@ -189,7 +189,7 @@ def test_preflight_unlock_replays_initial_states(ws, tmp_path, initial):
     assert bool(calls) == (initial in ("off", "locked"))
     if calls:
         assert calls[0]["status"] == "unlocked"
-        digit_events = [e for e in events if e["event"] == "dispatch" and e.get("step") == "unlock"]
+        digit_events = [e for e in events if e["event"] == "dispatch" and e.get("action") == "pin_digit"]
         assert len(digit_events) == 6 and all(e["checks"]["screen_locked"]["actual"] is True for e in digit_events)
 
 

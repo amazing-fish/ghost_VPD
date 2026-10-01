@@ -362,9 +362,9 @@ class HdcDevice:
         r = self._shell("hidumper", "-s", "WindowManagerService", "-a", "-a", op="window_list")
         return parse_windows(r.raw) if r.ok else None
 
-    def clear_text(self, x, y, count, dispatcher, preconditions):
+    def clear_text(self, x, y, count, dispatcher, preconditions, att=None):
         from ..dispatch import clear_text
-        return clear_text(self, x, y, count, dispatcher, preconditions)
+        return clear_text(self, x, y, count, dispatcher, preconditions, att)
 
     def launch(self, bundle: str, ability: str) -> DeviceResult:
         r = self._shell("aa", "start", "-a", ability, "-b", bundle, op="launch")

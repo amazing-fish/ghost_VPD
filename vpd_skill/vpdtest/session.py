@@ -284,6 +284,14 @@ def from_session(session_dir: Path, case_id: str, app, goal: Optional[str], drop
                      "why": "由会话生成：待补齐目的、判据（独立来源）、清理与 knowledge_used"}]}
 
 
+def step_options(action: str, request: dict) -> dict:
+    """现场执行和会话固化共用的参数语义；monitor 预期是结束条件。"""
+    names = {"expect": "until_state" if action == "monitor" else "expect_state",
+             "expect_text": "until_text" if action == "monitor" else "expect_text",
+             "duration": "duration_s", "interval": "interval_s", "watch": "watch"}
+    return {field: request[key] for key, field in names.items() if request.get(key)}
+
+
 def _to_case_step(it: dict, req: dict, session_dir: Path, test_data: dict, facts: dict) -> dict:
     seq, action = it["seq"], req.get("action")
     rec = it.get("record") or {}
@@ -293,12 +301,7 @@ def _to_case_step(it: dict, req: dict, session_dir: Path, test_data: dict, facts
             "from_session": {"session": session_dir.name, "seq": seq, "step": it.get("step_id"),
                              "outcome": it.get("outcome") or it["kind"], "effect_unknown": bool(it.get("effect_unknown")),
                              "obs_before": it.get("obs_before"), "obs_after": it.get("obs_after")}}
-    # monitor 的期望状态是结束条件 until_state（执行层只认它）；写成 expect_state 会让重放跑满时长后判通过
-    names = {"expect": "until_state" if action == "monitor" else "expect_state", "duration": "duration_s",
-             "interval": "interval_s"}
-    for k in ("expect", "expect_text", "duration", "interval", "watch"):
-        if req.get(k):
-            step[names.get(k, k)] = req[k]
+    step.update(step_options(action, req))
     if action == "swipe" and req.get("direction"):
         step["direction"] = req["direction"]
     if action == "swipe" and req.get("within"):

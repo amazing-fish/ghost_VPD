@@ -406,17 +406,28 @@ class ReplayDevice:
         # 合成世界默认只有被测 APP 的窗口；测试可在 replay_state 里放 windows（通知横幅等），null 表示查询失败
         return self.state.get("windows", ["app0"])
 
-    def clear_text(self, x: int, y: int, count: int, dispatcher, preconditions) -> DeviceResult:
+    def clear_text(self, x: int, y: int, count: int, dispatcher, preconditions, att=None) -> DeviceResult:
+        from ..dispatch import clear_text
+        self._clear_bind = None
         if self._in_app():
             hits = _hits(self._live(self._screen_spec(self.current_screen())["root"]), x, y, self.world["screen"])
             if hits:
                 spec, parents = max(hits, key=lambda sp: len(sp[1]))
                 box = next((n for n in (spec,) + tuple(reversed(parents)) if n.get("bind")), None)
                 if box is not None:
-                    self.bound.pop(box["bind"], None)
-        return self._res("clear_text", raw=f"deleted {count}")
+                    self._clear_bind = box["bind"]
+        try:
+            return clear_text(self, x, y, count, dispatcher, preconditions, att)
+        finally:
+            self._clear_bind = None
 
     def key(self, name: str) -> DeviceResult:
+        if name in ("move_end", "delete"):
+            # 清空能力的逐键回放：中途预算耗尽时保留已删除的部分。
+            bind = getattr(self, "_clear_bind", None)
+            if name == "delete" and bind is not None:
+                self.bound[bind] = self.bound.get(bind, "")[:-1]
+            return self._res(f"key_{name}", raw="keyEvent")
         if name == "back" and self._in_app():
             self._back()
         elif name == "home":

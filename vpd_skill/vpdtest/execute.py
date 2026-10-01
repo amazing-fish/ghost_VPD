@@ -84,13 +84,10 @@ class Executor:
     # ---- 单次尝试 ----
     def _attempt(self, step: dict, n: int, case_id: str) -> dict:
         ctx, kind = self.ctx, step["action"]
-        att = {"n": n, "ts": now_iso(), "action": kind, "step_id": step["id"]}
+        att = {"n": n, "ts": now_iso(), "action": kind, "step_id": step["id"], "_safety": bool(step.get("_safety"))}
         safety = bool(step.get("_safety"))  # 安全停止步骤：不受动作预算与运动超时拦截
         if not safety and ctx.motion.over():
             att.update(status="motion_timeout", motion={"elapsed_s": ctx.motion.elapsed(), "max_s": ctx.motion.max_s})
-            return att
-        if not safety and kind != "monitor" and ctx.actions >= ctx.policy.max_actions_per_run:
-            att["status"] = "budget_exhausted"
             return att
         if kind == "monitor":
             return self._monitor(step, att)
@@ -100,10 +97,13 @@ class Executor:
         obs, tree = ctx.observe(f"{step['id']}#{n}:before")
         att.update(obs_before=obs["obs_id"], state_before=obs["page"]["state"])
         if kind not in ("launch", "stop_app", "wait"):
-            obs, tree, dismissed = self._clear_interrupts(obs, tree, f"{step['id']}#{n}:before")
+            obs, tree, dismissed = self._clear_interrupts(obs, tree, f"{step['id']}#{n}:before", safety=safety)
             if dismissed:
                 att["dismissed"] = dismissed
                 att["state_before"] = obs["page"]["state"]
+                if dismissed[-1].get("gate") in ("budget_exhausted", "motion_timeout"):
+                    att["status"] = dismissed[-1]["gate"]
+                    return att
         if obs["page"].get("observation_error") and kind in ("tap", "input", "swipe"):
             # 观测本身失败时不定位、不下发：否则会把连接问题记成"目标找不到"
             att.update(status="observation_failed", error_class=obs["page"]["observation_error"])
@@ -171,11 +171,11 @@ class Executor:
                 # 先挂上看门狗再做后置观测：后置观测里出现的停止状态会按规则解除
                 ctx.motion.arm(step["id"], pol.get("label") or tid, obs["page"]["state"])
         elif kind == "launch":
-            res = ctx.device.launch(ctx.app.bundle, ctx.app.ability)
+            res = ctx.dispatcher.send("launch", ctx.app.bundle, ctx.app.ability, preconditions={}, att=att)
         elif kind == "resume":
             # 从后台拉回：与 launch 同一条命令；区别在于判定"回到原页面"而不是"冷启动"
             att["process_alive_before"] = ctx.device.process_alive(ctx.app.bundle)
-            res = ctx.device.launch(ctx.app.bundle, ctx.app.ability)
+            res = ctx.dispatcher.send("launch", ctx.app.bundle, ctx.app.ability, preconditions={}, att=att)
         elif kind == "wait" and step.get("duration_s"):
             dur = min(float(step["duration_s"]), float(ctx.policy.supervision.get("max_monitor_s", 600)))
             waited = 0.0
@@ -193,11 +193,11 @@ class Executor:
             if not self._foreground_ok(att):
                 return att
             if step.get("random"):
-                res, att["swipe"] = self._random_swipe(tree, obs.get("layout"), step)
+                res, att["swipe"] = self._random_swipe(tree, obs.get("layout"), step, att)
             else:
-                res, att["swipe"] = self._swipe(step.get("direction", "up"), tree, obs.get("layout"), step.get("within"))
+                res, att["swipe"] = self._swipe(step.get("direction", "up"), tree, obs.get("layout"), step.get("within"), att)
         elif kind == "stop_app":
-            res = ctx.device.stop(ctx.app.bundle)
+            res = ctx.dispatcher.send("stop_app", ctx.app.bundle, preconditions={}, att=att)
         elif kind == "input":
             tid, target = self._target(step)
             raw = step.get("text", "")
@@ -238,14 +238,13 @@ class Executor:
                 node = _tree_node(tree, loc)
                 n_del = len((node.text if node is not None else "") or "") + 2
                 cr = self._send_target("clear_text", loc, obs, tree, target, tid, step, att, n_del)
-                ctx.actions += int(cr.sent)
                 att["clear"] = {"deleted": n_del, "ok": cr.ok, "error": cr.error}
                 ctx.store.event("clear_text", step=step["id"], n=n, deleted=n_del, ok=cr.ok, sent=cr.sent)
                 if not cr.ok:
                     # 输入框已被点过、可能删了一部分：记为已下发未确认，会话/判定都按效果未知处理
                     att["dispatch"] = {"op": cr.op, "sent": cr.sent, "executor_ok": False, "error_class": cr.error_class,
                                        "error": cr.error, "duration_ms": cr.duration_ms}
-                    att.update(status="device_error", error_class=cr.error_class)
+                    att.update(status=cr.error_class if cr.error_class in STATUS_MAP else "device_error", error_class=cr.error_class)
                     return att
             if is_ref or (ctx.params and ctx.params.contains_secret([text])):
                 # inputText 经系统剪贴板：之后输入法的剪贴板栏会显示原文，本会话里输入法在场时不再截图
@@ -258,11 +257,8 @@ class Executor:
             att["status"] = "invalid_step"
             return att
         if res is not None:
-            ctx.actions += int(res.sent)
             att["dispatch"] = {"op": res.op, "sent": res.sent, "executor_ok": res.ok, "error_class": res.error_class,
                                "error": res.error, "duration_ms": res.duration_ms}
-            if kind in ("launch", "resume", "stop_app"):
-                ctx.store.event("dispatch", step=step["id"], n=n, preconditions={}, checks={}, **att["dispatch"])
             if not res.sent and res.error_class in STATUS_MAP:
                 att.update(status=res.error_class, error_class=res.error_class)
                 return att
@@ -389,23 +385,24 @@ class Executor:
         swipes, trail = 0, []
         while loc["status"] in ("not_found", "partially_visible") and scroll and swipes < int(scroll.get("max", 3)):
             # 滚动查找也是手势：和正式下发一样先确认锁屏与前台，查不到/不对就停，不滑
-            gate = {"action": "swipe", "step_id": step.get("id")}
+            gate = {"action": "swipe", "step_id": step.get("id"), "_safety": bool(step.get("_safety"))}
             if not self._foreground_ok(gate):
                 loc = {**loc, "status": "blocked_state", "gate": {k: gate.get(k) for k in (
                     "status", "error_class", "foreground_check", "state_check", "action_required") if k in gate}}
                 break
             swipes += 1
             before = tree.fingerprint() if (tree is not None and tree.status == "ok") else None
-            r, info = self._swipe(scroll.get("direction", "up"), tree, lay, scroll.get("within"))
+            r, info = self._swipe(scroll.get("direction", "up"), tree, lay, scroll.get("within"), gate)
             info["sent"] = r.sent
-            if r.sent:
-                ctx.actions += 1
             obs, tree = ctx.observe(f"{step['id']}:scroll{swipes}")
             lay = obs.get("layout")
             after = tree.fingerprint() if (tree is not None and tree.status == "ok") else None
             info.update(n=swipes, ok=r.ok, error=r.error, content_changed=before != after if before else None)
             trail.append(info)
             ctx.store.event("scroll_search", target=tid, **info)
+            if r.error_class in ("budget_exhausted", "motion_timeout"):
+                loc = {**loc, "status": "blocked_state", "gate": {"status": r.error_class}}
+                break
             loc = resolve(tid, target, tree, ctx.observer.screenshot_abs(obs), ctx.app.dir, pref, point, lay)
             if not r.ok or (before and before == after):
                 if r.ok:
@@ -441,7 +438,7 @@ class Executor:
             return pack(l, o, t)
         return ctx.dispatcher.send(op, *loc["point"], *extra, preconditions={**ctx.dispatcher.app_conditions(att["action"]), "target_subtree": True}, att=att, tap=pack(loc, obs, tree), refresh=refresh)
 
-    def _clear_interrupts(self, obs: dict, tree, label: str, limit: int = 3) -> tuple:
+    def _clear_interrupts(self, obs: dict, tree, label: str, limit: int = 3, safety: bool = False) -> tuple:
         """弹窗是常态（资源包下载、版本更新、权限提示……）：页面上只有"已评审的良性中断"时，
         按声明的关闭方式（dismiss_target / dismiss_text）点掉再观察，最多连关 limit 个；
         同时出现异常/阻塞/未评审中断时一个都不动，交给后续判定。每次关闭都记事件，弹窗画面的观测保留。"""
@@ -473,12 +470,11 @@ class Executor:
             if loc["status"] != "found":
                 done.append({**rec, "ok": False})
                 break
-            gate = {"action": "tap", "step_id": label}
+            gate = {"action": "tap", "step_id": label, "_safety": safety}
             if not self._foreground_ok(gate):
                 done.append({**rec, "ok": False, "gate": gate.get("status")})
                 break
             r = self._send_target("tap", loc, obs, tree, target, tid, {"id": label}, gate)
-            ctx.actions += int(r.sent)
             rec.update(ok=r.ok, point=list(loc["point"]), gate=gate.get("status"))
             ctx.store.event("interrupt_dismissed", at=label, **rec)
             done.append(rec)
@@ -561,7 +557,7 @@ class Executor:
                 return pt
         return first
 
-    def _random_swipe(self, tree, lay, step: dict) -> tuple:
+    def _random_swipe(self, tree, lay, step: dict, att=None) -> tuple:
         """可复现的随机滑动（如"随机拖动地图"）：种子记入证据，重跑时用同一种子得到同样的轨迹；
         起止点都在容器可见区域内，按比例取，不写像素。"""
         import random
@@ -584,7 +580,7 @@ class Executor:
         p2 = [rect[0] + int(w * fx2), rect[1] + int(h * fy2)]
         info.update(area=list(rect), fractions=[round(fx1, 3), round(fy1, 3), round(fx2, 3), round(fy2, 3)],
                     **{"from": p1, "to": p2})
-        return self.ctx.dispatcher.send("swipe", *p1, *p2, preconditions=self.ctx.dispatcher.app_conditions("swipe")), info
+        return self.ctx.dispatcher.send("swipe", *p1, *p2, preconditions=self.ctx.dispatcher.app_conditions("swipe"), att=att), info
 
     def _flow(self, step: dict, case_id: str) -> dict:
         """流程 = 带参数的原子能力序列（flows.json）。展开后逐步执行，每个子步骤仍走完整的观测/定位/策略/后置条件。"""
@@ -602,7 +598,8 @@ class Executor:
         subs = []
         for i, sub in enumerate(spec["steps"]):
             s = self.run_step({"critical": True, "retry": 1, **sub, "id": f"{step['id']}.{i + 1}",
-                               "_flow_params": local, "_flow_raw": step.get("params", {})}, case_id)
+                               "_flow_params": local, "_flow_raw": step.get("params", {}),
+                               "_safety": bool(step.get("_safety"))}, case_id)
             subs.append(s)
             if not s["outcome"].startswith("passed") and s.get("critical", True):
                 return {**base, "outcome": s["outcome"], "attribution": s.get("attribution"),
@@ -619,7 +616,7 @@ class Executor:
                 "recoveries": [r for s in subs for r in s["recoveries"]], "final_obs": subs[-1].get("final_obs"),
                 "measurement": meas}
 
-    def _swipe(self, direction: str, tree=None, lay=None, within=None) -> tuple:
+    def _swipe(self, direction: str, tree=None, lay=None, within=None, att=None) -> tuple:
         """在可滚动容器内滑动：起止点取容器可见区域的 75%/25% 高度，而不是整屏比例。
         折叠屏分栏时列表可能只在左栏，按整屏中线滑会滑到右栏上。"""
         info, rect = {"direction": direction}, None
@@ -644,7 +641,7 @@ class Executor:
         top, bottom = rect[1] + int((rect[3] - rect[1]) * 0.25), rect[1] + int((rect[3] - rect[1]) * 0.75)
         y1, y2 = (bottom, top) if direction == "up" else (top, bottom)
         info["from"], info["to"] = [x, y1], [x, y2]
-        return self.ctx.dispatcher.send("swipe", x, y1, x, y2, preconditions=self.ctx.dispatcher.app_conditions("swipe")), info
+        return self.ctx.dispatcher.send("swipe", x, y1, x, y2, preconditions=self.ctx.dispatcher.app_conditions("swipe"), att=att), info
 
     # ---- 后置条件 ----
     def _post(self, step: dict, n: int, case_id: str, was_in_app: bool = True) -> dict:
@@ -658,7 +655,7 @@ class Executor:
         while True:
             polls += 1
             obs, tree = ctx.observe(f"{step['id']}#{n}:after")
-            obs, tree, dismissed = self._clear_interrupts(obs, tree, f"{step['id']}#{n}:after")
+            obs, tree, dismissed = self._clear_interrupts(obs, tree, f"{step['id']}#{n}:after", safety=bool(step.get("_safety")))
             post_dismissed += dismissed
             page = obs["page"]
             # 动作前在 APP 内、动作后进程不在且不是主动结束/返回桌面 → 疑似崩溃
@@ -672,6 +669,9 @@ class Executor:
             elapsed = round(time.monotonic() - t0, 2)
             if crash or anomalies:
                 status = "anomaly"
+                break
+            if dismissed and dismissed[-1].get("gate") in ("budget_exhausted", "motion_timeout"):
+                status = dismissed[-1]["gate"]
                 break
             if met:
                 status = "ok"
@@ -709,7 +709,8 @@ class Executor:
             dt = spec.get("dismiss_target") or {"label": f"关闭{ints[0]['id']}", "side_effect": "dismiss_dialog",
                                                 "strategies": [{"kind": "text", "value": spec["dismiss_text"]}]}
             sub = {"id": f"{step['id']}.dismiss", "action": "tap", "target": dt,
-                   "expect_state": step.get("expect_state"), "timeout_s": step.get("timeout_s", 8)}
+                   "expect_state": step.get("expect_state"), "timeout_s": step.get("timeout_s", 8),
+                   "_safety": bool(step.get("_safety"))}
             r = self._attempt(sub, 1, case_id)
             return {"action": "dismiss_interrupt", "performed": "dispatch" in r, "interrupt": ints[0]["id"],
                     "reason": "关闭已评审的良性中断后重新判定后置条件", "attempt": r, "post": r.get("post"),
@@ -761,10 +762,14 @@ class Executor:
     # ---- 到达已知状态 ----
     def _ensure_state(self, step: dict, case_id: str) -> dict:
         ctx, target = self.ctx, step["state"]
-        obs, tree = ctx.observe(f"{step['id']}:check")
-        obs, _, dismissed = self._clear_interrupts(obs, tree, f"{step['id']}:check")
         base = {"step_id": step["id"], "action": "ensure_state", "critical": True, "oracle_refs": [],
                 "recoveries": [], "adapted": False}
+        obs, tree = ctx.observe(f"{step['id']}:check")
+        obs, _, dismissed = self._clear_interrupts(obs, tree, f"{step['id']}:check", safety=bool(step.get("_safety")))
+        if dismissed and dismissed[-1].get("gate") in ("budget_exhausted", "motion_timeout"):
+            status = dismissed[-1]["gate"]
+            return {**base, "outcome": "blocked", "attribution": "tool", "attempts": [],
+                    "reason": STATUS_MAP[status][2], "final_status": status, "final_obs": obs["obs_id"], "dismissed": dismissed}
         if ctx.app.states.is_state(obs["page"], target) and not obs["page"].get("interrupts"):
             return {**base, "outcome": "passed", "attempts": [], "note": "已处于目标状态", "final_obs": obs["obs_id"],
                     "dismissed": dismissed}
@@ -774,7 +779,8 @@ class Executor:
                     "reason": f"没有到达状态 {target} 的 recipe", "final_obs": obs["obs_id"]}
         subs = []
         for i, sub in enumerate(recipe):
-            s = self.run_step({"critical": True, "retry": 1, **sub, "id": f"{step['id']}.{i + 1}"}, case_id)
+            s = self.run_step({"critical": True, "retry": 1, **sub, "id": f"{step['id']}.{i + 1}",
+                               "_safety": bool(step.get("_safety"))}, case_id)
             subs.append(s)
             if not s["outcome"].startswith("passed"):
                 return {**base, "outcome": s["outcome"], "attribution": s.get("attribution"),

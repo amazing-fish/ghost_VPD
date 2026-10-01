@@ -166,11 +166,19 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
             findings.append({"kind": "safety_stop", "result": "blocked", "attribution": "environment",
                              "reason": f"安全停止（触发：{s['trigger']}）未能通过观测确认车辆已停止，需现场人工接管"})
     if not preflight.get("ok"):
+        unlock = preflight.get("unlock") or {}
+        if unlock and unlock.get("status") != "unlocked":
+            status = unlock.get("status")
+            message = {"missing_secret": "本机缺少该设备的有效 PIN 映射或值，请人工核对配置",
+                       "pin_rejected": "PIN 被拒，已停止输入，请人工核对 PIN，避免锁机"}.get(
+                           status, "解锁状态不可识别，请人工核对：" + (unlock.get("reason") or "原因未知"))
+            alerts.append({"kind": "unlock", "status": status, "action_required": message,
+                           "reason": unlock.get("reason")})
         bad = [c for c in preflight.get("checks", []) if not c["ok"]]
         return _final("blocked", "environment", [{"kind": "preflight", "result": "blocked", "attribution": "environment",
                                                   "reason": "前置检查未通过：" + "、".join(
                                                       f"{c['check']}({c.get('error_class')})" for c in bad),
-                                                  "detail": bad}], [], steps, assertions=assertions)
+                                                  "detail": bad}], [], steps, alerts=alerts, assertions=assertions)
     if not env_check.get("ok"):
         return _final("blocked", "environment", [{"kind": "env_requirement", "result": "blocked",
                                                   "attribution": "environment",

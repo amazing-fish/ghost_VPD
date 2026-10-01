@@ -29,11 +29,13 @@ class Dispatcher:
             expected, locked = conditions["screen_locked"], dev.screen_locked()
             if locked is True and expected is False and conditions.get("recover_unlock"):
                 from .unlock import unlock_device
-                result = unlock_device(self.ctx.ws, dev, self.store)
+                result = unlock_device(self.ctx.ws, dev, self.store, dispatcher=self, att=att)
                 att["unlock"] = checks["unlock"] = result
                 if result["status"] != "unlocked":
-                    att.update(status="screen_locked" if result["status"] in ("pin_rejected", "missing_secret")
-                               else "state_indeterminate", error_class=result["status"], action_required=True)
+                    status = result.get("error_class")
+                    if status not in ("budget_exhausted", "motion_timeout"):
+                        status = "screen_locked" if result["status"] in ("pin_rejected", "missing_secret") else "state_indeterminate"
+                    att.update(status=status, error_class=result["status"], action_required=True)
                     return False, checks
                 locked = dev.screen_locked()
             checks["screen_locked"] = {"actual": locked, "expected": expected}
@@ -62,7 +64,11 @@ class Dispatcher:
     def send(self, op, *args, preconditions, att=None, tap=None, refresh=None):
         """tap 提供树/定位/目标；遮挡时最多重新定位一次。PIN 不携带节点、坐标或值到事件。"""
         att = att if att is not None else {"action": op}
-        ok, checks = self._state(preconditions, att)
+        checks = {}
+        if not self._limits(att, checks):
+            return self._reject(op, preconditions, checks, att)
+        ok, state_checks = self._state(preconditions, att)
+        checks.update(state_checks)
         if not ok:
             return self._reject(op, preconditions, checks, att)
         if tap is not None:
@@ -96,6 +102,9 @@ class Dispatcher:
             args = (*tap["loc"]["point"], *args[2:])
             att["locate"] = tap["loc"]
             att["policy"] = check.get("policy")
+        # 解锁、重新定位等嵌套操作可能已消耗预算或时间，紧邻设备调用再次复核。
+        if not self._limits(att, checks):
+            return self._reject(op, preconditions, checks, att)
         dev = self.device
         if op == "tap":
             result = dev.tap(*args)
@@ -106,13 +115,38 @@ class Dispatcher:
         elif op == "input_text":
             result = dev.input_text(*args)
         elif op == "clear_text":
-            result = dev.clear_text(*args, dispatcher=self, preconditions=preconditions)
+            # 聚合动作只汇总结果；内部物理动作各自计数、检查、记录，外层不重复计数。
+            result = dev.clear_text(*args, dispatcher=self, preconditions=preconditions, att=att)
         elif op == "wake":
             result = dev.wake()
+        elif op == "launch":
+            result = dev.launch(*args)
+        elif op == "stop_app":
+            result = dev.stop(*args)
         else:
             raise ValueError(f"未知物理动作 {op}")
+        if result.sent and op != "clear_text" and self.ctx is not None:
+            self.ctx.actions += 1
+        if not result.ok and result.error_class in ("budget_exhausted", "motion_timeout"):
+            att["status"] = result.error_class
         self._record(op, preconditions, checks, result, att)
         return result
+
+    def _limits(self, att, checks):
+        ctx, exempt = self.ctx, bool(att.get("_safety"))
+        checks["budget"] = {"applicable": ctx is not None, "exempt": exempt,
+                            "used": ctx.actions if ctx else None,
+                            "max": ctx.policy.max_actions_per_run if ctx else None}
+        checks["motion"] = {"applicable": ctx is not None, "exempt": exempt,
+                            "over": ctx.motion.over() if ctx else False}
+        if ctx is not None and not exempt:
+            if checks["motion"]["over"]:
+                att.update(status="motion_timeout", motion={"elapsed_s": ctx.motion.elapsed(), "max_s": ctx.motion.max_s})
+                return False
+            if ctx.actions >= ctx.policy.max_actions_per_run:
+                att["status"] = "budget_exhausted"
+                return False
+        return True
 
     def _tap_check(self, tap):
         tree, loc, target = tap["tree"], tap["loc"], tap["target"]
@@ -140,6 +174,7 @@ class Dispatcher:
 
     def _record(self, op, preconditions, checks, result, att):
         data = {"op": op, "action": att["action"], "preconditions": preconditions, "checks": checks, "sent": result.sent,
+                "aggregate": op == "clear_text",
                 "executor_ok": result.ok, "error_class": result.error_class, "error": result.error,
                 "duration_ms": result.duration_ms}
         att["dispatch_recheck"] = {"preconditions": preconditions, "checks": checks}
@@ -147,11 +182,13 @@ class Dispatcher:
             self.store.event("dispatch", step=att.get("step_id"), **data)
 
 
-def clear_text(device, x, y, count, dispatcher, preconditions):
+def clear_text(device, x, y, count, dispatcher, preconditions, att=None):
     """每个按键都经过关口；中途拒绝仍保留已经下发的事实。"""
     sent = False
     for op, args in [("tap", (x, y)), ("key", ("move_end",))] + [("key", ("delete",))] * max(0, int(count)):
-        result = dispatcher.send(op, *args, preconditions=preconditions)
+        result = dispatcher.send(op, *args, preconditions=preconditions,
+                                 att={"action": "clear_text", "step_id": (att or {}).get("step_id"),
+                                      "_safety": bool((att or {}).get("_safety"))})
         sent = sent or result.sent
         if not result.ok:
             return DeviceResult("clear_text", sent, False, result.error_class,

@@ -834,7 +834,7 @@ def test_unlock_guard_is_written_before_pin_and_blocks_concurrent_or_crashed_run
     ws.config["unlock_secrets"] = {dev: "LOCK_PIN"}
     guard = ws.runs_dir / f"unlock-guard-{sha256_obj(dev)[:12]}.json"
     seen = {}
-    def crash(device, pin, dispatcher):
+    def crash(device, pin, dispatcher, **kwargs):
         seen["guard_during"] = guard.exists() and read_json(guard)["status"]
         raise RuntimeError("进程在输 PIN 中途退出")
     monkeypatch.setattr("vpdtest.unlock.wake_unlock", crash)

@@ -9,12 +9,14 @@ from .devices.harmony_hdc import unlock_swipe_points
 from .util import now_iso, sha256_obj, write_json
 
 
-def wake_unlock(device, pin, dispatcher=None, sleep=None):
+def wake_unlock(device, pin, dispatcher=None, sleep=None, att=None):
     dispatcher = dispatcher or Dispatcher(device)
     if sleep is None:
         import time
         sleep = time.sleep if device.kind != "replay" else lambda _: None
     evidence, entered = [], 0
+    def action(name):
+        return {"action": name, "step_id": "unlock", "_safety": bool((att or {}).get("_safety"))}
 
     def result(status, **kw):
         return {"status": status, "evidence": evidence, "entered_digits": entered,
@@ -26,9 +28,9 @@ def wake_unlock(device, pin, dispatcher=None, sleep=None):
         return result("unlocked", method="already")
     if locked is None:
         return result("indeterminate", reason="查询不到当前设备和屏幕状态，未继续操作")
-    r = dispatcher.send("wake", preconditions={"screen_locked": True})
+    r = dispatcher.send("wake", preconditions={"screen_locked": True}, att=action("wake"))
     if not r.ok:
-        return result("indeterminate", reason="唤醒前置状态或执行器结果不确定")
+        return result("indeterminate", error_class=r.error_class, reason=f"唤醒未完成：{r.error_class}")
     sleep(1.0)
     locked = device.screen_locked()
     evidence.append({"stage": "awake", "screen_locked": locked})
@@ -39,9 +41,9 @@ def wake_unlock(device, pin, dispatcher=None, sleep=None):
     swipe = unlock_swipe_points(device.display_info())
     if swipe is None:
         return result("indeterminate", reason="查询不到显示尺寸，未上滑")
-    r = dispatcher.send("swipe", *swipe, 3000, preconditions={"screen_locked": True})
+    r = dispatcher.send("swipe", *swipe, 3000, preconditions={"screen_locked": True}, att=action("swipe"))
     if not r.ok:
-        return result("indeterminate", reason="上滑前置状态或执行器结果不确定")
+        return result("indeterminate", error_class=r.error_class, reason=f"上滑未完成：{r.error_class}")
     sleep(1.5)
     locked = device.screen_locked()
     evidence.append({"stage": "swiped", "screen_locked": locked})
@@ -56,11 +58,12 @@ def wake_unlock(device, pin, dispatcher=None, sleep=None):
         return result("indeterminate", reason="未能识别锁屏数字键盘，未输入")
     for ch in pin:
         r = dispatcher.send("tap", *pad[ch], preconditions={"screen_locked": True},
-                            att={"action": "pin_digit", "step_id": "unlock"})
+                            att=action("pin_digit"))
         if r.sent:
             entered += 1
         if not r.ok:
-            return result("indeterminate", reason="PIN 输入前锁屏复核或执行器失败，停止输入")
+            return result("indeterminate", error_class=r.error_class,
+                          reason=f"PIN 输入前锁屏复核或执行器失败，停止输入：{r.error_class}")
         sleep(0.25)
     sleep(1.5)
     locked = device.screen_locked()
@@ -70,7 +73,7 @@ def wake_unlock(device, pin, dispatcher=None, sleep=None):
     return result("indeterminate" if locked is None else "pin_rejected", reason="输入一次 PIN 后未确认解锁，不重试")
 
 
-def unlock_device(ws, device, store=None, secret_name=None):
+def unlock_device(ws, device, store=None, secret_name=None, dispatcher=None, att=None):
     """CLI、回归与动作恢复共用；一次失败/未知的 PIN 尝试阻止自动重入。"""
     mapping = ws.config.get("unlock_secrets") or {}
     key = secret_name or mapping.get(device.spec)
@@ -100,7 +103,8 @@ def unlock_device(ws, device, store=None, secret_name=None):
             except FileExistsError:
                 res = {"status": "indeterminate", "reason": "该设备正在解锁或上次尝试未完成", "evidence": []}
         if not guarded or acquired:
-            res = wake_unlock(device, str(pin) if pin is not None else None, Dispatcher(device, store))
+            res = wake_unlock(device, str(pin) if pin is not None else None,
+                              dispatcher or Dispatcher(device, store), att=att)
             if acquired:
                 if res["status"] == "unlocked" or not res.get("pin_entered"):
                     guard.unlink()

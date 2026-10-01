@@ -58,7 +58,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
             c["ok"] for c in pre["checks"] if c["check"] not in screen_checks):
         from .unlock import unlock_device
         before_checks = [dict(c) for c in pre["checks"]]
-        unlocked = unlock_device(ws, device, store)
+        unlocked = unlock_device(ws, device, store, dispatcher=ctx.dispatcher)
         if unlocked["status"] == "unlocked":
             pre = device.preflight(app.bundle)
         else:

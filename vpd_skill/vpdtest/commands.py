@@ -16,7 +16,7 @@ from .observe import RunStore
 from .params import Params
 from .runner import run_case
 from .session import (IDENTITY_KEYS, SessionMismatch, dispatched, effect_unknown, from_session, next_seq,
-                      parse_select, summarize, trail, session_lock)
+                      parse_select, summarize, trail, session_lock, step_options)
 from .templates import crop
 from .util import append_jsonl, now_iso, read_json, read_jsonl, write_json
 from .workspace import RunContext, Workspace
@@ -192,11 +192,10 @@ def _act_step(ctx, store, a, step_id: str) -> dict:
         raise ValueError(f"{auth['missing_supervisor']} 需要在场监护人：加 --supervisor <姓名/工号>")
     ctx.authorized, ctx.supervisor = granted, a.supervisor
     store.event("authorization", requested=sorted(granted), granted=sorted(granted), supervisor=bool(a.supervisor))
-    step = {"id": step_id, "action": a.action, "retry": 0, "timeout_s": a.timeout, "expect_state": a.expect}
-    if a.expect_text:
-        step["expect_text"] = a.expect_text
-    if a.duration:
-        step["duration_s"] = a.duration
+    step = {"id": step_id, "action": a.action, "retry": 0, "timeout_s": a.timeout,
+            **step_options(a.action, {"expect": a.expect, "expect_text": a.expect_text,
+                                     "duration": a.duration, "interval": a.interval,
+                                     "watch": dict(kv.split("=", 1) for kv in a.watch or [])})}
     if getattr(a, "direction", None):
         step["direction"] = a.direction
     if a.action == "swipe" and a.within:
@@ -204,8 +203,7 @@ def _act_step(ctx, store, a, step_id: str) -> dict:
         k, _, v = a.within.partition("=")
         step["within"] = {k: v}
     if a.action == "monitor":
-        step.update(interval_s=a.interval, until_state=a.expect,
-                    watch=dict(kv.split("=", 1) for kv in a.watch or []), stop_on=[])
+        step["stop_on"] = []
     if a.action in ("tap", "input"):
         given = [x for x in (a.select, a.target, a.point) if x]
         if len(given) != 1:
