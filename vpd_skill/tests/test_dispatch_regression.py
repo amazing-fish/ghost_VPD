@@ -153,10 +153,12 @@ print(commands.cmd_act(w,a)['seq'])
 
 
 def test_device_primitives_have_one_call_site_module():
+    # console/ 是人在投屏上手动操作的旁路：不受 policy/授权约束，也不计入 Agent 的预算和用例证据，
+    # 它单独写 kind="console" 的运行记录。豁免只覆盖这一个目录，其他模块仍必须经 Dispatcher 下发。
     root = Path(__file__).resolve().parents[1] / "vpdtest"
     forbidden = []
     for path in root.rglob("*.py"):
-        if path.name == "dispatch.py":
+        if path.name == "dispatch.py" or path.relative_to(root).parts[0] == "console":
             continue
         for node in ast.walk(ast.parse(path.read_text("utf-8"))):
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):

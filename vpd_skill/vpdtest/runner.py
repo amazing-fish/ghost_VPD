@@ -50,7 +50,10 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     ctx = RunContext(ws, app, device, store, overlay, mode="regression")
     knowledge = KnowledgeStore(ws.root)  # 前置检查后再绑定本次运行事实（APP/版本/形态/声明的环境）
     started = now_iso()
-    store.event("run_start", case=case["id"], device=device.spec, overlay=overlay.describe())
+    # steps/title 供控制台进度面板显示总步数与标题；只记步骤 id 与动作名，不含目标/文字等内容
+    store.event("run_start", case=case["id"], title=case.get("title"), device=device.spec,
+                overlay=overlay.describe(),
+                steps=[{"id": s["id"], "action": s["action"]} for s in case.get("steps", [])])
 
     pre = device.preflight(app.bundle)
     screen_checks = {"screen_awake", "screen_unlocked"}
@@ -111,6 +114,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                               "critical": st.get("critical", True), "attempts": [], "recoveries": [], "adapted": False,
                               "oracle_refs": st.get("oracle_refs", [])})
                 continue
+            store.event("step_start", step=st["id"], action=st["action"])
             res = ex.run_step(st, case["id"])
             steps.append(res)
             store.event("step_done", step=st["id"], outcome=res["outcome"])

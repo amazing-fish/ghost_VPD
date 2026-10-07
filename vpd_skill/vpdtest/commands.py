@@ -322,13 +322,22 @@ def _run_brief(run: dict) -> dict:
 
 def cmd_suite(ws: Workspace, a) -> dict:
     suite = ws.load_suite(a.suite)
+    devices = a.device or [None]
+    # 用例集进度写在自己的 events.jsonl（runs/suite-*），每条用例仍是独立的 run-* 目录
+    sstore = RunStore(ws.runs_dir, kind="suite")
+    sstore.event("suite_start", suite=a.suite, total=len(suite["cases"]) * len(devices),
+                 cases=[e["id"] if isinstance(e, dict) else e for e in suite["cases"]], devices=devices)
     rows = []
-    for dev in a.device or [None]:
+    for dev in devices:
         for entry in suite["cases"]:
             cid = entry["id"] if isinstance(entry, dict) else entry
             env = entry.get("env", {}) if isinstance(entry, dict) else {}
-            rows.append(_run_brief(run_case(ws, cid, device_spec=dev, env=env)))
-    return {"suite": a.suite, "results": rows}
+            sstore.event("case_start", case=cid, device=dev, index=len(rows) + 1)
+            row = _run_brief(run_case(ws, cid, device_spec=dev, env=env))
+            sstore.event("case_done", case=cid, device=dev, run_id=row["run_id"], verdict=row["verdict"])
+            rows.append(row)
+    sstore.event("suite_end", verdicts=[r["verdict"] for r in rows])
+    return {"suite": a.suite, "suite_run": sstore.run_id, "results": rows}
 
 
 def cmd_explore(ws: Workspace, a) -> dict:
@@ -429,6 +438,36 @@ def cmd_experience(ws: Workspace, a) -> dict:
     if a.x_cmd == "ledger":
         return {"ledger": xs.ledger()}
     raise ValueError(a.x_cmd)
+
+
+def cmd_console(ws: Workspace, a) -> dict:
+    """阻塞运行；启动后先打印一行 {"console": url}，退出时再输出汇总。
+
+    控制台的手动操作是人工旁路，不经过 Dispatcher / policy / 授权 / 证据链（见 console/control.py）。
+    它写独立的 kind="console" 运行目录，console_input 事件不与 Agent 的 act 判定混在同一条用例里。
+    Agent 的设备动作只能走 act/run/explore。"""
+    import json as _json
+    import sys
+
+    from .console.server import Console, is_loopback, serve
+    if not is_loopback(a.host):  # 先校验，避免连上设备、起了帧流才报错
+        raise ValueError(f"控制台只允许绑定 127.0.0.1 或 localhost，拒绝 {a.host}")
+    spec = None if a.no_device else (a.device or ws.config.get("device"))
+    if spec and not spec.startswith("hdc:"):
+        raise ValueError("控制台只支持真机 hdc:<serial>；回放 world 请用 run/observe")
+    device = ws.device(spec) if spec else None
+    if device is not None and not device.serial:
+        raise ValueError("hdc list targets 没有设备")
+    store = RunStore(ws.runs_dir, kind="console")
+    console = Console(device, store, ws.runs_dir, source=a.source, allow_input=not a.view_only,
+                      max_fps=a.max_fps, keep_awake_min=a.keep_awake)
+
+    def ready(url, port):
+        print(_json.dumps({"console": url, "port": port, "device": spec, "input": console.allow_input,
+                           "note": "URL 含访问 token，只在本机浏览器打开，不要外传"}, ensure_ascii=False), flush=True)
+        sys.stdout.flush()
+
+    return serve(console, a.host, a.port, a.duration, on_ready=ready)
 
 
 def cmd_template_crop(ws: Workspace, a) -> dict:

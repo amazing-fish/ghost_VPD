@@ -58,6 +58,7 @@ def explore(ws: Workspace, app_id: str, start: str, device_spec: Optional[str], 
     exp = {"run_id": store.run_id, "app": app_id, "start": start, "goal": goal, "budget": budget,
            "validation_level": "offline_replay" if device.kind == "replay" else "real_device",
            "states": {}, "transitions": [], "skipped": [], "anomalies": [], "exit": {}}
+    store.event("explore_start", app=app_id, start=start, goal=goal, budget=budget, device=device.spec)
     pre = device.preflight(app.bundle)
     tried, frontier, n = set(), [start], 0
     if not pre["ok"]:
@@ -131,5 +132,6 @@ def explore(ws: Workspace, app_id: str, start: str, device_spec: Optional[str], 
                        "disclaimer": DISCLAIMER}
     write_json(store.dir / "exploration.json", exp)
     (store.dir / "report.md").write_text(render_exploration(exp), encoding="utf-8")
+    store.event("explore_end", exit=exp["exit"]["reason"], transitions=len(exp["transitions"]), actions=ctx.actions)
     exp["dir"] = str(store.dir)
     return exp

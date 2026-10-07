@@ -146,6 +146,8 @@ class Observer:
             elif r.ok and (d / "screen.png").exists():
                 obs["screenshot"] = {"status": "ok", "path": self.store.rel(d / "screen.png"),
                                      "sha256": sha256_file(d / "screen.png")[:16]}
+                if r.data.get("fallback_from"):  # screenCap 投屏期间失败，回退 snapshot_display 得到的截图
+                    obs["screenshot"]["fallback_from"] = r.data["fallback_from"]
             else:
                 obs["screenshot"] = {"status": "error", "error_class": r.error_class, "error": r.error}
         if "system_overlays" in obs:  # 查询失败（None）也记：报告里写"查询失败"
