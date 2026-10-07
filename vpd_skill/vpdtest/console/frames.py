@@ -243,12 +243,17 @@ class UitestStreamSource:
 
     def _pump(self) -> None:
         buf = bytearray()
+        start_seq = self.hub.seq
         self._sock.settimeout(self.stall_s)
         while not self._stop.is_set():
             try:
                 chunk = self._sock.recv(1 << 20)
             except socket.timeout:
-                # 熄屏/锁屏时帧流可能停止输出：保持连接，状态标为 stalled，不当成错误
+                if self.hub.seq == start_seq:
+                    # 连上了却从没出过帧（capture 不支持或启动即卡死）：当成一次失败的流尝试，
+                    # 交给 _loop 计数重试，连续失败后回退 snapshot，而不是永远卡在空白流上
+                    raise ConnectionError(f"{self.stall_s:.0f}s 内未收到任何帧，帧流未就绪")
+                # 已出过帧后再 stall（熄屏/锁屏画面静止）：保持连接，状态标为 stalled，不当成错误
                 self.hub.set_status("stalled", f"{self.stall_s:.0f}s 没有新帧（熄屏或画面静止）")
                 continue
             if not chunk:

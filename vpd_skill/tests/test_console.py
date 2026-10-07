@@ -2,6 +2,7 @@
 import http.client
 import json
 import os
+import socket
 import struct
 import threading
 import time
@@ -340,6 +341,20 @@ def test_console_input_follows_rotation_or_refuses(tmp_path):
         con.close()
 
 
+def test_console_input_refused_when_frame_not_live(tmp_path):
+    dev = FakeDevice()
+    con = Console(dev, RunStore(tmp_path / "runs", kind="console"), tmp_path / "runs").start()
+    try:
+        con.hub.wait(0, timeout=3)
+        con.src.stop()                        # 停掉 snapshot 源，画面不再刷新
+        con.hub.set_status("stalled", "熄屏")  # 帧流/快照停摆：旧帧还在，但 UI 可能已变
+        r = con.input({"op": "tap", "x": 0.5, "y": 0.5})
+        assert not r["ok"] and r["error_class"] == "frame_stale"
+        assert con.input({"op": "key", "key": "back"})["ok"]  # 不依赖坐标的操作不受影响
+    finally:
+        con.close()
+
+
 def test_stream_falls_back_when_connections_die_before_any_frame():
     hub, gave_up = FrameHub(), threading.Event()
     src = UitestStreamSource("S", hub, on_give_up=lambda why: gave_up.set(), max_failures=3)
@@ -365,6 +380,47 @@ def test_stream_failure_count_resets_only_after_frames():
     src.start()
     # 第 4 轮出过帧后断开记 1 次，第 5 轮一帧没出再记 1 次 → 连续 2 次才回退（前 4 轮每轮都从 0 重新计）
     assert gave_up.wait(3) and len(rounds) == 5
+
+
+class _TimeoutSock:
+    """假 socket：第一次 recv 可选地回一帧真 JPEG，之后 recv 永远超时（连上帧流却不再出帧）。"""
+    def __init__(self, first_frame=False):
+        self.first_frame, self.recvs = first_frame, 0
+
+    def settimeout(self, s): pass
+
+    def recv(self, n):
+        self.recvs += 1
+        if self.first_frame and self.recvs == 1:
+            return fake_jpeg()              # 让 _pump 自己 split+push，hub.seq 归 1
+        raise socket.timeout()
+
+    def close(self): pass
+
+
+def test_pump_gives_up_when_stream_connects_but_never_frames():
+    hub = FrameHub()
+    src = UitestStreamSource("S", hub)
+    src._sock = _TimeoutSock(first_frame=False)
+    with pytest.raises(ConnectionError):      # 首帧前反复超时 → 当成失败，交给 _loop 回退 snapshot
+        src._pump()
+    assert hub.seq == 0
+
+
+def test_pump_tolerates_stall_after_frames_without_giving_up():
+    hub = FrameHub()
+    src = UitestStreamSource("S", hub)
+    src._sock = _TimeoutSock(first_frame=True)
+    orig, stalled = hub.set_status, threading.Event()
+
+    def spy(status, error=None):
+        orig(status, error)
+        if status == "stalled":
+            stalled.set()
+            src._stop.set()                   # 确认进入 stalled 分支后停掉 pump，不无限循环
+    hub.set_status = spy
+    src._pump()                               # 出过一帧后再 stall：不抛，循环靠 _stop 正常退出
+    assert stalled.is_set() and hub.seq == 1  # 标 stalled、保留那一帧
 
 
 def _awake_console(tmp_path):

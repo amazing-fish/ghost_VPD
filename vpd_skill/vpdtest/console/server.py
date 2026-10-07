@@ -23,6 +23,7 @@ from .frames import FrameHub, SnapshotSource, UitestStreamSource
 PAGE = Path(__file__).with_name("page.html")
 MAX_BODY = 4096
 BOUNDARY = "vpdframe"
+INPUT_MAX_FRAME_AGE = 2.0  # 坐标操作要求画面不超过此秒数：帧流 ~12fps、snapshot ~1.6fps，正常都远小于此
 
 
 ALLOWED_HOSTS = ("127.0.0.1", "localhost")
@@ -139,9 +140,25 @@ class Console:
         self.store.event("console_display_refresh", size=list(self.control.size), frame=list(frame))
         return None
 
+    def _check_frame_fresh(self) -> Optional[str]:
+        """坐标操作前确认画面是最近的实时帧：帧流 stalled/error（熄屏、断流）时旧帧还在，
+        但设备 UI 可能已经变化，照旧帧坐标下发会点到看不见的界面，车控流程尤其危险。"""
+        st = self.hub.stats()
+        if st["status"] != "live":
+            return f"画面未在实时更新（{st['status']}），已拒绝坐标操作，等画面恢复后重试"
+        age = st["frame_age_s"]
+        if age is None or age > INPUT_MAX_FRAME_AGE:
+            return f"画面已有 {age}s 未更新（超过 {INPUT_MAX_FRAME_AGE:.0f}s），已拒绝坐标操作，等画面恢复后重试"
+        return None
+
     def input(self, cmd: dict) -> dict:
         with self._lock:  # 串行执行，避免两次操作交错
             if cmd.get("op") in ("tap", "long_press", "swipe"):
+                why = self._check_frame_fresh()
+                if why:
+                    rec = {"op": cmd.get("op"), "ok": False, "error_class": "frame_stale", "error": why}
+                    self.store.event("console_input", **rec)
+                    return rec
                 why = self._check_geometry()
                 if why:
                     rec = {"op": cmd.get("op"), "ok": False, "error_class": "display_mismatch", "error": why}
