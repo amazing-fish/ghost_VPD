@@ -9,13 +9,15 @@
   "preconditions": [
     "手机由测试人员解锁并保持亮屏（开发者选项『充电时不锁屏』），乾崑在前台；执行器不解锁",
     "已登录测试账号，默认车辆为问界 M5（车架号末位 007885）；测试人员声明 --env account_state=logged_in",
+    "车辆当前位置在 VPD 地图范围内（不在图内时 K-QK-USR-003/K-QK-TG-201 不适用）；测试人员确认后声明 --env vehicle_in_vpd_map=yes",
     "乾崑处于 VPD 首页且停车场数据已加载（出现「共 N 个」与常去地点网格；若显示「停车场信息加载失败，请重试」则先等待/重试，K-QK-OBS-201）",
     "账号收藏车位少于 5 个（上限提示「收藏失败，最多可收藏5个车位」，K-QK-OBS-202）；测试人员腾出名额后声明 --env favorite_spot_slot=available",
     "车位 B1层-2486 当前未被收藏，且没有名称含 QKT201 的收藏（否则先人工取消）"
   ],
   "env_requirements": {
     "account_state": "logged_in",
-    "favorite_spot_slot": "available"
+    "favorite_spot_slot": "available",
+    "vehicle_in_vpd_map": "yes"
   },
   "test_data": {
     "spot_query": "486",

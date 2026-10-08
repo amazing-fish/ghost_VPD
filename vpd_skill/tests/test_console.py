@@ -334,9 +334,64 @@ def test_console_input_follows_rotation_or_refuses(tmp_path):
         dev.wh = (2848, 1320)         # 显示参数跟上：重读后按新尺寸换算
         r = con.input({"op": "tap", "x": 0.75, "y": 0.5})
         assert r["ok"] and dev.calls[-1] == ("tap", 2136, 660)
-        dev.frame_wh = (1424, 660)    # 帧流是半分辨率：只比较宽高比，不因像素不同误拒
+        con.hub.source = "uitest_stream"  # 换成帧流（半分辨率）：只比较宽高比，不因像素不同误拒
+        dev.frame_wh = (1424, 660)
         wait_frame((1424, 660))
+        assert con.hub.frame_source == "uitest_stream"
         assert con.input({"op": "swipe", "x1": 0.5, "y1": 0.5, "x2": 0.1, "y2": 0.5})["ok"]
+    finally:
+        con.close()
+
+
+def _wait_size(con, wh):
+    deadline = time.time() + 3
+    while time.time() < deadline and con.hub.size != wh:
+        time.sleep(0.02)
+    assert con.hub.size == wh
+
+
+def test_console_input_follows_same_ratio_resolution_change(tmp_path, monkeypatch):
+    """切分辨率（宽高比不变）：画面尺寸一变就重读显示参数，按新像素换算；显示参数滞后时先拒绝，不按旧尺寸点。"""
+    from vpdtest.console import server
+    dev = FakeDevice()
+    con = Console(dev, RunStore(tmp_path / "runs", kind="console"), tmp_path / "runs").start()
+    try:
+        con.hub.wait(0, timeout=3)
+        assert con.input({"op": "tap", "x": 0.75, "y": 0.5})["ok"] and dev.calls[-1] == ("tap", 990, 1424)
+        dev.frame_wh = (1080, 2330)          # 画面先变，显示参数还没更新：缩放比突变，拒绝
+        _wait_size(con, (1080, 2330))
+        r = con.input({"op": "tap", "x": 0.75, "y": 0.5})
+        assert not r["ok"] and r["error_class"] == "display_mismatch" and dev.calls[-1] == ("tap", 990, 1424)
+        dev.wh = (1080, 2330)                # 显示参数跟上：按新尺寸换算
+        assert con.input({"op": "tap", "x": 0.75, "y": 0.5})["ok"] and dev.calls[-1] == ("tap", 810, 1165)
+        # 帧源自己改了缩放比（显示参数不变）：等待期过后放行
+        monkeypatch.setattr(server, "GEOMETRY_SETTLE_S", 0.0)
+        dev.frame_wh = (540, 1165)
+        _wait_size(con, (540, 1165))
+        assert con.input({"op": "tap", "x": 0.5, "y": 0.5})["ok"] and dev.calls[-1] == ("tap", 540, 1165)
+    finally:
+        con.close()
+
+
+def test_console_retries_display_info_when_missing(tmp_path):
+    """启动时显示参数读取失败（hidumper 偶发）：坐标操作前重读，读到就能用，读不到明确拒绝。"""
+    dev = FakeDevice()
+    good = dev.display_info
+    dev.display_info = lambda: {"error_class": "timeout", "density": None}
+    con = Console(dev, RunStore(tmp_path / "runs", kind="console"), tmp_path / "runs").start()
+    try:
+        con.hub.wait(0, timeout=3)
+        assert con.control.size is None
+        r = con.input({"op": "tap", "x": 0.5, "y": 0.5})
+        assert not r["ok"] and r["error_class"] == "display_mismatch" and not dev.calls
+        dev.display_info = good
+        assert con.input({"op": "tap", "x": 0.75, "y": 0.5})["ok"] and dev.calls[-1] == ("tap", 990, 1424)
+        dev.display_info = lambda: {"error_class": "timeout", "density": None}
+        dev.frame_wh = (2848, 1320)          # 旋转后重读失败：保留旧尺寸，比例对不上，拒绝
+        _wait_size(con, (2848, 1320))
+        r = con.input({"op": "tap", "x": 0.75, "y": 0.5})
+        assert not r["ok"] and r["error_class"] == "display_mismatch"
+        assert con.display["width_px"] == 1320
     finally:
         con.close()
 

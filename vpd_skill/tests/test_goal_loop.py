@@ -610,6 +610,23 @@ def test_input_clear_replaces_instead_of_appending(ws, tmp_path):
     assert case["steps"][0]["clear"] is True
 
 
+def test_input_after_clear_follows_relayout(ws, tmp_path):
+    """点进输入框后键盘把它顶上去：清空后重新定位，文字输到新位置，而不是清空前的旧坐标。"""
+    low = {"t": "TextInput", "b": [40, 2400, 1280, 2520], "click": True, "bind": "name", "text": "旧名字",
+           "set_flag": {"focused": True}, "hide_if_flag": "focused"}
+    high = {"t": "TextInput", "b": [40, 1200, 1280, 1320], "click": True, "bind": "name", "text_bound": "name",
+            "show_if_flag": "focused"}
+    dev = _lab_world(tmp_path, "relayout", {"home": {"root": {"t": "Column", "b": [0, 0, 1320, 2848], "children": [
+        {"t": "Text", "text": "名称", "b": [40, 700, 600, 780]}, low, high]}}})
+    _start(ws, dev, "rl1")
+    out = cli(ws, "act", "input", "--select", "xpath=//TextInput", "--allow-input", "--clear", "--text", "新名字",
+              "--expect-text", "新名字", "--app", "motor_hm", "--session", "rl1", "--device", dev)
+    att = out["result"]["attempts"][-1]
+    assert att["status"] == "ok", att.get("post")  # 旧坐标上的输入框已经不在：照旧坐标输入，文字不会出现
+    assert att["clear"]["ok"] and att["clear"]["relocate"]["status"] == "found"
+    assert att["clear"]["relocate"]["point"][1] < 1400
+
+
 # ---- R4：会话只从 trail() 读、以 dispatch 事件判定是否执行；设备查询三态 ----
 
 def test_act_error_after_dispatch_is_kept_as_effect_unknown(ws, tmp_path):

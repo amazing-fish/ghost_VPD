@@ -177,11 +177,17 @@ class Executor:
                 # 先挂上看门狗再做后置观测：后置观测里出现的停止状态会按规则解除
                 ctx.motion.arm(step["id"], pol.get("label") or tid, obs["page"]["state"])
         elif kind == "launch":
-            res = ctx.dispatcher.send("launch", ctx.app.bundle, ctx.app.ability, preconditions={}, att=att)
+            res = ctx.dispatcher.send("launch", ctx.app.bundle, ctx.app.ability,
+                                      preconditions=ctx.dispatcher.app_conditions(kind), att=att)
+            if att.get("status"):
+                return att
         elif kind == "resume":
             # 从后台拉回：与 launch 同一条命令；区别在于判定"回到原页面"而不是"冷启动"
             att["process_alive_before"] = ctx.device.process_alive(ctx.app.bundle)
-            res = ctx.dispatcher.send("launch", ctx.app.bundle, ctx.app.ability, preconditions={}, att=att)
+            res = ctx.dispatcher.send("launch", ctx.app.bundle, ctx.app.ability,
+                                      preconditions=ctx.dispatcher.app_conditions(kind), att=att)
+            if att.get("status"):
+                return att
         elif kind == "wait" and step.get("duration_s"):
             dur = min(float(step["duration_s"]), float(ctx.policy.supervision.get("max_monitor_s", 600)))
             waited = 0.0
@@ -225,15 +231,8 @@ class Executor:
                 loc, obs, tree = self._revalidate(tid, target, loc, step, n, att)
                 if att.get("status"):
                     return att
-            if tid.startswith("inline:"):
-                # 现场选择器定位的输入框：按所在控件的文字做副作用检查（例如重命名框里有「收藏」→ user_data 需授权）
-                pol = ctx.policy.check_tap(tree, loc["point"], loc["basis"], target,
-                                           ctx.app.states.deny_for_page(obs["page"]), ctx.authorized,
-                                           node=_tree_node(tree, loc))
-                att["policy_context"] = pol
-                if not pol["allowed"]:
-                    att["status"] = "policy_denied"
-                    return att
+            if not self._inline_input_ok(tid, target, loc, obs, tree, att):
+                return att
             text = ctx.params.subst(raw, step.get("_flow_params")) if ctx.params else raw
             att["input"] = {"ref": raw, "secret": is_ref, "length": len(text)}  # 只记引用与长度，不记值
             att["resolved"] = _resolved(loc, obs)
@@ -252,6 +251,20 @@ class Executor:
                                        "error": cr.error, "duration_ms": cr.duration_ms}
                     att.update(status=cr.error_class if cr.error_class in STATUS_MAP else "device_error", error_class=cr.error_class)
                     return att
+                # 点进输入框会弹键盘、触发布局变化：清空后重新观察并定位（不滚动），按最新的树输入，不沿用清空前的坐标
+                obs, tree = ctx.observe(f"{step['id']}#{n}:after-clear", screenshot=False)
+                loc, obs, tree = self._locate(tid, target, obs, tree, step, scroll_ok=False)
+                att["clear"]["relocate"] = {"obs": obs["obs_id"], "status": loc["status"], "point": loc.get("point")}
+                if loc["status"] != "found":
+                    # 清空已下发、文字未输入：如实记为已下发，按定位失败处理（重试会完整地重新定位、清空、输入）
+                    att["dispatch"] = {"op": cr.op, "sent": cr.sent, "executor_ok": cr.ok, "error_class": None,
+                                       "error": "清空后输入框无法重新定位，文字未输入", "duration_ms": cr.duration_ms}
+                    att.update(status=_unresolved(loc), obs_after=obs["obs_id"])
+                    return att
+                att["locate"] = {**att["locate"], "after_clear": loc}
+                if not self._inline_input_ok(tid, target, loc, obs, tree, att):
+                    return att
+                att["resolved"] = _resolved(loc, obs)
             if is_ref or (ctx.params and ctx.params.contains_secret([text])):
                 # inputText 经系统剪贴板：之后输入法的剪贴板栏会显示原文，本会话里输入法在场时不再截图
                 ctx.observer.secret_typed = True
@@ -376,7 +389,7 @@ class Executor:
         return att
 
     # ---- 定位（可含声明过的滚动查找）----
-    def _locate(self, tid, target, obs, tree, step) -> tuple:
+    def _locate(self, tid, target, obs, tree, step, scroll_ok: bool = True) -> tuple:
         ctx = self.ctx
         lay = obs.get("layout")
         pref = ctx.overlay.locator_pref(tid, layout_key(lay)) if ctx.overlay else None
@@ -387,7 +400,7 @@ class Executor:
             note = f"坐标来自 {step['point_window']} 的窗口，当前窗口为 {lay['window_px']}，已丢弃"
             point = None
         loc = resolve(tid, target, tree, ctx.observer.screenshot_abs(obs), ctx.app.dir, pref, point, lay)
-        scroll = target.get("scroll")
+        scroll = target.get("scroll") if scroll_ok else None
         swipes, trail = 0, []
         while loc["status"] in ("not_found", "partially_visible") and scroll and swipes < int(scroll.get("max", 3)):
             # 滚动查找也是手势：和正式下发一样先确认锁屏与前台，查不到/不对就停，不滑
@@ -498,6 +511,19 @@ class Executor:
                 btn = next((t for t in d["texts"] if t in safe), None)
                 return {"texts": d["texts"], "button": btn} if btn else None
         return None
+
+    def _inline_input_ok(self, tid, target, loc, obs, tree, att) -> bool:
+        """现场选择器定位的输入框：按所在控件的文字做副作用检查（例如重命名框里有「收藏」→ user_data 需授权）。"""
+        if not tid.startswith("inline:"):
+            return True
+        ctx = self.ctx
+        pol = ctx.policy.check_tap(tree, loc["point"], loc["basis"], target,
+                                   ctx.app.states.deny_for_page(obs["page"]), ctx.authorized,
+                                   node=_tree_node(tree, loc))
+        att["policy_context"] = pol
+        if not pol["allowed"]:
+            att["status"] = "policy_denied"
+        return pol["allowed"]
 
     def _revalidate(self, tid, target, loc: dict, step: dict, n: int, att: dict) -> tuple:
         """执行前复核：下发前重新取一次 UI 树（不截图）并重新解析同一目标，与执行前观测里的解析结果比较。

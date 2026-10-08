@@ -2,7 +2,8 @@
  "note": "在 qiankun_hm_base 基础上：已登录、当前车辆 M5、车辆无故障（「开始」可用），用于收藏/搜索算路与有人监护的运动全流程。",
  "extends": "qiankun_hm_base.json",
  "env_facts": {
-  "account_state": "logged_in"
+  "account_state": "logged_in",
+  "vehicle_in_vpd_map": "yes"
  },
  "initial_flags": {
   "logged_in": true,

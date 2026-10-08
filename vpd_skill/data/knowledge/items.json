@@ -1958,7 +1958,8 @@
         "same_spot": true
       },
       "applies_to": {
-        "app": "qiankun_hm"
+        "app": "qiankun_hm",
+        "vehicle_in_vpd_map": "yes"
       },
       "source": {
         "type": "test_goal",
@@ -2068,7 +2069,8 @@
         "distance_readable": true
       },
       "applies_to": {
-        "app": "qiankun_hm"
+        "app": "qiankun_hm",
+        "vehicle_in_vpd_map": "yes"
       },
       "source": {
         "type": "reviewer",

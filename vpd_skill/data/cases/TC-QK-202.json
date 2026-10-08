@@ -9,11 +9,13 @@
   "preconditions": [
     "手机已解锁并保持亮屏，乾崑在前台（锁屏时先 vpdtest unlock）",
     "已登录测试账号，默认车辆为问界 M5（车架号末位 007885）；声明 --env account_state=logged_in",
+    "车辆当前位置在 VPD 地图范围内（不在图内时 K-QK-USR-003/K-QK-TG-201 不适用）；测试人员确认后声明 --env vehicle_in_vpd_map=yes",
     "乾崑已安装且登录；用例自己 stop_app→launch→等 10 s 复位到主 tab 页，再点 TabBar 的 ADS 进入 VPD 首页；停车场数据约 10 s 内加载完成（S2/S3 等待，K-QK-OBS-201）",
     "账号已有收藏车位「1号车位」（B1层-507），且没有名称为 QKT201车位 的收藏；若上次失败残留 QKT201车位，先执行 cleanup 改回"
   ],
   "env_requirements": {
-    "account_state": "logged_in"
+    "account_state": "logged_in",
+    "vehicle_in_vpd_map": "yes"
   },
   "test_data": {
     "new_name": "QKT201车位",

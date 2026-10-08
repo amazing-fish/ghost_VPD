@@ -24,6 +24,7 @@ PAGE = Path(__file__).with_name("page.html")
 MAX_BODY = 4096
 BOUNDARY = "vpdframe"
 INPUT_MAX_FRAME_AGE = 2.0  # 坐标操作要求画面不超过此秒数：帧流 ~12fps、snapshot ~1.6fps，正常都远小于此
+GEOMETRY_SETTLE_S = 3.0    # 画面尺寸变了、显示参数没变：持续这么久才认定是帧源自己改了缩放比，而不是显示参数滞后
 
 
 ALLOWED_HOSTS = ("127.0.0.1", "localhost")
@@ -60,6 +61,8 @@ class Console:
         self._lock = threading.Lock()   # 串行化手动操作
         self._life = threading.Lock()   # 串行化 start / 回退 / close
         self._started = self._closed = False
+        self._geom = None          # 上次通过校验的 {frame, source, size, scale}
+        self._geom_pending = None  # (frame, source, 首次发现时刻)：缩放比突变、等待显示参数跟上
         self.keep_awake = {"requested_min": keep_awake_min, "previous_override_ms": None, "applied": False}
 
     def start(self) -> "Console":
@@ -127,17 +130,37 @@ class Console:
         return abs(a - b) / b > 0.05
 
     def _check_geometry(self) -> Optional[str]:
-        """坐标类操作前确认换算尺寸仍与当前画面一致；不一致先重读显示参数，仍不一致就拒绝，不按旧尺寸猜。"""
-        frame = self.hub.size
-        if not self._aspect_mismatch(frame, self.control.size):
+        """坐标类操作前确认换算尺寸与当前画面一致：画面尺寸或帧源变化（旋转、折叠、切分辨率、帧流回退）、
+        或尺寸未知时重读显示参数，对不上就拒绝，不按旧尺寸猜。
+        帧流是半分辨率，所以比较宽高比；同一帧源下画面与设备像素的缩放比也应不变：画面变了、
+        显示参数没变、缩放比却变了，多半是显示参数还没跟上分辨率切换，先拒绝，持续 GEOMETRY_SETTLE_S 才放行。"""
+        frame, src, size = self.hub.size, self.hub.frame_source, self.control.size
+        g = self._geom
+        if size and g and (g["frame"], g["source"], g["size"]) == (frame, src, size):
             return None
-        self.display = self.device.display_info()
-        size = (self.display.get("width_px"), self.display.get("height_px"))
-        if all(size):
-            self.control.size = tuple(size)
-        if self._aspect_mismatch(frame, self.control.size):
-            return f"画面 {frame[0]}×{frame[1]} 与设备尺寸 {self.control.size} 的方向/比例不一致（旋转或折叠中），已拒绝，稍后重试"
-        self.store.event("console_display_refresh", size=list(self.control.size), frame=list(frame))
+        d = self.device.display_info() or {}
+        new = (d.get("width_px"), d.get("height_px"))
+        if all(new):  # 读取失败时保留上次的显示参数
+            self.display, self.control.size = d, tuple(new)
+        size = self.control.size
+        if not size:
+            return "未取得设备屏幕尺寸（显示参数读取失败），已拒绝，稍后重试"
+        if not frame or not all(frame):
+            return None  # 画面尺寸未知（帧头解析不到）：只能信显示参数，也不缓存，下次继续重读
+        if self._aspect_mismatch(frame, size):
+            return f"画面 {frame[0]}×{frame[1]} 与设备尺寸 {size} 的方向/比例不一致（旋转或折叠中），已拒绝，稍后重试"
+        scale = frame[0] / size[0]
+        if g and g["source"] == src and g["size"] == size and abs(scale - g["scale"]) / g["scale"] > 0.05:
+            now, pend = time.monotonic(), self._geom_pending
+            if not pend or pend[:2] != (frame, src):
+                self._geom_pending = pend = (frame, src, now)
+            if now - pend[2] < GEOMETRY_SETTLE_S:
+                return (f"画面变为 {frame[0]}×{frame[1]}，设备尺寸仍为 {size[0]}×{size[1]}"
+                        "（切换分辨率后显示参数尚未更新），已拒绝，稍后重试")
+        self._geom_pending = None
+        if g is None or (g["frame"], g["size"]) != (frame, size):
+            self.store.event("console_display_refresh", size=list(size), frame=list(frame), source=src)
+        self._geom = {"frame": frame, "source": src, "size": size, "scale": scale}
         return None
 
     def _check_frame_fresh(self) -> Optional[str]:

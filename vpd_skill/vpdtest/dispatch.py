@@ -12,7 +12,8 @@ class Dispatcher:
 
     def app_conditions(self, action):
         allowed = [self.ctx.app.bundle]
-        if action in ("back", "home"):
+        # 返回/回桌面会落到桌面；启动/拉回只能从桌面或本 APP 发起，前台是别的 APP（用户正在用手机）时不抢
+        if action in ("back", "home", "launch", "resume"):
             allowed.append(LAUNCHER)
         return {"screen_locked": False, "foreground": allowed, "recover_unlock": True}
 

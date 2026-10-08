@@ -44,7 +44,7 @@
 .\vpdtest.ps1 case from-session --session g1 --new-id TC-QK-201 --app qiankun_hm --goal "<目标原文>" --drop A4=与目标无关的试探
 # 补齐 purpose / preconditions / assertions（独立 oracle_refs）/ cleanup / knowledge_used 后：
 .\vpdtest.ps1 case lint TC-QK-201
-.\vpdtest.ps1 run TC-QK-201 --device $D --authorize vpd_entry user_data --record-replay
+.\vpdtest.ps1 run TC-QK-201 --device $D --env account_state=logged_in --env favorite_spot_slot=available --env vehicle_in_vpd_map=yes --authorize vpd_entry user_data --record-replay
 ```
 
 - `--select`：`text=` 精确、`text~=` 包含、`id=`、`xpath=`，`--within type=|id=|pane=` 限定范围。只覆盖有 UI 树的页面。

@@ -94,6 +94,7 @@ class FrameHub:
         self.seq = 0
         self.size: Optional[tuple] = None
         self.source = None
+        self.frame_source = None  # 当前这帧来自哪个帧源（回退后、新帧到达前，画面仍是旧帧源的）
         self.status = "starting"
         self.error: Optional[str] = None
         self._stamps: list = []
@@ -103,6 +104,7 @@ class FrameHub:
         with self._cond:
             self.frame, self.seq, self.last_ts = data, self.seq + 1, time.time()
             self.size = jpeg_size(data) or self.size
+            self.frame_source = self.source
             self._stamps = [t for t in self._stamps if self.last_ts - t < 2.0] + [self.last_ts]
             self.status, self.error = "live", None
             self._cond.notify_all()

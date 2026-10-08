@@ -101,6 +101,20 @@ def test_102_blocked_without_user_data_authorization(ws):
     assert {u["key"] for u in run["env"]["unmet"]} == {"authorize.user_data"}
 
 
+def test_102_requires_vehicle_in_vpd_map(ws):
+    """收藏/搜索的需求只在车辆位于 VPD 地图范围内时成立：前提写进判据适用范围，用例要求测试人员声明。"""
+    kn = KnowledgeStore(ws.root)
+    for kid in ("K-QK-USR-003", "K-QK-TG-201"):
+        assert kn.oracle_status([kid], {"app": "qiankun_hm"})["status"] == "applicability_unknown"
+        assert kn.oracle_status([kid], {"app": "qiankun_hm", "vehicle_in_vpd_map": "no"})["status"] == "out_of_scope"
+        assert kn.oracle_status([kid], {"app": "qiankun_hm", "vehicle_in_vpd_map": "yes"})["status"] == "confirmed"
+    run = run_case(ws, "TC-QK-102", device_spec=world("qiankun_hm_ready.json"), propose=False, authorize=AUTH_102,
+                   env={"vehicle_in_vpd_map": "no"})
+    assert run["verdict"]["verdict"] == "blocked"
+    assert {u["key"] for u in run["env"]["unmet"]} == {"vehicle_in_vpd_map"}
+    assert all(s["outcome"] == "not_run" for s in run["steps"])
+
+
 def test_103_supervised_lifecycle_pause_background_resume_continue(ws):
     run = run_case(ws, "TC-QK-103", device_spec=world("qiankun_hm_ready.json"), propose=False, authorize=AUTH_103,
                    supervisor="现场监护人A")

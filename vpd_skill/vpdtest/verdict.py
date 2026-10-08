@@ -126,7 +126,7 @@ def evaluate_assertion(a: dict, steps: dict, load: Callable, knowledge, app) -> 
         out.update(evidence={"measurement": m}, oracle=oracle)
         if oracle["status"] != "confirmed":
             return {**out, "result": "pending", "observed_holds": holds, "reason": f"读数{'有效' if holds else '无效'}，但{oracle['reason']}"}
-        return {**out, "result": "pass" if holds else "fail"}
+        return {**out, "result": "pass" if holds else "fail", "observed_holds": holds}
     if a["type"] in ("text_seen", "state_seen"):
         # 时间窗口类：在 monitor 时间线里找（运动中信息、TOR 接管提示、异常显示往往一闪而过，终态里看不到）
         holds, ev = _seen(a, step, load)
@@ -137,7 +137,7 @@ def evaluate_assertion(a: dict, steps: dict, load: Callable, knowledge, app) -> 
         if oracle["status"] != "confirmed":
             return {**out, "result": "pending", "observed_holds": holds,
                     "reason": f"观测{'符合' if holds else '不符合'}预期，但{oracle['reason']}"}
-        return {**out, "result": "pass" if holds else "fail"}
+        return {**out, "result": "pass" if holds else "fail", "observed_holds": holds}
     obs, tree = load(step["final_obs"])
     if a["type"] == "visual_review":
         return {**out, "result": "pending", "evidence": {"obs": obs["obs_id"], "screenshot": obs.get("screenshot", {}).get("path")},
@@ -150,7 +150,7 @@ def evaluate_assertion(a: dict, steps: dict, load: Callable, knowledge, app) -> 
     if oracle["status"] != "confirmed":
         return {**out, "result": "pending", "observed_holds": holds,
                 "reason": f"观测{'符合' if holds else '不符合'}预期，但{oracle['reason']}"}
-    return {**out, "result": "pass" if holds else "fail"}
+    return {**out, "result": "pass" if holds else "fail", "observed_holds": holds}
 
 
 def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list, knowledge,

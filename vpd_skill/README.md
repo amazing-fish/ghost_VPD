@@ -68,7 +68,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 # 乾崑（真机运行前请先阅读 references/exploration-method.md 的校准清单）：
 $env:VPD_SECRET_QIANKUN_PHONE = '<账号>'; $env:VPD_SECRET_QIANKUN_PASSWORD = '<密码>'   # 只放在当前会话的环境变量里
 .\vpdtest.ps1 run TC-QK-101 --device hdc:<serial> --env account_state=logged_out --authorize account_state vehicle_selection vpd_entry route_planning
-.\vpdtest.ps1 run TC-QK-102 --device hdc:<serial> --env account_state=logged_in --authorize vpd_entry user_data route_planning
+.\vpdtest.ps1 run TC-QK-102 --device hdc:<serial> --env account_state=logged_in --env vehicle_in_vpd_map=yes --authorize vpd_entry user_data route_planning
 .\vpdtest.ps1 run TC-QK-103 --device hdc:<serial> --env account_state=logged_in --authorize vpd_entry route_planning vehicle_motion --supervisor <监护人>
 .\vpdtest.ps1 run TC-QK-103 --device replay:qiankun_hm_ready.json --env account_state=logged_in --authorize vpd_entry route_planning vehicle_motion --supervisor 离线演示
 # 离线闭环演示（不需要真机）：
