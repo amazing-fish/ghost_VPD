@@ -350,7 +350,9 @@ def test_console_input_refused_when_frame_not_live(tmp_path):
         con.hub.set_status("stalled", "熄屏")  # 帧流/快照停摆：旧帧还在，但 UI 可能已变
         r = con.input({"op": "tap", "x": 0.5, "y": 0.5})
         assert not r["ok"] and r["error_class"] == "frame_stale"
-        assert con.input({"op": "key", "key": "back"})["ok"]  # 不依赖坐标的操作不受影响
+        rt = con.input({"op": "text", "text": "hello"})  # 文本依赖聚焦目标，画面停摆同样失真
+        assert not rt["ok"] and rt["error_class"] == "frame_stale"
+        assert con.input({"op": "key", "key": "back"})["ok"]  # 不依赖画面的操作不受影响
     finally:
         con.close()
 

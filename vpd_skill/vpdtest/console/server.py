@@ -141,27 +141,32 @@ class Console:
         return None
 
     def _check_frame_fresh(self) -> Optional[str]:
-        """坐标操作前确认画面是最近的实时帧：帧流 stalled/error（熄屏、断流）时旧帧还在，
-        但设备 UI 可能已经变化，照旧帧坐标下发会点到看不见的界面，车控流程尤其危险。"""
+        """坐标/文本操作前确认画面是最近的实时帧：帧流 stalled/error（熄屏、断流）时旧帧还在，
+        但设备 UI 或聚焦目标可能已经变化，照旧帧下发会点到看不见的界面、把文本输进别的控件，
+        车控与凭据输入尤其危险。"""
         st = self.hub.stats()
         if st["status"] != "live":
-            return f"画面未在实时更新（{st['status']}），已拒绝坐标操作，等画面恢复后重试"
+            return f"画面未在实时更新（{st['status']}），已拒绝操作，等画面恢复后重试"
         age = st["frame_age_s"]
         if age is None or age > INPUT_MAX_FRAME_AGE:
-            return f"画面已有 {age}s 未更新（超过 {INPUT_MAX_FRAME_AGE:.0f}s），已拒绝坐标操作，等画面恢复后重试"
+            return f"画面已有 {age}s 未更新（超过 {INPUT_MAX_FRAME_AGE:.0f}s），已拒绝操作，等画面恢复后重试"
         return None
 
     def input(self, cmd: dict) -> dict:
+        op = cmd.get("op")
         with self._lock:  # 串行执行，避免两次操作交错
-            if cmd.get("op") in ("tap", "long_press", "swipe"):
+            # text 不走坐标，但聚焦目标同样会因画面停摆而失真——凭据输错控件比误点更敏感，
+            # 所以 text 和坐标类都要先确认画面是实时帧；只有坐标类另需几何换算校验。
+            if op in ("tap", "long_press", "swipe", "text"):
                 why = self._check_frame_fresh()
                 if why:
-                    rec = {"op": cmd.get("op"), "ok": False, "error_class": "frame_stale", "error": why}
+                    rec = {"op": op, "ok": False, "error_class": "frame_stale", "error": why}
                     self.store.event("console_input", **rec)
                     return rec
+            if op in ("tap", "long_press", "swipe"):
                 why = self._check_geometry()
                 if why:
-                    rec = {"op": cmd.get("op"), "ok": False, "error_class": "display_mismatch", "error": why}
+                    rec = {"op": op, "ok": False, "error_class": "display_mismatch", "error": why}
                     self.store.event("console_input", **rec)
                     return rec
             return self.control.handle(cmd)
