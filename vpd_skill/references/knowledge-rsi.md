@@ -50,9 +50,11 @@ skill_policy / model_inference / observation。
 **验证**：`experience validate <id> --suite <集合> --device <spec> [--device <spec2>]`。对每个用例 × 设备/世界
 分别跑基线（当前已采纳 overlay）与试验（基线 + 候选）：
 
-- 任一用例试验结论劣于基线 → `rejected`；
-- 该目标只在来源用例上被用到 → 保持 `candidate`（覆盖不足）；
-- 没有可测改进（结论更好或适配次数减少）→ 保持 `candidate`；
+- 任一用例试验结论劣于基线 → `rejected`；基线判出的产品失败在试验组变成阻塞/待确认也算回退
+  （执行改动不能把缺陷藏到工具问题后面）；
+- 覆盖不足 → 保持 `candidate`：定位偏好只在来源用例上被用到；等待时长绑定单个用例步骤，
+  只在来源设备上走到过该步骤（要在另一台设备/另一个世界上复现）；
+- 没有可测改进（试验组从未通过变为通过，或结论不变而适配次数减少）→ 保持 `candidate`；
 - 否则 `validated`。
 
 **采纳与回滚**：`experience adopt <id> [--reviewer]` 生成 overlay 新版本并保存上一版快照；

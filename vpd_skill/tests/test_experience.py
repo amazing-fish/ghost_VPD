@@ -88,6 +88,50 @@ def test_regression_rejects_candidate(ws):
         xs.adopt(xid)
 
 
+def test_trial_that_turns_product_failure_into_block_is_rejected(ws):
+    _confirm(ws, "K-MOT-001", "K-MOT-002")
+    xid = run_case(ws, "TC-MOTOR-HM-001", device_spec=DRIFT)["experience_candidates"][0]
+    xs = ExperienceStore(ws.root, "motor_hm")
+
+    def fake(cid, dev, overlay):  # 基线在 002 上判出产品失败，试验组改成了阻塞：缺陷被藏到工具问题后面
+        v = ("blocked" if overlay.trial else "failed") if cid == "TC-MOTOR-HM-002" else "passed"
+        return {"run_id": f"{cid}-{overlay.trial}", "verdict": {"verdict": v},
+                "steps": [{"attempts": [{"locate": {"target": "tab_my", "layout_key": "sm/portrait",
+                                                    "adapted": not overlay.trial}}]}]}
+    res = xs.validate(xid, ["TC-MOTOR-HM-001", "TC-MOTOR-HM-002"], [DRIFT], fake)
+    row = next(r for r in res["rows"] if r["case"] == "TC-MOTOR-HM-002")
+    assert res["status"] == "rejected" and row["regression"]
+    with pytest.raises(PermissionError):
+        xs.adopt(xid)
+
+
+def _wait_item(xs):
+    xs.save_item({"id": "XP-wait", "kind": "wait_timeout", "change": {"key": "TC-MOTOR-HM-001:S3", "timeout_s": 9.0},
+                  "status": "candidate", "requires_review": False, "origin_case": "TC-MOTOR-HM-001",
+                  "evidence": [{"run_id": "r0", "case": "TC-MOTOR-HM-001", "step": "S3", "device": DRIFT}],
+                  "validations": [], "history": []})
+
+
+def _wait_runner(cid, dev, overlay):  # 试验组在该步骤上不再超时
+    ok = bool(overlay.trial)
+    return {"run_id": f"{cid}-{dev}-{overlay.trial}", "verdict": {"verdict": "passed" if ok else "failed"},
+            "steps": [{"step_id": "S3", "attempts": [{"post": {"met": ok}}]}]}
+
+
+def test_wait_timeout_needs_a_device_other_than_its_origin(ws):
+    xs = ExperienceStore(ws.root, "motor_hm")
+    _wait_item(xs)
+    res = xs.validate("XP-wait", ["TC-MOTOR-HM-001"], [DRIFT], _wait_runner)
+    assert res["status"] == "candidate" and "覆盖不足" in res["reason"]
+    with pytest.raises(PermissionError):
+        xs.adopt("XP-wait")
+    # 其他用例不会走到这个等待键，不能充当独立覆盖
+    res = xs.validate("XP-wait", ["TC-MOTOR-HM-001", "TC-MOTOR-HM-002"], [DRIFT], _wait_runner)
+    assert res["status"] == "candidate" and res["exercised"] == [f"TC-MOTOR-HM-001@{DRIFT}"]
+    res = xs.validate("XP-wait", ["TC-MOTOR-HM-001"], [DRIFT, BASE], _wait_runner)
+    assert res["status"] == "validated" and "来源设备之外" in res["reason"]
+
+
 def test_review_required_kinds_need_reviewer(ws):
     xs = ExperienceStore(ws.root, "motor_hm")
     item = {"id": "XP-manual", "kind": "interrupt_rule", "change": {"interrupt": "update_dialog", "review": "reviewed"},
