@@ -1,0 +1,98 @@
+name: "知识 / 判据治理"
+description: "处理 K-* 条目的来源、确认、跨 Build 适用性及冲突，不把观察自动升级为产品要求"
+title: "[Knowledge] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        `observation` 是现场发生了什么；`requirement` 是产品应该怎样；`confirmed` 必须有独立负责人确认及适用条件。
+        跨 Build 差异优先考虑分域共存，**不可直接废弃另一 Build 的有效观察**。此 Issue 不等于知识自动确认授权。
+  - type: dropdown
+    id: operation
+    attributes:
+      label: 治理动作
+      options:
+        - 新增待确认条目
+        - 请求人工确认产品判据
+        - 修正适用范围 / 前提依赖
+        - 处理跨 Build 冲突
+        - 废弃 / 替换知识（需充分证据）
+        - 修复知识检索 / 引用问题
+    validations:
+      required: true
+  - type: input
+    id: entries
+    attributes:
+      label: 涉及的知识 ID / subject
+      description: "新建条目可以填暂定 ID；多个条目请用逗号分隔。"
+      placeholder: "K-AV-001, K-QK-001 / qiankun_hm.vpd.entry_success"
+    validations:
+      required: true
+  - type: textarea
+    id: proposition
+    attributes:
+      label: 待确认的命题或冲突
+      description: "分别列出现有说法、实际观察、拟采用的产品要求；不要混淆三者。"
+      placeholder: |
+        旧条目：...
+        真机观察：...
+        待独立确认的产品要求：...
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 适用范围及前提
+      description: "至少注明 APP 与已知 build；填写设备形态、登录/车辆地图覆盖等适用条件；不要提交完整 VIN。"
+      placeholder: |
+        app: qiankun_hm
+        app_version / build:
+        device_form:
+        preconditions / facts:
+        目前未知：
+    validations:
+      required: true
+  - type: dropdown
+    id: source_type
+    attributes:
+      label: 主要依据来源
+      options:
+        - 产品文档 / 需求评审
+        - 负责人逐条确认
+        - 真机观察 / 日志（不等同产品要求）
+        - 原仓库代码 / 历史脚本
+        - 历史问题 / 数据分析
+        - Agent 推测（不可直接作为判据）
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 可追溯证据
+      description: "提供需求/评审链接或设备 build、run_id/obs_id、冲突 ID。信息不足写待补证，不要生成虚假依据。"
+      placeholder: |
+        需求/评审依据：
+        真机 run_id / obs_id：
+        相关 Issue / PR：
+        证据等级与缺口：
+    validations:
+      required: true
+  - type: textarea
+    id: criteria
+    attributes:
+      label: 期望裁决与验收标准
+      description: "明确谁有权确认、如何验证分域、哪个版本仍 pending，以及受影响的 case/oracle_refs。"
+      placeholder: |
+        - [ ] 明确 scope；未覆盖的 Build 保持 unconfirmed/unknown
+        - [ ] reviewer + basis + history 可追溯
+        - [ ] 同 subject 跨 Build 不误判冲突/不误废弃
+        - [ ] 受影响的用例与测试清单已核对
+    validations:
+      required: true
+  - type: checkboxes
+    id: guard
+    attributes:
+      label: 知识治理边界
+      options:
+        - label: "本 Issue 仅发起评审；Agent 不自行 confirm，不把本次探索结果当作独立产品 Oracle，也不自动 supersede 其他 Build 的知识。"
+          required: true
