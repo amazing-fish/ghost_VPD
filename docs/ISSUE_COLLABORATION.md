@@ -1,6 +1,6 @@
 # ghost_VPD · Issue 驱动协作规范 v1.0
 
-适用范围：**Issue / PR 协作、证据、隐私与授权要求适用于整个 ghost_VPD 仓库**；设备执行规则按实际工作树分域。默认分支 `main` 目前只有 Legacy 入口 `app/service/vpd/base.py::vpd_task_run()`；`vpdtest` 位于尚未合并的 Skill 开发线（PR #2），统一 `Dispatcher` 位于其上游叠加的 `feat/vpd-goal-loop`（PR #7）。不得把 PR 中的能力当作 `main` 已具备的功能。
+适用范围：**Issue / PR 协作、证据、隐私与授权要求适用于整个 ghost_VPD 仓库**；设备执行规则按实际工作树分域。默认分支 `main` 目前只有 Legacy 入口 `app/service/vpd/base.py::vpd_task_run()`；`vpdtest` 位于尚未合并的 Skill 开发线（PR #2），统一 `Dispatcher` 位于叠加在 PR #2 之上的 `feat/vpd-goal-loop`（PR #7）。不得把 PR 中的能力当作 `main` 已具备的功能。
 
 核心约束：**Issue 定义任务契约，Agent 负责实现及取证，PR 承载可审查变更，人工负责授权与产品判据确认。**
 
