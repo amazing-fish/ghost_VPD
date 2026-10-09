@@ -1,0 +1,97 @@
+name: "工程任务 / 改进"
+description: "Skill 能力、工程收敛、可靠性与测试工作；采用可验收的最小任务契约"
+title: "[Task] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        本仓库采用 **Issue 定义目标 → Agent 在独立分支实施 → PR 交付 → 证据验收**。
+        不要在 Issue 中粘贴 PIN、账号密码、完整 VIN、未经脱敏的日志或截图。
+        **Issue 的风险描述不构成真实设备操作授权。**
+  - type: dropdown
+    id: domain
+    attributes:
+      label: 任务领域
+      options:
+        - Agent / Skill 目标驱动
+        - 原子能力 / Dispatcher / 安全
+        - 用例固化 / 回归 / 证据
+        - 知识 / 检索 / 判据
+        - Console / 系统弹窗 / 设备
+        - 文档 / 测试 / 工程收敛
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 优先级
+      description: "P0 安全、隐私或严重阻塞；P1 主链路可靠性；P2 常规改进；P3 维护与体验。"
+      options: ["P0", "P1", "P2", "P3"]
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: 目标与问题
+      description: "一句话说明要改变什么；补充现状、影响范围，以及为什么需要做。"
+      placeholder: |
+        目标：让 from-session 固化的定位器在页面标题与 TabBar 同文案时稳定回归。
+        现状：Beta 2 首次 replay 出现 target_ambiguous。
+    validations:
+      required: true
+  - type: input
+    id: baseline
+    attributes:
+      label: 基线 / 关联项
+      description: "如 PR #7、Issue #9、分支、commit 或用例 ID；不确定可留空，Agent 开工先核实。"
+      placeholder: "base: feat/vpd-goal-loop @ <SHA>；Refs #9"
+  - type: textarea
+    id: scope
+    attributes:
+      label: 本次范围与非目标
+      description: "写清允许修改什么、明确不做什么，防止 Agent 范围漂移。"
+      placeholder: |
+        In：仅修改 session 固化选择器、相关测试。
+        Out：不重构 Dispatcher，不改车辆安全策略，不批量扩展业务流程。
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 可验证的验收标准
+      description: "推荐使用复选清单，必须区分工程动作成功与产品判据通过。"
+      placeholder: |
+        - [ ] 多匹配时仍拒绝盲点
+        - [ ] 现场验证过的稳定容器限定可进入固化用例
+        - [ ] 既有测试无新增失败，新增正反向测试通过
+        - [ ] 输出变更前后结果和 run_id / commit
+    validations:
+      required: true
+  - type: dropdown
+    id: safety
+    attributes:
+      label: 最高风险等级（仅分类，不代表授权）
+      options:
+        - 静态分析 / 离线测试（无真机动作）
+        - 真机只读 UI 操作（不变更业务数据）
+        - 账号 / 收藏 / 切车等有副作用动作（另需单次授权）
+        - 算路请求（另需单次授权与车辆影响核实）
+        - 车辆运动 / 车控（仅人工专门审批及现场监护）
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: 验证方案与证据
+      description: "说明离线测试、真机试验、用例/判据、清理验收的计划；可写待验证。"
+      placeholder: |
+        离线：pytest -q tests（先记录原有基线）。
+        真机：仅在获准的安全范围内执行；记录 device_form、APP build、run_id。
+        证据：事件 + obs + 截图散列；敏感数据只留脱敏引用。
+  - type: checkboxes
+    id: boundary
+    attributes:
+      label: 执行边界
+      options:
+        - label: "理解：本 Issue 不自动授予真机副作用或车辆运动权限；不允许 Agent 自行确认产品知识、跳过安全门禁或推送/合并未获批准的 PR。"
+          required: true

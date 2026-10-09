@@ -1,0 +1,88 @@
+name: "缺陷 / 异常"
+description: "记录产品、执行器、环境、隐私或证据缺陷，保留首次现场事实"
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **先分类，后归因**：产品缺陷必须有独立 confirmed 且适用的判据；未确认的观察只能标为候选问题。
+        不上传完整 VIN、手机号、密钥、锁屏/敏感弹窗原图；安全停止不确定时先人工接管。
+  - type: dropdown
+    id: attribution
+    attributes:
+      label: 初步分类（允许未知）
+      options:
+        - 待定位（产品 / 工具 / 环境不确定）
+        - 产品行为候选
+        - 执行器 / Skill / 用例
+        - 设备 / HDC / APP 环境
+        - 知识 / 判据 / 证据链
+        - 安全 / 隐私
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: 优先级
+      options: ["P0", "P1", "P2", "P3"]
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: 复现环境
+      description: "尽量包含代码版本、APP build、系统/设备形态、真机或模拟、相关 Issue/PR；设备标识脱敏。"
+      placeholder: |
+        commit / branch:
+        APP / build:
+        OS / device_form:
+        validation_level: real_device | offline_replay
+        run_id / case_id:
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: 实际现象（Observed）
+      description: "写首次异常；明确是设备动作、工具结果、产品 UI 还是 verdict。"
+      placeholder: "例如：探索时 text=我的 唯一命中，独立 replay 后变为 target_ambiguous；Dispatcher 未下发。"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为与判据
+      description: "写预期；若产品判据不存在或 unconfirmed，应标明而非猜测为产品缺陷。"
+      placeholder: "预期：歧义时拒绝下发，并提供可用的消歧诊断；Oracle: K-...（如已确认）。"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 最小复现步骤
+      description: "保留操作、前置状态及副作用；不可安全复现时说明原因。"
+      placeholder: |
+        1. 使用已验证的环境状态。
+        2. observe ...
+        3. act ...
+        4. 检查 status / sent / postcondition。
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 证据、异常归因与清理状态
+      description: "链接或路径：首发 run_id、obs、report、事件、日志散列；记下是否完成 cleanup。不要贴敏感原件。"
+      placeholder: |
+        run_id:
+        obs_id / event / log:
+        dispatched: true | false | effect_unknown
+        cleanup: verified | unverified | blocked
+        初步归因 / 未核实项:
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: 安全确认
+      options:
+        - label: "提交内容已脱敏；没有将 Issue 当成真机动作授权，未确认安全停止不自动重试。"
+          required: true
