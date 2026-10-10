@@ -115,7 +115,7 @@
       "id": "K-AV-005",
       "kind": "domain_note",
       "subject": "qiankun_hm.permission.owner_only_vpd",
-      "statement": "鸿蒙智行车辆仅车主可用 VPD；授权用户进入 VPD 页必 60s 超时打不开。测试账号（151****3183）仅 7885（LM8F7E890PA007885）为车主车，0133/384 等授权车不可作为 VPD 测试对象。",
+      "statement": "鸿蒙智行车辆仅车主可用 VPD；授权用户进入 VPD 页必 60s 超时打不开。测试账号（151****3183）仅车主车（车架号尾位 7885），0133/384 等授权车不可作为 VPD 测试对象。",
       "expected": {
         "owner_only": true,
         "authorized_user_vpd": "timeout_60s",
@@ -1746,94 +1746,94 @@
       "id": "K-QK-OBS-VEH-001",
       "kind": "observation",
       "subject": "qiankun_hm.env.account_vehicles",
-      "statement": "2026-10-01 阔折叠真机，乾崑「我的→我的车辆」共 16 辆（与「问界M5 智驾版等 16 辆车」一致），完整车架号如下。车主车辆只有 1 辆：问界M5 智驾版 LM8F7E890PA007885，勾选「默认显示」；其余为被授权车辆。注意：同一时刻「爱车」页顶部选中的是 F03（S01023），与「默认显示」不是同一辆，爱车页顶部切换列表只列出 4 辆（F03 S01112、F03 S01023、启境GX7 S01147、F03 S01395，只显示后 6 位），不含 M5。",
+      "statement": "2026-10-01 阔折叠真机，乾崑「我的→我的车辆」共 16 辆（与「问界M5 智驾版等 16 辆车」一致），车架号以尾位记录（完整 VIN 属敏感信息，不入库）。车主车辆只有 1 辆：问界M5 智驾版（尾位 7885），勾选「默认显示」；其余为被授权车辆。注意：同一时刻「爱车」页顶部选中的是 F03（S01023），与「默认显示」不是同一辆，爱车页顶部切换列表只列出 4 辆（F03 S01112、F03 S01023、启境GX7 S01147、F03 S01395，只显示后 6 位），不含 M5。",
       "expected": {
         "total": 16,
         "owner_vehicle": {
           "model": "问界M5 智驾版",
-          "vin": "LM8F7E890PA007885",
+          "vin_tail": "7885",
           "default_display": true
         },
         "vehicles": [
           {
             "model": "问界M5 智驾版",
             "role": "车主",
-            "vin": "LM8F7E890PA007885"
+            "vin_tail": "7885"
           },
           {
             "model": "问界M7 Max智驾版",
             "role": "被授权",
-            "vin": "LM8F7E993PAS00384"
+            "vin_tail": "0384"
           },
           {
             "model": "问界 F3",
             "role": "被授权",
-            "vin": "LM8F7G5B9SCS00133"
+            "vin_tail": "0133"
           },
           {
             "model": "问界 F3",
             "role": "被授权",
-            "vin": "LM8F7G6B4SC279452"
+            "vin_tail": "9452"
           },
           {
             "model": "问界F1L",
             "role": "被授权",
-            "vin": "LM8F7G8A7SE050191"
+            "vin_tail": "0191"
           },
           {
             "model": "问界F1L",
             "role": "被授权",
-            "vin": "LM8F7J1AXSE019167"
+            "vin_tail": "9167"
           },
           {
             "model": "赛力斯M9 F2A",
             "role": "被授权",
-            "vin": "LM8F7J2B5SC015742"
+            "vin_tail": "5742"
           },
           {
             "model": "问界K89",
             "role": "被授权",
-            "vin": "LM8F7J6B1TF000228"
+            "vin_tail": "0228"
           },
           {
             "model": "E12",
             "role": "被授权",
-            "vin": "LS6ENG1K4SA551523"
+            "vin_tail": "1523"
           },
           {
             "model": "F03",
             "role": "被授权",
-            "vin": "HACRA8B74T1S01112"
+            "vin_tail": "1112"
           },
           {
             "model": "F03",
             "role": "被授权",
-            "vin": "HACRA8B75T1S01023"
+            "vin_tail": "1023"
           },
           {
             "model": "启境GX7",
             "role": "被授权",
-            "vin": "HACRA9G73T1S01147"
+            "vin_tail": "1147"
           },
           {
             "model": "F03",
             "role": "被授权",
-            "vin": "HACRAAG79T1S01395"
+            "vin_tail": "1395"
           },
           {
             "model": "智界 V9",
             "role": "被授权",
-            "vin": "LNNBBDFC8TDF08668"
+            "vin_tail": "8668"
           },
           {
             "model": "EHY纯电2025改款",
             "role": "被授权",
-            "vin": "LNNBDDEF5SDF46556"
+            "vin_tail": "6556"
           },
           {
             "model": "享界 S9 增程版",
             "role": "被授权",
-            "vin": "LNBSCA2KXSSA00525"
+            "vin_tail": "0525"
           }
         ]
       },
@@ -1845,7 +1845,7 @@
         "ref": "runs/session-qk-k1001 obs-0013/0022（爱车切换列表）、obs-0032/0035/0038/0041/0044/0047（我的车辆完整列表，末屏出现「未找到您的车辆」列表结束）",
         "run": "session-qk-k1001"
       },
-      "note": "车型名为页面原文。S01023 车型名在文本树中被「被授权详情」遮挡，按爱车切换列表（F03 S01023）补全。用于 K-QK-USR-001 的完整 VIN 补充，不替代其判据。",
+      "note": "车型名为页面原文。S01023 车型名在文本树中被「被授权详情」遮挡，按爱车切换列表（F03 S01023）补全。用于 K-QK-USR-001 的车辆清单补充（只保留车架号尾位），不替代其判据。",
       "status": "unconfirmed",
       "created": "2026-10-01T17:44:33.953+08:00",
       "history": [
