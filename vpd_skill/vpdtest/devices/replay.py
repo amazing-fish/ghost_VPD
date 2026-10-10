@@ -15,11 +15,10 @@ import hashlib
 from pathlib import Path
 from typing import Optional
 
-from . import DeviceResult
+from . import LAUNCHER, DeviceResult
 from ..tree import CLIP_TYPES, intersect
 from ..util import read_json, write_json
 
-LAUNCHER = "com.ohos.sceneboard"
 PLACEHOLDER_ATTRS = ("accessibilityId", "backgroundColor", "backgroundImage", "blur", "bounds", "checkable", "checked",
                      "clickable", "clip", "description", "displayId", "enabled", "focused", "hitTestBehavior",
                      "hostWindowId", "id", "key", "longClickable", "opacity", "origBounds", "originalText",

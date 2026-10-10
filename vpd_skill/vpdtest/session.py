@@ -24,7 +24,6 @@ from .tree import UiTree
 from .util import now_iso, read_json, read_jsonl
 
 SELECT_RE = re.compile(r"^(text~|text|id|xpath)=(.+)$", re.S)
-REPLAYABLE = ("tap", "input", "back", "home", "swipe", "launch", "resume", "stop_app", "wait", "monitor")
 # 结构性导航容器：App 的"壳"，跨构建稳定且容易撞文案（页面标题、新页面控件与 TabBar 的 tab 同名是
 # 真机跨版本重放实际发生过的阻塞）。固化时只要点在壳里就主动带上 within 限定；其余容器不主动限定，
 # 避免把普通页面布局（Column/Row/List）固进用例造成跨形态脆弱。

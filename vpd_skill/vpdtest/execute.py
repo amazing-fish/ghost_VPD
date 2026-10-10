@@ -11,7 +11,7 @@ import time
 from typing import Optional
 
 from .devices import DeviceResult
-from .dispatch import LAUNCHER
+from .devices import LAUNCHER
 from .layout import key as layout_key
 from .layout import resolve_scope
 from .locate import resolve
