@@ -25,6 +25,10 @@ from .util import now_iso, read_json, read_jsonl
 
 SELECT_RE = re.compile(r"^(text~|text|id|xpath)=(.+)$", re.S)
 REPLAYABLE = ("tap", "input", "back", "home", "swipe", "launch", "resume", "stop_app", "wait", "monitor")
+# 结构性导航容器：App 的"壳"，跨构建稳定且容易撞文案（页面标题、新页面控件与 TabBar 的 tab 同名是
+# 真机跨版本重放实际发生过的阻塞）。固化时只要点在壳里就主动带上 within 限定；其余容器不主动限定，
+# 避免把普通页面布局（Column/Row/List）固进用例造成跨形态脆弱。
+CHROME_TYPES = ("TabBar",)
 
 
 def parse_select(spec: str, within: Optional[str] = None, side_effect: str = "navigation",
@@ -224,6 +228,64 @@ def _derive_select(session_dir: Path, obs_id: Optional[str], point) -> Optional[
     return None
 
 
+def _auto_within(session_dir: Path, obs_id: Optional[str], strategy: Optional[dict],
+                 point: Optional[list]) -> Optional[dict]:
+    """固化时自动推导容器限定（Issue #13）。两个触发条件，都要有会话证据、都只做结构性限定：
+
+    - 响应式：选择器在会话观测树上多匹配（"text=我的" 同时命中标题与 TabBar 的 tab）→ 按实际
+      下发的点击点找出被点节点，沿祖先链找能把其余匹配全部排除的最小容器。
+    - 主动式：点在结构性导航容器（TabBar 等"壳"）里 → 即使当前唯一也带上限定。真机跨版本重放
+      出过这种阻塞：3.0.3 会话里「我的」唯一可点，新构建的页面加了同名标题，重放 target_ambiguous，
+      需要人工补 within={type: TabBar}。壳是跨构建稳定的，主动限定不引入布局脆弱性。
+
+    两条规则共用闸门：推导出的 within 必须在该树上把匹配收窄回唯一（含其他同类容器实例），
+    否则维持原状，把歧义留给 lint 和评审，绝不猜。不落像素坐标。"""
+    from .layout import resolve_scope
+    from .locate import _nodes_for
+    from .tree import in_box
+    if not obs_id or not isinstance(strategy, dict) or not point:
+        return None
+    if strategy.get("within") or strategy.get("region") or strategy.get("kind") not in ("text", "id"):
+        return None
+    tp = session_dir / "obs" / obs_id / "tree.json"
+    if not tp.exists():
+        return None
+    tree = UiTree(read_json(tp))
+    if tree.status != "ok":
+        return None
+    try:
+        nodes = [n for n in _nodes_for(strategy, tree) if n.visible]
+    except Exception:
+        return None
+    if not nodes:
+        return None
+    tapped = (next((n for n in nodes if n.bounds and in_box([int(point[0]), int(point[1])], n.bounds)), None)
+              if len(nodes) > 1 else nodes[0])
+    if tapped is None:
+        return None
+
+    def unique_in(within: dict) -> bool:
+        scope = resolve_scope(within, tree, None)
+        return scope is not None and sum(1 for n in nodes if tree.in_scope(n, scope)) == 1
+
+    others = [n for n in nodes if n.idx != tapped.idx]
+    # 首选结构性导航容器（跨构建稳定的"壳"，unique_in 会校验它确实罩得住歧义）
+    for ai in tree._ancestor_idx(tapped):
+        anc = tree.nodes[ai]
+        if anc.type in CHROME_TYPES and unique_in({"type": anc.type}):
+            return {"type": anc.type}
+    if others:  # 没有壳可用：就近找能把其余匹配全部排除的最小消歧容器
+        for ai in tree._ancestor_idx(tapped):
+            anc = tree.nodes[ai]
+            if not anc.type:
+                continue
+            if any(o.idx == ai or ai in tree._ancestor_idx(o) for o in others):
+                continue  # 该容器罩住了其他匹配：限定不住
+            if unique_in({"type": anc.type}):
+                return {"type": anc.type}
+    return None
+
+
 def _parse_drops(drops: list) -> dict:
     out = {}
     for d in drops or []:
@@ -348,6 +410,15 @@ def _to_case_step(it: dict, req: dict, session_dir: Path, test_data: dict, facts
                                   "device_form": facts.get("device_form"),
                                   "validation_level": facts.get("validation_level")}
             step["revalidate"] = True
+            # Issue #13：按会话证据自动推导结构性容器限定——多匹配时消歧（响应式），
+            # 点在导航壳里时主动限定（跨构建防撞文案）；推导不出就保持原状，由 lint 与评审兜底
+            auto_w = _auto_within(session_dir, resolved.get("obs") or it.get("obs_before"),
+                                  (target.get("strategies") or [None])[0], resolved.get("point"))
+            if auto_w:
+                target["strategies"][0]["within"] = auto_w
+                step["from_session"]["auto_within"] = {
+                    "within": auto_w,
+                    "why": "选择器在会话树上多匹配，按实际下发的点击节点推导容器消歧（结构性限定，非坐标）"}
         step["target"] = target
         if action == "input":
             name = f"input_{seq}"

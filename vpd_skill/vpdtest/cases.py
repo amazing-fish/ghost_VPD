@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 from .safety import untreed_strategies
@@ -17,6 +18,7 @@ CONTENT_KEYS = ("app", "preconditions", "env_requirements", "test_data", "steps"
 # 只在声明时计入，避免改变既有用例的内容哈希。授权与安全停止决定实际会产生哪些物理副作用，改了就要重新重放
 OPTIONAL_CONTENT_KEYS = ("layout_requirements", "authorizations", "safety")
 TREE_KINDS = ("text", "id", "xpath")
+OBS_REF_RE = re.compile(r"\bobs-\d{3,6}\b", re.IGNORECASE)  # 单次运行内的观测编号：会过期，不能进判据 rationale
 NEXT = {"exploration_record": "candidate", "draft": "candidate", "candidate": "replay_verified",
         "replay_verified": "regression"}
 
@@ -224,6 +226,14 @@ def lint(case: dict, app, knowledge, policy=None) -> list:
     if any(s.get("type") == "session" for s in case.get("sources", [])) and not case.get("knowledge_used"):
         issues.append({"field": "knowledge_used", "problem": "由会话生成的用例须说明用到了哪些知识、是否适用、怎样映射到动作"
                                                              "（没有可用知识也要写明，例如 [{\"id\": null, \"note\": \"...\"}]）"})
+    # Issue #14：obs 编号属于单次运行（重放后编号会变），rationale 引用它会让判定证据链指向
+    # 不存在的观测（真机上出现过：引用 obs-0010/0012，而本 run 实际是 obs-0007/0008）。
+    # 稳定引用 = 知识 ID / run 目录名 / 步骤 ID。
+    for k in case.get("knowledge_used") or []:
+        if k and OBS_REF_RE.search(str(k.get("rationale") or "")):
+            issues.append({"field": "knowledge_used", "problem":
+                f"knowledge_used[{k.get('id')}] 的 rationale 引用了 obs- 编号：观测编号属于单次运行、"
+                "重放后会过期，请改引稳定标识（知识 ID、run 目录名或步骤 ID）"})
     for a in real:
         if not a.get("oracle_refs"):
             issues.append({"field": f"assertions.{a.get('id')}", "problem": "缺少 oracle_refs（需求/已确认用例/产品规则）"})

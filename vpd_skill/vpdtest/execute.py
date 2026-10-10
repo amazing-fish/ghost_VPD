@@ -11,6 +11,7 @@ import time
 from typing import Optional
 
 from .devices import DeviceResult
+from .dispatch import LAUNCHER
 from .layout import key as layout_key
 from .layout import resolve_scope
 from .locate import resolve
@@ -30,6 +31,9 @@ STATUS_MAP = {
     "interrupted": ("blocked", "requirement_unclear", "出现未评审或非良性的中断，未自动处理，需确认其性质"),
     "anomaly": ("fail_candidate", "product", "出现异常中断或疑似崩溃"),
     "postcondition_not_met": ("fail_candidate", "product", "动作后预期状态未出现"),
+    "stop_not_confirmed": ("fail_candidate", "tool", "stop_app 后进程仍存活（或存活状态查询失败）：停止未生效，清理不能算完成"),
+    "foreground_unknown": ("fail_candidate", "environment", "stop_app 后前台查询失败：进程已结束但设备状态无法确认（区别于完整恢复）"),
+    "foreground_not_restored": ("fail_candidate", "environment", "stop_app 后前台不是桌面：进程已结束，但设备状态未恢复（其他应用占屏）"),
     "motion_timeout": ("fail_candidate", "product", "车辆运动超过用例声明的 max_motion_s 仍未观测到停止/结束"
                                                     "（可能卡住、终点不对或被挡路；也可能是现场环境原因，需人工确认）"),
     "monitor_abort": ("fail_candidate", "product", "监视期间出现用例声明的中止信号"),
@@ -288,7 +292,10 @@ class Executor:
                 att.update(status="device_error", error_class=res.error_class, obs_after=o["obs_id"])
                 return att
         post = self._post(step, n, case_id, was_in_app=att["state_before"] != "out_of_app", mark=mark)
+        stop_sc = post.pop("stop_check", None)
         att.update(post=post, obs_after=post["obs_id"], status=post["status"])
+        if stop_sc is not None:
+            att["stop_check"] = stop_sc  # Issue #15：停止断言证据挂在尝试上，随失败记录落盘
         if kind == "resume":
             # 后台期间进程被回收时，拉起就是冷启动：页面是否恢复由 expect_state 判定，这里只记录事实
             att["resume"] = {"process_alive_before": att.get("process_alive_before"),
@@ -692,7 +699,7 @@ class Executor:
         timeout = ctx.overlay.wait_for(f"{case_id}:{step['id']}", default, ctx.policy.max_wait_s) \
             if ctx.overlay else min(default, ctx.policy.max_wait_s)
         interval = ctx.device.poll_interval
-        t0, polls, post_dismissed = time.monotonic(), 0, []
+        t0, polls, post_dismissed, stop_check = time.monotonic(), 0, [], None
         while True:
             polls += 1
             obs, tree = ctx.observe(f"{step['id']}#{n}:after")
@@ -708,6 +715,34 @@ class Executor:
                 # 状态签名之外的补充后置条件：可见文字里要有匹配项（例如点地图后出现带「收藏」的车位卡片）
                 met = any(re.search(step["expect_text"], x) for x in obs.get("texts") or [])
             elapsed = round(time.monotonic() - t0, 2)
+            if step["action"] == "stop_app":
+                # Issue #15：停止是独立断言，不能随"无后置条件即通过"混过去。进程结束 ≠ 设备状态
+                # 恢复，两级分开：存活状态查不到/进程仍存活 → stop_not_confirmed；停止前我们在前台
+                # （停的是我们的屏）才要求恢复桌面——前台查询失败是 foreground_unknown，前台被其他
+                # 应用占据是 foreground_not_restored（真机 S5 缺陷：停止后前台已是别的应用仍判
+                # passed）。停止前就不在前台（no-op 停止，比如从未拉起过）无须恢复：屏本来就是别人的。
+                fg = obs.get("foreground")
+                # 状态识别在 in_app/undetermined 分支不带 process_alive：以观测记录的查询结果为准
+                alive = page.get("process_alive", obs.get("process_alive"))
+                ended = alive is False
+                stop_check = {"process_alive": alive, "foreground": fg,
+                              "process_ended": ended, "foreground_restored": fg == LAUNCHER}
+                if not ended:
+                    if interval <= 0 or elapsed >= timeout:
+                        status = "stop_not_confirmed"
+                        stop_check["timeout_s"] = timeout
+                        break
+                    # 进程尚未确认结束：带着最新 stop_check 继续轮询
+                elif was_in_app:
+                    if fg is None:
+                        status = "foreground_unknown"
+                        break
+                    if fg != LAUNCHER:
+                        status = "foreground_not_restored"
+                        stop_check["foreign_foreground"] = fg
+                        break
+                    # 进程结束且前台回桌面：正常通过
+                # ended 且停止前就不在前台：no-op 停止，无状态可恢复
             if crash or anomalies:
                 status = "anomaly"
                 break
@@ -739,7 +774,7 @@ class Executor:
                 "status": status, "interrupts": page.get("interrupts", []), "suspected_crash": crash,
                 "dialogs": page.get("dialogs", []),
                 "anomalies": anomalies, "elapsed_s": elapsed, "timeout_s": timeout, "polls": polls,
-                "dismissed": post_dismissed}
+                "dismissed": post_dismissed, "stop_check": stop_check}
 
     # ---- 恢复 ----
     def _recover(self, step: dict, att: dict, case_id: str) -> dict:
@@ -918,4 +953,7 @@ def _failure_detail(att: dict) -> dict:
         d["locate"] = {k: att["locate"].get(k) for k in ("status", "target", "attempts")}
     if att.get("post"):
         d["post"] = {k: att["post"].get(k) for k in ("expected", "observed", "interrupts", "suspected_crash")}
+    if att.get("stop_check"):
+        # Issue #15：停止断言两级证据随失败记录落盘（进程是否结束 / 前台是否恢复）
+        d["stop_check"] = att["stop_check"]
     return d
