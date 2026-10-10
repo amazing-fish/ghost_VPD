@@ -2,7 +2,8 @@
 
 - 新增条目一律 unconfirmed；confirm 需要评审人，模型推断/单次观察来源还必须给出依据。
 - 同一 subject 下多个有效条目的 expected 不一致即视为冲突，引用方判为待确认；冲突不会被自动消解，
-  resolve 会保留被废弃条目及理由。
+  resolve 会保留被废弃条目及理由。resolve 的废弃范围与冲突判定同源：只废弃与保留条目适用范围
+  有交集的当条，按不同版本/构建分别规定的条目不受别的构建上裁决的影响。
 - applies_to 参与判据适用性：本次运行的事实（APP、版本、屏幕形态、账号状态……）缺失或无法比较时是
   applicability_unknown，明确不符时是 out_of_scope，两者都不能支撑通过/失败。
 - operation（怎样操作）与 observation（某次实际发生了什么）两类条目不是判据，引用它们只能得到待确认。
@@ -174,18 +175,24 @@ class KnowledgeStore:
         return it
 
     def resolve(self, subject: str, keep: str, reviewer: str, reason: str) -> dict:
+        """冲突裁决：保留 keep，废弃其余。废弃范围与 conflicts() 同源——只废弃与保留条目
+        适用范围（applies_to）有交集的当条；按不同版本/构建分别规定的条目不是本次冲突的
+        当事方，跨范围一并废弃会误杀其他构建上仍然有效的知识。"""
         items = self.items()
         group = [i for i in items if i.get("subject") == subject and i["status"] in ACTIVE]
         if keep not in [i["id"] for i in group]:
             raise ValueError(f"{keep} 不在 subject={subject} 的有效条目中")
-        for i in group:
-            if i["id"] != keep:
-                i["history"].append({"ts": now_iso(), "from": i["status"], "to": "deprecated", "by": reviewer,
-                                     "why": f"冲突裁决保留 {keep}：{reason}"})
-                i["status"] = "deprecated"
         kept = next(i for i in group if i["id"] == keep)
+        deprecated = []
+        for i in group:
+            if i["id"] == keep or not _scopes_overlap(i, kept):
+                continue
+            i["history"].append({"ts": now_iso(), "from": i["status"], "to": "deprecated", "by": reviewer,
+                                 "why": f"冲突裁决保留 {keep}：{reason}"})
+            i["status"] = "deprecated"
+            deprecated.append(i["id"])
         kept["history"].append({"ts": now_iso(), "event": "conflict_resolved", "by": reviewer, "reason": reason,
-                                "deprecated": [i["id"] for i in group if i["id"] != keep]})
+                                "deprecated": deprecated})
         self._save(items)
         return kept
 
