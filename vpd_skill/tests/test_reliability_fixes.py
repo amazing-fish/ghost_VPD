@@ -1,8 +1,11 @@
 """Issue #13/#14/#15 的可靠性整改测试（离线合成世界；只证明协议与判定逻辑）。
 
 - #13 from-session 固化自动带 within：响应式（多匹配消歧）+ 主动式（点在 TabBar 壳里，跨构建防撞文案）。
-- #14 判据 rationale 引用稳定化：obs- 编号属于单次运行，lint 拦下，改引稳定标识。
-- #15 cleanup 停止独立断言：进程结束 ≠ 设备状态恢复，两级分开；前台未知/被其他应用占据都不能混过。
+- #14 判据 rationale 引用稳定化：支持「run/session + obs」可解析引用（check-refs 核对证据确实留存），
+  拦的是不可解析引用（裸编号、锚点目录缺该观测）；知识 ID（K-QK-OBS-201）不误拦。
+- #15 cleanup 停止独立断言：停止成功（进程结束）与恢复初始前台分开验证。前台恢复只在用例
+  显式声明 require_launcher 且停止前 APP 在前台（可靠前置事实）时判定；其他应用（如 WeLink）
+  接管前台是环境现象，未声明时只记录进 stop_check，不据此判产品失败。
 """
 import json
 
@@ -110,20 +113,50 @@ def test_from_session_reactively_disambiguates_multi_match(ws, tmp_path):
     assert tap["from_session"]["auto_within"]["why"]
 
 
-# ---- Issue #14：rationale 引用稳定化 ----
+# ---- Issue #14：rationale 引用稳定化（支持可解析引用，不一刀切禁止 obs 编号） ----
 
 def _lint_case(ws, **kw):
     base = {"id": "TC-KU-1", "purpose": "p", "preconditions": [], "test_data": {}, "test_data_none": True,
             "steps": [{"id": "S1", "action": "launch"}], "assertions": [], "cleanup": [], "sources": []}
     base.update(kw)
-    return C.lint(base, ws.app("motor_hm"), KnowledgeStore(ws.root))
+    return C.lint(base, ws.app("motor_hm"), KnowledgeStore(ws.root), runs_dir=ws.root / "runs")
 
 
-def test_rationale_citing_obs_ids_is_flagged(ws):
+def test_rationale_citing_bare_obs_ids_is_flagged(ws):
+    """裸 obs 编号没有 run/session 锚点：重放后必过期，拦下。"""
     issues = _lint_case(ws, knowledge_used=[
         {"id": "K-AV-001", "use": "entry_success", "applicability": "适用", "rationale": "obs-0010 显示入口成功"}])
-    hit = [i for i in issues if i["field"] == "knowledge_used" and "obs-" in i["problem"]]
+    hit = [i for i in issues if i["field"] == "knowledge_used" and "obs-0010" in i["problem"]]
     assert hit and "稳定标识" in hit[0]["problem"]
+
+
+def test_resolvable_run_obs_reference_passes(ws):
+    """「run 目录名 + obs 编号」且该目录确实留存了对应观测：证据链可追溯，放行。"""
+    obs_dir = ws.root / "runs" / "run-20261008-201507-4990" / "obs" / "obs-0007"
+    obs_dir.mkdir(parents=True)
+    issues = _lint_case(ws, knowledge_used=[
+        {"id": "K-AV-001", "use": "entry_success", "applicability": "适用",
+         "rationale": "run-20261008-201507-4990 的 obs-0007 显示入口成功"}])
+    assert not any(i["field"] == "knowledge_used" for i in issues)
+
+
+def test_anchored_obs_ref_with_missing_evidence_is_flagged(ws):
+    """锚点 run 目录不存在/不含该观测（真机缺陷形态：引用 obs-0010，实际 run 里是 obs-0007）：
+    加个 run- 前缀不能绕过 check-refs。"""
+    (ws.root / "runs" / "run-20261008-201507-4990" / "obs" / "obs-0007").mkdir(parents=True)
+    issues = _lint_case(ws, knowledge_used=[
+        {"id": "K-AV-001", "use": "entry_success", "applicability": "适用",
+         "rationale": "run-20261008-201507-4990 的 obs-0010 显示入口成功"}])
+    hit = [i for i in issues if i["field"] == "knowledge_used" and "obs-0010" in i["problem"]]
+    assert hit and "未留存该观测" in hit[0]["problem"]
+
+
+def test_knowledge_id_containing_obs_digits_is_not_flagged(ws):
+    """K-QK-OBS-201 是知识 ID（稳定标识，正是规则要求的引用形式）：不能当观测编号误拦。"""
+    issues = _lint_case(ws, knowledge_used=[
+        {"id": "K-QK-001 / K-AV-001", "use": "判据候选", "applicability": "not_applicable",
+         "rationale": "两者冲突且本机数据加载后「默认车位」消失（K-QK-OBS-201）"}])
+    assert not any(i["field"] == "knowledge_used" and "obs" in i["problem"] for i in issues)
 
 
 def test_stable_rationale_references_pass(ws):
@@ -145,8 +178,9 @@ def test_stop_app_records_independent_stop_check(ws, tmp_path):
     assert check["foreground"] == "com.ohos.sceneboard" and check["foreground_restored"] is True
 
 
-def test_stop_app_fails_when_foreign_app_holds_foreground(ws, tmp_path):
-    """真机 S5 缺陷场景：停止后前台已是别的应用（com.huawei.welink.hmos），进程结束≠设备状态恢复。"""
+def test_foreign_foreground_without_declaration_is_recorded_not_failed(ws, tmp_path):
+    """真机 S5 场景：停止后 WeLink 接管前台。未声明 require_launcher 时这是环境现象、与产品无关，
+    不据此判失败——前台事实记录进 stop_check 供人工复核。"""
     ctx = _ctx(ws, _lab_world(tmp_path))
     real_stop = ctx.device.stop
 
@@ -157,17 +191,48 @@ def test_stop_app_fails_when_foreign_app_holds_foreground(ws, tmp_path):
 
     ctx.device.stop = _stop_then_hijack
     res = Executor(ctx).run_step({"id": "C1", "action": "stop_app", "retry": 0}, "case")
+    assert res["outcome"].startswith("passed")
+    att = res["attempts"][-1]
+    check = att["stop_check"]
+    assert check["process_ended"] is True and check["require_launcher"] is False
+    assert check["foreign_foreground"] == "com.huawei.welink.hmos"
+    assert check["foreground_restored"] is False
+
+
+def test_declared_launcher_restoration_fails_on_foreign_foreground(ws, tmp_path):
+    """用例声明 require_launcher 且停止前 APP 在前台（可靠前置事实）：前台被其他应用占据
+    → 清理不符合声明的恢复期望，判 fail_candidate（环境归因，不是产品失败）。"""
+    ctx = _ctx(ws, _lab_world(tmp_path))
+    real_stop = ctx.device.stop
+
+    def _stop_then_hijack(bundle):
+        out = real_stop(bundle)
+        ctx.device.state["foreground"] = "com.huawei.welink.hmos"
+        return out
+
+    ctx.device.stop = _stop_then_hijack
+    res = Executor(ctx).run_step({"id": "C1", "action": "stop_app", "require_launcher": True, "retry": 0}, "case")
     att = res["attempts"][-1]
     assert att["status"] == "foreground_not_restored"
-    assert att["stop_check"] == {"process_alive": False, "foreground": "com.huawei.welink.hmos",
-                                 "process_ended": True, "foreground_restored": False,
-                                 "foreign_foreground": "com.huawei.welink.hmos"}
+    assert att["stop_check"]["foreign_foreground"] == "com.huawei.welink.hmos"
+    assert att["stop_check"]["require_launcher"] is True
     assert res["outcome"] == "fail_candidate"
     assert res["first_failure"]["detail"]["stop_check"]["foreground"] == "com.huawei.welink.hmos"
 
 
-def test_stop_app_fails_when_foreground_query_fails(ws, tmp_path):
-    """obs-0017 场景：前台查询失败。进程结束≠恢复，"查不到"要单独暴露而不是混过。"""
+def test_declared_restoration_unverifiable_without_prior_foreground(ws, tmp_path):
+    """声明了 require_launcher 但停止前 APP 不在前台：没有可靠前置事实可推导恢复期望，
+    记录 unverifiable 而不是硬判失败。"""
+    ctx = _ctx(ws, _lab_world(tmp_path))
+    ctx.device.state["foreground"] = "com.huawei.welink.hmos"  # 停止前屏就是别人的
+    res = Executor(ctx).run_step({"id": "C1", "action": "stop_app", "require_launcher": True, "retry": 0}, "case")
+    assert res["outcome"].startswith("passed")
+    att = res["attempts"][-1]
+    assert att["stop_check"]["require_launcher_unverifiable"] == "停止前 APP 不在前台，无从推导恢复期望"
+
+
+def test_foreground_query_failure_recorded_when_undeclared(ws, tmp_path):
+    """obs-0017 场景：前台查询失败。未声明 require_launcher 时只记录，不据此判失败。"""
     ctx = _ctx(ws, _lab_world(tmp_path))
     real_stop = ctx.device.stop
 
@@ -178,6 +243,24 @@ def test_stop_app_fails_when_foreground_query_fails(ws, tmp_path):
 
     ctx.device.stop = _stop_then_blind
     res = Executor(ctx).run_step({"id": "C1", "action": "stop_app", "retry": 0}, "case")
+    assert res["outcome"].startswith("passed")
+    check = res["attempts"][-1]["stop_check"]
+    assert check["process_ended"] is True and check["foreground"] is None
+
+
+def test_stop_app_fails_when_foreground_query_fails(ws, tmp_path):
+    """声明 require_launcher 且停止前 APP 在前台：前台查询失败 → 声明的恢复期望无法确认，
+    foreground_unknown 单独暴露而不是混过。"""
+    ctx = _ctx(ws, _lab_world(tmp_path))
+    real_stop = ctx.device.stop
+
+    def _stop_then_blind(bundle):
+        out = real_stop(bundle)
+        ctx.device.state.setdefault("query_fail", []).append("foreground")  # 后台查询开始失败
+        return out
+
+    ctx.device.stop = _stop_then_blind
+    res = Executor(ctx).run_step({"id": "C1", "action": "stop_app", "require_launcher": True, "retry": 0}, "case")
     att = res["attempts"][-1]
     assert att["status"] == "foreground_unknown"
     assert att["stop_check"]["process_ended"] is True and att["stop_check"]["foreground_restored"] is False

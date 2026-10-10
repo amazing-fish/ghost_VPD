@@ -15,27 +15,79 @@ def _item(kid, subject, expected, scope=None):
 
 
 def test_resolve_deprecates_only_overlapping_scopes(ws):
-    # 同一主题：旧规定横跨 3.0.3/3.0.4（列表范围），新规定只改 3.0.4 → 两者有交集、构成冲突；
-    # 3.0.5 是另一条独立规定，与本次裁决无关，跨范围一并废弃会误杀。
+    # 同一主题：保留条目覆盖 3.0.3/3.0.4，旧规定范围完全在其内 → 当条，废弃；
+    # 3.0.5 是另一条独立规定，与保留条目范围不相交：不是当条，跨范围一并废弃会误杀。
     kn = KnowledgeStore(ws.root)
     for it in [
         _item("K-V-003", "app.x.rule", {"v": "old"}, {"app_version": ["3.0.3", "3.0.4"]}),
-        _item("K-V-004", "app.x.rule", {"v": "new"}, {"app_version": "3.0.4"}),
+        _item("K-V-004", "app.x.rule", {"v": "new"}, {"app_version": ["3.0.3", "3.0.4"]}),
         _item("K-V-005", "app.x.rule", {"v": "other"}, {"app_version": "3.0.5"}),
-        _item("K-V-ANY", "app.x.rule", {"v": "any"}),  # 未限定版本：与谁都可能冲突
     ]:
         kn.add(it)
-    kept = kn.resolve("app.x.rule", keep="K-V-004", reviewer="r", reason="3.0.4 以新交互为准")
+    kept = kn.resolve("app.x.rule", keep="K-V-004", reviewer="r", reason="以新交互为准")
     assert kept["id"] == "K-V-004"
-    assert kn.get("K-V-003")["status"] == "deprecated"      # 与 3.0.4 有交集 → 冲突当条，废弃
-    assert kn.get("K-V-ANY")["status"] == "deprecated"      # 未限定范围 → 也是当条
-    assert kn.get("K-V-005")["status"] == "unconfirmed"     # 版本不相交：不是当条，保持有效
-    assert kept["history"][-1]["deprecated"] == ["K-V-003", "K-V-ANY"]
+    assert kn.get("K-V-003")["status"] == "deprecated"      # 范围完全在保留条目内 → 冲突当条，废弃
+    assert kn.get("K-V-005")["status"] == "unconfirmed"     # 范围不相交：不是当条，保持有效
+    assert kept["history"][-1]["deprecated"] == ["K-V-003"]
     # 与 conflicts() 同源：裁决后该主题不再有冲突，3.0.5 在自己的版本上照常可引用
     # （种子数据里其他主题的既有冲突不受影响，留给人工裁决）
     assert "app.x.rule" not in kn.conflicts()
     st = kn.oracle_status(["K-V-005"], facts={"app_version": "3.0.5", "app": "motor_hm"})
     assert st["status"] == "unconfirmed"
+
+
+def test_resolve_refuses_partial_overlap_deprecation(ws):
+    # 部分重叠：当条还覆盖保留条目之外的范围（同一规则同时规定了 3.0.3，裁决却只保留 3.0.4
+    # 的新规定；未限定范围的当条同理，"未限定"意味着处处适用）。整条废弃会误杀未被本次裁决
+    # 覆盖的范围 → 拒绝，先拆分/调整 applies_to 再裁决。拒绝是原子操作：不废弃任何条目。
+    kn = KnowledgeStore(ws.root)
+    for it in [
+        _item("K-V-003", "app.w.rule", {"v": "old"}, {"app_version": ["3.0.3", "3.0.4"]}),
+        _item("K-V-004", "app.w.rule", {"v": "new"}, {"app_version": "3.0.4"}),
+        _item("K-V-ANY", "app.w.rule", {"v": "any"}),  # 未限定范围：同样超出保留条目的范围
+    ]:
+        kn.add(it)
+    try:
+        kn.resolve("app.w.rule", keep="K-V-004", reviewer="r", reason="3.0.4 以新交互为准")
+        raised = None
+    except ValueError as e:
+        raised = str(e)
+    assert raised and "部分重叠" in raised and "K-V-003" in raised
+    # 原子：没有任何条目被改状态
+    assert kn.get("K-V-003")["status"] == "unconfirmed"
+    assert kn.get("K-V-004")["status"] == "unconfirmed"
+    assert kn.get("K-V-ANY")["status"] == "unconfirmed"
+    # 冲突保持，等人工拆分后重新裁决
+    assert "app.w.rule" in kn.conflicts()
+
+
+# ---- Issue #9：observation 来源的 product_rule 在 search/verdict 两端的 Oracle 资格一致 ----
+
+def _obs_rule(kid, subject, expected):
+    return {"id": kid, "kind": "product_rule", "subject": subject, "statement": f"观察规则 {kid}",
+            "expected": expected, "applies_to": {},
+            "source": {"type": "observation", "ref": "run-20261008-201507-4990"}}
+
+
+def test_search_and_verdict_agree_on_observation_sourced_rules(ws):
+    """观察来源的 product_rule：未确认时两端一致地"不可作判据"；凭依据确认后两端一致地承认
+    Oracle 资格。此前 search 端把它永久按现场观察排除，verdict 端却承认确认后的资格——两端漂移。"""
+    from vpdtest.search import item_role, search as vpd_search
+    kn = KnowledgeStore(ws.root)
+    kn.add(_obs_rule("K-OBS-R1", "app.z.entry", {"ok": True}))
+    # 未确认：search 按现场观察呈现（不能当产品要求）；verdict 判 unconfirmed（待确认）
+    role, note = item_role(kn.get("K-OBS-R1"))
+    assert role == "observation" and "确认（需依据）前" in note
+    assert kn.oracle_status(["K-OBS-R1"], facts={})["status"] == "unconfirmed"
+    row = next(r for g in vpd_search(ws, "app.z.entry")["results"].values() for r in g if r["ref"] == "K-OBS-R1")
+    assert row["role"] == "observation" and row["can_be_oracle"] is False
+    # 凭依据确认（observation 来源强制要求 --basis）：两端一致承认
+    kn.confirm("K-OBS-R1", reviewer="r", basis="run-20261008-201507-4990 的 obs-0003，三个样本一致")
+    role2, note2 = item_role(kn.get("K-OBS-R1"))
+    assert role2 == "requirement" and "已凭依据确认" in note2
+    assert kn.oracle_status(["K-OBS-R1"], facts={})["status"] == "confirmed"
+    row2 = next(r for g in vpd_search(ws, "app.z.entry")["results"].values() for r in g if r["ref"] == "K-OBS-R1")
+    assert row2["role"] == "requirement" and row2["can_be_oracle"] is True
 
 
 def test_resolve_without_scope_deprecates_all_others(ws):

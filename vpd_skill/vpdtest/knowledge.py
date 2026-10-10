@@ -81,6 +81,20 @@ def _scopes_overlap(a: dict, b: dict) -> bool:
     return True
 
 
+def _scope_within(a: dict, b: dict) -> bool:
+    """a 的适用范围是否完全落在 b 的范围内（任一维度：未限定 = 适用于所有取值）。"""
+    sa, sb = a.get("applies_to") or {}, b.get("applies_to") or {}
+    for k in set(sa) | set(sb):
+        a_want, b_want = sa.get(k), sb.get(k)
+        if a_want in ("*", None, "") and b_want not in ("*", None, ""):
+            return False  # a 该维度适用于所有取值，b 只覆盖部分 → a 超出 b
+        if a_want in ("*", None, "") or b_want in ("*", None, ""):
+            continue
+        if not _scope_values(k, a_want) <= _scope_values(k, b_want):
+            return False
+    return True
+
+
 class KnowledgeStore:
     def __init__(self, root: Path, facts: Optional[dict] = None):
         self.path = root / "knowledge" / "items.json"
@@ -177,7 +191,11 @@ class KnowledgeStore:
     def resolve(self, subject: str, keep: str, reviewer: str, reason: str) -> dict:
         """冲突裁决：保留 keep，废弃其余。废弃范围与 conflicts() 同源——只废弃与保留条目
         适用范围（applies_to）有交集的当条；按不同版本/构建分别规定的条目不是本次冲突的
-        当事方，跨范围一并废弃会误杀其他构建上仍然有效的知识。"""
+        当事方，跨范围一并废弃会误杀其他构建上仍然有效的知识。
+
+        部分重叠保护：与保留条目只有部分范围交集的当条（例如同一规则还覆盖保留条目之外的
+        版本）不能整条废弃——重叠之外的范围没被本次裁决覆盖，废了就是误杀。先拆分/调整
+        该条的 applies_to 再裁决。"""
         items = self.items()
         group = [i for i in items if i.get("subject") == subject and i["status"] in ACTIVE]
         if keep not in [i["id"] for i in group]:
@@ -187,6 +205,11 @@ class KnowledgeStore:
         for i in group:
             if i["id"] == keep or not _scopes_overlap(i, kept):
                 continue
+            if not _scope_within(i, kept):
+                raise ValueError(
+                    f"{i['id']} 与保留条目 {keep} 的适用范围只是部分重叠"
+                    f"（{i['id']} 还覆盖保留条目之外的范围）：整条废弃会误杀范围外的知识，"
+                    f"请先拆分/调整该条目的 applies_to 再裁决")
             i["history"].append({"ts": now_iso(), "from": i["status"], "to": "deprecated", "by": reviewer,
                                  "why": f"冲突裁决保留 {keep}：{reason}"})
             i["status"] = "deprecated"

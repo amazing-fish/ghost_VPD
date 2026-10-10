@@ -32,8 +32,11 @@ STATUS_MAP = {
     "anomaly": ("fail_candidate", "product", "出现异常中断或疑似崩溃"),
     "postcondition_not_met": ("fail_candidate", "product", "动作后预期状态未出现"),
     "stop_not_confirmed": ("fail_candidate", "tool", "stop_app 后进程仍存活（或存活状态查询失败）：停止未生效，清理不能算完成"),
-    "foreground_unknown": ("fail_candidate", "environment", "stop_app 后前台查询失败：进程已结束但设备状态无法确认（区别于完整恢复）"),
-    "foreground_not_restored": ("fail_candidate", "environment", "stop_app 后前台不是桌面：进程已结束，但设备状态未恢复（其他应用占屏）"),
+    "foreground_unknown": ("fail_candidate", "environment",
+                           "用例声明 require_launcher 但 stop_app 后前台查询失败：恢复期望无法确认（区别于停止成功）"),
+    "foreground_not_restored": ("fail_candidate", "environment",
+                                "用例声明 require_launcher 且停止前 APP 在前台，stop_app 后前台却不是桌面：清理不符合声明的恢复期望；"
+                                "其他应用占屏本身是环境现象（真机 S5：WeLink 接管前台），未声明时只记录不判失败"),
     "motion_timeout": ("fail_candidate", "product", "车辆运动超过用例声明的 max_motion_s 仍未观测到停止/结束"
                                                     "（可能卡住、终点不对或被挡路；也可能是现场环境原因，需人工确认）"),
     "monitor_abort": ("fail_candidate", "product", "监视期间出现用例声明的中止信号"),
@@ -716,33 +719,43 @@ class Executor:
                 met = any(re.search(step["expect_text"], x) for x in obs.get("texts") or [])
             elapsed = round(time.monotonic() - t0, 2)
             if step["action"] == "stop_app":
-                # Issue #15：停止是独立断言，不能随"无后置条件即通过"混过去。进程结束 ≠ 设备状态
-                # 恢复，两级分开：存活状态查不到/进程仍存活 → stop_not_confirmed；停止前我们在前台
-                # （停的是我们的屏）才要求恢复桌面——前台查询失败是 foreground_unknown，前台被其他
-                # 应用占据是 foreground_not_restored（真机 S5 缺陷：停止后前台已是别的应用仍判
-                # passed）。停止前就不在前台（no-op 停止，比如从未拉起过）无须恢复：屏本来就是别人的。
+                # Issue #15：停止是独立断言，不能随"无后置条件即通过"混过去。两级分开验证：
+                # (1) 停止成功（无条件）：进程必须确认结束——存活状态查不到/仍存活 → stop_not_confirmed；
+                # (2) 恢复初始前台（仅当用例显式声明 require_launcher 且有可靠前置事实）：停止前我们在
+                #     前台（停的是我们的屏），停止后理应回桌面——前台查询失败 foreground_unknown、
+                #     前台被其他应用占据 foreground_not_restored。
+                # 未声明 require_launcher 时前台事实只记录进 stop_check 供人工复核，不据此判定：真机上
+                # 其他应用（如 WeLink）接管前台是环境现象、与产品无关，不应自动造成产品失败。
+                # 停止前就不在前台（no-op 停止，比如从未拉起过）时即使声明了也无可推导的前置事实：
+                # 记为 unverifiable，不判失败。
                 fg = obs.get("foreground")
                 # 状态识别在 in_app/undetermined 分支不带 process_alive：以观测记录的查询结果为准
                 alive = page.get("process_alive", obs.get("process_alive"))
                 ended = alive is False
+                require_launcher = bool(step.get("require_launcher"))
                 stop_check = {"process_alive": alive, "foreground": fg,
-                              "process_ended": ended, "foreground_restored": fg == LAUNCHER}
+                              "process_ended": ended, "foreground_restored": fg == LAUNCHER,
+                              "require_launcher": require_launcher}
+                if fg not in (None, LAUNCHER):
+                    stop_check["foreign_foreground"] = fg
                 if not ended:
                     if interval <= 0 or elapsed >= timeout:
                         status = "stop_not_confirmed"
                         stop_check["timeout_s"] = timeout
                         break
                     # 进程尚未确认结束：带着最新 stop_check 继续轮询
-                elif was_in_app:
-                    if fg is None:
+                elif require_launcher:
+                    if not was_in_app:
+                        # 声明了恢复期望但停止前 APP 不在前台：没有可靠前置事实，无从判定
+                        stop_check["require_launcher_unverifiable"] = "停止前 APP 不在前台，无从推导恢复期望"
+                    elif fg is None:
                         status = "foreground_unknown"
                         break
-                    if fg != LAUNCHER:
+                    elif fg != LAUNCHER:
                         status = "foreground_not_restored"
-                        stop_check["foreign_foreground"] = fg
                         break
                     # 进程结束且前台回桌面：正常通过
-                # ended 且停止前就不在前台：no-op 停止，无状态可恢复
+                # 未声明 require_launcher：ended 即通过，前台事实留在 stop_check 供人工复核
             if crash or anomalies:
                 status = "anomaly"
                 break
