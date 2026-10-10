@@ -246,8 +246,9 @@ def record_replay(ws, case_id: str, run: dict) -> dict:
 
 def replay_basis(case: dict) -> dict:
     """用例成熟度（能否稳定复测）与产品状态（是否符合要求）分开判断。
-    当前内容版本下至少 2 次来自不同运行、结论一致且确定的重放：全部通过 → conforming；
-    全部失败且失败特征相同 → known_failure（需登记缺陷单）。混合、待确认、阻塞都说明还不能稳定复测。"""
+    当前内容版本下，最近一次待确认/阻塞的重放之后至少 2 次来自不同运行、结论确定的重放，
+    且该版本下所有确定结论一致：全部通过 → conforming；全部失败且失败特征相同 → known_failure（需登记缺陷单）。
+    混合说明不稳定；最近的重放是待确认/阻塞，说明现在还不能稳定复测，要在它之后重新攒够 2 次。"""
     h = content_hash(case)
     cur = [r for r in case.get("replays", []) if r["hash"] == h]
     runs = {r["run_id"]: r for r in cur}
@@ -256,15 +257,22 @@ def replay_basis(case: dict) -> dict:
         return {**out, "ok": False, "why": f"当前内容版本 {h} 下的重放不足 2 次（现有 {len(runs)}）"}
     if any(r.get("alerts") for r in runs.values()):
         return {**out, "ok": False, "why": "有重放出现人工接管信号（安全停止未确认），不能作为晋级依据"}
-    # 待确认/阻塞的重放不给出产品结论（常见于判据确认之前的运行），不计入但如实列出；
-    # 确定结论的重放之间不允许混合通过与失败（那说明用例或产品不稳定）
-    rows = [r for r in runs.values() if r["verdict"] in ("passed", "failed")]
-    out["ignored"] = [{"run_id": r["run_id"], "verdict": r["verdict"]} for r in runs.values() if r not in rows]
+    # 待确认/阻塞的重放不给出产品结论。它之前的确定结论不再作数：之后又出现了不能复测的运行。
+    # 判据确认之前的待确认运行因此不会永久挡住晋级，只要求确认之后重新重放
+    order = list(runs.values())  # 记录顺序即运行顺序
+    decisive = [r for r in order if r["verdict"] in ("passed", "failed")]
+    last_bad = max((i for i, r in enumerate(order) if r not in decisive), default=-1)
+    rows = order[last_bad + 1:]
+    out["ignored"] = [{"run_id": r["run_id"], "verdict": r["verdict"]} for r in order[:last_bad + 1]]
     if len(rows) < 2:
-        return {**out, "ok": False, "why": f"当前内容版本 {h} 下给出确定结论的重放不足 2 次（现有 {len(rows)}，"
-                                           f"另有待确认/阻塞 {len(out['ignored'])} 次）：重放不足"}
+        why = f"当前内容版本 {h} 下给出确定结论的重放不足 2 次（现有 {len(rows)}）：重放不足"
+        if last_bad >= 0:
+            bad = order[last_bad]
+            why = (f"当前内容版本 {h} 下最近一次不确定的重放是 {bad['run_id']}（{bad['verdict']}），"
+                   f"之后给出确定结论的重放只有 {len(rows)} 次：重放不足，需在它之后至少 2 次")
+        return {**out, "ok": False, "why": why}
     out["replays"] = [r["run_id"] for r in rows]
-    verdicts = {r["verdict"] for r in rows}
+    verdicts = {r["verdict"] for r in decisive}  # 早于不确定运行的确定结论也要一致，否则说明不稳定
     if verdicts == {"passed"}:
         return {**out, "ok": True, "product": "conforming", "rows": rows}
     if verdicts == {"failed"}:

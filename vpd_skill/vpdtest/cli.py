@@ -79,6 +79,9 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("suite", help="执行用例集")
     s.add_argument("suite")
     s.add_argument("--device", action="append")
+    s.add_argument("--authorize", nargs="*", default=[],
+                   help="同 run：授予的副作用对集合内每条用例生效，但每条用例只拿到自己申请的那部分")
+    s.add_argument("--supervisor", help="同 run：授予 vehicle_motion/vehicle_control 时必填")
     s.add_argument("--fail-on", nargs="*", default=[], choices=["failed", "blocked", "pending"])
 
     e = sub.add_parser("explore", help="在允许的页面、动作和预算内探索")

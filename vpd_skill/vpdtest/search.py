@@ -49,7 +49,7 @@ def _score(text: str, terms: list, strong: str = "") -> int:
 
 
 def _items(ws, kn: KnowledgeStore, terms: list, facts: dict) -> list:
-    conflicted = {k: s for s, ids in kn.conflicts().items() for k in ids}
+    conflicted = {k: s for s, ids in kn.conflicts(facts).items() for k in ids}
     out = []
     for it in kn.items():
         blob = json.dumps({k: it.get(k) for k in ("id", "subject", "statement", "expected", "note", "source")},

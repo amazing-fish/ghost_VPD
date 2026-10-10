@@ -62,6 +62,24 @@ def applicability(item: dict, facts: Optional[dict]) -> dict:
     return {"status": status, "unknown": unknown, "mismatch": mismatch}
 
 
+def _scope_values(k: str, want) -> set:
+    vals = want if isinstance(want, list) else [want]
+    if k == "app_version":
+        return {_base_version(v) or str(v).strip() for v in vals}
+    return {str(v) for v in vals}
+
+
+def _scopes_overlap(a: dict, b: dict) -> bool:
+    """两条知识的 applies_to 是否可能同时适用：共同限定的每一项取值都有交集（未限定 = 适用于所有取值）。"""
+    sa, sb = a.get("applies_to") or {}, b.get("applies_to") or {}
+    for k in set(sa) & set(sb):
+        if sa[k] in ("*", None, "") or sb[k] in ("*", None, ""):
+            continue
+        if not _scope_values(k, sa[k]) & _scope_values(k, sb[k]):
+            return False
+    return True
+
+
 class KnowledgeStore:
     def __init__(self, root: Path, facts: Optional[dict] = None):
         self.path = root / "knowledge" / "items.json"
@@ -80,20 +98,28 @@ class KnowledgeStore:
     def get(self, kid: str) -> Optional[dict]:
         return next((i for i in self.items() if i["id"] == kid), None)
 
-    def conflicts(self) -> dict:
+    def conflicts(self, facts: Optional[dict] = None) -> dict:
+        """同一主题、期望不同、且适用范围有交集的条目才算冲突：按版本/形态分别规定的期望不是冲突。
+        给出 facts 时只比较不排除本次运行的条目（out_of_scope 的那条对本次运行不存在）。"""
         groups = {}
         for it in self.items():
-            if it["status"] in ACTIVE and it.get("subject"):
+            if it["status"] in ACTIVE and it.get("subject") and \
+                    (facts is None or applicability(it, facts)["status"] != "out_of_scope"):
                 groups.setdefault(it["subject"], []).append(it)
-        return {s: [i["id"] for i in g] for s, g in groups.items()
-                if len({repr(i.get("expected")) for i in g}) > 1}
+        out = {}
+        for s, g in groups.items():
+            ids = {x["id"] for a in g for b in g if a["id"] < b["id"] and repr(a.get("expected")) != repr(b.get("expected"))
+                   and _scopes_overlap(a, b) for x in (a, b)}
+            if ids:
+                out[s] = [i["id"] for i in g if i["id"] in ids]
+        return out
 
     def oracle_status(self, refs: list, facts: Optional[dict] = None) -> dict:
         """判据状态。facts 默认取 bind() 绑定的本次运行事实；没有事实时，带范围限制的条目一律 applicability_unknown。"""
         if not refs:
             return {"status": "missing", "reason": "未关联需求/已确认用例/产品规则", "items": []}
         facts = self.facts if facts is None else facts
-        conflicted = {k for ids in self.conflicts().values() for k in ids}
+        conflicted = {k for ids in self.conflicts(facts).values() for k in ids}
         snap, statuses = [], set()
         for r in refs:
             it = self.get(r)

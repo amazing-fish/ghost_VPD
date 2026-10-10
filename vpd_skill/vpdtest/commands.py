@@ -74,6 +74,8 @@ def _open_session(ws, a):
         raise
     # 每条 act 是新进程：会话里输入过密钥（剪贴板可能留有原文）要沿用到后续观测
     ctx.observer.secret_typed = tr["secret_typed"]
+    # 动作预算按会话累计：否则每条 act 从 0 计数，max_actions_per_run 永远拦不住
+    ctx.actions = tr["actions"]
     if tr["identity"] is None:
         disp = dev.display_info() if hasattr(dev, "display_info") else {}
         store.event("session_open", schema=SESSION_SCHEMA, identity=ident,
@@ -333,7 +335,9 @@ def cmd_suite(ws: Workspace, a) -> dict:
             cid = entry["id"] if isinstance(entry, dict) else entry
             env = entry.get("env", {}) if isinstance(entry, dict) else {}
             sstore.event("case_start", case=cid, device=dev, index=len(rows) + 1)
-            row = _run_brief(run_case(ws, cid, device_spec=dev, env=env))
+            # 授权与 run 同一语义：run_case 只授予用例自己申请的部分，监护人缺失时该用例阻塞
+            row = _run_brief(run_case(ws, cid, device_spec=dev, env=env, authorize=a.authorize,
+                                      supervisor=a.supervisor))
             sstore.event("case_done", case=cid, device=dev, run_id=row["run_id"], verdict=row["verdict"])
             rows.append(row)
     sstore.event("suite_end", verdicts=[r["verdict"] for r in rows])

@@ -375,6 +375,50 @@ def test_mixed_replays_are_not_stable(ws):
         C.promote(ws, "TC-KF-2", "replay_verified", kn, known_issue="DTS-EXAMPLE-2")
 
 
+def _replays(*verdicts) -> dict:
+    case = {"app": "motor_hm", "steps": [], "assertions": []}
+    h = C.content_hash(case)
+    case["replays"] = [{"run_id": f"run-{i}", "verdict": v, "hash": h, "failure_signature": []}
+                       for i, v in enumerate(verdicts)]
+    return case
+
+
+def test_indeterminate_replay_after_passes_blocks_promotion():
+    # 两次通过之后又出现阻塞/待确认：现在还不能稳定复测，之前的通过不再作数
+    for tail in ("blocked", "pending"):
+        b = C.replay_basis(_replays("passed", "passed", tail))
+        assert b["ok"] is False and "最近一次不确定" in b["why"], b
+    # 判据确认之前的待确认运行不永久挡住晋级：之后重新攒够 2 次确定结论即可
+    b = C.replay_basis(_replays("pending", "passed", "passed"))
+    assert b["ok"] is True and b["replays"] == ["run-1", "run-2"] and b["ignored"][0]["run_id"] == "run-0"
+    # 更早的确定结论与之后的不一致：不稳定
+    b = C.replay_basis(_replays("failed", "blocked", "passed", "passed"))
+    assert b["ok"] is False and "不一致" in b["why"]
+
+
+def test_conflicts_only_between_overlapping_scopes(ws):
+    p = ws.root / "knowledge" / "items.json"
+    data = read_json(p)
+    base = {"kind": "requirement", "status": "confirmed", "subject": "motor_hm.scope.demo", "statement": "演示",
+            "source": {"type": "reviewer", "ref": "pytest"}}
+    data["items"] += [{**base, "id": "K-T-V1", "applies_to": {"app": "motor_hm", "app_version": "1.0.0.100"},
+                       "expected": {"label": "旧"}},
+                      {**base, "id": "K-T-V2", "applies_to": {"app": "motor_hm", "app_version": ["2.0.0.100", "2.0.1.100"]},
+                       "expected": {"label": "新"}},
+                      {**base, "id": "K-T-ANY", "applies_to": {"app": "qiankun_hm"}, "expected": {"label": "别的APP"}}]
+    write_json(p, data)
+    kn = KnowledgeStore(ws.root)
+    # 按版本分别规定的期望不是冲突；不同 APP 的同主题条目也不是
+    assert "motor_hm.scope.demo" not in kn.conflicts()
+    assert kn.oracle_status(["K-T-V2"], {"app": "motor_hm", "app_version": "2.0.1.100"})["status"] == "confirmed"
+    assert kn.oracle_status(["K-T-V1"], {"app": "motor_hm", "app_version": "2.0.1.100"})["status"] == "out_of_scope"
+    # 范围有交集（未限定版本的条目覆盖所有版本）才是冲突
+    data["items"].append({**base, "id": "K-T-ALL", "applies_to": {"app": "motor_hm"}, "expected": {"label": "通用"}})
+    write_json(p, data)
+    assert set(kn.conflicts()["motor_hm.scope.demo"]) == {"K-T-V1", "K-T-V2", "K-T-ALL"}
+    assert kn.oracle_status(["K-T-V2"], {"app": "motor_hm", "app_version": "2.0.1.100"})["status"] == "conflicted"
+
+
 def test_authorization_change_invalidates_replays(ws):
     case = ws.load_case("TC-QK-102")
     h = C.content_hash(case)

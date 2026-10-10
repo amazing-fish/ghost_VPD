@@ -60,6 +60,7 @@ class MotionGuard:
         self.moving = set(self.safety.get("moving_states", []))
         self.armed: Optional[dict] = None
         self.history: list = []
+        self.breaches = 0  # 超过 max_motion_s 之后才观测到停止的次数：解除计时不能抹掉超时
 
     def arm(self, step_id: str, label: str, state_at_arm: Optional[str] = None) -> None:
         if self.armed is None:
@@ -91,13 +92,21 @@ class MotionGuard:
         if page.get("state") not in ("out_of_app", "undetermined") and arm_state not in parts and not parts & self.stopped:
             self.armed["left_arm_state"] = True
         if parts & self.stopped and (self.armed["left_arm_state"] or arm_state not in parts):
+            late = self.over()
             self.history.append({"event": "stopped_observed", "state": page.get("state"), "obs": obs["obs_id"],
-                                 "after_s": self.elapsed(), "ts": now_iso()})
-            self.store.event("motion_stopped_observed", state=page.get("state"), obs=obs["obs_id"], after_s=self.elapsed())
+                                 "after_s": self.elapsed(), "ts": now_iso(), **({"late": True} if late else {})})
+            self.store.event("motion_stopped_observed", state=page.get("state"), obs=obs["obs_id"], after_s=self.elapsed(),
+                             late=late)
+            if late:
+                self.breaches += 1
             self.armed = None
         elif page.get("state") == "out_of_app":
             # 运动中 APP 退到后台/被杀：记录，不自动判错（这正是要观察的场景之一），计时继续
             self.store.event("motion_app_left", obs=obs["obs_id"], after_s=self.elapsed())
+
+    def breached_since(self, mark: int) -> bool:
+        """mark 之后是否超时：仍在运动且已超时，或超时之后才观测到停止。"""
+        return self.over() or self.breaches > mark
 
 
 def safe_stop(executor, trigger: str, detail: Optional[dict] = None) -> dict:

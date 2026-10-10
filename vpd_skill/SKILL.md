@@ -114,6 +114,7 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
 .\vpdtest.ps1 run TC-QK-101 --device hdc:<serial> --env account_state=logged_out --authorize account_state vehicle_selection vpd_entry route_planning
 .\vpdtest.ps1 run TC-QK-103 --device hdc:<serial> --env account_state=logged_in --authorize vpd_entry route_planning vehicle_motion --supervisor <监护人>
 .\vpdtest.ps1 suite motor_hm_smoke --device hdc:<serial>
+.\vpdtest.ps1 suite <含乾崑用例的集合> --device hdc:<serial> --authorize vpd_entry user_data route_planning   # 每条用例只拿到自己申请的部分
 .\vpdtest.ps1 explore --start car_tab --budget 30 --goal "我的页导航" --device hdc:<serial>
 .\vpdtest.ps1 knowledge search 收藏 重命名 --app qiankun_hm --device hdc:<serial>
 .\vpdtest.ps1 observe --app qiankun_hm --session s1 --device hdc:<serial>

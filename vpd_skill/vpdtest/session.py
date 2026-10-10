@@ -113,9 +113,11 @@ def trail(session_dir: Path, expect: Optional[dict] = None) -> dict:
     events = read_jsonl(session_dir / "events.jsonl")
     records = {r["seq"]: r for r in read_jsonl(session_dir / "steps.jsonl")}
     items, open_req, cur = [], {}, None
-    identity, secret_typed, used = None, False, False
+    identity, secret_typed, used, actions = None, False, False, 0
     for e in events:
         ev = e.get("event")
+        if ev == "dispatch" and e.get("sent") and e.get("op") != "clear_text":
+            actions += 1  # 与 Dispatcher 同一计数口径：已下发的物理动作，清空输入是聚合动作不单独计
         if ev == "agent_observe":
             used = True
             items.append({"kind": "observe", "obs": e.get("obs_id"), "label": e.get("label"), "ts": e["ts"],
@@ -153,7 +155,8 @@ def trail(session_dir: Path, expect: Optional[dict] = None) -> dict:
         # 进程在下发途中被杀时 dispatch 事件可能来不及写：没有结果的请求一律按效果未知处理
         it.update(kind="incomplete", effect_unknown=True,
                   reason="有请求没有结果（进程中断/超时）：现场可能已经发生变化")
-    tr = {"session": session_dir.name, "items": items, "identity": identity, "secret_typed": secret_typed}
+    tr = {"session": session_dir.name, "items": items, "identity": identity, "secret_typed": secret_typed,
+          "actions": actions}
     if expect:
         if identity is None:
             if used:

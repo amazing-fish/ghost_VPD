@@ -95,8 +95,9 @@ class Executor:
         if not safety and ctx.motion.over():
             att.update(status="motion_timeout", motion={"elapsed_s": ctx.motion.elapsed(), "max_s": ctx.motion.max_s})
             return att
+        mark = ctx.motion.breaches  # 本次尝试之后才发生的超时（含超时后才观测到停止）都算本步骤的
         if kind == "monitor":
-            return self._monitor(step, att)
+            return self._monitor(step, att, mark)
         if kind in FOREGROUND_BOUND and ctx.device.screen_locked() is True:
             if not self._foreground_ok(att):
                 return att
@@ -285,7 +286,7 @@ class Executor:
                 o, _ = ctx.observe(f"{step['id']}#{n}:after-error")
                 att.update(status="device_error", error_class=res.error_class, obs_after=o["obs_id"])
                 return att
-        post = self._post(step, n, case_id, was_in_app=att["state_before"] != "out_of_app")
+        post = self._post(step, n, case_id, was_in_app=att["state_before"] != "out_of_app", mark=mark)
         att.update(post=post, obs_after=post["obs_id"], status=post["status"])
         if kind == "resume":
             # 后台期间进程被回收时，拉起就是冷启动：页面是否恢复由 expect_state 判定，这里只记录事实
@@ -294,7 +295,7 @@ class Executor:
         return att
 
     # ---- 监视：一段时间内连续观测（运动中信息、TOR/接管提示、异常显示）----
-    def _monitor(self, step: dict, att: dict) -> dict:
+    def _monitor(self, step: dict, att: dict, mark: int = 0) -> dict:
         """不下发动作，按间隔连续观测，记录时间线：状态序列、新出现的文字、watch 规则命中、中断。
         结束条件：until_state 出现 / stop_on 规则命中（正常结束）/ abort_on 命中或崩溃（失败，交由运行器安全停止）/
         运动超时 / 达到 duration_s。真机上每次采样本身要几秒，实际间隔以时间线里的 t 为准。"""
@@ -311,7 +312,8 @@ class Executor:
         until_any = until or until_text or until_gone
         shots = step.get("screenshots", True)
         t0, timeline, hits = ctx.clock(), [], {}
-        prev_texts, prev_alive, states, first_obs = set(), None, [], None
+        # 进程存活取自每次观测本身（页面识别只在退出 APP 时带这个字段）；起点沿用上一步最后一次观测
+        prev_texts, prev_alive, states, first_obs = set(), (ctx.last_obs or {}).get("process_alive"), [], None
         stopped_by, status, errors, gone_seen = None, None, 0, False
         for _ in range(int(duration / interval) + 2):
             t = round(ctx.clock() - t0, 2)
@@ -325,7 +327,8 @@ class Executor:
                 hits.setdefault(k, {"count": 0, "first_t": t, "first_obs": obs["obs_id"],
                                     "text": next(x for x in new if watch[k].search(x))})
                 hits[k]["count"] += 1
-            died = prev_alive is True and page.get("process_alive") is False
+            alive = obs.get("process_alive")
+            died = prev_alive is True and alive is False
             anomalies = [i["id"] for i in page.get("interrupts", []) if i["class"] == "anomaly"]
             blocking = [i["id"] for i in page.get("interrupts", []) if i["class"] == "blocking"]
             if until_gone and any(until_gone.search(x) for x in texts):
@@ -347,8 +350,8 @@ class Executor:
                 states.append(page["state"])
             if page["state"] != "out_of_app":
                 prev_texts = texts
-            if page.get("process_alive") is not None:
-                prev_alive = page["process_alive"]
+            if alive is not None:
+                prev_alive = alive
             if died and not step.get("allow_process_exit"):
                 status, stopped_by = "anomaly", "process_died"
             elif anomalies:
@@ -357,7 +360,7 @@ class Executor:
                 status, stopped_by = "interrupted", f"interrupt:{blocking[0]}"
             elif set(fired) & abort_on:
                 status, stopped_by = "monitor_abort", f"abort_on:{sorted(set(fired) & abort_on)[0]}"
-            elif ctx.motion.over():
+            elif ctx.motion.breached_since(mark):
                 status, stopped_by = "motion_timeout", "motion_timeout"
             elif until and ctx.app.states.is_state(page, until):
                 status, stopped_by = "ok", f"until_state:{until}"
@@ -676,7 +679,7 @@ class Executor:
         return self.ctx.dispatcher.send("swipe", x, y1, x, y2, preconditions=self.ctx.dispatcher.app_conditions("swipe"), att=att), info
 
     # ---- 后置条件 ----
-    def _post(self, step: dict, n: int, case_id: str, was_in_app: bool = True) -> dict:
+    def _post(self, step: dict, n: int, case_id: str, was_in_app: bool = True, mark: int = 0) -> dict:
         ctx = self.ctx
         expect = step.get("expect_state")
         default = float(step.get("timeout_s", 8))
@@ -704,6 +707,10 @@ class Executor:
                 break
             if dismissed and dismissed[-1].get("gate") in ("budget_exhausted", "motion_timeout", "safety_hold"):
                 status = dismissed[-1]["gate"]
+                break
+            if not step.get("_safety") and ctx.motion.breached_since(mark):
+                # 等待后置条件期间运动超时：即使随后看到了停止状态或后置条件成立，也不能当作正常完成
+                status = "motion_timeout"
                 break
             if met:
                 status = "ok"
