@@ -1374,6 +1374,173 @@
       ]
     },
     {
+      "id": "K-MOT-005",
+      "kind": "product_rule",
+      "subject": "motor_hm.settings.back_return",
+      "statement": "从「设置」页返回后应回到「我的」页：底部导航「我的」呈选中态，页面内容正常显示，无异常提示。",
+      "expected": {
+        "back_to": "my_tab",
+        "selected": "我的",
+        "ui_alerts_empty": true
+      },
+      "applies_to": {
+        "app": "motor_hm",
+        "app_version": "3.0.3.200"
+      },
+      "source": {
+        "type": "test_goal",
+        "ref": "2026-10-08 第一轮真机 Beta 验证测试目标原文：验证鸿蒙智行 APP 从「我的」进入「设置」，再返回「我的」，界面状态和导航结果是否符合预期"
+      },
+      "note": "该期望来自测试目标本身，未经产品需求独立确认。2026-10-08 真机实测行为与描述一致（obs-0014/obs-0015：back 后 my_tab、我的选中、ui_alerts 空），但现场观察不能替代判据确认，需产品侧确认后才能作为通过/失败判据。",
+      "status": "unconfirmed",
+      "created": "2026-10-08T18:00:32.717+08:00",
+      "history": [
+        {
+          "ts": "2026-10-08T18:00:32.717+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-MOT-006",
+      "kind": "product_rule",
+      "subject": "motor_hm.my.history_entry_and_back",
+      "statement": "「我的」页应有「浏览记录」入口；点击进入浏览记录页（页面标题为「浏览记录」，只读内容列表）；从浏览记录页返回后应回到「我的」页，底部导航「我的」呈选中态，无异常提示。",
+      "expected": {
+        "entry_text": "浏览记录",
+        "page_title": "浏览记录",
+        "back_to": "my_tab",
+        "selected": "我的",
+        "ui_alerts_empty": true
+      },
+      "applies_to": {
+        "app": "motor_hm",
+        "app_version": "3.0.3.200"
+      },
+      "source": {
+        "type": "test_goal",
+        "ref": "2026-10-09 Beta2 自主探索测试目标原文：从「我的」页选择一个未登记、安全、只读的二级页入口（浏览记录），进入观测内容后返回，验证导航回到「我的」页"
+      },
+      "note": "该期望来自 Beta2 探索目标本身，未经产品需求独立确认。2026-10-09 真机实测行为与描述一致（session-beta2：obs-0014 入口可见、obs-0018 页面标题与空态文案、obs-0021 返回后 my_tab 且 ui_alerts 空），但现场观察不能替代判据确认，需产品侧确认后才能作为通过/失败判据。",
+      "status": "unconfirmed",
+      "created": "2026-10-09T11:35:00+08:00",
+      "history": [
+        {
+          "ts": "2026-10-09T11:35:00+08:00",
+          "to": "unconfirmed",
+          "why": "新增（Beta2 探索固化候选判据，禁止自动确认）"
+        }
+      ]
+    },
+    {
+      "id": "K-MOT-OBS-202",
+      "kind": "observation",
+      "subject": "motor_hm.car_tab.hopal00_content_inventory",
+      "statement": "3.0.3.200 折叠屏折叠态（HOP-AL00 Pura X Max，sm 459.6x672vp）「爱车」页实测内容：车控按钮组文本 车锁/后备箱/车窗/闪灯鸣笛/前备箱/充电口/空调；车况卡 CLTC 422km、电量 69%、车内温度 28.0C、位置 32m 停泊中、胎压偏低、车辆不在线（更新于 17:42）；入口 充电服务/数字车钥匙/ADS 高阶功能包（未生效）。车锁按钮文本命中 vehicle_control：探索会话 tap 请求被 policy 拒绝（events.jsonl attempt status=policy_denied，2026-10-09 17:46:39，零下发）。",
+      "expected": {
+        "control_buttons": [
+          "车锁",
+          "后备箱",
+          "车窗",
+          "闪灯鸣笛",
+          "前备箱",
+          "充电口",
+          "空调"
+        ],
+        "vehicle_offline": true,
+        "policy_denied_on_control_tap": true
+      },
+      "applies_to": {
+        "app": "motor_hm",
+        "app_version": "3.0.3.200",
+        "device_form": "foldable_folded"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "runs/session-s-vpd-explore obs-0012（爱车页）、obs-0019（车锁定位成功）、events.jsonl A6 policy_denied",
+        "run": "session-s-vpd-explore"
+      },
+      "note": "现场观察，不是判据。车控按钮组是 vehicle_control policy 拒绝清单的真机实证来源；车辆不在线时车控按钮仍展示。",
+      "status": "unconfirmed",
+      "created": "2026-10-09T17:49:32.483+08:00",
+      "history": [
+        {
+          "ts": "2026-10-09T17:49:32.483+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-MOT-OBS-203",
+      "kind": "observation",
+      "subject": "motor_hm.tabbar.hopal00_five_tabs",
+      "statement": "3.0.3.200 折叠屏折叠态（HOP-AL00）「爱车」页底部导航实测 5 项：发现/精选/爱车/服务/我的。与 car_tab states.json review_note（2026-09-29 Mate 80 Pro Max 真机校准「底部导航只有 发现/爱车/我的 三项」）不一致；差异可能与账号、设备形态或版本灰度有关，待评审确认。",
+      "expected": {
+        "tab_count": 5,
+        "tabs": [
+          "发现",
+          "精选",
+          "爱车",
+          "服务",
+          "我的"
+        ]
+      },
+      "applies_to": {
+        "app": "motor_hm",
+        "app_version": "3.0.3.200",
+        "device_form": "foldable_folded"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "runs/session-s-vpd-explore obs-0012/obs-0013/obs-0018（texts 均含 5 tab）",
+        "run": "session-s-vpd-explore"
+      },
+      "note": "现场观察，不是判据。K-MOT-001 底部 tab 判据的适用性核对需考虑设备形态差异；与 2026-09-29 校准冲突，留给人工评审。",
+      "status": "unconfirmed",
+      "created": "2026-10-09T17:49:32.636+08:00",
+      "history": [
+        {
+          "ts": "2026-10-09T17:49:32.636+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-MOT-OBS-204",
+      "kind": "observation",
+      "subject": "motor_hm.location_page.unknown_state_content",
+      "statement": "从「爱车」页点击「位置」进入的位置页（未登记状态，page.state=unknown）实测内容：标题「停泊中」、地址「上海市浦东新区金桥经济技术开发区金桥5G产业生态园」、距离 32m、「最后更新于 2026/10/09 16:17」；页面入口 充电/位置/定位/闪灯鸣笛。返回 back 后正确回到 car_tab（obs-0018）。",
+      "expected": {
+        "address_present": true,
+        "distance_text": "32m",
+        "parking_status": "停泊中",
+        "back_returns_car_tab": true
+      },
+      "applies_to": {
+        "app": "motor_hm",
+        "app_version": "3.0.3.200",
+        "device_form": "foldable_folded"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "runs/session-s-vpd-explore obs-0015/obs-0016/obs-0017（位置页）、obs-0018（返回 car_tab）",
+        "run": "session-s-vpd-explore"
+      },
+      "note": "现场观察，不是判据。位置页是智能寻车（SVS）信息页的候选固化对象；闪灯鸣笛同样命中 vehicle_control 拒绝清单。",
+      "status": "unconfirmed",
+      "created": "2026-10-09T17:49:32.784+08:00",
+      "history": [
+        {
+          "ts": "2026-10-09T17:49:32.785+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
       "id": "K-QK-001",
       "kind": "product_rule",
       "subject": "qiankun_hm.vpd.entry_success",

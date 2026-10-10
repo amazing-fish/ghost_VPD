@@ -49,6 +49,41 @@ def cmd_unlock(ws: Workspace, a) -> dict:
     return unlock_device(ws, dev, store, getattr(a, "lock_secret", None))
 
 
+def cmd_sysdiag(ws: Workspace, a) -> dict:
+    """只读整屏诊断：窗口表 + 整屏布局树 + （窗口表确认无隐私类窗口时）截图 + 已登记系统弹窗比对。
+    用途：登记新系统弹窗时取证；排查"preflight 全绿但屏幕被盖住"的现场。
+    --dismiss 时对命中且已评审（class=benign, review=reviewed）的弹窗执行原子能力关闭。"""
+    from .sysdialog import diagnose_cover, load_dialogs, resolve_screen_cover
+    app = ws.app(a.app)
+    dev = ws.device(a.device)
+    store = RunStore(ws.runs_dir, kind="sysdiag")
+    store.event("sysdiag_start", device=dev.spec)
+    oid, d = store.next_obs_dir()
+    diag = diagnose_cover(dev, store, d, load_dialogs(ws.root))
+    out = {"run": store.run_id, "device": dev.spec, "obs": oid,
+           **{k: v for k, v in diag.items() if not k.startswith("_")}}
+    # 截图门禁：窗口表确认无隐私类系统窗口（锁屏/通知横幅/键盘）在显示才截；查询失败不截。
+    # 2026-10-08 治理要求：无法确认的屏幕状态尽可能通过截屏取证——但取证不越过隐私边界。
+    from .observe import KEYBOARD_WINDOWS, PRIVATE_WINDOWS
+    wins = diag.get("windows")
+    private = [w for w in (wins or []) if w.startswith(PRIVATE_WINDOWS + KEYBOARD_WINDOWS)]
+    if wins is None:
+        out["screenshot"] = {"status": "withheld", "reason": "窗口查询失败，无法排除隐私内容，不截图"}
+    elif private:
+        out["screenshot"] = {"status": "withheld", "reason": f"隐私类系统窗口 {private} 正在显示，不截图"}
+    else:
+        r = dev.screenshot(d / "screen.png")
+        if r.ok and (d / "screen.png").exists():
+            out["screenshot"] = {"status": "ok", "path": store.rel(d / "screen.png")}
+        else:
+            out["screenshot"] = {"status": "error", "error_class": r.error_class, "error": r.error}
+    if a.dismiss and diag.get("matched"):
+        out["dismiss"] = resolve_screen_cover(ws, dev, store)
+    write_json(d / "observation.json", {k: v for k, v in out.items() if not k.startswith("_")})
+    store.event("sysdiag_end", matched=diag.get("matched"), screenshot=out["screenshot"]["status"])
+    return out
+
+
 # 会话头：第一次 observe/act 时写入并固定；之后每次都与它比较，APP 或设备不同就拒绝
 SESSION_SCHEMA = 2
 # act_request 只记这些字段（白名单）：新加的命令行参数默认不落盘，输入文字只记长度

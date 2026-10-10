@@ -41,7 +41,7 @@ def expand(spec: dict, bundle: str = "") -> dict:
     b = spec.get("b", [0, 0, 0, 0])
     attrs.update({"type": spec.get("t", "Column"), "text": spec.get("text", ""), "id": spec.get("id", ""),
                   "description": spec.get("desc", ""), "bounds": f"[{b[0]},{b[1]}][{b[2]},{b[3]}]",
-                  "clickable": "true" if spec.get("click") or spec.get("go") else "false",
+                  "clickable": "true" if spec.get("click") or spec.get("go") or spec.get("dismiss_system_dialog") else "false",
                   "selected": "true" if spec.get("sel") else "false", "enabled": "true", "visible": "true",
                   "scrollable": "true" if spec.get("scroll") else "false", "bundleName": bundle})
     attrs.update({k: str(v) for k, v in spec.get("attrs", {}).items()})
@@ -150,7 +150,8 @@ class ReplayDevice:
             init = self.world.get("initial", {})
             self.state = {"locked": init.get("locked", False), "screen_on": init.get("screen_on", True),
                           "foreground": init.get("foreground", LAUNCHER), "alive": False, "stack": [],
-                          "popup": None, "installed": init.get("installed", True), "events": 0}
+                          "popup": None, "installed": init.get("installed", True), "events": 0,
+                          "system_dialog": init.get("system_dialog")}
         self.state.setdefault("flags", dict(self.world.get("initial_flags", {})))
         self.bound: dict = {}  # 输入框的输入值：只在内存里
         self.last_query_error = None
@@ -267,7 +268,9 @@ class ReplayDevice:
         return self.state["alive"] if bundle == self.bundle else None
 
     def dump_tree(self, bundle: str, local_path) -> DeviceResult:
-        if not self._in_app() or bundle != self.bundle:
+        if not self._in_app() or bundle != self.bundle or self.state.get("system_dialog"):
+            # 系统弹窗盖在 APP 上（2026-10-08 真机 USB 连接方式弹窗）：aa dump 仍报 APP 在前台，
+            # 但按 bundle 取的树只有全空占位根——与目标窗口不在前台时同一签名
             tree = placeholder_tree()
         else:
             if self._screen_spec(self.state["stack"][-1]).get("tree") == "unavailable":
@@ -279,13 +282,31 @@ class ReplayDevice:
         write_json(local_path, tree)
         return self._res("dump_tree", raw="DumpLayout saved", data={"tree": tree})
 
+    def dump_screen(self, local_path) -> DeviceResult:
+        """非 bundle 作用域的整屏树（系统弹层诊断用）：弹窗在显示时返回弹窗树，否则返回当前屏。"""
+        sd = self.state.get("system_dialog")
+        if sd:
+            tree = {"attributes": {"type": "orgRoot", "bounds": "[0,0][%d,%d]" % tuple(self.world["screen"])},
+                    "children": [expand(self._live(self._screen_spec(sd)["root"]), "")]}
+        elif self._in_app():
+            tree = {"attributes": {"type": "orgRoot", "bounds": "[0,0][%d,%d]" % tuple(self.world["screen"])},
+                    "children": [expand(self._composed(), self.bundle)]}
+        else:
+            tree = placeholder_tree()
+        write_json(local_path, tree)
+        return self._res("dump_screen", raw="DumpLayout saved", data={"tree": tree})
+
     def screenshot(self, local_path) -> DeviceResult:
         try:
             import cv2  # noqa: F401
         except ImportError:
             return self._res("screenshot", False, "unsupported", "未安装 opencv-python，回放设备无法渲染截图")
-        render(self._composed() if self._in_app() else None, self.world["screen"], local_path,
-               popup=self.state["popup"] is not None)
+        sd = self.state.get("system_dialog")
+        if sd:  # 系统弹窗盖在屏幕上：截图内容就是弹窗（诊断/留证用）
+            render(self._live(self._screen_spec(sd)["root"]), self.world["screen"], local_path)
+        else:
+            render(self._composed() if self._in_app() else None, self.world["screen"], local_path,
+                   popup=self.state["popup"] is not None)
         return self._res("screenshot", raw="ScreenCap saved")
 
     # ---- 动作 ----
@@ -297,6 +318,20 @@ class ReplayDevice:
                 self.state["pin_attempts"] = self.state.get("pin_attempts", 0) + 1
                 self.state["locked"] = self._pin_buffer != expected
             return self._res("tap", raw="PIN digit")
+        sd = self.state.get("system_dialog")
+        if sd:
+            # 系统弹窗盖在屏幕上：点击只作用于弹窗，不透传给底下的 APP（弹窗窗口在 APP 之上）。
+            # 只有声明 dismiss_system_dialog 的可用节点会关掉弹窗，其他位置点击无效
+            hits = _hits(self._live(self._screen_spec(sd)["root"]), x, y, self.world["screen"])
+            if hits:
+                spec, parents = max(hits, key=lambda sp: len(sp[1]))
+                for node in (spec,) + tuple(reversed(parents)):
+                    if str(node.get("attrs", {}).get("enabled", "true")).lower() == "false":
+                        break
+                    if node.get("dismiss_system_dialog"):
+                        self.state["system_dialog"] = None
+                        break
+            return self._res("tap", raw=f"click {x} {y}")
         if not self._in_app():
             return self._res("tap", raw="tap outside target app")
         sid = self.current_screen()
@@ -403,8 +438,15 @@ class ReplayDevice:
         return wake_unlock(self, pin, dispatcher, sleep=lambda _: None)
 
     def shown_windows(self) -> Optional[list]:
-        # 合成世界默认只有被测 APP 的窗口；测试可在 replay_state 里放 windows（通知横幅等），null 表示查询失败
-        return self.state.get("windows", ["app0"])
+        # 合成世界默认只有被测 APP 的窗口；测试可在 replay_state 里放 windows（通知横幅等），null 表示查询失败。
+        # 系统弹窗在显示时，弹窗窗口名（屏幕声明 window_name）也出现在窗口表里
+        wins = self.state.get("windows", ["app0"])
+        if wins is None:
+            return None
+        sd = self.state.get("system_dialog")
+        if sd:
+            return list(wins) + [self._screen_spec(sd).get("window_name", "SysDialog")]
+        return list(wins)
 
     def clear_text(self, x: int, y: int, count: int, dispatcher, preconditions, att=None) -> DeviceResult:
         from ..dispatch import clear_text

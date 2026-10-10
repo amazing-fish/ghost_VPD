@@ -768,6 +768,19 @@ class Executor:
             return {"action": "reobserve_and_retry", "performed": True, "reason": "观测查询失败，等待后重新观察"}
         if st == "device_error" and att.get("error_class") in ("timeout", "command_failed", "transport_unavailable"):
             return {"action": "redispatch", "performed": True, "reason": "执行器瞬时错误，重发"}
+        if st == "unobservable":
+            # 动作后取不到可判定的观测：先整屏诊断覆盖物。命中已登记且已评审的良性系统弹窗
+            #（system_dialogs.json）时用原子能力关掉再重试；锁屏/未知覆盖物不属于允许的恢复范围。
+            # 2026-10-08 真机：USB 连接方式弹窗以此路径两次阻塞 S1 后补的能力。
+            from .sysdialog import resolve_screen_cover
+            res = resolve_screen_cover(ctx.ws, ctx.device, ctx.store, dispatcher=ctx.dispatcher,
+                                       observer=ctx.observer)
+            if res["status"] == "dismissed":
+                return {"action": "dismiss_system_dialog", "performed": True, "dialog": res["diagnosis"]["matched"],
+                        "reason": f"关闭已评审的良性系统弹窗 {res['diagnosis']['matched']}，重试本步",
+                        "capability": {k: res[k] for k in ("status", "reason") if k in res}}
+            return {"action": "none", "performed": False,
+                    "reason": f"unobservable：整屏覆盖诊断 {res['status']}（{res['reason']}），不属于允许的恢复范围"}
         if st == "postcondition_not_met" and step.get("idempotent"):
             return {"action": "redispatch", "performed": True, "reason": "步骤声明为幂等，允许重发一次"}
         return {"action": "none", "performed": False, "reason": f"{st} 不属于允许的恢复范围"}

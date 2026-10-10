@@ -1,0 +1,318 @@
+{
+  "id": "TC-MOTOR-HM-005",
+  "version": 1,
+  "status": "exploration_record",
+  "app": "motor_hm",
+  "title": "我的页进入浏览记录并返回",
+  "goal": "Beta2 自主探索：从「我的」页选择一个未登记、安全、只读的二级页入口（浏览记录），进入观测内容后返回，验证导航回到「我的」页",
+  "purpose": "Beta2 自主探索固化的候选用例：验证鸿蒙智行「我的」页进入「浏览记录」二级页并返回的导航链路与页面状态。「我的」页有「浏览记录」入口且进入后页面标题为「浏览记录」（只读内容页，本轮实测为空态「还没有浏览记录」）；返回后回到「我的」页且选中态保持（K-MOT-006，判据未确认 → 相关断言待确认）。",
+  "preconditions": [
+    "手机已解锁（熄屏/锁屏时由执行器自动解锁）",
+    "鸿蒙智行 APP 已安装（本轮实测 3.0.3.200）",
+    "真机直板窄屏形态（本轮实测 sm/portrait，391.1 vp）",
+    "「我的」页「浏览记录」入口可见（本轮实测 obs-0014，无需上滑）",
+    "不涉及车辆运动、控车、算路与账号/用户数据变更（浏览记录为只读入口，用例不点击页内任何内容条目）"
+  ],
+  "env_requirements": {},
+  "test_data": {},
+  "test_data_none": true,
+  "authorizations": [],
+  "steps": [
+    {
+      "id": "S4",
+      "action": "launch",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-session-beta2",
+        "seq": 4,
+        "step": "B1-launch",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0006",
+        "obs_after": "obs-0007"
+      }
+    },
+    {
+      "id": "S5",
+      "action": "tap",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": ["K-MOT-001"],
+      "expect_state": "my_tab",
+      "from_session": {
+        "session": "session-session-beta2",
+        "seq": 5,
+        "step": "B2-tap-my",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0011",
+        "obs_after": "obs-0013"
+      },
+      "revalidate": true,
+      "target": {
+        "label": "select:text=我的",
+        "strategies": [
+          {
+            "kind": "text",
+            "value": "我的",
+            "within": {
+              "type": "TabBar"
+            }
+          }
+        ],
+        "side_effect": "navigation",
+        "origin": "agent_select",
+        "observed": {
+          "session": "session-session-beta2",
+          "seq": 5,
+          "obs": "obs-0012",
+          "outcome": "passed",
+          "node": {
+            "idx": 208,
+            "type": "Text",
+            "text": "我的",
+            "id": "",
+            "bounds": [
+              1155,
+              2676,
+              1223,
+              2723
+            ],
+            "clickable": false,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": null,
+          "device_form": null,
+          "validation_level": "real_device"
+        }
+      }
+    },
+    {
+      "id": "S6",
+      "action": "tap",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": ["K-MOT-006"],
+      "expect_text": "浏览记录",
+      "from_session": {
+        "session": "session-session-beta2",
+        "seq": 6,
+        "step": "B2-tap-history",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0015",
+        "obs_after": "obs-0017"
+      },
+      "revalidate": true,
+      "target": {
+        "label": "select:text=浏览记录",
+        "strategies": [
+          {
+            "kind": "text",
+            "value": "浏览记录"
+          }
+        ],
+        "side_effect": "navigation",
+        "origin": "agent_select",
+        "observed": {
+          "session": "session-session-beta2",
+          "seq": 6,
+          "obs": "obs-0016",
+          "outcome": "passed",
+          "node": {
+            "idx": 81,
+            "type": "Text",
+            "text": "浏览记录",
+            "id": "",
+            "bounds": [
+              242,
+              1230,
+              1152,
+              1293
+            ],
+            "clickable": false,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": null,
+          "device_form": null,
+          "validation_level": "real_device"
+        }
+      }
+    },
+    {
+      "id": "S7",
+      "action": "back",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": ["K-MOT-006"],
+      "expect_state": "my_tab",
+      "from_session": {
+        "session": "session-session-beta2",
+        "seq": 7,
+        "step": "B3-back-to-my",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0019",
+        "obs_after": "obs-0020"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "id": "A1",
+      "at": "S5",
+      "type": "state_is",
+      "state": "my_tab",
+      "desc": "点击「我的」后进入我的页",
+      "oracle_refs": ["K-MOT-001"]
+    },
+    {
+      "id": "A2",
+      "at": "S6",
+      "type": "text_present",
+      "text": "浏览记录",
+      "exact": true,
+      "desc": "浏览记录页标题「浏览记录」可见（未登记状态页，用标题文本作页面判据）",
+      "oracle_refs": ["K-MOT-006"]
+    },
+    {
+      "id": "A3",
+      "at": "S7",
+      "type": "state_is",
+      "state": "my_tab",
+      "desc": "从浏览记录页返回后回到我的页",
+      "oracle_refs": ["K-MOT-006"]
+    },
+    {
+      "id": "A4",
+      "at": "S7",
+      "type": "visual_review",
+      "advisory": true,
+      "desc": "返回后「我的」页内容完整性与可读性（建议）",
+      "prompt": "检查返回后截图：「我的」页列表内容是否完整显示、有无加载失败/请重试类提示、文字是否截断或重叠；只给建议，不作为缺陷结论"
+    }
+  ],
+  "cleanup": [
+    {
+      "action": "stop_app"
+    }
+  ],
+  "knowledge_used": [
+    {
+      "id": "K-MOT-001",
+      "use": "判据：底部导航有「爱车」「我的」，点击后切换到对应页面",
+      "applicability": "applies",
+      "rationale": "confirmed，applies_to app_version=3.0.3.200 与实测一致；现场事实：底部导航实际有 5 个 tab（发现/精选/爱车/服务/我的），判据为存在性要求未受影响",
+      "steps": ["S5"]
+    },
+    {
+      "id": "K-MOT-006",
+      "use": "候选判据（未确认）：「我的」页有「浏览记录」入口，进入后标题为「浏览记录」，返回后回「我的」页",
+      "applicability": "applies",
+      "rationale": "unconfirmed（test_goal 来源，Beta2 探索目标固化），真机行为一致（obs-0014/obs-0018/obs-0021）但产品侧未确认；A2/A3 在确认前判 pending，不得据此判通过/失败",
+      "steps": ["S6", "S7"]
+    }
+  ],
+  "sources": [
+    {
+      "type": "session",
+      "run": "session-session-beta2",
+      "validation_level": "real_device",
+      "facts": {
+        "app": "motor_hm",
+        "bundle": "app.huawei.hmos.motor",
+        "device": "hdc:5MT0225B05000904",
+        "validation_level": "real_device",
+        "app_version": null,
+        "device_form": null
+      },
+      "included": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "excluded": [
+        {
+          "seq": 1,
+          "step": "B0-launch",
+          "action": "launch",
+          "outcome": "blocked",
+          "reason": "2026-10-08 USB 断链前的首次启动尝试，随后通道 Offline 被环境中断，与本次探索目标无关（探索在 2026-10-09 通道恢复后重新开始）",
+          "effect_unknown": true,
+          "obs": [
+            "obs-0001",
+            "obs-0002"
+          ]
+        },
+        {
+          "seq": 2,
+          "step": "B1-tap-my",
+          "action": "tap",
+          "outcome": "blocked",
+          "reason": "2026-10-08 USB 通道断链期间的「我的」tab 点击尝试：observation_failed，未下发到设备，对现场无影响，与目标无关",
+          "effect_unknown": false,
+          "obs": [
+            "obs-0003",
+            "obs-0003"
+          ]
+        },
+        {
+          "seq": 3,
+          "step": "B1-tap-my2",
+          "action": "tap",
+          "outcome": "blocked",
+          "reason": "2026-10-08 USB 通道断链期间的「我的」tab 点击尝试：observation_failed，未下发到设备，对现场无影响，与目标无关",
+          "effect_unknown": false,
+          "obs": [
+            "obs-0005",
+            "obs-0005"
+          ]
+        }
+      ],
+      "rejected": [],
+      "incomplete": [],
+      "effect_unknown": [],
+      "obs": [
+        "obs-0006",
+        "obs-0007",
+        "obs-0011",
+        "obs-0013",
+        "obs-0015",
+        "obs-0017",
+        "obs-0019",
+        "obs-0020"
+      ],
+      "trail": "runs/session-session-beta2/events.jsonl"
+    }
+  ],
+  "history": [
+    {
+      "ts": "2026-10-09T11:29:10.673+08:00",
+      "to": "exploration_record",
+      "why": "由会话生成：待补齐目的、判据（独立来源）、清理与 knowledge_used"
+    },
+    {
+      "ts": "2026-10-09T11:38:00+08:00",
+      "to": "exploration_record",
+      "why": "补齐 purpose/preconditions/assertions(A1-A4)/cleanup/knowledge_used(K-MOT-001 confirmed、K-MOT-006 unconfirmed)/步骤期望；A2/A3 引用未确认判据，确认前只能 pending"
+    },
+    {
+      "ts": "2026-10-09T11:45:00+08:00",
+      "to": "exploration_record",
+      "why": "S5 目标消歧：run-20261009-113752-38b4 真机执行时 APP 恢复到 my_tab，text=我的 同时命中页面标题(text_nav_title)与底部 tab 两处，执行器按安全策略拒绝盲点（target_ambiguous，工具归因）；strategy 增加 within{type:TabBar} 结构性限定，仅从底部 TabBar 容器内解析，无坐标硬编码"
+    }
+  ]
+}

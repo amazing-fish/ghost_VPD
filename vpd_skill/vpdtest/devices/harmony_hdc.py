@@ -291,6 +291,25 @@ class HdcDevice:
             r.ok, r.error_class, r.error = False, "tree_parse_error", str(e)
         return r
 
+    def dump_screen(self, local_path) -> DeviceResult:
+        """非 bundle 作用域的整屏布局树（同锁屏键盘的 lock_dump 采集方式）。
+        只用于系统弹层诊断：前台报为被测 APP 但按 bundle 取的树只有空根时，
+        用它确认盖在屏幕上的到底是什么窗口。树文件落在观测目录里作证据，
+        与 bundle 树一样经过运行级脱敏后才写盘。"""
+        remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.json"
+        local = Path(local_path)
+        r = self._shell("uitest", "dumpLayout", "-p", remote, op="screen_dump", timeout=30)
+        if not r.ok:
+            return r
+        p = self._pull(remote, local, "screen_dump_pull")
+        if not p.ok:
+            return p
+        try:
+            p.data["tree"] = json.loads(local.read_text(encoding="utf-8"))
+        except (ValueError, OSError) as e:
+            p.ok, p.error_class, p.error = False, "tree_parse_error", str(e)
+        return p
+
     def screenshot(self, local_path) -> DeviceResult:
         remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.png"
         r = self._shell("uitest", "screenCap", "-p", remote, op="screenshot", timeout=30)

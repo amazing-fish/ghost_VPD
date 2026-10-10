@@ -1,0 +1,349 @@
+{
+  "id": "TC-MOTOR-HM-004",
+  "version": 1,
+  "status": "exploration_record",
+  "app": "motor_hm",
+  "title": "我的页进入设置并返回（Beta 第一轮真机验证）",
+  "goal": "验证鸿蒙智行 APP 从「我的」进入「设置」，再返回「我的」，界面状态和导航结果是否符合预期",
+  "purpose": "验证鸿蒙智行底部导航切到「我的」、从「我的」页进入「设置」、再返回「我的」的导航链路与页面状态：点击「我的」后该入口呈选中态（K-MOT-001）；「我的」页上滑后有「设置」入口且设置页有「退出登录」（K-MOT-002，只断言存在不点击）；返回后回到「我的」页且选中态保持（K-MOT-005，判据未确认 → 该断言待确认）。",
+  "preconditions": [
+    "手机已解锁（熄屏/锁屏时由执行器自动解锁）",
+    "鸿蒙智行 APP 已安装（本轮实测 3.0.3.200）",
+    "真机直板窄屏形态（本轮实测 sm/portrait，391.1 vp）",
+    "不涉及车辆运动、控车、切车、算路与账号/用户数据变更"
+  ],
+  "env_requirements": {},
+  "test_data": {},
+  "test_data_none": true,
+  "authorizations": [],
+  "steps": [
+    {
+      "id": "S1",
+      "action": "launch",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-beta1",
+        "seq": 1,
+        "step": "A1-launch",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0004",
+        "obs_after": "obs-0006"
+      },
+      "expect_text": "爱车|我的"
+    },
+    {
+      "id": "S2",
+      "action": "tap",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [
+        "K-MOT-001"
+      ],
+      "from_session": {
+        "session": "session-beta1",
+        "seq": 2,
+        "step": "A2-tap-my",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0007",
+        "obs_after": "obs-0008"
+      },
+      "expect_state": "my_tab",
+      "target": "tab_my"
+    },
+    {
+      "id": "S3",
+      "action": "tap",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [
+        "K-MOT-002"
+      ],
+      "from_session": {
+        "session": "session-beta1",
+        "seq": 3,
+        "step": "A3-tap-settings",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0009",
+        "obs_after": "obs-0011"
+      },
+      "expect_state": "settings",
+      "target": "settings_entry"
+    },
+    {
+      "id": "S4",
+      "action": "back",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [
+        "K-MOT-005"
+      ],
+      "from_session": {
+        "session": "session-beta1",
+        "seq": 4,
+        "step": "A4-back-to-my",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0013",
+        "obs_after": "obs-0014"
+      },
+      "expect_state": "my_tab"
+    },
+    {
+      "id": "S5",
+      "action": "stop_app",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-beta1",
+        "seq": 5,
+        "step": "C1-stop-app",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0016",
+        "obs_after": "obs-0017"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "id": "A1",
+      "at": "S2",
+      "type": "node_selected",
+      "target": "tab_my",
+      "expected": true,
+      "desc": "点击后「我的」为选中态",
+      "oracle_refs": [
+        "K-MOT-001"
+      ]
+    },
+    {
+      "id": "A2",
+      "at": "S3",
+      "type": "target_present",
+      "target": "logout_entry",
+      "desc": "设置页可见「退出登录」（只断言存在，禁止点击）",
+      "oracle_refs": [
+        "K-MOT-002"
+      ]
+    },
+    {
+      "id": "A3",
+      "at": "S4",
+      "type": "state_is",
+      "state": "my_tab",
+      "desc": "返回后回到我的页",
+      "oracle_refs": [
+        "K-MOT-005"
+      ]
+    },
+    {
+      "id": "A4",
+      "at": "S4",
+      "type": "node_selected",
+      "target": "tab_my",
+      "expected": true,
+      "desc": "返回后「我的」保持选中态",
+      "oracle_refs": [
+        "K-MOT-005"
+      ]
+    },
+    {
+      "id": "A5",
+      "at": "S4",
+      "type": "visual_review",
+      "advisory": true,
+      "desc": "返回后「我的」页内容完整性与可读性（建议）",
+      "prompt": "检查返回后截图：「我的」页列表内容是否完整显示、有无加载失败/请重试类提示、文字是否截断或重叠；只给建议，不作为缺陷结论"
+    }
+  ],
+  "cleanup": [
+    {
+      "action": "stop_app"
+    }
+  ],
+  "knowledge_used": [
+    {
+      "id": "K-MOT-001",
+      "use": "判据：底部导航有「爱车」「我的」，点击后切换到对应页面且呈选中态",
+      "applicability": "applies",
+      "rationale": "confirmed，applies_to app_version=3.0.3.200 与实测一致；现场事实：底部导航实际有 5 个 tab（发现/精选/爱车/服务/我的），判据为存在性要求未受影响",
+      "steps": [
+        "S2"
+      ]
+    },
+    {
+      "id": "K-MOT-002",
+      "use": "判据：「我的」页（上滑后）有「设置」入口，设置页有「退出登录」",
+      "applicability": "applies",
+      "rationale": "confirmed，app_version=3.0.3.200 适用；S3 上滑 1 次后命中（obs-0010），设置页「退出登录」100% 可见（obs-0012）",
+      "steps": [
+        "S3"
+      ]
+    },
+    {
+      "id": "K-MOT-005",
+      "use": "判据（预期）：从设置返回后回到「我的」页、选中态保持、无异常提示",
+      "applicability": "applies",
+      "rationale": "unconfirmed（test_goal 来源，2026-10-08 本轮登记）；实测行为与描述一致（obs-0014/0015），但判据未确认 → A3/A4 结论只能待确认，不推断为通过",
+      "steps": [
+        "S4"
+      ]
+    },
+    {
+      "id": "target:tab_my / target:settings_entry",
+      "use": "操作经验：定位「我的」tab 与「设置」入口（settings_entry 声明上滑查找 max=2）",
+      "applicability": "applies",
+      "rationale": "status=unverified 但本轮真机唯一匹配命中：tab_my text 策略命中 TabBar 底部（obs-0007），settings_entry xpath 命中且上滑 1 次后 100% 可见（obs-0010）",
+      "steps": [
+        "S2",
+        "S3"
+      ]
+    },
+    {
+      "id": "state:my_tab / state:settings",
+      "use": "状态签名：S2/S4 的 expect_state=my_tab、S3 的 expect_state=settings",
+      "applicability": "applies",
+      "rationale": "my_tab 签名 calibrated_on_device（选中态在 TabBar>Column 上），本轮两次命中（obs-0008/0014/0015）；settings 签名 review=pending，本轮真机命中（obs-0011/0012，sig-4aaae16b4b），建议人工 review 后改 reviewed",
+      "steps": [
+        "S2",
+        "S3",
+        "S4"
+      ]
+    },
+    {
+      "id": "K-MOT-004",
+      "use": "对照：启动后可能出现版本更新弹窗（「下次再说」关闭）",
+      "applicability": "unknown",
+      "rationale": "unconfirmed；本轮启动后未出现任何弹窗（obs-0006 无 interrupts），未用到",
+      "steps": []
+    }
+  ],
+  "sources": [
+    {
+      "type": "session",
+      "run": "session-beta1",
+      "validation_level": "real_device",
+      "facts": {
+        "app": "motor_hm",
+        "bundle": "app.huawei.hmos.motor",
+        "device": "hdc:5MT0225B05000904",
+        "validation_level": "real_device",
+        "app_version": "3.0.3.200",
+        "device_form": "bar"
+      },
+      "included": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "excluded": [],
+      "rejected": [],
+      "incomplete": [],
+      "effect_unknown": [],
+      "obs": [
+        "obs-0004",
+        "obs-0006",
+        "obs-0007",
+        "obs-0008",
+        "obs-0009",
+        "obs-0011",
+        "obs-0013",
+        "obs-0014",
+        "obs-0016",
+        "obs-0017"
+      ],
+      "trail": "runs/session-beta1/events.jsonl"
+    }
+  ],
+  "history": [
+    {
+      "ts": "2026-10-08T18:00:56.501+08:00",
+      "to": "exploration_record",
+      "why": "由会话生成：待补齐目的、判据（独立来源）、清理与 knowledge_used"
+    },
+    {
+      "ts": "2026-10-08T18:02:00+08:00",
+      "to": "exploration_record",
+      "why": "补齐 purpose/preconditions/oracle_refs/assertions/cleanup/knowledge_used：A3/A4 判据挂 K-MOT-005（test_goal 来源 unconfirmed）→ 运行结论预期为待确认；S4 返回行为与滚动位置保留为现场观察，不设硬断言"
+    }
+  ],
+  "replays": [
+    {
+      "run_id": "run-20261008-201507-4990",
+      "verdict": "blocked",
+      "hash": "6ed1ae131631",
+      "validation_level": "real_device",
+      "device": "hdc:5MT0225B05000904",
+      "ts": "2026-10-08T20:15:38.534+08:00",
+      "failure_signature": [],
+      "alerts": 0,
+      "not_verified": 4,
+      "facts": {
+        "app": "motor_hm",
+        "app_version": "3.0.3.200",
+        "device_form": "bar"
+      }
+    },
+    {
+      "run_id": "run-20261008-201709-bec1",
+      "verdict": "blocked",
+      "hash": "6ed1ae131631",
+      "validation_level": "real_device",
+      "device": "hdc:5MT0225B05000904",
+      "ts": "2026-10-08T20:17:22.936+08:00",
+      "failure_signature": [],
+      "alerts": 0,
+      "not_verified": 4,
+      "facts": {
+        "app": "motor_hm",
+        "app_version": "3.0.3.200",
+        "device_form": "bar"
+      }
+    },
+    {
+      "run_id": "run-20261008-212019-042c",
+      "verdict": "pending",
+      "hash": "6ed1ae131631",
+      "validation_level": "real_device",
+      "device": "hdc:5MT0225B05000904",
+      "ts": "2026-10-08T21:21:08.880+08:00",
+      "failure_signature": [],
+      "alerts": 0,
+      "not_verified": 0,
+      "facts": {
+        "app": "motor_hm",
+        "app_version": "3.0.3.200",
+        "device_form": "bar"
+      }
+    },
+    {
+      "run_id": "run-20261008-212118-5330",
+      "verdict": "pending",
+      "hash": "6ed1ae131631",
+      "validation_level": "real_device",
+      "device": "hdc:5MT0225B05000904",
+      "ts": "2026-10-08T21:22:05.367+08:00",
+      "failure_signature": [],
+      "alerts": 0,
+      "not_verified": 0,
+      "facts": {
+        "app": "motor_hm",
+        "app_version": "3.0.3.200",
+        "device_form": "bar"
+      }
+    }
+  ]
+}
