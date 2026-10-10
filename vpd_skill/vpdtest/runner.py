@@ -120,12 +120,14 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
             store.event("step_done", step=st["id"], outcome=res["outcome"])
             if res["outcome"] not in PASSED and res["critical"]:
                 halted = True
-                if ctx.motion.armed:
+                if ctx.motion.armed or ctx.motion.locked():
                     # 运动中出现首次关键失败：先安全停止，再清理。首次失败原样保留在该步骤记录里
                     safety_stops.append(safety_mod.safe_stop(ex, "critical_step_failed",
                                                              {"step": st["id"], "status": res.get("final_status")}))
-        if ctx.motion.armed and (case.get("safety") or {}).get("stop_at_end", True):
-            safety_stops.append(safety_mod.safe_stop(ex, "case_end_still_moving"))
+        # 超时锁住后不管 stop_at_end 都要走安全停止：它确认已停、解锁之后，清理才能继续下发
+        if ctx.motion.locked() or (ctx.motion.armed and (case.get("safety") or {}).get("stop_at_end", True)):
+            safety_stops.append(safety_mod.safe_stop(ex, "motion_timeout" if ctx.motion.locked()
+                                                     else "case_end_still_moving"))
         for i, c in enumerate(case.get("cleanup", [])):
             res = ex.run_step({"critical": False, "retry": 0, **c, "id": c.get("id", f"C{i + 1}")}, case["id"])
             if res.get("final_status") == "safety_hold":

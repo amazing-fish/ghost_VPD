@@ -117,7 +117,7 @@ class ExperienceStore:
         """run_case(case_id, device_spec, overlay) -> run dict。基线 = 当前已采纳 overlay；试验 = 基线 + 该候选。"""
         from .verdict import RANK
         item = self.get(xid)
-        rows, regress, improved, exercised = [], False, False, set()
+        rows, regress, improved, exercised = [], False, set(), set()
         for dev in devices:
             for cid in case_ids:
                 base = run_case(cid, dev, self.overlay(baseline_only=True))
@@ -132,9 +132,10 @@ class ExperienceStore:
                 # 基线能判出的产品失败，试验组却变成阻塞/待确认：执行改动把缺陷藏到了工具问题后面，按回退处理
                 if RANK[t] < RANK[b] or (b == "failed" and t not in ("failed", "passed")):
                     regress, row["regression"] = True, True
-                # 改进只认"试验组真的通过"或"结论不变但少用了自适应"；离开 failed 本身不算改进
-                if (t == "passed" and b != "passed") or (t == b and t_ad < b_ad):
-                    improved = True
+                # 改进只认"试验组真的通过"或"结论不变但少用了自适应"；离开 failed 本身不算改进。
+                # 按（用例，设备）分别记：改进必须出现在真正用到这条经验的运行上，不能由别处的改进顶替
+                if ((t == "passed" and b != "passed") or (t == b and t_ad < b_ad)) and (cid, dev) in exercised:
+                    improved.add((cid, dev))
                 rows.append(row)
         gap = _coverage_gap(item, exercised)
         if regress:
@@ -143,8 +144,11 @@ class ExperienceStore:
             status, reason = "candidate", gap
         elif not improved:
             status, reason = "candidate", "与基线相比没有可测量的改进"
+        elif _improvement_gap(item, improved):
+            status, reason = "candidate", _improvement_gap(item, improved)
         else:
-            status, reason = "validated", "无回退，且在来源" + ("设备" if item["kind"] == "wait_timeout" else "用例") + "之外得到验证"
+            status, reason = "validated", ("无回退，且在来源" + ("设备" if item["kind"] == "wait_timeout" else "用例")
+                                           + "之外得到验证并出现改进")
         result = {"ts": now_iso(), "status": status, "reason": reason, "cases": case_ids, "devices": devices,
                   "exercised_cases": sorted({c for c, _ in exercised}),
                   "exercised": sorted(f"{c}@{d}" for c, d in exercised), "rows": rows}
@@ -209,17 +213,31 @@ def _exercised(item: dict, run: dict, case_id: str) -> bool:
     return False
 
 
-def _coverage_gap(item: dict, exercised: set) -> Optional[str]:
-    """独立覆盖：定位偏好要在来源用例之外的用例上用到；等待时长绑定在单个用例步骤上，
-    只能换设备/世界复现，所以要在来源设备之外的设备上走到该步骤（来源设备未记录时要求至少两台）。"""
+def _independent(item: dict, keys: set) -> bool:
+    """keys 是（用例，设备）集合。定位偏好要有来源用例之外的用例；等待时长绑定在单个用例步骤上，
+    只能换设备/世界复现，所以要有来源设备之外的设备（来源设备未记录时要求至少两台）。"""
     if item["kind"] == "locator_preference":
-        if not {c for c, _ in exercised} - {item["origin_case"]}:
-            return "除来源用例外没有其他用例覆盖该目标，覆盖不足，暂不晋级"
-    elif item["kind"] == "wait_timeout":
-        devs = {d for _, d in exercised}
+        return bool({c for c, _ in keys} - {item["origin_case"]})
+    if item["kind"] == "wait_timeout":
+        devs = {d for _, d in keys}
         origin = {ev["device"] for ev in item.get("evidence", []) if ev.get("device")}
-        if not (devs - origin if origin else len(devs) >= 2):
-            return "该等待只在来源设备上走到过，没有独立设备复现，覆盖不足，暂不晋级"
+        return bool(devs - origin if origin else len(devs) >= 2)
+    return True
+
+
+def _coverage_gap(item: dict, exercised: set) -> Optional[str]:
+    """独立覆盖：独立的用例/设备上要真的走到这条经验。"""
+    if not _independent(item, exercised):
+        return ("除来源用例外没有其他用例覆盖该目标，覆盖不足，暂不晋级" if item["kind"] == "locator_preference"
+                else "该等待只在来源设备上走到过，没有独立设备复现，覆盖不足，暂不晋级")
+    return None
+
+
+def _improvement_gap(item: dict, improved: set) -> Optional[str]:
+    """独立改进：走到过不等于有改进。改进也要出现在来源用例/设备之外，不能只靠来源上的改进晋级。"""
+    if not _independent(item, improved):
+        return ("改进只出现在来源用例上，其他用例走到该目标但没有改进，暂不晋级" if item["kind"] == "locator_preference"
+                else "改进只出现在来源设备上，其他设备走到该等待但没有改进，暂不晋级")
     return None
 
 

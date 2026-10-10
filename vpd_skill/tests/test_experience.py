@@ -132,6 +132,24 @@ def test_wait_timeout_needs_a_device_other_than_its_origin(ws):
     assert res["status"] == "validated" and "来源设备之外" in res["reason"]
 
 
+def test_wait_timeout_improvement_must_appear_outside_its_origin_device(ws):
+    xs = ExperienceStore(ws.root, "motor_hm")
+    _wait_item(xs)
+
+    def only_origin_improves(cid, dev, overlay):  # 来源设备：基线超时、试验通过；另一台设备走到该步骤但两边结果一样
+        ok = bool(overlay.trial) or dev != DRIFT
+        return {"run_id": f"{cid}-{dev}-{overlay.trial}", "verdict": {"verdict": "passed" if ok else "failed"},
+                "steps": [{"step_id": "S3", "attempts": [{"post": {"met": ok}}]}]}
+    res = xs.validate("XP-wait", ["TC-MOTOR-HM-001"], [DRIFT, BASE], only_origin_improves)
+    assert res["status"] == "candidate" and "改进" in res["reason"] and "来源设备" in res["reason"]
+    assert len(res["exercised"]) == 2
+    with pytest.raises(PermissionError):
+        xs.adopt("XP-wait")
+    # 来源设备之外的设备上同样出现改进（基线超时、试验通过）才能晋级
+    res = xs.validate("XP-wait", ["TC-MOTOR-HM-001"], [DRIFT, BASE], _wait_runner)
+    assert res["status"] == "validated"
+
+
 def test_review_required_kinds_need_reviewer(ws):
     xs = ExperienceStore(ws.root, "motor_hm")
     item = {"id": "XP-manual", "kind": "interrupt_rule", "change": {"interrupt": "update_dialog", "review": "reviewed"},

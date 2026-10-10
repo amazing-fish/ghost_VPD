@@ -61,6 +61,27 @@ class MotionGuard:
         self.armed: Optional[dict] = None
         self.history: list = []
         self.breaches = 0  # 超过 max_motion_s 之后才观测到停止的次数：解除计时不能抹掉超时
+        self.timeout: Optional[dict] = None  # 超时锁：一旦发生就锁住，只有安全停止处理完（观测确认已停）才解开
+
+    def locked(self) -> bool:
+        """超时一旦发生（仍在运动且已超时，或超时之后才观测到停止）就锁住，Dispatcher 据此统一拒绝
+        所有非安全停止的动作。看到停止状态只解除计时，不解锁：停车之后再下发动作可能把车重新启动。"""
+        if self.timeout is None and self.over():
+            self._lock("still_moving")
+        return self.timeout is not None
+
+    def _lock(self, how: str) -> None:
+        if self.timeout is None:
+            self.timeout = {"how": how, "step": self.armed and self.armed["step"], "after_s": self.elapsed(),
+                            "max_s": self.max_s, "ts": now_iso()}
+            self.store.event("motion_locked", **self.timeout)
+
+    def release(self, trigger: str) -> None:
+        """安全停止已被观测确认：解锁，之后的动作才能继续下发。breaches 不清零，超时仍记在已报告的步骤上。"""
+        if self.timeout is not None:
+            self.store.event("motion_unlocked", trigger=trigger, locked_since=self.timeout["ts"])
+            self.history.append({"event": "unlocked", "trigger": trigger, "ts": now_iso()})
+            self.timeout = None
 
     def arm(self, step_id: str, label: str, state_at_arm: Optional[str] = None) -> None:
         if self.armed is None:
@@ -99,6 +120,7 @@ class MotionGuard:
                              late=late)
             if late:
                 self.breaches += 1
+                self._lock("late_stop")
             self.armed = None
         elif page.get("state") == "out_of_app":
             # 运动中 APP 退到后台/被杀：记录，不自动判错（这正是要观察的场景之一），计时继续
@@ -132,7 +154,9 @@ def safe_stop(executor, trigger: str, detail: Optional[dict] = None) -> dict:
         obs, _ = ctx.observe("safety:confirm")
         rec["confirm_obs"] = obs["obs_id"]
     rec["confirmed_stopped"] = guard.armed is None
-    if not rec["confirmed_stopped"]:
+    if rec["confirmed_stopped"]:
+        guard.release(trigger)
+    else:
         rec["action_required"] = "未能通过观测确认车辆已停止：请现场监护人立即人工接管"
         if ctx.safety_hold is None:
             ctx.safety_hold = {"trigger": trigger, "ts": now_iso(), "reason": rec["action_required"]}

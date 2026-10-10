@@ -114,10 +114,13 @@ def trail(session_dir: Path, expect: Optional[dict] = None) -> dict:
     records = {r["seq"]: r for r in read_jsonl(session_dir / "steps.jsonl")}
     items, open_req, cur = [], {}, None
     identity, secret_typed, used, actions = None, False, False, 0
+    counted = set()  # 已有下发事件计入预算的请求
     for e in events:
         ev = e.get("event")
         if ev == "dispatch" and e.get("sent") and e.get("op") != "clear_text":
             actions += 1  # 与 Dispatcher 同一计数口径：已下发的物理动作，清空输入是聚合动作不单独计
+            if cur in open_req:
+                counted.add(cur)
         if ev == "agent_observe":
             used = True
             items.append({"kind": "observe", "obs": e.get("obs_id"), "label": e.get("label"), "ts": e["ts"],
@@ -152,7 +155,10 @@ def trail(session_dir: Path, expect: Optional[dict] = None) -> dict:
                 identity = e.get("identity") or ({k: f.get(k) for k in IDENTITY_KEYS} if f else None)
             items.append({"kind": "facts", "facts": e.get("facts"), "ts": e["ts"], "identity": e.get("identity")})
     for it in open_req.values():
-        # 进程在下发途中被杀时 dispatch 事件可能来不及写：没有结果的请求一律按效果未知处理
+        # 进程在下发途中被杀时 dispatch 事件可能来不及写：没有结果的请求一律按效果未知处理，
+        # 预算上也按已下发保守计入（命令可能已到设备）；已有下发事件的请求不重复加
+        if it["seq"] not in counted:
+            actions += 1
         it.update(kind="incomplete", effect_unknown=True,
                   reason="有请求没有结果（进程中断/超时）：现场可能已经发生变化")
     tr = {"session": session_dir.name, "items": items, "identity": identity, "secret_typed": secret_typed,

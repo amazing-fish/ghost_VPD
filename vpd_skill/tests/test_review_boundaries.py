@@ -180,6 +180,55 @@ def test_stop_observed_after_timeout_does_not_hide_breach(ws, tmp_path):
     assert out["final_status"] == "motion_timeout"
 
 
+def _late_stop_before_action(ctx):
+    """动作前那次观测完成时已超过 max_motion_s，同时第一次看到停止：看门狗会解除计时。"""
+    ctx.motion.max_s, ctx.motion.stopped = 1, {"lab_done"}
+    ctx.motion.arm("fixture", "fixture", "lab_parking")
+    observe = ctx.observer.observe
+    def late_stop(label="", screenshot=True):
+        obs, tree = observe(label, screenshot)
+        if label.endswith(":before"):
+            ctx._virtual_s += 2
+            obs["page"].update(state="lab_done", active=["lab_done"])
+        return obs, tree
+    ctx.observer.observe = late_stop
+
+
+def test_timeout_seen_before_dispatch_locks_unsafe_actions_until_safe_stop(ws, tmp_path):
+    ctx = _ctx(ws, _lab_world(tmp_path))
+    _late_stop_before_action(ctx)
+    taps, keys = [], []
+    ctx.device.tap = lambda *p: taps.append(p) or DeviceResult("tap", True, True)
+    ctx.device.key = lambda name: keys.append(name) or DeviceResult("key", True, True)
+    out = Executor(ctx).run_step({"id": "A1", "action": "tap", "target": parse_select("text=唯一入口"), "retry": 0},
+                                 "fixture")
+    assert taps == [] and ctx.actions == 0 and out["final_status"] == "motion_timeout"
+    # 计时因看到停止而解除了，但超时锁还在：所有非安全停止的动作统一被 Dispatcher 拒绝
+    assert ctx.motion.armed is None and not ctx.motion.over() and ctx.motion.locked()
+    again = Executor(ctx).run_step({"id": "A2", "action": "back", "retry": 0}, "fixture")
+    assert keys == [] and again["final_status"] == "motion_timeout"
+    direct = ctx.dispatcher.send("key", "back", preconditions={})
+    assert not direct.sent and direct.error_class == "motion_timeout"
+    # 安全停止步骤不受锁影响；安全停止处理完（观测确认已停）后才解锁
+    safe = Executor(ctx).run_step({"id": "SAFE1", "action": "back", "_safety": True, "retry": 0}, "fixture")
+    assert safe["outcome"] == "passed" and keys == ["back"] and ctx.motion.locked()
+    from vpdtest.safety import safe_stop
+    rec = safe_stop(Executor(ctx), "motion_timeout")
+    assert rec["confirmed_stopped"] and not ctx.motion.locked()
+    assert Executor(ctx).run_step({"id": "A3", "action": "back", "retry": 0}, "fixture")["outcome"] == "passed"
+
+
+def test_unconfirmed_safe_stop_keeps_the_timeout_lock(ws, tmp_path):
+    ctx = _ctx(ws, _lab_world(tmp_path))
+    ctx.motion.max_s = 1
+    ctx.motion.arm("fixture", "fixture")
+    ctx._virtual_s += 2  # 一直在运动且已超时：没有观测到停止
+    assert ctx.motion.locked()
+    from vpdtest.safety import safe_stop
+    rec = safe_stop(Executor(ctx), "motion_timeout")
+    assert not rec["confirmed_stopped"] and ctx.motion.locked() and ctx.safety_hold
+
+
 # ---- 监视期间进程被杀要识别为进程死亡（页面在 APP 内时也要记下存活状态）----
 
 def test_monitor_detects_process_death_inside_app(ws, tmp_path):
@@ -212,6 +261,25 @@ def test_session_action_budget_accumulates_across_acts(ws, tmp_path):
     assert second["result"]["final_status"] == "budget_exhausted"
     events = read_jsonl(ws.runs_dir / "session-s1" / "events.jsonl")
     assert len([e for e in events if e["event"] == "dispatch" and e["sent"]]) == 2
+
+
+def test_killed_act_counts_against_budget_even_without_dispatch_event(tmp_path):
+    from vpdtest.session import trail
+    from vpdtest.util import append_jsonl
+    path = tmp_path / "events.jsonl"
+    def ev(event, **kw):
+        append_jsonl(path, {"ts": "t", "event": event, **kw})
+    ev("act_request", seq=1, step_id="A1", request={"action": "tap"})  # 命令已到设备，dispatch 事件没来得及写
+    ev("act_request", seq=2, step_id="A2", request={"action": "back"})
+    ev("dispatch", op="key", sent=True)  # 已记下一次下发；被杀时可能还有未记录的，这里只数已知的
+    ev("act_request", seq=3, step_id="A3", request={"action": "tap"})
+    ev("act_rejected", seq=3, reason="policy")  # 被拒的请求没有下发
+    ev("act_request", seq=4, step_id="A4", request={"action": "tap"})
+    ev("dispatch", op="tap", sent=False)
+    ev("act_result", seq=4, outcome="failed")  # 有结果、没下发
+    tr = trail(tmp_path)
+    assert [i["kind"] for i in tr["items"]] == ["incomplete", "incomplete", "rejected", "act"]
+    assert tr["actions"] == 2  # 1 号去向不明按已下发计 1 次；2 号已记 1 次，不重复加
 
 
 # ---- suite 与 run 同样传递授权 ----

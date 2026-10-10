@@ -140,11 +140,16 @@ class Dispatcher:
         checks["budget"] = {"applicable": ctx is not None, "exempt": exempt,
                             "used": ctx.actions if ctx else None,
                             "max": ctx.policy.max_actions_per_run if ctx else None}
+        # 运动超时是锁而不是瞬时判断：超时被发现（含超时后才看到停止）后，非安全停止的动作一律在这里拒绝，
+        # 直到安全停止处理完。各条路径不用再各自检查。
         checks["motion"] = {"applicable": ctx is not None, "exempt": exempt,
-                            "over": ctx.motion.over() if ctx else False}
+                            "over": ctx.motion.over() if ctx else False,
+                            "locked": ctx.motion.locked() if ctx else False}
         if ctx is not None and not exempt:
-            if checks["motion"]["over"]:
-                att.update(status="motion_timeout", motion={"elapsed_s": ctx.motion.elapsed(), "max_s": ctx.motion.max_s})
+            if checks["motion"]["locked"]:
+                att.update(status="motion_timeout",
+                           motion={"elapsed_s": ctx.motion.elapsed(), "max_s": ctx.motion.max_s,
+                                   "locked": ctx.motion.timeout})
                 return False
             if ctx.actions >= ctx.policy.max_actions_per_run:
                 att["status"] = "budget_exhausted"

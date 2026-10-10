@@ -92,8 +92,9 @@ class Executor:
         ctx, kind = self.ctx, step["action"]
         att = {"n": n, "ts": now_iso(), "action": kind, "step_id": step["id"], "_safety": bool(step.get("_safety"))}
         safety = bool(step.get("_safety"))  # 安全停止步骤：不受动作预算与运动超时拦截
-        if not safety and ctx.motion.over():
-            att.update(status="motion_timeout", motion={"elapsed_s": ctx.motion.elapsed(), "max_s": ctx.motion.max_s})
+        if not safety and ctx.motion.locked():
+            att.update(status="motion_timeout", motion={"elapsed_s": ctx.motion.elapsed(), "max_s": ctx.motion.max_s,
+                                                        "locked": ctx.motion.timeout})
             return att
         mark = ctx.motion.breaches  # 本次尝试之后才发生的超时（含超时后才观测到停止）都算本步骤的
         if kind == "monitor":
