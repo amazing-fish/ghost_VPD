@@ -84,12 +84,15 @@ class RunContext:
                  display: Optional[dict] = None):
         self.ws, self.app, self.device, self.store, self.overlay, self.mode = ws, app, device, store, overlay, mode
         self.policy = ws.policy()
+        from .dispatch import Dispatcher
+        self.dispatcher = Dispatcher(device, store, self)
         self.observer = Observer(device, app.bundle, self.policy, app.states, store, ws.layout_config(), display)
         self.params = None        # 用例参数（含密钥引用），由 runner 设置
         self.authorized = set()   # 本次运行由人显式授予的 gated/supervised 副作用
         self.supervisor = None    # 在场监护人（supervised 类授权的前提），记入证据
         self.seed = store.run_id  # 随机动作的默认种子，记入证据以便复现
         self.actions = 0
+        self.safety_hold = None  # 本运行停止未确认后的暂停记录；不自动解除
         self.last_obs, self.last_tree = None, None
         self._virtual_s = 0.0     # 回放设备不真等待：等待/监视时长累加到虚拟时钟，保证离线可复现
         from .safety import MotionGuard

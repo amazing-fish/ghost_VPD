@@ -3,7 +3,7 @@ from vpdtest.knowledge import KnowledgeStore
 from vpdtest.runner import run_case
 from vpdtest.verdict import evaluate_assertion
 
-from conftest import confirm, world
+from conftest import confirm, unconfirm, world
 
 
 def test_pass_when_expectation_met_with_confirmed_oracle(ws):
@@ -26,12 +26,14 @@ def test_fail_when_confirmed_copy_rule_violated(ws):
 
 
 def test_unconfirmed_oracle_is_pending_not_pass(ws):
+    unconfirm(ws, "K-MOT-001", "K-MOT-002")
     run = run_case(ws, "TC-MOTOR-HM-001", device_spec=world("motor_hm_base.json"))
     assert run["verdict"]["verdict"] == "pending"
     assert all(a["result"] == "pending" for a in run["assertions"])
 
 
 def test_unconfirmed_oracle_with_violation_is_pending_not_fail(ws):
+    unconfirm(ws, "K-MOT-003")
     run = run_case(ws, "TC-MOTOR-HM-003", device_spec=world("motor_hm_typo.json"))
     a1 = next(a for a in run["assertions"] if a["id"] == "A1")
     assert a1["result"] == "pending" and a1["observed_holds"] is False

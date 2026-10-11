@@ -68,7 +68,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 # 乾崑（真机运行前请先阅读 references/exploration-method.md 的校准清单）：
 $env:VPD_SECRET_QIANKUN_PHONE = '<账号>'; $env:VPD_SECRET_QIANKUN_PASSWORD = '<密码>'   # 只放在当前会话的环境变量里
 .\vpdtest.ps1 run TC-QK-101 --device hdc:<serial> --env account_state=logged_out --authorize account_state vehicle_selection vpd_entry route_planning
-.\vpdtest.ps1 run TC-QK-102 --device hdc:<serial> --env account_state=logged_in --authorize vpd_entry user_data route_planning
+.\vpdtest.ps1 run TC-QK-102 --device hdc:<serial> --env account_state=logged_in --env vehicle_in_vpd_map=yes --authorize vpd_entry user_data route_planning
 .\vpdtest.ps1 run TC-QK-103 --device hdc:<serial> --env account_state=logged_in --authorize vpd_entry route_planning vehicle_motion --supervisor <监护人>
 .\vpdtest.ps1 run TC-QK-103 --device replay:qiankun_hm_ready.json --env account_state=logged_in --authorize vpd_entry route_planning vehicle_motion --supervisor 离线演示
 # 离线闭环演示（不需要真机）：
@@ -119,6 +119,12 @@ $env:VPD_SECRET_QIANKUN_PHONE = '<账号>'; $env:VPD_SECRET_QIANKUN_PASSWORD = '
 | 乾崑 TC-QK-103：激活→运动中 TOR 提示→暂停→后台 10 s→拉回→继续→泊入完成；看门狗 armed/stopped ×2，无安全停止 | 离线回放 + pytest | 通过；故障世界在「开始」处判阻塞且不点击；车辆在后台自行恢复运动的变体由 moving_states 观测挂上看门狗 |
 | 缺密钥 / 缺授权 / 缺监护人 | 离线回放 + pytest | 运行前判阻塞（环境），一步都不执行 |
 | 同一用例跑三种形态：真机参数直板（391 vp）、小直板（360 vp，「设置」被底部导航遮住）、折叠屏展开（733 vp，左右分栏） | 离线回放 + pytest | 三种形态均通过；反例测试确认按 bounds 中心点击会点到底部导航、按整屏中线滑动滑不动左栏、整窗匹配会把设置页认成「我的」 |
+| 现场选择器 `--select`：多匹配 / 被列表裁掉 / 只露一截都不下发并给出诊断；唯一匹配时证据记下节点、点击点、窗口与形态 | 离线合成世界 + pytest（`test_goal_loop.py`） | 通过 |
+| 下发前复核：页面在观察与下发之间移动 → `target_stale`；前台被切走 → `foreground_changed`，都不下发 | 离线合成世界 + pytest | 通过 |
+| 会话轨迹：成功、多匹配被拒、参数错误被拒、进程中断按顺序保留；`from-session` 排除动作必须写理由，中断的动作默认保留 | 离线合成世界 + pytest | 通过 |
+| 判定修正：断言引用不存在的步骤 → 阻塞；步骤未执行的断言列为"尚未验证"；判据版本范围不符/未知 → 待确认；必需清理失败 → 阻塞；未确认安全停止优先于产品失败且保留产品失败 | 离线回放 + pytest | 通过 |
+| 用例成熟度与产品状态：两次一致失败 + `--known-issue` → `known_failure`，预期不变，之后重跑报告"仍按同一特征复现"；通过与失败混合拒绝晋级 | 离线回放 + pytest | 通过 |
+| `knowledge search`：K-AV-010（debug 版阔折叠观察）在 1.0.26.100 直板上适用性为"未知"，K-QK-USR-003 未确认不能作判据，来源是观察的"产品规则"标为现场观察 | pytest + 真实知识数据 | 通过 |
 
 ## 仍未验证的边界
 
@@ -133,4 +139,7 @@ $env:VPD_SECRET_QIANKUN_PHONE = '<账号>'; $env:VPD_SECRET_QIANKUN_PASSWORD = '
 - 乾崑：全部目标与状态签名只来自原工程代码和用户描述，未在真机上核对；地图是否为 XComponent、点地图是否弹车位卡片、收藏/重命名/标签的控件与文字、标签是固定选项还是自由输入、算路距离的文案格式，都是假设（`status=hypothesis`）。
 - 乾崑：算路是否会唤醒车辆（原工程把算路结果记为「上电成功」）、「泊入车位」「靠边停车」本身是否会让车移动（本 Skill 从严按 vehicle_motion 处理）、后台返回后车辆是否自行恢复运动，都未确认。
 - 真机上的中文 `uitest uiInput inputText`：非 ASCII/含符号的文本按单引号包裹下发，未在真机上验证转义是否正确。
-- 车辆运动的真机运行：没有在真机上执行过任何激活/继续；安全停止只在离线回放中验证。
+- 车辆运动的真机运行：没有在真机上执行过任何激活/继续；安全停止、运动超时（含 `wait`/后置条件等待期间、超时后才观测到停止）、
+  监视期间进程死亡检测都只在离线回放中验证，控车闭环在真机验证前不能宣称可用。
+- 现场选择器只覆盖有 UI 树的页面：地图等自绘区域（XComponent）、无树页面、纯视觉定位不在覆盖范围内。
+- 下发前复核每次多取一次 UI 树（真机约 1~3 s）。`act` 的动作预算按会话事件累计：进程在下发途中被杀、dispatch 事件没写下来的那次不计入。

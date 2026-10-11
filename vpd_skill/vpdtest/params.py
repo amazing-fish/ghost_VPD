@@ -14,6 +14,7 @@ from typing import Optional
 
 _REF = re.compile(r"\$\{(var|param|secret):([A-Za-z0-9_.-]+)\}")
 MASK = "***"
+MIN_FRAGMENT = 6  # 密钥片段达到这个长度就脱敏
 
 
 class Params:
@@ -60,12 +61,32 @@ class Params:
             return {k: self.subst(v, local) for k, v in obj.items()}
         return obj
 
+    def add_secret_values(self, values) -> None:
+        """只参与脱敏/敏感判断，不成为可引用的变量。"""
+        self._secret_values |= {str(v) for v in values if v}
+        self._frag_cache = None
+
+    def _fragments(self) -> list:
+        """密钥本身及其所有长度 ≥ MIN_FRAGMENT 的连续片段，长的在前。输入框可能截断、只收下一部分，
+        或把密码的一段落进另一个框（真机上见过），只按全值替换会漏。"""
+        if getattr(self, "_frag_cache", None) is None:
+            frags = set()
+            for s in self._secret_values:
+                n = len(s)
+                if n < MIN_FRAGMENT:
+                    frags.add(s)
+                    continue
+                frags |= {s[i:j] for i in range(n) for j in range(i + MIN_FRAGMENT, n + 1)}
+            self._frag_cache = sorted(frags, key=len, reverse=True)
+        return self._frag_cache
+
     def redact(self, obj):
         if not self._secret_values:
             return obj
         if isinstance(obj, str):
-            for s in self._secret_values:
-                obj = obj.replace(s, MASK)
+            for s in self._fragments():
+                if s in obj:
+                    obj = obj.replace(s, MASK)
             return obj
         if isinstance(obj, list):
             return [self.redact(x) for x in obj]
@@ -73,8 +94,13 @@ class Params:
             return {k: self.redact(v) for k, v in obj.items()}
         return obj
 
+    def is_sensitive(self, text) -> bool:
+        """落盘前判断明文的唯一出口：含任一已配置密钥或其长度 ≥ MIN_FRAGMENT 的片段就算敏感（不只比较全等）。"""
+        t = str(text or "")
+        return bool(t) and any(s in t for s in self._fragments())
+
     def contains_secret(self, texts) -> bool:
-        return any(s in t for s in self._secret_values for t in texts)
+        return any(self.is_sensitive(t) for t in texts)
 
 
 def with_params(target: dict, params: Optional[Params], local: Optional[dict] = None) -> dict:

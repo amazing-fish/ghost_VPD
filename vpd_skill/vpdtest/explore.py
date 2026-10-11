@@ -58,6 +58,7 @@ def explore(ws: Workspace, app_id: str, start: str, device_spec: Optional[str], 
     exp = {"run_id": store.run_id, "app": app_id, "start": start, "goal": goal, "budget": budget,
            "validation_level": "offline_replay" if device.kind == "replay" else "real_device",
            "states": {}, "transitions": [], "skipped": [], "anomalies": [], "exit": {}}
+    store.event("explore_start", app=app_id, start=start, goal=goal, budget=budget, device=device.spec)
     pre = device.preflight(app.bundle)
     tried, frontier, n = set(), [start], 0
     if not pre["ok"]:
@@ -99,6 +100,12 @@ def explore(ws: Workspace, app_id: str, start: str, device_spec: Optional[str], 
                 break
             step = ex.run_step({"id": f"E{n}", "action": "tap", "target": c["target"], "retry": 0}, "explore")
             att = step["attempts"][-1] if step["attempts"] else {}
+            if not (att.get("dispatch") or {}).get("sent") or not att.get("post"):
+                # 没点出去（定位失败、被关口拦下）或点后没有观测：不知道会去哪，不能当成迁移写进记录，
+                # 否则 from_exploration 会据此生成一个从未验证过的步骤
+                exp["skipped"].append({"state": state, "label": c["label"], "target": c["target"],
+                                       "reason": f"未下发或无点击后观测：{att.get('status') or step.get('outcome')}"})
+                continue
             page = (att.get("post") or {})
             to = page.get("observed") or "unknown"
             obs_after = att.get("obs_after")
@@ -131,5 +138,6 @@ def explore(ws: Workspace, app_id: str, start: str, device_spec: Optional[str], 
                        "disclaimer": DISCLAIMER}
     write_json(store.dir / "exploration.json", exp)
     (store.dir / "report.md").write_text(render_exploration(exp), encoding="utf-8")
+    store.event("explore_end", exit=exp["exit"]["reason"], transitions=len(exp["transitions"]), actions=ctx.actions)
     exp["dir"] = str(store.dir)
     return exp

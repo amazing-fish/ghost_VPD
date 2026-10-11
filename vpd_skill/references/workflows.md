@@ -32,6 +32,29 @@
 4. 读探索报告：覆盖只相对于已声明状态与本次观察。对未声明页面，打开 `obs/<id>/screen.png` 判断语义，
    需要纳入时提议 `states.json` 签名（人工评审）。
 
+## 目标驱动：文字目标 → 会话 → 候选用例 → 新运行判定
+
+```powershell
+.\vpdtest.ps1 knowledge search 收藏 重命名 搜索 --app qiankun_hm --device $D   # 产品要求 / 操作经验 / 现场观察
+.\vpdtest.ps1 observe --app qiankun_hm --session g1 --device $D                  # clickable 带 label/type/id
+.\vpdtest.ps1 act tap --select "text=收藏" --side-effect user_data --authorize user_data --app qiankun_hm --session g1 --device $D
+.\vpdtest.ps1 act input --select "xpath=//TextInput" --allow-input --text 新名字 --side-effect user_data --authorize user_data --app qiankun_hm --session g1 --device $D
+.\vpdtest.ps1 act tap --select "text=确定" --expect-text "新名字" --side-effect user_data --authorize user_data --app qiankun_hm --session g1 --device $D
+.\vpdtest.ps1 session g1                                                         # 完整轨迹：观察/请求/被拒/失败/中断
+.\vpdtest.ps1 case from-session --session g1 --new-id TC-QK-201 --app qiankun_hm --goal "<目标原文>" --drop A4=与目标无关的试探
+# 补齐 purpose / preconditions / assertions（独立 oracle_refs）/ cleanup / knowledge_used 后：
+.\vpdtest.ps1 case lint TC-QK-201
+.\vpdtest.ps1 run TC-QK-201 --device $D --env account_state=logged_in --env favorite_spot_slot=available --env vehicle_in_vpd_map=yes --authorize vpd_entry user_data --record-replay
+```
+
+- `--select`：`text=` 精确、`text~=` 包含、`id=`、`xpath=`，`--within type=|id=|pane=` 限定范围。只覆盖有 UI 树的页面。
+- 每次 `--select` 下发前会重新取一次 UI 树复核目标（`revalidate`）：节点变了/移动了 → `target_stale`，不下发。
+  下发前还会确认前台仍是被测 APP，否则 `foreground_changed`（不会拉起 APP 抢前台）。
+- `act` 返回 `diagnosis`：多匹配的候选、被裁剪的数量、部分可见比例、复核前后的节点。
+- `--allow-input` 的文字会原样记入会话（用于复测），**只用于非敏感测试数据**；账号密码只能走用例的 `{"secret": NAME}`。
+- `knowledge_used` 每项：`{"id": "K-AV-010", "use": "操作经验：常去地点里找收藏", "applicability": "unknown",
+  "rationale": "来自 debug 版阔折叠，本机是直板 1.0.26.100，需现场核对", "steps": ["S7"]}`。
+
 ## 单步决策（无 UI 树、未知页面、需要 Agent 选路时）
 
 ```powershell

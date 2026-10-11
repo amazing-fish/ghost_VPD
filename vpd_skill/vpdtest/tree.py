@@ -16,6 +16,8 @@ _ATTR_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.-]*$")
 CLIP_TYPES = {"List", "Scroll", "Grid", "WaterFlow", "Swiper", "Refresh"}
 # 横向翻页容器不作为"上下滑动查找"的滚动容器
 HORIZONTAL_SCROLL_TYPES = {"Swiper", "Tabs", "TabBar"}
+# 模态层：ArkUI 的 Dialog 节点带全窗口蒙层，先序在它之前、被它盖住的页面节点用户看得到轮廓，但点击会被蒙层吞掉
+MODAL_TYPES = {"Dialog"}
 
 
 def intersect(a: Optional[tuple], b: Optional[tuple]) -> Optional[tuple]:
@@ -109,12 +111,16 @@ class UiTree:
         meaningful = [n for n in self.nodes[1:] if n.visible]
         return "ok" if meaningful else "empty"
 
+    def shown(self, n: "Node") -> bool:
+        """用户实际看得到：visible 且可见矩形非空（被列表/滚动容器裁到可视区外的条目不算）。"""
+        return n.visible and self._visibility()[n.idx] is not None
+
     def visible_texts(self) -> list:
         seen, out = set(), []
         for n in self.nodes:
             for t in (n.text, n.description):
                 t = t.strip()
-                if t and n.visible and t not in seen:
+                if t and self.shown(n) and t not in seen:
                     seen.add(t)
                     out.append(t)
         return out
@@ -126,12 +132,16 @@ class UiTree:
         return best.bounds[2], best.bounds[3]
 
     # ---- 查询 ----
-    def find_text(self, text: str, exact: bool = True) -> list:
-        return [n for n in self.nodes if n.visible and
+    def find_text(self, text: str, exact: bool = True, include_clipped: bool = False) -> list:
+        """include_clipped=True 时也返回被列表裁到可视区外的节点（定位用它判断"滑动后可能出现"）；
+        断言与状态识别用默认值，只认用户看得到的节点。"""
+        ok = (lambda n: n.visible) if include_clipped else self.shown
+        return [n for n in self.nodes if ok(n) and
                 ((n.text == text or n.description == text) if exact else (text in n.text or text in n.description))]
 
-    def find_id(self, value: str) -> list:
-        return [n for n in self.nodes if n.visible and value in (n.id, n.attrs.get("key", ""))]
+    def find_id(self, value: str, include_clipped: bool = False) -> list:
+        ok = (lambda n: n.visible) if include_clipped else self.shown
+        return [n for n in self.nodes if ok(n) and value in (n.id, n.attrs.get("key", ""))]
 
     def xpath(self, expr: str) -> list:
         """返回匹配节点；表达式错误会抛出 lxml 异常，由调用方记录为 error 而不是"未找到"。"""
@@ -173,8 +183,28 @@ class UiTree:
                 inherited = win if n.parent is None else clip[n.parent]
                 vis[n.idx] = intersect(n.bounds, inherited) if n.visible else None
                 clip[n.idx] = (vis[n.idx] if n.type in CLIP_TYPES or n.scrollable else inherited)
+            for m in (n for n in self.nodes if n.type in MODAL_TYPES and vis[n.idx]):
+                anc = set(self._ancestor_idx(m))
+                box = vis[m.idx]
+                for n in self.nodes[:m.idx]:
+                    r = vis[n.idx]
+                    if r and n.idx not in anc and box[0] <= (r[0] + r[2]) // 2 < box[2] \
+                            and box[1] <= (r[1] + r[3]) // 2 < box[3]:
+                        vis[n.idx] = None  # 被模态层盖住：不算可见、不可定位、状态签名也看不到
             self._vis = vis
         return self._vis
+
+    def _ancestor_idx(self, node: Node) -> list:
+        out, cur = [], node.parent
+        while cur is not None:
+            out.append(cur)
+            cur = self.nodes[cur].parent
+        return out
+
+    def modal_layers(self) -> list:
+        """当前盖在页面上的模态层（Dialog），先序靠后的在上。"""
+        vis = self._visibility()
+        return [n for n in self.nodes if n.type in MODAL_TYPES and vis[n.idx]]
 
     def visible_rect(self, node: Node) -> Optional[tuple]:
         return self._visibility()[node.idx]
@@ -190,7 +220,30 @@ class UiTree:
         vis = self._visibility()
         hits = [n for n in self.nodes if vis[n.idx] and vis[n.idx][0] <= x < vis[n.idx][2]
                 and vis[n.idx][1] <= y < vis[n.idx][3]]
-        return max(hits, key=lambda n: (n.depth, -n.area), default=None)
+        # 先序靠后 = 绘制在上层（后兄弟盖住前兄弟，子节点盖住父节点）。弹层/底部面板是后加入的兄弟，
+        # 按深度取会选中面板下面更深的页面节点（真机上登录面板下的「收藏」就这样被误认成点击对象）
+        return max(hits, key=lambda n: n.idx, default=None)
+
+    def touch_target(self, x: int, y: int) -> Optional[Node]:
+        """触摸实际交给谁：落点上最上层的可点击节点（透明、不可点击的浮层容器会被穿透）。"""
+        vis = self._visibility()
+        hits = [n for n in self.nodes if n.clickable and vis[n.idx] and vis[n.idx][0] <= x < vis[n.idx][2]
+                and vis[n.idx][1] <= y < vis[n.idx][3]]
+        return max(hits, key=lambda n: n.idx, default=None)
+
+    def touch_check(self, x: int, y: int, scope: Node) -> dict:
+        """选点和下发共用：无接收节点可穿透；目标子树及其可点击祖先属于同一触摸路径。"""
+        actual = self.touch_target(x, y)
+        if actual is None:
+            allowed, basis = True, "no_clickable_receiver"
+        elif self.is_within(actual, scope):
+            allowed, basis = True, "receiver_in_target"
+        elif self.is_within(scope, actual):
+            allowed, basis = True, "receiver_ancestor"
+        else:
+            allowed, basis = False, "unrelated_receiver"
+        return {"allowed": allowed, "basis": basis, "receiver": actual.brief() if actual else None,
+                "scope": scope.brief()}
 
     def is_within(self, node: Node, scope: Node) -> bool:
         cur = node.idx
@@ -206,7 +259,7 @@ class UiTree:
     def texts_in(self, scope: Optional[list]) -> list:
         if scope is None:
             return self.visible_texts()
-        return [t for n in self.nodes if n.visible and self.in_scope(n, scope)
+        return [t for n in self.nodes if self.shown(n) and self.in_scope(n, scope)
                 for t in (n.text.strip(), n.description.strip()) if t]
 
     def scroll_container(self, scope: Optional[list] = None) -> Optional[Node]:

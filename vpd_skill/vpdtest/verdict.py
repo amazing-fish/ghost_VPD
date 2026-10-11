@@ -31,8 +31,9 @@ def _check(a: dict, obs: dict, tree: UiTree, app) -> tuple:
     if tree is None or tree.status != "ok":
         return None, {**ev, "reason": f"UI 树不可用（{tree.status if tree else 'missing'}），不能据此判断有无"}
     if t == "text_present_any":
-        # 任一文本（子串）出现即成立，例如故障提示的几种可能措辞；措辞本身须来自已确认判据
-        hits = [x for x in a["any"] for n in tree.nodes if n.visible and x in (n.text or "")]
+        # 任一文本（子串）出现即成立，例如故障提示的几种可能措辞；措辞本身须来自已确认判据。
+        # 只看可见矩形非空的节点：被列表裁到可视区外的条目用户看不到，不能当作"出现了"
+        hits = [x for x in a["any"] for n in tree.nodes if tree.visible_rect(n) and x in (n.text or "")]
         ev["matched"] = sorted(set(hits))
         return bool(hits), ev
     if t in ("text_present", "text_absent"):
@@ -112,7 +113,7 @@ def _seen(a: dict, step: dict, load: Callable) -> tuple:
 
 def evaluate_assertion(a: dict, steps: dict, load: Callable, knowledge, app) -> dict:
     out = {"id": a["id"], "type": a["type"], "desc": a.get("desc", ""), "advisory": bool(a.get("advisory")),
-           "oracle_refs": a.get("oracle_refs", []), "severity": a.get("severity", "major")}
+           "oracle_refs": a.get("oracle_refs", []), "severity": a.get("severity", "major"), "at": a.get("at")}
     step = steps.get(a.get("at"))
     if step is None or step["outcome"] not in PASSED:
         return {**out, "result": "not_run", "reason": f"关联步骤 {a.get('at')} 未成功执行"}
@@ -125,7 +126,7 @@ def evaluate_assertion(a: dict, steps: dict, load: Callable, knowledge, app) -> 
         out.update(evidence={"measurement": m}, oracle=oracle)
         if oracle["status"] != "confirmed":
             return {**out, "result": "pending", "observed_holds": holds, "reason": f"读数{'有效' if holds else '无效'}，但{oracle['reason']}"}
-        return {**out, "result": "pass" if holds else "fail"}
+        return {**out, "result": "pass" if holds else "fail", "observed_holds": holds}
     if a["type"] in ("text_seen", "state_seen"):
         # 时间窗口类：在 monitor 时间线里找（运动中信息、TOR 接管提示、异常显示往往一闪而过，终态里看不到）
         holds, ev = _seen(a, step, load)
@@ -136,7 +137,7 @@ def evaluate_assertion(a: dict, steps: dict, load: Callable, knowledge, app) -> 
         if oracle["status"] != "confirmed":
             return {**out, "result": "pending", "observed_holds": holds,
                     "reason": f"观测{'符合' if holds else '不符合'}预期，但{oracle['reason']}"}
-        return {**out, "result": "pass" if holds else "fail"}
+        return {**out, "result": "pass" if holds else "fail", "observed_holds": holds}
     obs, tree = load(step["final_obs"])
     if a["type"] == "visual_review":
         return {**out, "result": "pending", "evidence": {"obs": obs["obs_id"], "screenshot": obs.get("screenshot", {}).get("path")},
@@ -149,29 +150,41 @@ def evaluate_assertion(a: dict, steps: dict, load: Callable, knowledge, app) -> 
     if oracle["status"] != "confirmed":
         return {**out, "result": "pending", "observed_holds": holds,
                 "reason": f"观测{'符合' if holds else '不符合'}预期，但{oracle['reason']}"}
-    return {**out, "result": "pass" if holds else "fail"}
+    return {**out, "result": "pass" if holds else "fail", "observed_holds": holds}
 
 
 def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list, knowledge,
-                 safety_stops: Optional[list] = None) -> dict:
-    findings, suggestions = [], []
+                 safety_stops: Optional[list] = None, cleanup: Optional[list] = None,
+                 step_ids: Optional[set] = None) -> dict:
+    """step_ids：用例声明的全部步骤 ID，用来区分"断言引用了不存在的步骤"（用例缺陷）和"步骤未执行"。"""
+    findings, suggestions, alerts = [], [], []
     for s in safety_stops or []:
         if not s.get("confirmed_stopped"):
-            # 安全停止没能被观测确认：这是现场安全问题，优先于任何产品判定
+            # 安全停止没能被观测确认：现场安全问题。它单独成为 alert 并决定结论为阻塞，产品失败仍保留在 findings 里
+            alerts.append({"kind": "safety_stop", "trigger": s["trigger"], "action_required": s.get("action_required")
+                           or "未能通过观测确认车辆已停止：请现场监护人立即人工接管"})
             findings.append({"kind": "safety_stop", "result": "blocked", "attribution": "environment",
                              "reason": f"安全停止（触发：{s['trigger']}）未能通过观测确认车辆已停止，需现场人工接管"})
     if not preflight.get("ok"):
+        unlock = preflight.get("unlock") or {}
+        if unlock and unlock.get("status") != "unlocked":
+            status = unlock.get("status")
+            message = {"missing_secret": "本机缺少该设备的有效 PIN 映射或值，请人工核对配置",
+                       "pin_rejected": "PIN 被拒，已停止输入，请人工核对 PIN，避免锁机"}.get(
+                           status, "解锁状态不可识别，请人工核对：" + (unlock.get("reason") or "原因未知"))
+            alerts.append({"kind": "unlock", "status": status, "action_required": message,
+                           "reason": unlock.get("reason")})
         bad = [c for c in preflight.get("checks", []) if not c["ok"]]
         return _final("blocked", "environment", [{"kind": "preflight", "result": "blocked", "attribution": "environment",
                                                   "reason": "前置检查未通过：" + "、".join(
                                                       f"{c['check']}({c.get('error_class')})" for c in bad),
-                                                  "detail": bad}], [], steps)
+                                                  "detail": bad}], [], steps, alerts=alerts, assertions=assertions)
     if not env_check.get("ok"):
         return _final("blocked", "environment", [{"kind": "env_requirement", "result": "blocked",
                                                   "attribution": "environment",
                                                   "reason": "环境要求未满足：" + "、".join(
                                                       f"{u['key']}={u['actual']}（需 {u['required']}）" for u in env_check["unmet"]),
-                                                  "detail": env_check["unmet"]}], [], steps)
+                                                  "detail": env_check["unmet"]}], [], steps, assertions=assertions)
     for s in steps:
         if s["outcome"] in PASSED or s["outcome"] == "not_run":
             continue
@@ -181,14 +194,15 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
             oracle = knowledge.oracle_status(refs)
             if oracle["status"] == "confirmed":
                 findings.append({"kind": "step", "step": s["step_id"], "result": "failed", "attribution": "product",
-                                 "reason": s["reason"], "oracle": oracle})
+                                 "reason": s["reason"], "oracle": oracle, "mode": s.get("final_status")})
             else:
                 findings.append({"kind": "step", "step": s["step_id"], "result": "pending",
                                  "attribution": "requirement_unclear", "reason": f"{s['reason']}；{oracle['reason']}",
                                  "oracle": oracle})
         else:
             findings.append({"kind": "step", "step": s["step_id"], "result": "blocked",
-                             "attribution": s.get("attribution", "tool"), "reason": s.get("reason")})
+                             "attribution": s.get("attribution", "tool"), "reason": s.get("reason"),
+                             "mode": s.get("final_status")})
     for a in assertions:
         if a["advisory"]:
             if a["result"] in ("pending", "fail", "undeterminable"):
@@ -196,28 +210,77 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
             continue
         if a["result"] == "fail":
             findings.append({"kind": "assertion", "id": a["id"], "result": "failed", "attribution": "product",
-                             "reason": a.get("desc")})
+                             "reason": a.get("desc"), "mode": _assertion_mode(a)})
         elif a["result"] in ("pending", "undeterminable"):
             findings.append({"kind": "assertion", "id": a["id"], "result": "pending",
                              "attribution": "requirement_unclear" if a["result"] == "pending" else "tool",
                              "reason": a.get("reason")})
+        elif a["result"] == "not_run" and step_ids is not None and a.get("at") not in step_ids:
+            # 引用了不存在的步骤（拼写错误或步骤被删）：这是用例缺陷，不能静默忽略
+            findings.append({"kind": "assertion", "id": a["id"], "result": "blocked", "attribution": "tool",
+                             "reason": f"必需断言引用的步骤 {a.get('at')} 在用例中不存在，断言无法执行"})
+        elif a["result"] == "not_run":
+            # 关联步骤因前面失败/阻塞而未执行：结论已由那一步决定，这里如实列出"尚未验证"的检查
+            findings.append({"kind": "assertion", "id": a["id"], "result": "not_verified", "attribution": None,
+                             "reason": a.get("reason")})
+    for c in cleanup or []:
+        if c["outcome"] == "not_run" and c.get("final_status") == "safety_hold":
+            findings.append({"kind": "cleanup", "step": c["step_id"], "result": "not_verified",
+                             "attribution": None, "reason": c.get("reason")})
+            continue
+        if c["outcome"] not in PASSED and c.get("required", True):
+            # 清理没完成：账号/车辆数据可能没恢复，整体不能判通过
+            findings.append({"kind": "cleanup", "step": c["step_id"], "result": "blocked",
+                             "attribution": c.get("attribution") or "tool",
+                             "reason": f"必需清理未完成（{c.get('reason') or c['outcome']}），测试数据可能未恢复，需人工核对"})
     results = {f["result"] for f in findings}
-    if not any(a["result"] in ("pass", "fail") for a in assertions if not a["advisory"]) and not results & {"failed", "blocked"}:
+    decided = [a for a in assertions if not a["advisory"] and a["result"] in ("pass", "fail")]
+    if not decided and not results & {"failed", "blocked"}:
         findings.append({"kind": "case", "result": "pending", "attribution": "requirement_unclear",
                          "reason": "没有任何非建议类断言得到确定判定，不能判通过"})
         results.add("pending")
+    if "not_verified" in results and not results & {"failed", "blocked", "pending"}:
+        # 理论上不会出现（没执行的断言一定对应一个未通过的步骤），兜底：有必需检查没执行就不能判通过
+        findings.append({"kind": "case", "result": "pending", "attribution": "tool",
+                         "reason": "存在未执行的必需断言，不能判通过"})
+        results.add("pending")
+    if alerts:
+        return _final("blocked", "environment", findings, suggestions, steps, alerts, assertions)
     for v in ("failed", "blocked", "pending"):
         if v in results:
             attr = next(f["attribution"] for f in findings if f["result"] == v)
-            return _final(v, attr, findings, suggestions, steps)
-    return _final("passed", None, findings, suggestions, steps)
+            return _final(v, attr, findings, suggestions, steps, alerts, assertions)
+    return _final("passed", None, findings, suggestions, steps, alerts, assertions)
 
 
-def _final(verdict: str, attribution, findings: list, suggestions: list, steps: list) -> dict:
+def _final(verdict: str, attribution, findings: list, suggestions: list, steps: list,
+           alerts: Optional[list] = None, assertions: Optional[list] = None) -> dict:
     first = next(({"step": s["step_id"], **s["first_failure"]} for s in steps if s.get("first_failure")), None)
+    alerts = alerts or []
+    not_verified = [{"id": a["id"], "at": a.get("at"), "reason": a.get("reason")} for a in assertions or []
+                    if not a["advisory"] and a["result"] == "not_run"]
+    not_verified += [{"id": f["step"], "at": f["step"], "kind": "cleanup", "reason": f.get("reason")}
+                     for f in findings if f["kind"] == "cleanup" and f["result"] == "not_verified"]
     return {"verdict": verdict, "label": LABEL[verdict], "attribution": attribution,
             "attribution_label": ATTR_LABEL.get(attribution), "findings": findings,
             "suggestions": [{"id": s["id"], "desc": s["desc"], "reason": s.get("reason")} for s in suggestions],
             "recovered": any(s["outcome"] == "passed_after_recovery" for s in steps),
             "adapted": any(s["outcome"] == "passed_after_adaptation" or s.get("adapted") for s in steps),
-            "first_anomaly": first}
+            "first_anomaly": first,
+            # 人工接管信号：独立于产品结论，任何消费方都应先看这一项
+            "alerts": alerts, "action_required": alerts[0]["action_required"] if alerts else None,
+            # 产品层面：有确定失败即为 failed（即使结论因安全停止被提升为阻塞，也不丢）
+            "product_failed": any(f["result"] == "failed" and f.get("attribution") == "product" for f in findings),
+            "not_verified": not_verified,
+            # 失败特征含失败方式（步骤终态 / 断言的观测值）：同一步骤"崩溃"与"后置条件未满足"不是同一个缺陷
+            "failure_signature": sorted({f"{f['kind']}:{f.get('step') or f.get('id')}:{f.get('mode')}" for f in findings
+                                         if f["result"] == "failed"})}
+
+
+def _assertion_mode(a: dict) -> str:
+    """断言失败方式的稳定特征：观测到的状态 / 实际文字 / 可用性等，没有这些时用断言类型。"""
+    ev = a.get("evidence") or {}
+    for k in ("observed_state", "actual_text", "enabled", "selected", "seen"):
+        if k in ev:
+            return f"{a['type']}={ev[k]}"
+    return a["type"]

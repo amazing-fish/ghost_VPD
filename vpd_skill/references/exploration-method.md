@@ -22,21 +22,27 @@
   `favorite_random_spot`（假设）、`unfavorite`（假设）。
 - **用例**：TC-QK-101（故障时不可激活）、TC-QK-102（收藏→搜索→算路→距离）、TC-QK-103（有人监护的激活→运动→暂停→后台→继续→完成）。
 
-## 2. 探索 → 沉淀的闭环
+## 2. 探索 → 沉淀的闭环（目标优先）
 
-1. **取证**：先读原工程（选择器、流程、等待时长、失败判据），再记用户描述；每条都写 `source`（文件:行号 / 会话）。
-   找不到就写 known_gaps，不补编。
-2. **建模**：动作 → 目标（带 `side_effect`）→ 状态签名 → 参数化流程 → draft 用例。选择器原样引用，
-   Skill 自己加的后备策略写明"未经真机验证"。新控件一律 `status=hypothesis`。
-3. **离线证明**：按原工程绝对 xpath 搭合成回放世界（`fixtures/worlds/qiankun_hm_*.json`，文案标「占位」），
-   证明执行器、策略、脱敏、看门狗、判定逻辑能走通。这一步**不证明产品行为**。
-4. **真机校准**（需要人确认后执行）：逐个流程跑 draft 用例；每个目标/状态核对后改为 `calibrated_on_device`
-   并附 `run/obs` 编号；签名写错就改签名，不改断言。
-5. **探索扩展**：`explore` 只在已声明状态上枚举可点元素；gated 需授权才点，supervised（运动/车控）永远只记录入口；
-   未声明页面只留签名与截图，由 Agent 看图后提议新状态（人工评审）。
-6. **准入与维护**：知识 `knowledge confirm`；经验走 candidate → validate（跨用例 × 跨世界/设备，与基线比）→ adopt，
-   可 `rollback`；用例走 exploration_record → candidate → replay_verified → regression。
-   假设目标未校准前，`case lint` 阻止晋级；长期不用或反复失败的经验用回滚/拒绝清出。
+默认从一句文字目标开始，现场观察优先于旧资产。原工程代码、回放世界、预写的流程和用例都是可选的线索，
+不是前提：它们描述的是"当时脚本这样做"或"Skill 这样猜"，要在真机上核对后才算数。
+
+1. **检索**：`knowledge search`，把命中分成产品要求 / 操作经验 / 现场观察，逐条判断是否适用于本次
+   APP 版本与屏幕形态（不能比较就写"未知"）。没有独立判据时记 `source.type=test_goal` 的 unconfirmed 条目，不补编。
+2. **现场观察与探索**：`observe` + `act --select/--target`。原始会话完整保留观察、请求、被拒、失败、超时、恢复、
+   中断的顺序（`session <name>` 查看）；选择器的多匹配/不可见/部分可见/执行前失效都会给出诊断而不是盲点。
+3. **固化**：`case from-session` 从会话提炼候选用例：步骤用选择器（证据里保留解析出的节点、点击点与形态），
+   每一步关联到原始事件与观测；排除动作必须写理由。补齐目的、前置、数据、独立判据、清理、`knowledge_used`。
+4. **新运行中验证**：`run` 候选用例得到判定（产品结论与工具/环境/知识限制分开）；`--record-replay` 记入重放。
+   稳定复现产品失败的用例用 `--known-issue` 固化，不改预期。
+5. **沉淀可继承的知识**：真机上确认过的选择器可登记到 targets.json（附 run/obs）；某次看到的现象用
+   `kind=observation` 记下（不是判据）；可复用的操作方法用 `kind=operation` 记下。
+6. **可选：旧资产与离线证明**。需要复用原工程时再读它（选择器、等待时长、失败判据，写明 `source`）；
+   需要证明执行器/判定逻辑时再搭合成回放世界（文案标「占位」）。这两步**都不证明产品行为**。
+   `explore` 只在已声明状态上枚举可点元素，适合回归覆盖检查，不是目标驱动的探索。
+7. **准入与维护**：知识 `knowledge confirm`；经验走 candidate → validate → adopt，可 `rollback`；
+   用例走 exploration_record → candidate → replay_verified → regression。假设目标未校准前 `case lint` 阻止晋级；
+   已被真机证伪的流程（如 `login_password`，C8）标 `falsified_on_device`，lint 会指出引用它的用例。
 
 ## 3. 与自进化 Skill 实践的对应
 

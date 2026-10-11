@@ -11,13 +11,21 @@
 | `source` | `hdc`（真机）或 `replay`（离线替身） |
 | `foreground` / `process_alive` | 前台 bundle、目标进程是否存活（`pidof`） |
 | `tree.status` | `ok` 有可用内容 / `empty` 调用成功但只有占位根节点 / `unavailable` 页面不提供 UI 树 / `error` 采集或解析失败 / `not_collected` 目标不在前台，按隐私策略不采 |
-| `screenshot.status` | `ok` / `withheld`（前台非目标 APP，不截图）/ `error` / `skipped` |
+| `screenshot.status` | `ok` / `withheld`（前台非目标 APP、树为空、页面含已输入密钥、系统弹层在显示或窗口查询失败，都不截图；`reason` 写明）/ `error` / `skipped` |
+| `system_overlays` | 截图前后查到的、会带出个人内容的系统窗口（通知横幅、下拉栏、锁屏、负一屏、全局搜索；输入过密钥后还包括输入法），`null` 表示窗口查询失败。截完才出现的会把截图删掉。这些窗口不在按 bundle 取的树里，被盖住的控件会从树里消失 |
 | `page.state` | 已声明状态 ID，或 `unknown`（附 `signature`）、`ambiguous`（附 `candidates`）、`undetermined`（无可用树）、`out_of_app`（附 `suspected_crash`） |
 | `page.interrupts` | 命中的中断：`{id, class: benign/anomaly/unknown, review: reviewed/pending}` |
 | `texts` | 可见文本（前 60 条），便于 Agent 快速判断 |
 | `foreground_error` | 前台查询失败的原因（如 `transport_unavailable`）；此时 `page.state=undetermined`，不当成"不在 APP 内" |
+| `fresh` | 采集结束时前台明确、与初次及截图前查询一致；否则为 false，旧树只留作证据 |
+| `foreground_before` / `foreground_after` | 过时观测的初始前台 / 末次前台查询记录；判定使用规范化后的 `foreground`、`page` 和 `fresh` |
 | `layout` | 窗口形态，见下 |
 | `page.active` / `page.panes` | 当前生效的状态（分栏时可能多个）/ 每栏各自命中的状态 |
+
+所有分支（无截图、失败、被拦及成功）在设备采集结束后复查前台。截图前的前台检查仍保留，决定能否截图。
+前台变化、切走后切回，或末次前台未知时，`fresh=false`、`tree.status=stale`，返回的树为 `None`，旧 `tree.json` 保留。
+同时重查目标进程存活，用末次前台和无树重新识别页面，清空旧树派生的 texts/ui_alerts，记录 `observation_stale`。
+已离开目标 APP 为 out_of_app；末次前台未知为 undetermined，不用旧树制造后置通过。Observer 不自动重采，重试由调用方决定。
 
 ### 窗口形态 `layout`
 
@@ -58,7 +66,7 @@
 | `launch` | 设备在线、未锁屏、已安装 | — | `expect_state`（常用 `@in_app`） | 步骤 `timeout_s`，上限 policy `max_wait_s` | ≤2 | 启动/恢复 APP |
 | `stop_app` | — | — | 无 | 同上 | ≤2 | 结束进程 |
 | `tap` | 目标唯一定位；policy 允许 | `target` 或（agent 模式）`point`+`basis` | `expect_state` | 同上 | ≤2 | 取决于目标 `side_effect` |
-| `back` / `home` | APP 在前台 | — | `expect_state` | 同上 | ≤2 | 导航 |
+| `back` / `home` | 未锁屏；明确识别被测 APP 或桌面在前台 | — | `expect_state` | 同上 | ≤2 | 导航 |
 | `swipe` | 有可滚动容器或已知窗口尺寸 | `direction`，可选 `within` | `expect_state` | 同上 | ≤2 | 滚动；起止点取容器可见区域的 75%/25% 高度，分栏时不会滑到另一栏；滑动前后内容指纹不变记为 `scroll_end` |
 | `input` | policy 开启输入且目标允许；非敏感框 | `target`,`text` | `expect_state` | 同上 | ≤2 | 改变输入框内容 |
 | `ensure_state` | recipe 存在 | `state` | 到达该状态且无中断 | 由子步骤决定 | 子步骤各自 | recipe 中动作的副作用 |
@@ -67,6 +75,19 @@
 | `read` | 目标唯一定位，或 `read_scope: page` | `target`、`read_scope`（node 节点文字 / self 节点子树 / page 整页）、`pattern`（取第 1 组） | 读到值（`measurement.value` 非空） | 同上 | ≤2 | 无 |
 | `monitor` | — | `duration_s`、`interval_s`、`watch{名: 正则}`、`until_state` / `until_text` / `until_text_gone`、`stop_on`、`abort_on` | 见下方「监视」 | `duration_s`（上限 `max_monitor_s`） | 不重试 | 无（只观测） |
 | `flow` | `flows.json` 中存在 | `flow`、`params` | 每个子步骤各自的后置条件 | 子步骤各自 | 子步骤默认 1 | 子步骤的副作用 |
+
+前台查询返回未知（`None`）时，`back`/`home` 按 `state_indeterminate` 停下，即使查询命令成功也不下发。
+已识别的桌面允许导航；真机 `aa dump` 没有前台 mission 不能作为桌面证据，当前适配器保持返回未知，
+直到有未锁屏桌面及系统层窗口的样本支持正面识别。
+
+动作预算和运动超时在统一下发关口中复核，关闭弹窗、滚动查找、解锁及启动/停止 APP 都使用本次运行的同一计数。
+只有实际下发才计数；清空输入框逐个点击/按键计数，其外层 `dispatch.aggregate=true` 仅汇总结果，不重复计数。
+`_safety` 步骤及其子动作豁免预算和运动超时，状态、触摸归属与 policy 检查仍生效。
+独立 `unlock` CLI 无运行上下文，dispatch 的预算/运动检查记为 `applicable=false`；run preflight 和动作恢复使用运行上下文。
+解锁前置失败由判定层生成 `kind=unlock` 的 alert，CLI 顶层显示具体接管原因并以退出码 2 提醒调用方。
+
+会话执行与转用例共用字段映射：monitor 的 `expect`/`expect_text` 分别为 `until_state`/`until_text`，
+文字未出现时不能通过；其他动作仍使用 `expect_state`/`expect_text`。
 
 `tap`/`input` 的可选字段：
 
@@ -113,11 +134,50 @@ agent 模式的 `--point` 记录提出时的窗口尺寸（`point_window`）；�
 
 | 断言结果 | 条件 |
 |---|---|
-| `pass` / `fail` | 证据确定 + 判据全部 confirmed |
-| `pending` | 证据确定，但判据 unconfirmed / conflicted / missing；或属主观检查 |
-| `undeterminable` | 证据不足（无 UI 树时判断"有/无"、定位多匹配等） |
-| `not_run` | 关联步骤未成功 |
+| `pass` / `fail` | 证据确定 + 判据全部 confirmed 且适用于本次运行 |
+| `pending` | 证据确定，但判据 unconfirmed / conflicted / missing / out_of_scope / applicability_unknown / not_oracle；或属主观检查 |
+| `undeterminable` | 证据不足（无 UI 树时判断"有/无"、定位多匹配等）；文字断言只认可见矩形非空的节点（被列表裁掉的不算） |
+| `not_run` | 关联步骤未成功（列入 `verdict.not_verified`）；引用的步骤不存在 → 该断言单独判阻塞 |
 
-用例结论优先级：前置检查/环境要求不满足 → **阻塞（环境）**；有失败（产品）→ **失败**；有阻塞 → **阻塞**；
-有待确认/不可判定，或没有任何断言得到确定判定 → **待确认**；否则 **通过**（报告另注明是否经恢复/适配）。
+判据适用性：`knowledge_snapshot[].applicability` 把条目 `applies_to` 与 `run.json.facts`（APP、实测版本、屏幕形态、
+`--env` 声明）逐项比较。事实缺失或版本描述不可比较（如"内部debug版 phone_fc78649"）→ `applicability_unknown`；
+不相等 → `out_of_scope`。`operation` / `observation` 类条目不是判据（`not_oracle`）。
+
+用例结论优先级：前置检查/环境要求不满足 → **阻塞（环境）**；未确认的安全停止 → **阻塞（环境）** 且
+`action_required`、`alerts[]` 非空（CLI 退出码 2），产品失败仍在 findings 与 `product_failed`；有失败（产品）→ **失败**；
+有阻塞（含必需清理未完成）→ **阻塞**；有待确认/不可判定，或没有任何断言得到确定判定 → **待确认**；否则 **通过**。
+`verdict.failure_signature` 是失败项的稳定特征，用于判断已知缺陷是否按同一方式复现（`known_issue.reproduced`）。
 步骤出现崩溃或异常中断时用通用不变量 `K-GEN-001` 判定，不依赖该步骤业务判据是否已确认。
+
+## 4. 会话（`runs/session-<name>/`）与会话生成的用例
+
+- `events.jsonl`：`session_facts`（版本/形态/验证级别，只记一次）、`agent_observe`、`act_request`（先于执行写入）、
+  `act_rejected` / `act_error` / `act_result`（`outcome`、`dispatched`、`effect_unknown`、前后观测），以及执行器内部事件
+  （`attempt`、`revalidate`、`dispatch`、`clear_text`、`scroll_search`、`recovery`、`foreground_changed`、
+  `state_indeterminate_before_dispatch`…）。有请求无结果 = 中断。
+- 会话只经 `session.trail()` 读取：它核对 `session_open` 身份（act/observe 核对 APP/设备/验证级别，from-session 核对 `--app`），
+  并以请求与结束事件之间的 `dispatch`/`clear_text`/`scroll_search` 判定是否已下发。`act_error` 在下发后出现 = 效果未知的步骤；
+  只有没下发的 `act_rejected`/`act_error` 才进 `rejected`。有请求无结果一律按效果未知处理。
+- 设备查询三态（True/False/None）：锁屏、前台查询失败（None）时不发任何手势或按键，判 `state_indeterminate`（环境阻塞、需人工确认）；
+  `unlock` 只在明确锁屏时唤醒/上滑/输 PIN，否则返回 `indeterminate`。`clear_text` 的 MoveEnd 失败即中止、不删字。
+- `steps.jsonl`：每个动作的完整执行记录；`attempts[].resolved` 记解析出的节点、bounds、可见比例、实际点击点、
+  窗口 px、layout key、密度、形态，`attempts[].revalidate` 记下发前复核结果。
+- 会话生成的用例：每步 `from_session`（会话、序号、结果、`effect_unknown`、前后观测）；内联目标 `observed`（解析时的节点、
+  形态、版本、验证级别）；`sources[0]` 列出 `included` / `excluded`（带理由）/ `rejected`（均未下发）/ `incomplete` /
+  `effect_unknown`。lint 对 `rejected` 里 `dispatched: true` 的记录和未写 `effect_reviewed` 的效果未知步骤报错。
+- 用例成熟度（`status`）与产品状态（`product_status`：`conforming` / `known_failure` + `issue` + `signature`）分开记录：
+  当前内容哈希下至少 2 次确定且一致的重放才能晋级；待确认/阻塞的重放不计入并列在 `ignored`；通过与失败混合 → 不稳定。
+  内容哈希在用例声明时包含 `authorizations` 与 `safety`。
+
+
+### 未确认停止后的运行暂停
+
+`safe_stop` 未确认停止时，运行上下文登记 `safety_hold`（触发、时间、原因），本次运行不解除。
+下发关口拒绝所有普通动作，返回 `safety_hold` 并记录未下发的 dispatch；逻辑步骤也在观测、定位与展开前复用该判定。
+只有明确继承 `_safety` 的停止步骤可继续执行，状态及 policy 检查仍保留。
+清理步骤记为 `not_run`，原因为“安全停止未确认，清理暂停，需人工接管”；`cleanup_done` 仍写入。
+判定及报告将这些清理列为尚未验证，而不是清理失败，安全停止 alert 保留人工接管信号。
+
+lint 共用 `iter_case_steps` 遍历主步骤、cleanup、safe_stop 和引用的 flow/recipe 子步骤。
+`tap` 与 `input` 都必须引用已登记目标，内联目标仍须满足现场选择器来源要求；像素坐标、未声明终点及缺失 recipe 的检查适用于全部来源。
+问题字段保留来源路径，如 `cleanup.C2`、`safe_stop.X1`、`steps.F1→flow:...X1`；递归引用会报错，不无限展开。

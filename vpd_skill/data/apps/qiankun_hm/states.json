@@ -28,13 +28,13 @@
       "review": "pending"
     },
     "qk_vpd_home": {
-      "desc": "VPD 首页（有「默认车位」，尚未算路）",
-      "require_text": ["默认车位"],
+      "desc": "VPD 首页（有搜索栏「搜索车位号设为目的地」，尚未算路）",
+      "require_text": ["搜索车位号设为目的地"],
       "forbid_text": ["开始", "暂停", "继续"],
       "forbid_text_pattern": ["路线规划中"],
-      "source": "app/config/mhero_config.py:279 vpd_success「默认车位」；原工程把它作为进入 VPD 成功的标志（vpd.py:643-656）",
+      "source": "原工程用「默认车位」（app/config/mhero_config.py:279）；1.0.26.100 真机上它只出现在停车场数据加载失败的占位页（session-g1 obs-0001），加载完成的首页没有（session-g1 obs-0016、session-qk-maint obs-0030），两种页面都有搜索栏。见 K-QK-OBS-201",
       "review": "pending",
-      "review_note": "算路后「默认车位」是否仍在页面上未知：若仍在，靠 forbid_text「开始」与算路结果页区分"
+      "review_note": "2026-09-30 按真机两种首页改签名；加载失败页也命中本状态，失败提示由观测的 ui_alerts 单独报出。算路结果页是否仍有搜索栏未核对，靠 forbid_text「开始」区分"
     },
     "qk_route_planning": {
       "desc": "算路中",
@@ -74,6 +74,17 @@
     }
   },
   "interrupts": {
+    "qk_vehicle_resource_dialog": {
+      "desc": "车辆资源包下载提示（「请下载车辆资源包」/「请下载更新后的车辆资源包」+「下次再说」/「立即下载」/「立即更新」）",
+      "class": "benign",
+      "require_text": ["下次再说"],
+      "require_text_pattern": ["^请下载(更新后的)?车辆资源包$"],
+      "dismiss_text": "下次再说",
+      "settle_s": 1.0,
+      "source": "真机 2026-09-30 阔折叠 run-20260930-212714-de11 obs-0007：冷启动后盖在爱车页上；2026-10-01 run-20261001-015856-6691 obs-0011 出现「请下载更新后的车辆资源包」变体（按钮「立即更新」），旧签名没认出，S1 的 ADS 点击被蒙层吞掉",
+      "review": "reviewed",
+      "review_note": "车辆 3D 资源包，不是 APP 升级；点「下次再说」不改变被测环境。冷启动后经常出现，执行层在动作前与后置轮询里自动关闭"
+    },
     "qk_safe_code": {
       "desc": "安全码输入",
       "class": "blocking",
@@ -118,5 +129,11 @@
        "watch": {"loading": "正在加载", "safe_code": "请输入安全码"}, "screenshots": false,
        "desc": "等待 VPD 首页（原工程最多等 120s：constant.py VPD_WAIT_MAP_TIME）"}
     ]
+  },
+  "dialog_policy": {
+    "desc": "没登记的 Dialog：只要弹窗里有下面任一按钮文字（完全相等），执行层就点它关闭并记事件、留截图，事后把这类弹窗补登记为 interrupt。只收'拒绝/推迟'语义的按钮，不收「确认」「取消」「立即…」",
+    "safe_dismiss_text": ["下次再说", "以后再说", "暂不更新", "暂不下载", "我知道了", "知道了", "稍后再说"],
+    "review": "reviewed",
+    "review_note": "2026-10-01 用户反馈弹窗处理太差：资源包弹窗换了文案就认不出。改为按结构（Dialog 节点）识别 + 通用推迟按钮兜底"
   }
 }

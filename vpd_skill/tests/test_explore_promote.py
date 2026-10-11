@@ -7,7 +7,7 @@ from vpdtest.knowledge import KnowledgeStore
 from vpdtest.runner import run_case
 from vpdtest.util import write_json
 
-from conftest import confirm, world
+from conftest import confirm, unconfirm, world
 
 BASE = world("motor_hm_base.json")
 
@@ -49,6 +49,7 @@ def test_exploration_record_is_traceable_and_not_promotable_until_complete(ws):
 
 
 def test_candidate_replay_and_regression_gates(ws):
+    unconfirm(ws, "K-MOT-002")
     _, case = _explored_case(ws)
     kn = KnowledgeStore(ws.root)
     case.update(purpose="从爱车页经我的页进入设置", test_data_none=True, cleanup=[{"action": "stop_app"}],

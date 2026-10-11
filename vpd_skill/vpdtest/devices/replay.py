@@ -153,6 +153,7 @@ class ReplayDevice:
                           "popup": None, "installed": init.get("installed", True), "events": 0}
         self.state.setdefault("flags", dict(self.world.get("initial_flags", {})))
         self.bound: dict = {}  # 输入框的输入值：只在内存里
+        self.last_query_error = None
 
     def _save(self):
         self.state["events"] += 1
@@ -252,7 +253,14 @@ class ReplayDevice:
         return {"ok": all(c["ok"] for c in checks), "checks": checks, "device": self.info(), "app_version": ver,
                 "display": self.display_info()}
 
+    def _query_fails(self, name: str) -> bool:
+        # 测试用：replay_state 里 query_fail 列出的查询返回"查询失败"（真机 hidumper/aa dump 偶发失败）
+        return name in (self.state.get("query_fail") or [])
+
     def foreground(self) -> Optional[str]:
+        self.last_query_error = "command_failed" if self._query_fails("foreground") else None
+        if self.last_query_error:
+            return None
         return LAUNCHER if self.state["locked"] else self.state["foreground"]
 
     def process_alive(self, bundle: str) -> Optional[bool]:
@@ -282,6 +290,13 @@ class ReplayDevice:
 
     # ---- 动作 ----
     def tap(self, x: int, y: int) -> DeviceResult:
+        if self.state["locked"] and hasattr(self, "_pin_buffer"):
+            self._pin_buffer += str(x)
+            expected = str(self.world.get("initial", {}).get("lock_pin", ""))
+            if len(self._pin_buffer) >= len(expected):
+                self.state["pin_attempts"] = self.state.get("pin_attempts", 0) + 1
+                self.state["locked"] = self._pin_buffer != expected
+            return self._res("tap", raw="PIN digit")
         if not self._in_app():
             return self._res("tap", raw="tap outside target app")
         sid = self.current_screen()
@@ -370,7 +385,49 @@ class ReplayDevice:
                         self._go(box["on_input"])
         return self._res("input_text", raw="inputText")
 
+    def screen_locked(self) -> Optional[bool]:
+        if self._query_fails("screen_locked"):
+            return None
+        return bool(self.state["locked"] or not self.state["screen_on"])
+
+    def wake(self):
+        self.state["screen_on"] = True
+        return self._res("wake")
+
+    def lock_pin_pad(self):
+        self._pin_buffer = ""
+        return {str(n): (n, 0) for n in range(10)}
+
+    def wake_unlock(self, pin, dispatcher=None):
+        from ..unlock import wake_unlock
+        return wake_unlock(self, pin, dispatcher, sleep=lambda _: None)
+
+    def shown_windows(self) -> Optional[list]:
+        # 合成世界默认只有被测 APP 的窗口；测试可在 replay_state 里放 windows（通知横幅等），null 表示查询失败
+        return self.state.get("windows", ["app0"])
+
+    def clear_text(self, x: int, y: int, count: int, dispatcher, preconditions, att=None) -> DeviceResult:
+        from ..dispatch import clear_text
+        self._clear_bind = None
+        if self._in_app():
+            hits = _hits(self._live(self._screen_spec(self.current_screen())["root"]), x, y, self.world["screen"])
+            if hits:
+                spec, parents = max(hits, key=lambda sp: len(sp[1]))
+                box = next((n for n in (spec,) + tuple(reversed(parents)) if n.get("bind")), None)
+                if box is not None:
+                    self._clear_bind = box["bind"]
+        try:
+            return clear_text(self, x, y, count, dispatcher, preconditions, att)
+        finally:
+            self._clear_bind = None
+
     def key(self, name: str) -> DeviceResult:
+        if name in ("move_end", "delete"):
+            # 清空能力的逐键回放：中途预算耗尽时保留已删除的部分。
+            bind = getattr(self, "_clear_bind", None)
+            if name == "delete" and bind is not None:
+                self.bound[bind] = self.bound.get(bind, "")[:-1]
+            return self._res(f"key_{name}", raw="keyEvent")
         if name == "back" and self._in_app():
             self._back()
         elif name == "home":

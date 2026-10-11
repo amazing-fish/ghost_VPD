@@ -77,6 +77,14 @@ class StateModel:
                       for iid, spec in self.interrupts.items() if _texts_match(spec, tree)]
         cands = [sid for sid, spec in self.states.items() if _texts_match(spec, tree)]
         out = {"candidates": cands, "interrupts": interrupts, "signature": signature(tree)}
+        dialogs = []
+        for m in tree.modal_layers():
+            texts = tree.texts_in([m])
+            hit = next((iid for iid, spec in self.interrupts.items() if _texts_match(spec, tree, [m])), None)
+            dialogs.append({"texts": texts[:20], "interrupt": hit})
+        if dialogs:
+            # 弹窗按结构识别（Dialog 节点），不只靠文案：文案变体没登记时也知道"页面被弹窗挡住"，并把弹窗文字带进证据
+            out["dialogs"] = dialogs
         panes = (layout or {}).get("panes") or []
         if len(panes) < 2:
             active = cands if len(cands) == 1 else []

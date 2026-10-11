@@ -19,13 +19,37 @@ WORLDS = SKILL / "fixtures" / "worlds"
 def ws(tmp_path) -> Workspace:
     shutil.copytree(SKILL / "data", tmp_path / "data")
     shutil.copytree(SKILL / "fixtures", tmp_path / "fixtures")
-    return Workspace(str(tmp_path / "data"))
+    w = Workspace(str(tmp_path / "data"))
+    w.config.pop("secrets", None)  # 测试不读本机 config.local.json 里的真实密钥
+    w.config.pop("device", None)
+    return w
 
 
 def confirm(ws: Workspace, *ids: str) -> None:
     kn = KnowledgeStore(ws.root)
     for k in ids:
         kn.confirm(k, reviewer="pytest-reviewer")
+
+
+def unconfirm(ws: Workspace, *ids: str) -> None:
+    """模拟判据尚未确认：种子数据里已被评审确认的条目，测"未确认判据"语义时在临时工作区退回 unconfirmed。"""
+    p = ws.root / "knowledge" / "items.json"
+    data = read_json(p)
+    for item in data["items"]:
+        if item["id"] in ids:
+            item["status"] = "unconfirmed"
+            for k in ("confirmed_by", "confirmed_at", "confirm_basis"):
+                item.pop(k, None)
+    write_json(p, data)
+
+
+def widen_scope(ws: Workspace, kid: str, **scope) -> None:
+    """模拟评审人扩大知识的适用范围（例如确认新版本仍适用），用于跨版本的回放世界。"""
+    p = ws.root / "knowledge" / "items.json"
+    data = read_json(p)
+    item = next(i for i in data["items"] if i["id"] == kid)
+    item["applies_to"] = {**item.get("applies_to", {}), **scope}
+    write_json(p, data)
 
 
 def review_interrupt(ws: Workspace, iid: str) -> None:

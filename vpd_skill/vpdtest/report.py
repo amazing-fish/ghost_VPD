@@ -3,7 +3,8 @@ from __future__ import annotations
 
 OUTCOME = {"passed": "通过", "passed_after_adaptation": "通过（定位适配）", "passed_after_recovery": "通过（经恢复）",
            "fail_candidate": "失败候选", "blocked": "阻塞", "not_run": "未执行"}
-RESULT = {"pass": "通过", "fail": "失败", "pending": "待确认", "undeterminable": "不可判定", "not_run": "未执行"}
+RESULT = {"pass": "通过", "fail": "失败", "pending": "待确认", "undeterminable": "不可判定", "not_run": "未执行",
+          "failed": "失败", "blocked": "阻塞", "not_verified": "未验证"}
 
 
 def _esc(v) -> str:
@@ -24,8 +25,19 @@ def _layout_line(lay: dict) -> str:
 def render_run(run: dict) -> str:
     v, c = run["verdict"], run["case"]
     lvl = "离线回放（替身设备，不代表真实产品行为）" if run["validation_level"] == "offline_replay" else "真机"
-    out = [f"# 测试报告：{c['id']} {c.get('title') or ''}", "",
-           f"**结论：{v['label']}**" + (f"　问题归属：{v['attribution_label']}" if v.get("attribution_label") else ""), ""]
+    out = [f"# 测试报告：{c['id']} {c.get('title') or ''}", ""]
+    for al in v.get("alerts") or []:
+        out.append(f"> **需要人工接管：{_esc(al['action_required'])}**（{_esc(al['kind'])}，触发：{_esc(al.get('trigger'))}）\n")
+    out += [f"**结论：{v['label']}**" + (f"　问题归属：{v['attribution_label']}" if v.get("attribution_label") else "")
+            + ("　（另有产品失败，见下文）" if v.get("alerts") and v.get("product_failed") else ""), ""]
+    if run.get("goal"):
+        out.append(f"> 测试目标（原文）：{_esc(run['goal'])}\n")
+    if v.get("product_status_stale"):
+        out.append(f"> {v['product_status_stale']['note']}\n")
+    ki = v.get("known_issue")
+    if ki:
+        out.append(f"> 已知缺陷用例（{_esc(ki.get('ref'))}）：{ki['note']}；预期失败特征 `{ki.get('expected_signature')}`，"
+                   f"本次 `{v.get('failure_signature')}`\n")
     if run.get("informal"):
         out.append(f"> 用例状态为 `{c.get('status')}`，不是正式回归用例，本结论仅供参考。\n")
     if v.get("recovered") or v.get("adapted"):
@@ -42,9 +54,18 @@ def render_run(run: dict) -> str:
             f"| 动作数 | {run['actions']} |", ""]
 
     out += ["## 判定依据与发现", ""]
-    for f in v["findings"] or [{"result": "pass", "kind": "全部断言", "reason": "非建议类断言均在已确认判据下通过"}]:
+    for f in [f for f in v["findings"] if f["result"] != "not_verified"] or [
+            {"result": "pass", "kind": "全部断言", "reason": "非建议类断言均在已确认判据下通过"}]:
         out.append(f"- [{RESULT.get(f['result'], f['result'])}] {_esc(f.get('step') or f.get('id') or f.get('kind'))}："
                    f"{_esc(f.get('reason'))}" + (f"（归属：{f['attribution']}）" if f.get("attribution") else ""))
+    if v.get("not_verified"):
+        out += ["", "## 尚未验证的检查（关联步骤没有执行到，不能据本次结论推断它们成立或不成立）", ""]
+        out += [f"- `{x['id']}`（步骤 `{_esc(x.get('at'))}`）：{_esc(x.get('reason'))}" for x in v["not_verified"]]
+    bad_clean = [c for c in run.get("cleanup", []) if not str(c["outcome"]).startswith("passed")]
+    if run.get("cleanup"):
+        out += ["", "## 清理", "", "- " + ("全部完成" if not bad_clean else "**未完成**：" + "、".join(
+            f"`{c['step_id']}` {OUTCOME.get(c['outcome'], c['outcome'])}{'' if c.get('required', True) else '（非必需）'}"
+            f"：{_esc(c.get('reason'))}" for c in bad_clean) + "。测试数据可能未恢复，请人工核对")]
     if not run["preflight"]["ok"]:
         for ch in run["preflight"]["checks"]:
             if not ch["ok"]:
@@ -113,6 +134,33 @@ def render_run(run: dict) -> str:
         ev = a.get("evidence", {})
         out.append(f"| {a['id']}{'（建议）' if a['advisory'] else ''} {_esc(a['desc'])} | {RESULT[a['result']]} | {_esc(refs)} "
                    f"| {_esc(ev.get('obs'))} {_esc(ev.get('screenshot') or '')} | {_esc(a.get('reason') or '')} |")
+    if run.get("ui_alerts"):
+        out += ["", "## 页面内的失败/异常提示（产品问题候选，需人工确认并反馈）", "",
+                "| 时间 | 观测 | 文字 |", "|---|---|---|"]
+        out += [f"| {_esc(u['ts'])} | {u['obs']} | {_esc('；'.join(u['texts']))} |" for u in run["ui_alerts"]]
+    if run.get("system_overlays"):
+        out += ["", "## 被系统弹层挡下的截图", "", "| 时间 | 观测 | 窗口 |", "|---|---|---|"]
+        out += [f"| {_esc(u['ts'])} | {u['obs']} | {_esc(', '.join(u['windows'] or ['查询失败']))} |"
+                for u in run["system_overlays"]]
+    if run.get("clipboard_may_hold_secret"):
+        out += ["", "> 本次通过 uitest inputText 输入过密钥：它经系统剪贴板输入，剪贴板可能仍留有原文，请在手机上清空剪贴板。"]
+    snap ={i["id"]: i for i in run.get("knowledge_snapshot") or []}
+    if run.get("knowledge_used") or snap:
+        f = run.get("facts") or {}
+        out += ["", "## 用到的知识与适用性", "",
+                f"本次事实：APP `{_esc(f.get('app'))}` 版本 `{_esc(f.get('app_version'))}`，形态 `{_esc(f.get('device_form'))}`"
+                + "".join(f"，{k}=`{_esc(x)}`" for k, x in f.items() if k not in ("app", "app_version", "device_form")), "",
+                "| 知识 | 用途 | 用例声明的适用判断 | 执行器按事实判定 |", "|---|---|---|---|"]
+        seen = set()
+        for k in run.get("knowledge_used") or []:
+            kid = k.get("id")
+            seen.add(kid)
+            s = snap.get(kid) or {}
+            out.append(f"| {_esc(kid)} | {_esc(k.get('use'))} | {_esc(k.get('applicability'))}：{_esc(k.get('rationale'))} "
+                       f"| {_esc(s.get('status') or '（未作判据）')} {_esc((s.get('applicability') or {}).get('status') or '')} |")
+        for kid, s in snap.items():
+            if kid not in seen:
+                out.append(f"| {kid} | 判据 | （未声明） | {_esc(s.get('status'))} {_esc((s.get('applicability') or {}).get('status') or '')} |")
     if v.get("suggestions"):
         out += ["", "## UI/UX 建议（不构成缺陷结论）", ""] + [f"- {s['id']} {s['desc']}：{s['reason']}" for s in v["suggestions"]]
     if run.get("experience_candidates"):

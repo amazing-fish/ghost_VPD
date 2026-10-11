@@ -27,20 +27,17 @@ def test_unreviewed_interrupt_blocks_instead_of_being_dismissed(ws):
     assert v["first_anomaly"]["status"] == "interrupted"
 
 
-def test_recovery_keeps_first_failure_and_original_evidence(ws):
+def test_reviewed_benign_popup_is_dismissed_inline_with_evidence(ws):
+    """已评审的良性弹窗在动作前/后置轮询里直接关闭：不计为异常，但关闭记录和弹窗画面的观测都保留。"""
     confirm(ws, "K-MOT-001", "K-MOT-002")
     review_interrupt(ws, "update_dialog")
     run = run_case(ws, "TC-MOTOR-HM-001", device_spec=world("motor_hm_popup.json"))
     v = run["verdict"]
-    assert v["verdict"] == "passed" and v["recovered"]
-    fa = v["first_anomaly"]
-    assert fa["status"] == "interrupted" and fa["detail"]["post"]["interrupts"][0]["id"] == "update_dialog"
-    # 首次失败时的观测仍在，内容就是弹窗画面
-    obs = read_json(f"{run['dir']}/obs/{fa['obs_after']}/observation.json")
+    assert v["verdict"] == "passed"
+    assert "update_now" not in _taps(run)
+    dis = [d for s in run["steps"] for x in s.get("sub_steps", [s]) for d in x.get("dismissed", [])]
+    assert dis and dis[0]["interrupt"] == "update_dialog" and dis[0]["ok"]
+    obs = read_json(f"{run['dir']}/obs/{dis[0]['obs']}/observation.json")
     assert "下次再说" in obs["texts"] and obs["page"]["interrupts"]
-    events = read_jsonl(f"{run['dir']}/events.jsonl")
-    kinds = [(e["event"], e.get("status") or e.get("action")) for e in events]
-    assert ("attempt", "interrupted") in kinds and ("recovery", "dismiss_interrupt") in kinds
-    assert kinds.index(("attempt", "interrupted")) < kinds.index(("recovery", "dismiss_interrupt"))
-    assert "update_later" in _taps(run) and "update_now" not in _taps(run)
-    assert "经恢复" in open(f"{run['dir']}/report.md", encoding="utf-8").read()
+    ev = [e for e in read_jsonl(f"{run['dir']}/events.jsonl") if e["event"] == "interrupt_dismissed"]
+    assert ev and ev[0]["interrupt"] == "update_dialog"

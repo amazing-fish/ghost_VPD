@@ -1256,15 +1256,25 @@
         "ref": "app/config/motor_config.py:295-297, 315-317; app/service/vpd/vpd.py:2269, 2354",
         "commit": "90545b9"
       },
-      "status": "unconfirmed",
+      "status": "confirmed",
       "note": "来自原工程自动化脚本的导航方式，只说明脚本曾这样操作；“选中态”是 Skill 的推断，需求来源未核实。",
       "history": [
         {
           "ts": "2026-09-29T00:00:00+08:00",
           "to": "unconfirmed",
           "why": "从仓库代码提取"
+        },
+        {
+          "ts": "2026-10-01T17:27:02.903+08:00",
+          "from": "unconfirmed",
+          "to": "confirmed",
+          "by": "co-creator",
+          "basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）"
         }
-      ]
+      ],
+      "confirmed_by": "co-creator",
+      "confirmed_at": "2026-10-01T17:27:02.903+08:00",
+      "confirm_basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）"
     },
     {
       "id": "K-MOT-002",
@@ -1284,14 +1294,24 @@
         "ref": "app/service/vpd/vpd.py:2458-2471 _account_logout; app/config/motor_config.py:522-527",
         "commit": "90545b9"
       },
-      "status": "unconfirmed",
+      "status": "confirmed",
       "history": [
         {
           "ts": "2026-09-29T00:00:00+08:00",
           "to": "unconfirmed",
           "why": "从仓库代码提取"
+        },
+        {
+          "ts": "2026-10-01T17:27:03.073+08:00",
+          "from": "unconfirmed",
+          "to": "confirmed",
+          "by": "co-creator",
+          "basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）"
         }
-      ]
+      ],
+      "confirmed_by": "co-creator",
+      "confirmed_at": "2026-10-01T17:27:03.073+08:00",
+      "confirm_basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）"
     },
     {
       "id": "K-MOT-003",
@@ -1308,15 +1328,25 @@
         "ref": "app/service/vpd/vpd.py:2380-2390 _get_login_status logout_text_map['#01']",
         "commit": "90545b9"
       },
-      "status": "unconfirmed",
+      "status": "confirmed",
       "note": "原代码用于判断登录态，#01 在 Android/Harmony 共用该文案；Harmony 版本是否一致未核实。",
       "history": [
         {
           "ts": "2026-09-29T00:00:00+08:00",
           "to": "unconfirmed",
           "why": "从仓库代码提取"
+        },
+        {
+          "ts": "2026-10-01T17:27:03.236+08:00",
+          "from": "unconfirmed",
+          "to": "confirmed",
+          "by": "co-creator",
+          "basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）"
         }
-      ]
+      ],
+      "confirmed_by": "co-creator",
+      "confirmed_at": "2026-10-01T17:27:03.236+08:00",
+      "confirm_basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）"
     },
     {
       "id": "K-MOT-004",
@@ -1424,15 +1454,25 @@
         "ref": "app/service/vpd/vpd.py:2037-2056 power_on_stress_case; vpd.py:103-107 exception_map（暂不可用/泊车代驾异常退出/规划失败）",
         "commit": "90545b9"
       },
-      "status": "unconfirmed",
+      "status": "confirmed",
       "history": [
         {
           "ts": "2026-09-29T09:30:00+08:00",
           "to": "unconfirmed",
           "why": "为乾崑样例用例整理；待用户/评审确认"
+        },
+        {
+          "ts": "2026-10-01T17:27:03.725+08:00",
+          "from": "unconfirmed",
+          "to": "confirmed",
+          "by": "co-creator",
+          "basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）"
         }
       ],
-      "note": "原工程没有「故障」「无法激活」字样；有故障时实际显示哪条提示需在真机上确认。"
+      "note": "原工程没有「故障」「无法激活」字样；有故障时实际显示哪条提示需在真机上确认。",
+      "confirmed_by": "co-creator",
+      "confirmed_at": "2026-10-01T17:27:03.725+08:00",
+      "confirm_basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）"
     },
     {
       "id": "K-QK-004",
@@ -1451,14 +1491,24 @@
         "ref": "app/config/mhero_config.py:413-416",
         "commit": "90545b9"
       },
-      "status": "unconfirmed",
+      "status": "confirmed",
       "history": [
         {
           "ts": "2026-09-29T09:30:00+08:00",
           "to": "unconfirmed",
           "why": "为乾崑样例用例整理；待用户/评审确认"
+        },
+        {
+          "ts": "2026-10-01T17:27:04.030+08:00",
+          "from": "unconfirmed",
+          "to": "confirmed",
+          "by": "co-creator",
+          "basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）"
         }
-      ]
+      ],
+      "confirmed_by": "co-creator",
+      "confirmed_at": "2026-10-01T17:27:04.030+08:00",
+      "confirm_basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）"
     },
     {
       "id": "K-QK-005",
@@ -1535,15 +1585,406 @@
         "ref": "app/config/mhero_config.py:323-329",
         "commit": "90545b9"
       },
-      "status": "unconfirmed",
+      "status": "confirmed",
       "history": [
         {
           "ts": "2026-09-29T09:30:00+08:00",
           "to": "unconfirmed",
           "why": "为乾崑样例用例整理；待用户/评审确认"
+        },
+        {
+          "ts": "2026-10-01T17:27:03.872+08:00",
+          "from": "unconfirmed",
+          "to": "confirmed",
+          "by": "co-creator",
+          "basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）"
         }
       ],
-      "note": "原工程只定义了这三个按钮；暂停后页面的其他内容是 Skill 推测。"
+      "note": "原工程只定义了这三个按钮；暂停后页面的其他内容是 Skill 推测。",
+      "confirmed_by": "co-creator",
+      "confirmed_at": "2026-10-01T17:27:03.872+08:00",
+      "confirm_basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）"
+    },
+    {
+      "id": "K-QK-OBS-201",
+      "kind": "observation",
+      "subject": "qiankun_hm.vpd.home_parking_data_loading",
+      "statement": "1.0.26.100 直板（Mate 80 Pro Max，391 vp）VPD 首页：停车场数据未加载时显示「停车场信息加载失败，请重试」与「默认车位 点击车位去设置 / 默认上车点」，此时搜索车位无结果；数据加载完成后变为「华为练秋湖研发中心 泊车代驾 共 13308 个」与常去地点网格（3号车位[默认] / 1号停车点[上车点] / … / 更多），「默认车位」文字消失，states.json 的 qk_vpd_home 签名（require_text 默认车位）不再命中，page.state=unknown。",
+      "expected": {
+        "loading_failed_text": "停车场信息加载失败，请重试",
+        "loaded_marker": "共 N 个",
+        "qk_vpd_home_signature_matches_after_load": false,
+        "search_results_before_load": "none"
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100",
+        "device_form": "bar"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "runs/session-g1 obs-0001（加载失败）、obs-0009（搜 486 无结果）、obs-0016/obs-0017（加载完成，state=unknown）",
+        "run": "session-g1"
+      },
+      "note": "现场观察，不是判据。影响：ensure_state qk_vpd_home 的 recipe 在数据加载完成的首页上可能等不到签名；qk_vpd_home 签名需人工评审修订（本次未改 states.json）。2026-09-30 维护者补记：qk_vpd_home 已改为 require_text「搜索车位号设为目的地」（两种首页都有，session-qk-maint obs-0030 复核），qk_spot_input 加了同名文字策略。",
+      "status": "unconfirmed",
+      "created": "2026-09-30T05:46:45.484+08:00",
+      "history": [
+        {
+          "ts": "2026-09-30T05:46:45.484+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-OBS-202",
+      "kind": "observation",
+      "subject": "qiankun_hm.favorites.manage_entry_release",
+      "statement": "1.0.26.100 直板：常去地点网格每项右侧有「⋮」（UI 树文本为 ':' 的可点击 Column），点击打开收藏车位面板（名称 / 楼层 / 车位号 /「编辑」/「默认」复选框 / 添加标签 / 停车位姿 / 收藏★ / 查看路线）；「编辑」弹出「编辑车位信息」Dialog（TextInput 预填当前名称、按钮「确认」、右上角关闭图标）。搜索页按收藏名（如「1号车位」）能搜到该收藏（行：1号车位 / B1层 / 507 / 路线）。搜索结果行打开的车位面板上点「收藏」，账号已有 5 个收藏车位时提示「收藏失败，最多可收藏5个车位」（点击已送达、业务层拒绝）。本账号当时收藏车位 5 个（3号车位[默认]、1号车位、4号车位、5号车位×2），另有 1/2/3号停车点。",
+      "expected": {
+        "manage_entry": "row_menu_dots",
+        "rename_entry": "编辑 → 编辑车位信息 → 确认",
+        "search_by_favorite_name": true,
+        "favorite_quota_spots": 5,
+        "favorite_tap_reaches_handler": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100",
+        "device_form": "bar"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "runs/session-g1 obs-0037（常去地点展开）、obs-0041（收藏面板）、obs-0063（编辑车位信息 Dialog）、obs-0049（按「1号车位」搜索）、obs-0031（收藏失败提示）",
+        "run": "session-g1"
+      },
+      "note": "现场观察，不是判据。与 K-AV-010（debug 版 phone_fc78649：更多只展开、无管理/编辑/重命名入口）和 K-AV-009（收藏点击被 XComponent 吞）在本版本上不一致；两者 applies_to 版本不可比较，建议负责人 knowledge resolve/标注版本差异。重命名确认后的行为（是否保存、新名称是否可搜）本次未验证。",
+      "status": "confirmed",
+      "created": "2026-09-30T05:46:45.620+08:00",
+      "history": [
+        {
+          "ts": "2026-09-30T05:46:45.620+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        },
+        {
+          "ts": "2026-10-01T17:27:04.516+08:00",
+          "from": "unconfirmed",
+          "to": "confirmed",
+          "by": "co-creator",
+          "basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）；前提：车辆在 VPD 图内（车辆不在 VPD 地图范围内时本条不适用）；观察依据 runs/session-g1 obs-0037/0041/0063/0049/0031"
+        }
+      ],
+      "confirmed_by": "co-creator",
+      "confirmed_at": "2026-10-01T17:27:04.516+08:00",
+      "confirm_basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）；前提：车辆在 VPD 图内（车辆不在 VPD 地图范围内时本条不适用）；观察依据 runs/session-g1 obs-0037/0041/0063/0049/0031"
+    },
+    {
+      "id": "K-QK-OBS-203",
+      "kind": "observation",
+      "subject": "qiankun_hm.vpd_home.parking_load_failed",
+      "statement": "1.0.26.100 直板，2026-09-30 21:53~22:27：冷启动后点 ADS 进 VPD，首页多次出现「停车场信息加载失败，请重试」，常去地点只剩「默认车位/默认上车点」占位，没有「更多」和收藏列表（run-20260930-214910-2087 obs-0060/0061；session-qk-g2c obs-0068）。点「请重试」后能恢复（session-qk-g2c A30 obs-0083 出现常去地点），但之后仍会复现（obs-0156/0159/0160）。已于 22:02 通过右上角「反馈」→「立即反馈」提交（obs-0075/0078）。执行器行为：必需清理某步阻塞后仍继续后续清理步骤，带 skip_if_absent 的步骤因目标不存在被判为通过，所以报告里 C6~C9 显示通过但实际没有执行改回，要人工核对。",
+      "expected": {
+        "load_failed_seen": true,
+        "retry_recovers": true,
+        "cleanup_skip_after_block_reports_passed": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100",
+        "device_form": "bar"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "run-20260930-214910-2087 obs-0060~0065；session-qk-g2c obs-0068/0075/0078/0083/0156/0159/0160",
+        "run": "session-qk-g2c"
+      },
+      "note": "现象记录，不是判据。用例清理里进入 VPD 后宜先等待并在出现『请重试』时点一次再找「更多」。",
+      "status": "unconfirmed",
+      "created": "2026-09-30T22:43:21.782+08:00",
+      "history": [
+        {
+          "ts": "2026-09-30T22:43:21.782+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-OBS-204",
+      "kind": "observation",
+      "subject": "qiankun_hm.vpd_home.feedback_panel",
+      "statement": "1.0.26.100 直板：VPD 首页右上角「反馈」打开「问题反馈」面板（问题类型：园区不支持/车位缺失/AR定位不准/偏离寻车路线/路线绕路/我的定位漂移/延迟；描述 TextArea 带「N/100」计数；「点击开始录音」；按钮「取消反馈」「立即反馈」）。描述上限 100 字，超出部分被截断（输入 105 字后只保留前 100 字，obs-0007）。点「立即反馈」后面板关闭并出现 toast「感谢您的宝贵建议」（obs-0022）。点「取消反馈」关闭面板，重新打开时描述为空（0/100）。",
+      "expected": {
+        "desc_max_len": 100,
+        "submit_toast": "感谢您的宝贵建议",
+        "cancel_resets_desc": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100",
+        "device_form": "bar"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "session-qk-g3 obs-0005/0007/0014/0017/0020/0022",
+        "run": "session-qk-g3"
+      },
+      "note": "现象记录，不是判据。反馈描述宜控制在 100 字内（时间;页面;原文;前一步;车辆;版本，用分号压缩），一次输入。",
+      "status": "unconfirmed",
+      "created": "2026-09-30T23:11:42.181+08:00",
+      "history": [
+        {
+          "ts": "2026-09-30T23:11:42.181+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-OBS-VEH-001",
+      "kind": "observation",
+      "subject": "qiankun_hm.env.account_vehicles",
+      "statement": "2026-10-01 阔折叠真机，乾崑「我的→我的车辆」共 16 辆（与「问界M5 智驾版等 16 辆车」一致），完整车架号如下。车主车辆只有 1 辆：问界M5 智驾版 LM8F7E890PA007885，勾选「默认显示」；其余为被授权车辆。注意：同一时刻「爱车」页顶部选中的是 F03（S01023），与「默认显示」不是同一辆，爱车页顶部切换列表只列出 4 辆（F03 S01112、F03 S01023、启境GX7 S01147、F03 S01395，只显示后 6 位），不含 M5。",
+      "expected": {
+        "total": 16,
+        "owner_vehicle": {
+          "model": "问界M5 智驾版",
+          "vin": "LM8F7E890PA007885",
+          "default_display": true
+        },
+        "vehicles": [
+          {
+            "model": "问界M5 智驾版",
+            "role": "车主",
+            "vin": "LM8F7E890PA007885"
+          },
+          {
+            "model": "问界M7 Max智驾版",
+            "role": "被授权",
+            "vin": "LM8F7E993PAS00384"
+          },
+          {
+            "model": "问界 F3",
+            "role": "被授权",
+            "vin": "LM8F7G5B9SCS00133"
+          },
+          {
+            "model": "问界 F3",
+            "role": "被授权",
+            "vin": "LM8F7G6B4SC279452"
+          },
+          {
+            "model": "问界F1L",
+            "role": "被授权",
+            "vin": "LM8F7G8A7SE050191"
+          },
+          {
+            "model": "问界F1L",
+            "role": "被授权",
+            "vin": "LM8F7J1AXSE019167"
+          },
+          {
+            "model": "赛力斯M9 F2A",
+            "role": "被授权",
+            "vin": "LM8F7J2B5SC015742"
+          },
+          {
+            "model": "问界K89",
+            "role": "被授权",
+            "vin": "LM8F7J6B1TF000228"
+          },
+          {
+            "model": "E12",
+            "role": "被授权",
+            "vin": "LS6ENG1K4SA551523"
+          },
+          {
+            "model": "F03",
+            "role": "被授权",
+            "vin": "HACRA8B74T1S01112"
+          },
+          {
+            "model": "F03",
+            "role": "被授权",
+            "vin": "HACRA8B75T1S01023"
+          },
+          {
+            "model": "启境GX7",
+            "role": "被授权",
+            "vin": "HACRA9G73T1S01147"
+          },
+          {
+            "model": "F03",
+            "role": "被授权",
+            "vin": "HACRAAG79T1S01395"
+          },
+          {
+            "model": "智界 V9",
+            "role": "被授权",
+            "vin": "LNNBBDFC8TDF08668"
+          },
+          {
+            "model": "EHY纯电2025改款",
+            "role": "被授权",
+            "vin": "LNNBDDEF5SDF46556"
+          },
+          {
+            "model": "享界 S9 增程版",
+            "role": "被授权",
+            "vin": "LNBSCA2KXSSA00525"
+          }
+        ]
+      },
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "runs/session-qk-k1001 obs-0013/0022（爱车切换列表）、obs-0032/0035/0038/0041/0044/0047（我的车辆完整列表，末屏出现「未找到您的车辆」列表结束）",
+        "run": "session-qk-k1001"
+      },
+      "note": "车型名为页面原文。S01023 车型名在文本树中被「被授权详情」遮挡，按爱车切换列表（F03 S01023）补全。用于 K-QK-USR-001 的完整 VIN 补充，不替代其判据。",
+      "status": "unconfirmed",
+      "created": "2026-10-01T17:44:33.953+08:00",
+      "history": [
+        {
+          "ts": "2026-10-01T17:44:33.953+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-OP-201",
+      "kind": "operation",
+      "subject": "harmony.uitest.input_text_appends",
+      "statement": "真机（OpenHarmony 7.0，Mate 80 Pro Max）上执行器的 input（uitest uiInput inputText）在已有内容的输入框里是追加：预填「1号车位」的编辑框输入「QK改名测试」后变为「1号车位QK改名测试」；中文经剪贴板输入（输入法显示「来自剪贴板」，剪贴板残留测试文字）。执行器没有清空/删除/全选动作，回放设备 input_text 是替换语义，与真机不一致。因此重命名只能写成『原名+后缀』，需要恢复原名的清理无法执行；按名搜索用后缀（原名中不存在的子串）区分新旧名称。",
+      "expected": {
+        "input_semantics": "append",
+        "clear_supported": false,
+        "cjk_via_clipboard": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "device_form": "bar"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "runs/session-g1 A22 obs-0066/obs-0067（追加）、obs-0049 截图（来自剪贴板）；vpdtest/devices/replay.py input_text 为替换",
+        "run": "session-g1"
+      },
+      "note": "操作经验，不是判据。空搜索框输入不受影响（A8/A16/A30）。补齐方式（需人工评审执行器改动）：增加 clear/keyEvent Del/全选能力，或在 input 前清空。2026-09-30 维护者补记：执行器已加 act/步骤的 --clear（点中→MoveEnd→按当前文字长度+2 次 Del），回放设备同步为先清空；真机上是否清干净待下一次会话核对。",
+      "status": "unconfirmed",
+      "created": "2026-09-30T05:46:45.755+08:00",
+      "history": [
+        {
+          "ts": "2026-09-30T05:46:45.755+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-OP-202",
+      "kind": "operation",
+      "subject": "harmony.uitest.input_clear_rename",
+      "statement": "真机（OpenHarmony 7.0，Mate 80 Pro Max，乾崑 1.0.26.100 直板）上 input 加 clear 能清干净「编辑车位信息」TextInput 的预填名称：run-20260930-214910-2087 S7 clear_text deleted=6 后输入 QKT201车位，obs-0029 输入框为 QKT201车位；S8 点 //Dialog//Button[.//Text[@text=\"确认\"]] 后弹窗关闭、车位面板标题为 QKT201车位（obs-0032）。改回原名同样可行（session-qk-g2c，obs-0219 常去地点为 1号车位）。vpdtest act 的 input 必须带 --allow-input，否则输入被拦截、框内文字不变，这时再点「确认」只会保存原来的名称。",
+      "expected": {
+        "clear_supported": true,
+        "rename_and_restore": true,
+        "act_input_needs_allow_input": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100",
+        "device_form": "bar"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "run-20260930-214910-2087 S7/S8 obs-0029 obs-0032；session-qk-g2c 恢复 obs-0219",
+        "run": "run-20260930-214910-2087"
+      },
+      "note": "操作经验，不是判据。补全 K-QK-OP-201 note 里『真机是否清干净待核对』。",
+      "status": "unconfirmed",
+      "created": "2026-09-30T22:43:21.575+08:00",
+      "history": [
+        {
+          "ts": "2026-09-30T22:43:21.575+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-OP-203",
+      "kind": "operation",
+      "subject": "vpdtest.input.clear.textarea",
+      "statement": "真机（OpenHarmony 7.0，Mate 80 Pro Max，乾崑 1.0.26.100）上 act input 加 --clear 对反馈面板的多行 TextArea 清不干净：已有 100 字描述时 clear 报告 deleted=102、ok=true，但输入后框内仍残留原文前段并在其后追加新文本（session-qk-g3 A3，obs-0008→obs-0010）。对单行 TextInput（编辑车位信息）clear 有效（K-QK-OP-202，本次 run-20260930-225630-e456 S7/C8 再次成立）。",
+      "expected": {
+        "textarea_clear_complete": false,
+        "clear_reports_ok": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100",
+        "device_form": "bar"
+      },
+      "source": {
+        "type": "observation",
+        "ref": "session-qk-g3 A3 obs-0008/0010",
+        "run": "session-qk-g3"
+      },
+      "note": "clear 的 ok=true 不代表已清空，input 后要读回框内文本核对。反馈描述写错时用「取消反馈」再重开面板一次性输入。",
+      "status": "unconfirmed",
+      "created": "2026-09-30T23:11:42.328+08:00",
+      "history": [
+        {
+          "ts": "2026-09-30T23:11:42.328+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-TG-201",
+      "kind": "requirement",
+      "subject": "qiankun_hm.favorite.rename_persist_search",
+      "statement": "收藏车位重命名（编辑车位信息→确认）后保存成功；离开并重新进入 VPD 地图（ADS）后，在「搜索车位号设为目的地」里按新名称仍能搜到该收藏车位，且指向同一车位（楼层/车位号不变）。",
+      "expected": {
+        "rename_saved": true,
+        "found_by_new_name_after_reentry": true,
+        "same_spot": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "vehicle_in_vpd_map": "yes"
+      },
+      "source": {
+        "type": "test_goal",
+        "ref": "测试目标原文（2026-09-30，会话 g1）：「测试收藏车位重命名后，重新进入地图是否仍能按新名称找到它。」"
+      },
+      "note": "来自测试目标本身的期望，不是独立需求；负责人 knowledge confirm 前，引用它的断言只能判待确认。『重新进入地图』在 TC-QK-201 中实现为 爱车→ADS 切换 tab；冷启动后重新进入未覆盖。",
+      "status": "confirmed",
+      "created": "2026-09-30T05:46:45.346+08:00",
+      "history": [
+        {
+          "ts": "2026-09-30T05:46:45.346+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        },
+        {
+          "ts": "2026-10-01T17:27:04.365+08:00",
+          "from": "unconfirmed",
+          "to": "confirmed",
+          "by": "co-creator",
+          "basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）；前提：车辆在 VPD 图内（车辆不在 VPD 地图范围内时本条不适用）"
+        }
+      ],
+      "confirmed_by": "co-creator",
+      "confirmed_at": "2026-10-01T17:27:04.365+08:00",
+      "confirm_basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）；前提：车辆在 VPD 图内（车辆不在 VPD 地图范围内时本条不适用）"
     },
     {
       "id": "K-QK-USR-001",
@@ -1561,14 +2002,24 @@
         "type": "reviewer",
         "ref": "用户在本次会话中的描述（2026-09-29，PR #2 对应需求）"
       },
-      "status": "unconfirmed",
+      "status": "confirmed",
       "history": [
         {
           "ts": "2026-09-29T09:30:00+08:00",
           "to": "unconfirmed",
           "why": "为乾崑样例用例整理；待用户/评审确认"
+        },
+        {
+          "ts": "2026-10-01T17:27:03.398+08:00",
+          "from": "unconfirmed",
+          "to": "confirmed",
+          "by": "co-creator",
+          "basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）"
         }
-      ]
+      ],
+      "confirmed_by": "co-creator",
+      "confirmed_at": "2026-10-01T17:27:03.398+08:00",
+      "confirm_basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）"
     },
     {
       "id": "K-QK-USR-002",
@@ -1585,15 +2036,25 @@
         "type": "reviewer",
         "ref": "用户在本次会话中的描述（2026-09-29，PR #2 对应需求）"
       },
-      "status": "unconfirmed",
+      "status": "confirmed",
       "history": [
         {
           "ts": "2026-09-29T09:30:00+08:00",
           "to": "unconfirmed",
           "why": "为乾崑样例用例整理；待用户/评审确认"
+        },
+        {
+          "ts": "2026-10-01T17:27:03.550+08:00",
+          "from": "unconfirmed",
+          "to": "confirmed",
+          "by": "co-creator",
+          "basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）"
         }
       ],
-      "note": "用户原话：预期当前有故障也无法激活。具体提示文案见 K-QK-003（来自原工程），两者一起作为判据。"
+      "note": "用户原话：预期当前有故障也无法激活。具体提示文案见 K-QK-003（来自原工程），两者一起作为判据。",
+      "confirmed_by": "co-creator",
+      "confirmed_at": "2026-10-01T17:27:03.550+08:00",
+      "confirm_basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）"
     },
     {
       "id": "K-QK-USR-003",
@@ -1608,21 +2069,32 @@
         "distance_readable": true
       },
       "applies_to": {
-        "app": "qiankun_hm"
+        "app": "qiankun_hm",
+        "vehicle_in_vpd_map": "yes"
       },
       "source": {
         "type": "reviewer",
         "ref": "用户在本次会话中的描述（2026-09-29，PR #2 对应需求）"
       },
-      "status": "unconfirmed",
+      "status": "confirmed",
       "history": [
         {
           "ts": "2026-09-29T09:30:00+08:00",
           "to": "unconfirmed",
           "why": "为乾崑样例用例整理；待用户/评审确认"
+        },
+        {
+          "ts": "2026-10-01T17:27:04.187+08:00",
+          "from": "unconfirmed",
+          "to": "confirmed",
+          "by": "co-creator",
+          "basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）；前提：车辆在 VPD 图内（车辆不在 VPD 地图范围内时本条不适用）"
         }
       ],
-      "note": "原工程没有这些功能的实现与文案；按钮文字、距离格式都是假设（targets.json 中 status=hypothesis）。"
+      "note": "原工程没有这些功能的实现与文案；按钮文字、距离格式都是假设（targets.json 中 status=hypothesis）。",
+      "confirmed_by": "co-creator",
+      "confirmed_at": "2026-10-01T17:27:04.187+08:00",
+      "confirm_basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）；前提：车辆在 VPD 图内（车辆不在 VPD 地图范围内时本条不适用）"
     },
     {
       "id": "K-QK-USR-004",

@@ -3,7 +3,8 @@
   "flows": {
     "login_password": {
       "desc": "账号密码登录（#08）",
-      "status": "unverified",
+      "status": "falsified_on_device",
+      "status_note": "auto-vpd 真机校准 C8（data/knowledge/auto-vpd/device-knowledge.md:43，内部 debug 版 phone_fc78649）：密码保险箱会劫持手动输入，本流程在该版本真机上会失败；替代路径见 ui-catalog.json 的 vault.* 链路（K-AV-002/003/004），本仓库尚未实现。其他版本是否同样如此未验证。",
       "source": "app/service/vpd/vpd.py:2261-2345 AppLoginCar._login 的 #08 分支",
       "params": {"account": "账号（必须传 ${var:x}，x 为 secret）", "password": "密码（必须传 ${var:x}，x 为 secret）"},
       "precondition": "APP 在前台且未登录（--env account_state=logged_out）",

@@ -7,6 +7,7 @@ bm dump、hidumper）。适配：参数用列表传递（不拼 shell 字符串�
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import time
@@ -16,7 +17,7 @@ from typing import Optional
 
 from . import DeviceResult
 
-KEYS = {"back": "Back", "home": "Home"}
+KEYS = {"back": "Back", "home": "Home", "move_end": "2082", "delete": "2055"}
 _FAIL_MARKERS = ("[fail]", "error:", "error code:")
 _LOCKED_MARKERS = ("10106102", "screen is locked")
 # 2026-09-29 真机运行中出现：hdc 通道重建期间所有命令都返回该错误，几秒后自行恢复
@@ -64,6 +65,52 @@ def parse_version(dump: str) -> Optional[str]:
     return None
 
 
+_WIN_ROW_RE = re.compile(r"^(\S+)\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+(-?\d+)\s+\d+\s+\[\s*-?\d+\s+-?\d+\s+(\d+)\s+(\d+)\s*\]")
+
+
+def parse_windows(dump: str) -> Optional[list]:
+    """解析 `hidumper -s WindowManagerService -a -a` 的窗口表，返回正在显示的窗口名（ZOrd≠-1 且有面积）。
+
+    名称被截断到 20 个字符（如 SCBBannerNotificatio）。认不出表头时返回 None：格式不明不能当成"没有弹层"。
+    """
+    if "WindowName" not in (dump or ""):
+        return None
+    shown = []
+    for line in dump.splitlines():
+        m = _WIN_ROW_RE.match(line.strip())
+        if m and m.group(2) != "-1" and int(m.group(3)) > 0 and int(m.group(4)) > 0:
+            shown.append(m.group(1))
+    return shown
+
+
+def find_pin_pad(tree_raw: dict) -> Optional[dict]:
+    """锁屏数字键盘：0-9 各恰好一个可点击容器，且 1-9 排成 3 列 × 3 行、0 在 8 的正下方。认不准 → None（不猜着点）。
+    数字取 text，text 为空时取 originalText：Pura X Max（OpenHarmony 6.1.1.135）锁屏键盘的 text 全空、数字只在
+    originalText 里（2026-10-01 真机 dumpLayout）；Mate 80 上 text 就是数字。"""
+    from ..tree import UiTree
+    t = UiTree(tree_raw)
+    keys = {}
+    for n in t.nodes:
+        digit = n.text or str(n.attrs.get("originalText", "") or "")
+        if len(digit) == 1 and digit in "0123456789" and t.shown(n):
+            h = t.clickable_container(n)
+            if not h.clickable:
+                continue
+            if digit in keys and keys[digit].bounds != h.bounds:
+                return None  # 同一数字出现两个可点击位置（比如通知里的数字按钮）：不认
+            keys[digit] = h
+    if sorted(keys) != list("0123456789"):
+        return None
+    cx = {d: (keys[d].bounds[0] + keys[d].bounds[2]) // 2 for d in keys}
+    cy = {d: (keys[d].bounds[1] + keys[d].bounds[3]) // 2 for d in keys}
+    tol = max(8, (keys["1"].bounds[2] - keys["1"].bounds[0]) // 4)
+    rows, cols = ("123", "456", "789"), ("147", "258", "369")
+    grid_ok = all(abs(cy[r[0]] - cy[d]) <= tol for r in rows for d in r) \
+        and all(abs(cx[c[0]] - cx[d]) <= tol for c in cols for d in c) \
+        and abs(cx["0"] - cx["8"]) <= tol and cy["0"] > cy["8"] and cy["4"] > cy["1"] and cx["2"] > cx["1"]
+    return {d: (cx[d], cy[d]) for d in keys} if grid_ok else None
+
+
 _SECTION_RE = re.compile(r"^-+\s*(Screen|Display) ID:\s*(\d+)\s*-+$")
 _KV_RE = re.compile(r"^([A-Za-z][\w<>, ]*?):?\s{2,}(.+?)\s*,?\s*$")
 _FOLD_MAP = {"EXPAND": "expanded", "FOLDED": "folded", "HALF_FOLD": "half_folded", "UNKNOWN": "unknown"}
@@ -108,6 +155,15 @@ def parse_display(dump: str) -> dict:
             "fold_status_raw": fold_raw, "screens": len(screens)}
 
 
+def unlock_swipe_points(disp: dict) -> Optional[tuple]:
+    """锁屏上滑起止点按当前显示尺寸比例算（直板/折叠展开/横屏都适用）：水平居中，从 84% 高滑到 32% 高。
+    比例取自 Mate 80（1320×2848）上验证过的 660,2400→660,900。尺寸拿不到 → None，由调用方停下。"""
+    w, h = (disp or {}).get("width_px"), (disp or {}).get("height_px")
+    if not w or not h:
+        return None
+    return int(w * 0.5), int(h * 0.843), int(w * 0.5), int(h * 0.316)
+
+
 def infer_device_form(fold_param: Optional[str], fold_status: Optional[str]) -> tuple:
     """直板/折叠是设备属性，只用于记录与分组；布局判断看窗口 vp 宽度。"""
     if fold_param or fold_status in ("expanded", "folded", "half_folded"):
@@ -132,7 +188,8 @@ class HdcDevice:
         cmd = [self.hdc] + (["-t", self.serial] if with_target and self.serial else []) + args
         t0 = time.monotonic()
         try:
-            r = subprocess.run(cmd, capture_output=True, timeout=timeout or self.timeout_s)
+            r = subprocess.run(cmd, capture_output=True, timeout=timeout or self.timeout_s,
+                               creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
         except FileNotFoundError:
             return DeviceResult(op, False, False, "tool_missing", f"找不到 {self.hdc}，请确认已加入 PATH")
         except subprocess.TimeoutExpired as e:
@@ -237,7 +294,27 @@ class HdcDevice:
     def screenshot(self, local_path) -> DeviceResult:
         remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.png"
         r = self._shell("uitest", "screenCap", "-p", remote, op="screenshot", timeout=30)
-        return self._pull(remote, Path(local_path), "screenshot_pull") if r.ok else r
+        if r.ok and "saved" not in r.raw.lower():
+            # 2026-09-29 真机：投屏帧流（uitest Captures）运行期间 screenCap 输出
+            # "ScreenCap failed: Failed to get display pixelMap"，不含上面的成功标记
+            r.ok, r.error_class, r.error = False, "command_failed", r.raw.strip()[:300]
+        if r.ok:
+            return self._pull(remote, Path(local_path), "screenshot_pull")
+        if r.error_class in ("screen_locked", "device_offline", "transport_unavailable", "tool_missing"):
+            return r  # 设备侧前提不满足，换一种截图方式也一样失败，保留原始错误类别
+        # 回退 snapshot_display（同为整屏截图，帧流运行期间真机实测可用），并记下回退原因
+        s = self.snapshot(local_path, fmt="png")
+        s.data["fallback_from"] = {"op": "uitest screenCap", "error": r.error}
+        return s
+
+    def snapshot(self, local_path, fmt: str = "jpeg") -> DeviceResult:
+        """snapshot_display 整屏截图（jpeg 约 70KB，png 约 1.7MB，1320×2848 真机实测）。
+        控制台投屏的 snapshot_display 回退帧源用；执行器判定仍走 screenshot（uitest screenCap）。"""
+        remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.{fmt}"
+        r = self._shell("snapshot_display", "-f", remote, "-t", fmt, op="snapshot", timeout=30)
+        if r.ok and "success" not in r.raw.lower():
+            r.ok, r.error_class, r.error = False, "command_failed", r.raw.strip()[:300]
+        return self._pull(remote, Path(local_path), "snapshot_pull") if r.ok else r
 
     # ---- 动作 ----
     def tap(self, x: int, y: int) -> DeviceResult:
@@ -255,10 +332,85 @@ class HdcDevice:
             text = "'" + text.replace("'", "'\\''") + "'"
         return self._shell("uitest", "uiInput", "inputText", int(x), int(y), text, op="input_text")
 
+    def long_press(self, x: int, y: int) -> DeviceResult:
+        """控制台人工长按（uiInput longClick）；Agent 的动作不走这里。"""
+        return self._shell("uitest", "uiInput", "longClick", int(x), int(y), op="long_press")
+
+    def type_focused(self, text: str) -> DeviceResult:
+        """向当前已聚焦的输入框输入（uiInput text），不先点击坐标。控制台人工输入用。
+        转义规则与 input_text 一致：含空白不支持；含 shell 元字符时单引号包裹。"""
+        if re.search(r"\s", text):
+            return DeviceResult("type_focused", False, False, "unsupported", "v0.1 的 uiInput 文本输入不支持含空白的文本")
+        if not re.fullmatch(r"[A-Za-z0-9_.@+\-一-鿿]*", text):
+            text = "'" + text.replace("'", "'\\''") + "'"
+        return self._shell("uitest", "uiInput", "text", text, op="type_focused")
+
     def key(self, name: str) -> DeviceResult:
         if name not in KEYS:
             return DeviceResult("key", False, False, "unsupported", f"不支持的按键 {name}")
         return self._shell("uitest", "uiInput", "keyEvent", KEYS[name], op=f"key_{name}")
+
+    def screen_locked(self, tries: int = 3) -> Optional[bool]:
+        """三态：锁屏/熄屏 → True；亮屏且已解锁 → False；查询失败或输出认不出 → None。
+        锁屏时 aa dump 里没有 FOREGROUND mission，不能据此当成桌面。
+        查询是只读的：hidumper 偶发空输出（2026-10-01 真机运行中出现，单独连查 20 次复现不了），
+        间隔 0.5s 重查，连续 tries 次都认不出才返回 None。"""
+        for i in range(max(1, tries)):
+            v = self._screen_locked_once()
+            if v is not None:
+                return v
+            if i + 1 < tries:
+                time.sleep(0.5)
+        return None
+
+    def _screen_locked_once(self) -> Optional[bool]:
+        power = self._shell("hidumper", "-s", "3301", "-a", "-a", op="power_state")
+        state = parse_kv(power.raw, "Current State") if power.ok else None
+        if state is None:
+            return None
+        if state != "AWAKE":
+            return True
+        lock = self._shell("hidumper", "-s", "ScreenlockService", "-a", "-all", op="lock_state")
+        return {"true": True, "false": False}.get(parse_kv(lock.raw, "screenLocked") if lock.ok else None)
+
+    def wake(self) -> DeviceResult:
+        return self._shell("power-shell", "wakeup", op="wakeup")
+
+    def screen_off_override(self) -> Optional[int]:
+        """当前的熄屏时间覆盖值（ms）。锁屏状态下系统自己会设 10000ms（2026-09-29 真机观测），没有覆盖时为 None。
+        控制台 --keep-awake 用：进入时记录原值，退出时恢复。"""
+        r = self._shell("hidumper", "-s", "3301", "-a", "-a", op="power_state")
+        m = re.search(r"OverrideTimeout=(\d+)ms", r.raw) if r.ok else None
+        return int(m.group(1)) if m else None
+
+    def set_screen_off(self, ms: Optional[int]) -> DeviceResult:
+        """覆盖熄屏时间；ms 为 None 时撤销覆盖（power-shell timeout -o / -r）。不解锁。"""
+        if ms is None:
+            return self._shell("power-shell", "timeout", "-r", op="screen_off_restore")
+        return self._shell("power-shell", "timeout", "-o", int(ms), op="screen_off_override")
+
+    def lock_pin_pad(self):
+        remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.json"
+        r = self._shell("uitest", "dumpLayout", "-p", remote, op="lock_dump", timeout=30)
+        raw = self._shell("cat", remote, op="lock_dump_read").raw if r.ok else ""
+        self._shell("rm", "-f", remote, op="cleanup")
+        try:
+            return find_pin_pad(json.loads(raw)) if raw else None
+        except ValueError:
+            return None
+
+    def wake_unlock(self, pin, dispatcher=None):
+        from ..unlock import wake_unlock
+        return wake_unlock(self, pin, dispatcher, sleep=time.sleep)
+
+    def shown_windows(self) -> Optional[list]:
+        """当前显示的窗口名；查询失败或格式认不出 → None。只取窗口名与层级，不取窗口内容。"""
+        r = self._shell("hidumper", "-s", "WindowManagerService", "-a", "-a", op="window_list")
+        return parse_windows(r.raw) if r.ok else None
+
+    def clear_text(self, x, y, count, dispatcher, preconditions, att=None):
+        from ..dispatch import clear_text
+        return clear_text(self, x, y, count, dispatcher, preconditions, att)
 
     def launch(self, bundle: str, ability: str) -> DeviceResult:
         r = self._shell("aa", "start", "-a", ability, "-b", bundle, op="launch")
