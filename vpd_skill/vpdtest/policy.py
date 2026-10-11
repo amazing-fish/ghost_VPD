@@ -73,6 +73,19 @@ class Policy:
     def is_safe_stop_text(self, text: str) -> bool:
         return bool(self.safe_stop_rx and text and self.safe_stop_rx.search(text))
 
+    def check_effect(self, target: Optional[dict], authorized: Optional[set] = None) -> Optional[dict]:
+        """目标声明的副作用门槛：硬禁止类任何授权下都拒绝；gated/supervised 类需本次运行显式授权。
+        点击和输入共用这一处：通过返回 None，不通过返回拒绝结果。"""
+        effect = (target or {}).get("side_effect", "navigation")
+        if effect in self.denied_side_effects:
+            return {"allowed": False, "reason": f"目标副作用 {effect} 在 policy 中被禁止", "label": None, "deny": None}
+        if effect in self.authorizable and effect not in set(authorized or ()):
+            sup = effect in self.supervised_side_effects
+            how = f"--authorize {effect}" + (" --supervisor <在场监护人>" if sup else "")
+            return {"allowed": False, "reason": f"目标副作用 {effect} 需要本次运行显式授权（{how}）",
+                    "label": None, "deny": {"class": effect, "gated": True, "supervised": sup}}
+        return None
+
     def check_tap(self, tree: Optional[UiTree], point: tuple, basis: str, target: Optional[dict] = None,
                   state_deny: Optional[list] = None, authorized: Optional[set] = None, node=None) -> dict:
         """判定一次点击。返回 {allowed, reason, label, deny}；不会抛异常。
@@ -81,18 +94,19 @@ class Policy:
         if basis not in VALID_BASIS:
             return {"allowed": False, "reason": f"未知定位依据 {basis}", "label": None, "deny": None}
         effect = target.get("side_effect", "navigation")
-        if effect in self.denied_side_effects:
-            return {"allowed": False, "reason": f"目标副作用 {effect} 在 policy 中被禁止", "label": None, "deny": None}
-        if effect in self.authorizable and effect not in authorized:
-            sup = effect in self.supervised_side_effects
-            how = f"--authorize {effect}" + (" --supervisor <在场监护人>" if sup else "")
-            return {"allowed": False, "reason": f"目标副作用 {effect} 需要本次运行显式授权（{how}）",
-                    "label": None, "deny": {"class": effect, "gated": True, "supervised": sup}}
+        denied = self.check_effect(target, authorized)
+        if denied:
+            return denied
         if target.get("forbid_tap"):
             return {"allowed": False, "reason": target.get("forbid_reason", "目标声明禁止点击"), "label": None, "deny": None}
 
         tree_ok = tree is not None and tree.status == "ok"
         if not tree_ok:
+            if effect == "safe_stop":
+                # 安全停止豁免预算与运动锁，所以只在能按停止类文字确认控件身份时才点；
+                # 没有 UI 树时模板/坐标都无法确认，宁可交人工接管也不盲点
+                return {"allowed": False, "reason": "无可用 UI 树，无法确认 safe_stop 目标是停止控件；不盲点，需人工接管",
+                        "label": None, "deny": {"class": "safe_stop_unconfirmed"}}
             if basis == "template":
                 return {"allowed": True, "reason": "无可用 UI 树，按确定性模板匹配结果执行", "label": None, "deny": None}
             if basis == "point" and self.allow_point_without_tree:

@@ -6,7 +6,7 @@ from typing import Optional
 from . import __version__
 from . import layout as layout_mod
 from . import safety as safety_mod
-from .cases import content_hash
+from .cases import content_hash, dependency_hash
 from .execute import Executor
 from .experience import ExperienceStore
 from .knowledge import KnowledgeStore
@@ -165,7 +165,8 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     run = {"run_id": store.run_id, "skill_version": __version__, "started": started, "finished": now_iso(),
            "validation_level": "offline_replay" if device.kind == "replay" else "real_device",
            "case": {"id": case["id"], "title": case.get("title"), "version": case.get("version"),
-                    "status": case.get("status"), "hash": content_hash(case), "sources": case.get("sources", [])},
+                    "status": case.get("status"), "hash": content_hash(case),
+                    "deps": dependency_hash(case, app, knowledge), "sources": case.get("sources", [])},
            "informal": case.get("status") != "regression",
            "app": {"id": app.id, "bundle": app.bundle, "version": pre.get("app_version")},
            "device": pre.get("device") or device.info(), "device_spec": device.spec,

@@ -16,6 +16,14 @@ from typing import Optional
 from .util import now_iso
 
 
+TREE_KINDS = ("text", "id", "xpath")
+
+
+def untreed_strategies(target: Optional[dict]) -> list:
+    """safe_stop 目标只能靠 UI 树节点（按停止类文字确认身份）定位；返回不满足的策略类型（模板、坐标等）。"""
+    return sorted({s.get("kind") for s in (target or {}).get("strategies", []) if s.get("kind") not in TREE_KINDS})
+
+
 def problems(safety: Optional[dict], app, policy) -> list:
     """用例 safety 声明的静态检查（lint 与运行前都用）。"""
     out = []
@@ -33,6 +41,9 @@ def problems(safety: Optional[dict], app, policy) -> list:
                 out.append({"field": f"safety.safe_stop[{i}]", "problem": f"目标 {s.get('target')} 未登记（安全停止不能用临时目标）"})
             elif t.get("side_effect") != "safe_stop":
                 out.append({"field": f"safety.safe_stop[{i}]", "problem": f"目标 {s.get('target')} 的 side_effect 不是 safe_stop"})
+            elif untreed_strategies(t):
+                out.append({"field": f"safety.safe_stop[{i}]", "problem": f"safe_stop 目标 {s.get('target')} 含非 UI 树策略 "
+                            f"{untreed_strategies(t)}：无树时无法确认是停止控件，运行时会拒绝点击"})
     cap = float(policy.supervision.get("max_motion_s", 600))
     m = safety.get("max_motion_s")
     if not isinstance(m, (int, float)) or m <= 0 or m > cap:

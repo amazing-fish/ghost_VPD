@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from .safety import untreed_strategies
 from .util import now_iso, read_json, sha256_obj, write_json
 
 REQUIRED = ("purpose", "preconditions", "test_data", "steps", "assertions", "cleanup", "sources")
@@ -24,6 +25,31 @@ def content_hash(case: dict) -> str:
     body = {k: case.get(k) for k in CONTENT_KEYS}
     body.update({k: case[k] for k in OPTIONAL_CONTENT_KEYS if case.get(k)})
     return sha256_obj(body)[:12]
+
+
+def dependency_hash(case: dict, app, knowledge) -> str:
+    """用例引用的外部定义的指纹：content_hash 只覆盖用例文件本身，但目标选择器、展开后的 flow/recipe 步骤、
+    页面状态/打断定义、判据条目的陈述和预期改了，同一份用例就测了另一件事，旧重放不再作数。
+    判据的确认状态、历史不计入（确认之后不必重新重放）。"""
+    steps, targets, oracles = [], {}, set()
+
+    def want(t):
+        if isinstance(t, str) and t in app.targets:
+            targets[t] = app.targets[t]
+
+    for s, _, where in iter_case_steps(case, app):
+        steps.append([where, {k: v for k, v in s.items() if k != "_lint_cycle"}])
+        want(s.get("target"))
+        oracles.update(s.get("oracle_refs") or [])
+    for a in case.get("assertions", []):
+        want(a.get("target"))
+        oracles.update(a.get("oracle_refs") or [])
+    facts = {}
+    for kid in sorted(oracles):
+        item = knowledge.get(kid) or {}
+        facts[kid] = {k: item.get(k) for k in ("statement", "expected", "applies_to")}
+    return sha256_obj({"steps": steps, "targets": targets, "states": app.states.states,
+                       "interrupts": app.states.interrupts, "oracles": facts})[:12]
 
 
 def iter_case_steps(case: dict, app):
@@ -88,8 +114,11 @@ def _lint_effects(case: dict, app, policy) -> list:
         t = s.get("target")
         target = app.targets.get(t) if isinstance(t, str) else (t if isinstance(t, dict) else None)
         eff = (target or {}).get("side_effect")
-        if s.get("action") == "tap" and eff in authorizable and eff not in requested:
-            issues.append({"field": where, "problem": f"会点击 side_effect={eff} 的目标 {t}，但用例 authorizations 未申请 {eff}"})
+        if s.get("action") in ("tap", "input") and eff in authorizable and eff not in requested:
+            verb = "点击" if s.get("action") == "tap" else "输入到"
+            issues.append({"field": where, "problem": f"会{verb} side_effect={eff} 的目标 {t}，但用例 authorizations 未申请 {eff}"})
+        if s.get("action") == "tap" and eff == "safe_stop" and untreed_strategies(target):
+            issues.append({"field": where, "problem": f"safe_stop 目标 {t} 含非 UI 树策略 {untreed_strategies(target)}，运行时无树会拒绝点击"})
         if s.get("action") == "input" and target is not None:
             text = str(s.get("text", ""))
             pm = re.fullmatch(r"\$\{param:([A-Za-z0-9_]+)\}", text)
@@ -236,7 +265,7 @@ def record_replay(ws, case_id: str, run: dict) -> dict:
     case = ws.load_case(case_id)
     v = run["verdict"]
     case.setdefault("replays", []).append({
-        "run_id": run["run_id"], "verdict": v["verdict"], "hash": run["case"]["hash"],
+        "run_id": run["run_id"], "verdict": v["verdict"], "hash": run["case"]["hash"], "deps": run["case"].get("deps"),
         "validation_level": run["validation_level"], "device": run["device_spec"], "ts": now_iso(),
         "failure_signature": v.get("failure_signature", []), "alerts": len(v.get("alerts") or []),
         "not_verified": len(v.get("not_verified") or []), "facts": run.get("facts")})
@@ -244,17 +273,23 @@ def record_replay(ws, case_id: str, run: dict) -> dict:
     return case
 
 
-def replay_basis(case: dict) -> dict:
+def replay_basis(case: dict, deps: Optional[str] = None) -> dict:
     """用例成熟度（能否稳定复测）与产品状态（是否符合要求）分开判断。
     当前内容版本下，最近一次待确认/阻塞的重放之后至少 2 次来自不同运行、结论确定的重放，
     且该版本下所有确定结论一致：全部通过 → conforming；全部失败且失败特征相同 → known_failure（需登记缺陷单）。
     混合说明不稳定；最近的重放是待确认/阻塞，说明现在还不能稳定复测，要在它之后重新攒够 2 次。"""
     h = content_hash(case)
     cur = [r for r in case.get("replays", []) if r["hash"] == h]
+    # deps 给定时，重放也要在同一份依赖定义（目标/状态/判据）下跑的；没记依赖指纹的旧重放无法证明，不计入
+    stale = [r for r in cur if deps is not None and r.get("deps") != deps]
+    cur = [r for r in cur if r not in stale]
     runs = {r["run_id"]: r for r in cur}
     out = {"hash": h, "replays": list(runs), "count": len(runs)}
     if len(runs) < 2:
-        return {**out, "ok": False, "why": f"当前内容版本 {h} 下的重放不足 2 次（现有 {len(runs)}）"}
+        why = f"当前内容版本 {h} 下的重放不足 2 次（现有 {len(runs)}）"
+        if stale:
+            why += f"；另有 {len(stale)} 次重放后目标/状态/判据定义已变（或旧记录没有依赖指纹），不计入，需重新重放"
+        return {**out, "ok": False, "why": why}
     if any(r.get("alerts") for r in runs.values()):
         return {**out, "ok": False, "why": "有重放出现人工接管信号（安全停止未确认），不能作为晋级依据"}
     # 待确认/阻塞的重放不给出产品结论。它之前的确定结论不再作数：之后又出现了不能复测的运行。
@@ -293,7 +328,7 @@ def promote(ws, case_id: str, to: str, knowledge, reviewer: Optional[str] = None
     if issues:
         raise PermissionError(f"用例不完整，不能晋级：{issues}")
     h = content_hash(case)
-    basis = replay_basis(case) if to in ("replay_verified", "regression") else {"replays": []}
+    basis = replay_basis(case, dependency_hash(case, app, knowledge)) if to in ("replay_verified", "regression") else {"replays": []}
     if to in ("replay_verified", "regression"):
         # regression 也按当前内容版本重新核对：replay_verified 之后改过步骤/断言/授权，旧重放不再作数
         if not basis["ok"]:

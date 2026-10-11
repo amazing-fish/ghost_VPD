@@ -517,10 +517,15 @@ class Executor:
         return None
 
     def _inline_input_ok(self, tid, target, loc, obs, tree, att) -> bool:
-        """现场选择器定位的输入框：按所在控件的文字做副作用检查（例如重命名框里有「收藏」→ user_data 需授权）。"""
-        if not tid.startswith("inline:"):
-            return True
+        """输入框的副作用检查。登记目标按声明的 side_effect 过授权门槛（重命名框是 user_data、账号框是 account_state，
+        与点击同一规则）；现场选择器定位的输入框还要按所在控件的文字检查（重命名框里有「收藏」→ user_data 需授权）。"""
         ctx = self.ctx
+        if not tid.startswith("inline:"):
+            denied = ctx.policy.check_effect(target, ctx.authorized)
+            if denied:
+                att["policy_context"] = denied
+                att["status"] = "policy_denied"
+            return denied is None
         pol = ctx.policy.check_tap(tree, loc["point"], loc["basis"], target,
                                    ctx.app.states.deny_for_page(obs["page"]), ctx.authorized,
                                    node=_tree_node(tree, loc))
