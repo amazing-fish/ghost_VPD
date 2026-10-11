@@ -1,0 +1,14 @@
+{
+  "note": "窗口形态分档。按窗口宽度 vp = px / 像素密度 分档，不按设备型号、分辨率或屏幕比例。分档只是标签；是否分栏以 UI 树里实际出现的并排大容器为准（pane 参数）。",
+  "breakpoints_vp": [["xs", 0], ["sm", 320], ["md", 600], ["lg", 840], ["xl", 1440]],
+  "breakpoints_source": "ArkUI 栅格/WidthBreakpoint 默认断点（320/600/840/1440 vp）。社区文章另有 520 vp 的说法，用户估计约 640；被测 APP 实际在哪个宽度切换成宽屏布局未经真机确认，确认后改这里即可，不需要改代码或用例。",
+  "wide_classes": ["md", "lg", "xl"],
+  "calibration": [
+    {"device": "HUAWEI Mate 80 Pro Max (SGT-AL10)", "form": "bar", "window_px": [1320, 2848], "density": 3.375,
+     "width_vp": 391.1, "width_class": "sm", "source": "2026-09-29 hidumper -s DisplayManagerService（竖屏）"}
+  ],
+  "pane": {"min_width_vp": 200, "min_width_fraction": 0.25, "min_height_fraction": 0.5, "coverage": 0.8,
+           "max_overlap_px": 4},
+  "min_visible_fraction": 0.5,
+  "min_visible_fraction_note": "目标可见部分低于该比例（被列表裁剪、被底部导航挡住、滑到边缘）时不点击，先滑动或重新观察"
+}

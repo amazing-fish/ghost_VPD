@@ -1,0 +1,5 @@
+{
+  "extends": "motor_hm_base.json",
+  "note": "变体：启动后出现版本更新弹窗（用于验证恢复不擦除首次异常、不点击「更新」）。",
+  "launch_popup": "update_dialog"
+}

@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>VPD 控制台</title>
+<style nonce="{{NONCE}}">
+:root {
+  --bg: #f4f5f7; --panel: #ffffff; --line: #dfe2e7; --text: #1d2330; --muted: #5d6675;
+  --accent: #2f6fde; --ok: #1f8a4c; --bad: #c2362b; --warn: #a86400; --info: #5a4fcf;
+  --screen: #0d0f12; --focus: #2f6fde;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14171c; --panel: #1c2027; --line: #2d333d; --text: #e6e9ee; --muted: #9aa3b1;
+    --accent: #6b9cff; --ok: #4cc27f; --bad: #ff7a6e; --warn: #f0b04a; --info: #a79dff;
+    --screen: #000; --focus: #8fb4ff; color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; }
+header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 10px 16px;
+  border-bottom: 1px solid var(--line); background: var(--panel); }
+header h1 { font-size: 16px; margin: 0 8px 0 0; }
+.pill { font-size: 12px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); }
+.pill b { color: var(--text); font-weight: 600; }
+main { display: grid; grid-template-columns: minmax(260px, 420px) 1fr; gap: 16px; padding: 16px; }
+@media (max-width: 760px) { main { grid-template-columns: 1fr; } }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; min-width: 0; }
+h2 { font-size: 14px; margin: 0 0 8px; }
+#screen { position: relative; display: flex; justify-content: center; background: var(--screen); border-radius: 8px;
+  overflow: hidden; touch-action: none; user-select: none; outline: none; cursor: crosshair; }
+#screen:focus-visible { box-shadow: 0 0 0 3px var(--focus); }
+/* 高度限制在视口内，宽度按比例；不用 object-fit，保证 img 的盒子就是画面本身（坐标换算依赖它） */
+#screen img { display: block; max-width: 100%; max-height: calc(100vh - 230px); min-height: 240px; width: auto; height: auto;
+  pointer-events: none; -webkit-user-drag: none; }
+#screen .empty { color: #9aa3b1; padding: 48px 16px; text-align: center; }
+.ripple { position: absolute; width: 28px; height: 28px; margin: -14px 0 0 -14px; border-radius: 50%;
+  border: 2px solid #fff; opacity: .9; pointer-events: none; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+button, input[type=text] { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 12px; min-height: 32px; }
+button { cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible, .run:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+input[type=text] { flex: 1; min-width: 120px; }
+.hint { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+#log { font: 12px/1.4 ui-monospace, Consolas, monospace; color: var(--muted); margin-top: 8px; min-height: 1.4em;
+  overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<style nonce="{{NONCE}}">
+.runs { display: flex; flex-direction: column; gap: 6px; max-height: 44vh; overflow: auto; }
+.run { display: flex; flex-direction: column; gap: 4px; text-align: left;
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); width: 100%; }
+.run[aria-pressed="true"] { border-color: var(--accent); }
+.run .top { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.run .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.run .m { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.run progress { width: 100%; height: 6px; }
+.chip { font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.s-running, .s-active { color: var(--accent); } .s-stale { color: var(--warn); } .s-idle, .s-finished { color: var(--muted); }
+.v-passed { color: var(--ok); } .v-failed { color: var(--bad); } .v-blocked { color: var(--warn); } .v-pending { color: var(--info); }
+#detail { margin-top: 12px; }
+#detail table { width: 100%; border-collapse: collapse; font-size: 12px; }
+#detail th, #detail td { text-align: left; border-bottom: 1px solid var(--line); padding: 4px 6px; vertical-align: top; }
+#detail pre { font: 12px/1.4 ui-monospace, Consolas, monospace; background: var(--bg); border: 1px solid var(--line);
+  border-radius: 6px; padding: 8px; max-height: 32vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.muted { color: var(--muted); }
+</style>
+<header>
+  <h1>VPD 控制台</h1>
+  <span class="pill">设备 <b id="p-dev">—</b></span>
+  <span class="pill">画面 <b id="p-src">—</b></span>
+  <span class="pill">帧率 <b id="p-fps">—</b></span>
+  <span class="pill">操作 <b id="p-input">—</b></span>
+</header>
+<main>
+  <section aria-labelledby="h-screen">
+    <h2 id="h-screen">投屏</h2>
+    <div id="screen" tabindex="0" role="application"
+         aria-label="手机画面。点击=轻点，拖动=滑动，按住 0.6 秒=长按；聚焦后 Esc=返回，H=主页">
+      <img id="img" alt="手机实时画面">
+    </div>
+    <div class="bar" role="group" aria-label="系统按键">
+      <button id="b-back" type="button">返回</button>
+      <button id="b-home" type="button">主页</button>
+      <button id="b-wake" type="button">点亮屏幕</button>
+    </div>
+    <form class="bar" id="f-text" autocomplete="off">
+      <label class="muted" for="t-text">输入到已聚焦的输入框</label>
+      <input id="t-text" type="text" maxlength="200" spellcheck="false">
+      <button type="submit">发送</button>
+    </form>
+    <p class="hint">手动操作等同于人直接触碰手机，不经过 policy 与授权检查，但会记入控制台会话日志（只记坐标与文字长度）。
+      激活泊车代驾等会动车的操作须有人在车旁监护。</p>
+    <div id="log" role="status" aria-live="polite"></div>
+  </section>
+  <section aria-labelledby="h-runs">
+    <h2 id="h-runs">运行进度 <span class="muted" id="runs-at"></span></h2>
+    <div class="runs" id="runs" role="list"></div>
+    <div id="detail" aria-live="polite"></div>
+  </section>
+</main>
+<script nonce="{{NONCE}}">
+(() => {
+  "use strict";
+  const TOKEN = new URLSearchParams(location.search).get("token") || "";
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v) => Math.min(1, Math.max(0, v));
+  const STATE = { running: "进行中", stale: "疑似中断", finished: "已结束", idle: "空闲", active: "活动中" };
+  const VERDICT = { passed: "通过", failed: "失败", blocked: "阻塞", pending: "待确认" };
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let inputOn = false, streaming = false, selected = null, lastRuns = "";
+
+  function el(tag, attrs, ...kids) {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v == null) continue;
+      if (k === "class") e.className = v; else e.setAttribute(k, v);
+    }
+    for (const k of kids) if (k != null) e.append(k instanceof Node ? k : String(k));
+    return e;
+  }
+  const log = (s) => { $("log").textContent = s; };
+  async function api(path) {
+    const r = await fetch(path, { cache: "no-store", headers: { "X-VPD-Token": TOKEN } });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  }
+  async function send(cmd) {
+    if (!inputOn) return;
+    try {
+      const r = await fetch("/api/input", { method: "POST", cache: "no-store",
+        headers: { "Content-Type": "application/json", "X-VPD-Token": TOKEN }, body: JSON.stringify(cmd) });
+      let b = {};
+      try { b = await r.json(); } catch (e) { /* 非 JSON 应答 */ }
+      log(`${cmd.op} → ${b.ok ? "完成" : "失败"}${b.via ? " · " + b.via : ""}${b.ms != null ? " · " + b.ms + "ms" : ""}` +
+          `${b.error ? " · " + b.error : ""}`);
+      return b;
+    } catch (e) { log(`${cmd.op} → 请求失败：${e.message}`); }
+  }
+  // ---- 投屏 ----
+  const img = $("img"), screen = $("screen");
+  function startStream() {
+    streaming = true;
+    img.src = "/stream?token=" + encodeURIComponent(TOKEN) + "&t=" + Date.now();
+  }
+  img.addEventListener("error", () => { streaming = false; setTimeout(startStream, 2000); });
+  function norm(ev) {
+    const r = img.getBoundingClientRect();
+    return { x: clamp((ev.clientX - r.left) / r.width), y: clamp((ev.clientY - r.top) / r.height),
+             cx: ev.clientX - screen.getBoundingClientRect().left, cy: ev.clientY - screen.getBoundingClientRect().top };
+  }
+  function ripple(p) {
+    if (reduceMotion) return;
+    const d = el("div", { class: "ripple" });
+    d.style.left = p.cx + "px"; d.style.top = p.cy + "px";
+    screen.append(d);
+    d.animate([{ transform: "scale(.6)", opacity: .9 }, { transform: "scale(1.6)", opacity: 0 }], { duration: 350 })
+      .onfinish = () => d.remove();
+  }
+  let down = null;
+  screen.addEventListener("pointerdown", (ev) => {
+    if (!inputOn || ev.button !== 0) return;
+    const r = img.getBoundingClientRect();  // 只接受落在画面上的按下（画面两侧的留白不算）
+    if (ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom) return;
+    screen.focus();
+    screen.setPointerCapture(ev.pointerId);
+    down = { p: norm(ev), t: performance.now(), id: ev.pointerId };
+    ev.preventDefault();
+  });
+  screen.addEventListener("pointerup", (ev) => {
+    if (!down || ev.pointerId !== down.id) return;
+    const p = norm(ev), dt = (performance.now() - down.t) / 1000;
+    const r = img.getBoundingClientRect();
+    const dist = Math.hypot((p.x - down.p.x) * r.width, (p.y - down.p.y) * r.height);
+    if (dist < 8) {
+      ripple(down.p);
+      send({ op: dt >= 0.6 ? "long_press" : "tap", x: down.p.x, y: down.p.y });
+    } else {
+      send({ op: "swipe", x1: down.p.x, y1: down.p.y, x2: p.x, y2: p.y, duration_s: Math.max(0.1, dt) });
+    }
+    down = null;
+  });
+  screen.addEventListener("pointercancel", () => { down = null; });
+  screen.addEventListener("contextmenu", (ev) => ev.preventDefault());
+  screen.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") { send({ op: "key", key: "back" }); ev.preventDefault(); }
+    else if (ev.key === "h" || ev.key === "H") { send({ op: "key", key: "home" }); ev.preventDefault(); }
+  });
+  $("b-back").addEventListener("click", () => send({ op: "key", key: "back" }));
+  $("b-home").addEventListener("click", () => send({ op: "key", key: "home" }));
+  $("b-wake").addEventListener("click", () => send({ op: "wake" }));
+  $("f-text").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const t = $("t-text").value;
+    if (!t) return;
+    const b = await send({ op: "text", text: t });
+    if (b && b.ok) $("t-text").value = "";
+  });
+
+  async function pollStatus() {
+    try {
+      const s = await api("/api/status");
+      const f = s.frames || {};
+      inputOn = !!s.input;
+      $("p-dev").textContent = s.device || "未连接";
+      $("p-src").textContent = (f.source || "—") + " · " + (f.status || "—");
+      $("p-src").parentElement.title = [f.error, s.fallback_reason].filter(Boolean).join("；");
+      $("p-fps").textContent = f.fps != null ? f.fps + " fps" : "—";
+      $("p-input").textContent = inputOn ? "可操作" : "只看";
+      for (const id of ["b-back", "b-home", "b-wake"]) $(id).disabled = !inputOn;
+      $("f-text").querySelector("button").disabled = !inputOn;
+      screen.style.cursor = inputOn ? "crosshair" : "default";
+      if (s.device && !streaming) startStream();
+      if (!s.device && !screen.querySelector(".empty")) {
+        img.hidden = true;
+        screen.append(el("div", { class: "empty" }, "未连接设备：只显示运行进度"));
+      }
+    } catch (e) { $("p-src").textContent = "控制台不可达"; }
+  }
+  // ---- 运行进度 ----
+  const hhmmss = (sec) => new Date(sec * 1000).toLocaleTimeString("zh-CN", { hour12: false });
+  function runItem(r) {
+    const title = r.title || r.run_id;
+    const chips = [el("span", { class: "chip s-" + r.state }, STATE[r.state] || r.state)];
+    if (r.verdict) chips.push(el("span", { class: "chip v-" + r.verdict }, VERDICT[r.verdict] || r.verdict));
+    let meta = `${r.kind_label} · ${r.run_id} · 更新于 ${hhmmss(r.updated)}`;
+    if (r.kind === "run" && r.current) meta += ` · 当前 ${r.current}`;
+    if (r.kind === "suite" && r.current && !r.finished) meta += ` · 当前 ${r.current.case}`;
+    if (r.last_state) meta += ` · 页面 ${r.last_state}`;
+    if (r.motion) meta += ` · ${r.motion}`;
+    const b = el("button", { class: "run", type: "button", "aria-pressed": String(selected === r.run_id),
+                             "data-id": r.run_id },
+      el("span", { class: "top" }, el("span", { class: "t" }, title), ...chips),
+      el("span", { class: "m" }, meta));
+    if (r.total) {
+      const pr = el("progress", { max: String(r.total), value: String(r.done || 0),
+                                  "aria-label": `${title} 进度 ${r.done || 0}/${r.total}` });
+      b.append(pr, el("span", { class: "m" }, `${r.done || 0}/${r.total}` +
+        (r.verdicts ? " · " + Object.entries(r.verdicts).map(([k, v]) => `${VERDICT[k] || k} ${v}`).join(" ") : "")));
+    }
+    b.addEventListener("click", () => { selected = r.run_id; lastRuns = ""; pollRuns(); pollDetail(); });
+    return el("div", { role: "listitem" }, b);
+  }
+  async function pollRuns() {
+    try {
+      const d = await api("/api/runs");
+      const sig = JSON.stringify([d.runs, selected]);
+      $("runs-at").textContent = "· " + new Date().toLocaleTimeString("zh-CN", { hour12: false });
+      if (sig === lastRuns) return;  // 没变化就不重绘，避免打断键盘焦点
+      lastRuns = sig;
+      const focused = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.id : null;
+      const box = $("runs");
+      box.replaceChildren(...(d.runs.length ? d.runs.map(runItem) : [el("p", { class: "muted" }, "runs/ 下还没有运行记录")]));
+      if (focused) { const f = box.querySelector(`[data-id="${CSS.escape(focused)}"]`); if (f) f.focus(); }
+    } catch (e) { $("runs-at").textContent = "· 读取失败"; }
+  }
+  function table(cols, rows) {
+    return el("table", {}, el("thead", {}, el("tr", {}, ...cols.map((c) => el("th", { scope: "col" }, c[1])))),
+      el("tbody", {}, ...rows.map((r) => el("tr", {}, ...cols.map((c) => el("td", {}, r[c[0]] == null ? "" : String(r[c[0]])))))));
+  }
+  async function pollDetail() {
+    if (!selected) return;
+    try {
+      const d = await api("/api/runs/" + encodeURIComponent(selected));
+      const box = $("detail"), kids = [el("h2", {}, (d.title || d.run_id) + (d.case_title ? " · " + d.case_title : ""))];
+      if (d.verdict_detail) kids.push(el("p", {}, `结论：${d.verdict_detail.label || d.verdict_detail.verdict}` +
+        (d.verdict_detail.attribution_label ? `（归因：${d.verdict_detail.attribution_label}）` : "")));
+      if (d.steps) kids.push(table([["step_id", "步骤"], ["action", "动作"], ["outcome", "结果"], ["attempts", "尝试"],
+                                    ["last_status", "最后状态"]], d.steps));
+      if (d.assertions && d.assertions.length) kids.push(table([["id", "断言"], ["result", "结果"], ["reason", "说明"]], d.assertions));
+      if (d.report) kids.push(el("p", { class: "muted" }, "报告：" + d.report));
+      kids.push(el("h2", {}, "最近事件"), el("pre", {}, d.tail.map((e) => JSON.stringify(e)).join("\n")));
+      box.replaceChildren(...kids);
+    } catch (e) { $("detail").replaceChildren(el("p", { class: "muted" }, "读取详情失败：" + e.message)); }
+  }
+  pollStatus(); pollRuns();
+  setInterval(pollStatus, 2000);
+  setInterval(pollRuns, 3000);
+  setInterval(pollDetail, 3000);
+})();
+</script>
+</body>
+</html>

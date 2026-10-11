@@ -1,0 +1,3406 @@
+{
+ "note": "合成回放世界（乾崑）：节点层级按原工程绝对 xpath 搭建，文字取自 app/config/mhero_config.py，标注（占位）的文案与全部页面布局都是虚构，不是真实 APP 抓取。本世界：未登录、当前车辆 M9、M5 有故障（「开始」置灰）。地图选点/收藏/重命名/标签/按名搜索/距离文案都是按用户描述虚构的，只用于验证执行器与判定逻辑。",
+ "bundle": "com.yinwang.qiankunapp.hm",
+ "app_version": "1.0.26.100-replay",
+ "device": {
+  "model": "REPLAY-QIANKUN",
+  "os": "OpenHarmony (replay)"
+ },
+ "screen": [
+  1320,
+  2848
+ ],
+ "display": {
+  "density": 3.375,
+  "fold_status": "unknown",
+  "device_form": "bar",
+  "source": "replay（沿用 SGT-AL10 参数）"
+ },
+ "initial": {
+  "locked": false,
+  "screen_on": true,
+  "foreground": "com.ohos.sceneboard",
+  "installed": true
+ },
+ "env_facts": {
+  "account_state": "logged_out"
+ },
+ "initial_flags": {
+  "logged_in": false,
+  "vehicle": "问界M9（占位）"
+ },
+ "launch_screen": "qk_car_tab",
+ "fragments": {
+  "qk_tabbar": {
+   "t": "TabBar",
+   "b": [
+    0,
+    2640,
+    1320,
+    2848
+   ],
+   "children": [
+    {
+     "t": "Column",
+     "b": [
+      0,
+      2640,
+      660,
+      2848
+     ],
+     "go": "qk_discover_tab",
+     "children": [
+      {
+       "t": "Text",
+       "b": [
+        280,
+        2700,
+        380,
+        2780
+       ],
+       "text": "探索"
+      }
+     ]
+    },
+    {
+     "t": "Column",
+     "b": [
+      660,
+      2640,
+      1320,
+      2848
+     ],
+     "go": "qk_car_tab",
+     "children": [
+      {
+       "t": "Text",
+       "b": [
+        940,
+        2700,
+        1040,
+        2780
+       ],
+       "text": "爱车"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "screens": {
+  "qk_car_tab": {
+   "tab": true,
+   "root": {
+    "t": "root",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "Navigation",
+      "b": [
+       0,
+       0,
+       1320,
+       2848
+      ],
+      "children": [
+       {
+        "t": "NavigationContent",
+        "b": [
+         0,
+         0,
+         1320,
+         2848
+        ],
+        "children": [
+         {
+          "t": "NavDestination",
+          "b": [
+           0,
+           0,
+           1320,
+           2848
+          ],
+          "children": [
+           {
+            "t": "NavDestinationContent",
+            "b": [
+             0,
+             0,
+             1320,
+             2848
+            ],
+            "children": [
+             {
+              "t": "Navigation",
+              "b": [
+               0,
+               0,
+               1320,
+               2848
+              ],
+              "children": [
+               {
+                "t": "NavBar",
+                "b": [
+                 0,
+                 0,
+                 1320,
+                 2848
+                ],
+                "children": [
+                 {
+                  "t": "NavBarContent",
+                  "b": [
+                   0,
+                   0,
+                   1320,
+                   2848
+                  ],
+                  "children": [
+                   {
+                    "t": "Tabs",
+                    "b": [
+                     0,
+                     0,
+                     1320,
+                     2848
+                    ],
+                    "children": [
+                     {
+                      "t": "Swiper",
+                      "b": [
+                       0,
+                       0,
+                       1320,
+                       2640
+                      ],
+                      "children": [
+                       {
+                        "t": "TabContent",
+                        "b": [
+                         0,
+                         0,
+                         1320,
+                         2640
+                        ],
+                        "children": [
+                         {
+                          "t": "Stack",
+                          "b": [
+                           0,
+                           0,
+                           1320,
+                           2640
+                          ],
+                          "children": [
+                           {
+                            "t": "Row",
+                            "b": [
+                             0,
+                             100,
+                             1320,
+                             300
+                            ],
+                            "children": [
+                             {
+                              "t": "Row",
+                              "b": [
+                               40,
+                               120,
+                               900,
+                               280
+                              ],
+                              "go": "qk_vehicle_list",
+                              "children": [
+                               {
+                                "t": "Text",
+                                "b": [
+                                 60,
+                                 150,
+                                 600,
+                                 250
+                                ],
+                                "text": "问界M9（占位）",
+                                "text_flag": "vehicle"
+                               },
+                               {
+                                "t": "Image",
+                                "b": [
+                                 620,
+                                 170,
+                                 680,
+                                 230
+                                ],
+                                "icon": "chevron"
+                               }
+                              ]
+                             }
+                            ]
+                           },
+                           {
+                            "t": "Column",
+                            "b": [
+                             0,
+                             340,
+                             1320,
+                             2600
+                            ],
+                            "children": [
+                             {
+                              "t": "Text",
+                              "b": [
+                               60,
+                               360,
+                               800,
+                               440
+                              ],
+                              "text": "车辆状态（占位）"
+                             },
+                             {
+                              "t": "Button",
+                              "b": [
+                               40,
+                               1200,
+                               1280,
+                               1400
+                              ],
+                              "go": "qk_vpd_loading",
+                              "children": [
+                               {
+                                "t": "Text",
+                                "b": [
+                                 560,
+                                 1260,
+                                 760,
+                                 1340
+                                ],
+                                "text": "ADS"
+                               }
+                              ]
+                             }
+                            ]
+                           }
+                          ]
+                         }
+                        ]
+                       }
+                      ]
+                     },
+                     {
+                      "use": "qk_tabbar",
+                      "sel": "爱车"
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "qk_discover_tab": {
+   "tab": true,
+   "root": {
+    "t": "root",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "Navigation",
+      "b": [
+       0,
+       0,
+       1320,
+       2848
+      ],
+      "children": [
+       {
+        "t": "NavigationContent",
+        "b": [
+         0,
+         0,
+         1320,
+         2848
+        ],
+        "children": [
+         {
+          "t": "NavDestination",
+          "b": [
+           0,
+           0,
+           1320,
+           2848
+          ],
+          "children": [
+           {
+            "t": "NavDestinationContent",
+            "b": [
+             0,
+             0,
+             1320,
+             2848
+            ],
+            "children": [
+             {
+              "t": "Navigation",
+              "b": [
+               0,
+               0,
+               1320,
+               2848
+              ],
+              "children": [
+               {
+                "t": "NavBar",
+                "b": [
+                 0,
+                 0,
+                 1320,
+                 2848
+                ],
+                "children": [
+                 {
+                  "t": "NavBarContent",
+                  "b": [
+                   0,
+                   0,
+                   1320,
+                   2848
+                  ],
+                  "children": [
+                   {
+                    "t": "Tabs",
+                    "b": [
+                     0,
+                     0,
+                     1320,
+                     2848
+                    ],
+                    "children": [
+                     {
+                      "t": "Swiper",
+                      "b": [
+                       0,
+                       0,
+                       1320,
+                       2640
+                      ],
+                      "children": [
+                       {
+                        "t": "TabContent",
+                        "b": [
+                         0,
+                         0,
+                         1320,
+                         2640
+                        ],
+                        "children": [
+                         {
+                          "t": "Stack",
+                          "b": [
+                           0,
+                           0,
+                           1320,
+                           2640
+                          ],
+                          "children": [
+                           {
+                            "t": "Row",
+                            "b": [
+                             0,
+                             100,
+                             1320,
+                             300
+                            ],
+                            "children": [
+                             {
+                              "t": "__Common__",
+                              "b": [
+                               40,
+                               120,
+                               200,
+                               280
+                              ],
+                              "go": "qk_account_entry",
+                              "children": [
+                               {
+                                "t": "Image",
+                                "b": [
+                                 60,
+                                 140,
+                                 180,
+                                 260
+                                ],
+                                "icon": "avatar"
+                               }
+                              ]
+                             },
+                             {
+                              "t": "Row",
+                              "b": [
+                               220,
+                               120,
+                               1000,
+                               280
+                              ],
+                              "go": "qk_account_entry",
+                              "children": [
+                               {
+                                "t": "Text",
+                                "b": [
+                                 240,
+                                 160,
+                                 500,
+                                 240
+                                ],
+                                "text": "探索",
+                                "hide_if_flag": "logged_in"
+                               },
+                               {
+                                "t": "Text",
+                                "b": [
+                                 240,
+                                 160,
+                                 800,
+                                 240
+                                ],
+                                "text": "乾崑用户（占位）",
+                                "show_if_flag": "logged_in"
+                               }
+                              ]
+                             }
+                            ]
+                           },
+                           {
+                            "t": "Column",
+                            "b": [
+                             0,
+                             340,
+                             1320,
+                             2600
+                            ],
+                            "children": [
+                             {
+                              "t": "Text",
+                              "b": [
+                               60,
+                               360,
+                               800,
+                               440
+                              ],
+                              "text": "发现内容（占位）"
+                             }
+                            ]
+                           }
+                          ]
+                         }
+                        ]
+                       }
+                      ]
+                     },
+                     {
+                      "use": "qk_tabbar",
+                      "sel": "探索"
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "qk_account_entry": {
+   "if_flag": {
+    "flag": "logged_in",
+    "then": "qk_user_center"
+   },
+   "root": {
+    "t": "root",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "Navigation",
+      "b": [
+       0,
+       0,
+       1320,
+       2848
+      ],
+      "children": [
+       {
+        "t": "NavigationContent",
+        "b": [
+         0,
+         0,
+         1320,
+         2848
+        ],
+        "children": [
+         {
+          "t": "NavDestination",
+          "b": [
+           0,
+           0,
+           1320,
+           2848
+          ],
+          "children": [
+           {
+            "t": "NavDestinationContent",
+            "b": [
+             0,
+             0,
+             1320,
+             2848
+            ],
+            "children": [
+             {
+              "t": "Navigation",
+              "b": [
+               0,
+               0,
+               1320,
+               2848
+              ],
+              "children": [
+               {
+                "t": "NavigationContent",
+                "b": [
+                 0,
+                 0,
+                 1320,
+                 2848
+                ],
+                "children": [
+                 {
+                  "t": "NavDestination",
+                  "b": [
+                   0,
+                   0,
+                   1320,
+                   2848
+                  ],
+                  "children": [
+                   {
+                    "t": "NavDestinationContent",
+                    "b": [
+                     0,
+                     0,
+                     1320,
+                     2848
+                    ],
+                    "children": [
+                     {
+                      "t": "Column",
+                      "b": [
+                       0,
+                       0,
+                       1320,
+                       2848
+                      ],
+                      "children": [
+                       {
+                        "t": "Row",
+                        "b": [
+                         0,
+                         100,
+                         1320,
+                         240
+                        ],
+                        "children": [
+                         {
+                          "t": "Row",
+                          "b": [
+                           20,
+                           110,
+                           300,
+                           230
+                          ],
+                          "children": [
+                           {
+                            "t": "Image",
+                            "b": [
+                             40,
+                             120,
+                             160,
+                             220
+                            ],
+                            "icon": "back",
+                            "go": "@back"
+                           }
+                          ]
+                         }
+                        ]
+                       },
+                       {
+                        "t": "Scroll",
+                        "b": [
+                         0,
+                         260,
+                         1320,
+                         2848
+                        ],
+                        "children": [
+                         {
+                          "t": "Column",
+                          "b": [
+                           0,
+                           260,
+                           1320,
+                           1400
+                          ],
+                          "children": [
+                           {
+                            "t": "Column",
+                            "b": [
+                             0,
+                             260,
+                             1320,
+                             900
+                            ],
+                            "children": [
+                             {
+                              "t": "Image",
+                              "b": [
+                               520,
+                               360,
+                               800,
+                               640
+                              ],
+                              "icon": "avatar-big",
+                              "go": "qk_login_method"
+                             },
+                             {
+                              "t": "Text",
+                              "b": [
+                               400,
+                               680,
+                               920,
+                               760
+                              ],
+                              "text": "点击头像登录（占位）"
+                             }
+                            ]
+                           }
+                          ]
+                         }
+                        ]
+                       }
+                      ]
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "qk_user_center": {
+   "root": {
+    "t": "root",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "Navigation",
+      "b": [
+       0,
+       0,
+       1320,
+       2848
+      ],
+      "children": [
+       {
+        "t": "NavigationContent",
+        "b": [
+         0,
+         0,
+         1320,
+         2848
+        ],
+        "children": [
+         {
+          "t": "NavDestination",
+          "b": [
+           0,
+           0,
+           1320,
+           2848
+          ],
+          "children": [
+           {
+            "t": "NavDestinationContent",
+            "b": [
+             0,
+             0,
+             1320,
+             2848
+            ],
+            "children": [
+             {
+              "t": "Navigation",
+              "b": [
+               0,
+               0,
+               1320,
+               2848
+              ],
+              "children": [
+               {
+                "t": "NavigationContent",
+                "b": [
+                 0,
+                 0,
+                 1320,
+                 2848
+                ],
+                "children": [
+                 {
+                  "t": "NavDestination",
+                  "b": [
+                   0,
+                   0,
+                   1320,
+                   2848
+                  ],
+                  "children": [
+                   {
+                    "t": "NavDestinationContent",
+                    "b": [
+                     0,
+                     0,
+                     1320,
+                     2848
+                    ],
+                    "children": [
+                     {
+                      "t": "Column",
+                      "b": [
+                       0,
+                       0,
+                       1320,
+                       2848
+                      ],
+                      "children": [
+                       {
+                        "t": "Text",
+                        "b": [
+                         60,
+                         300,
+                         800,
+                         380
+                        ],
+                        "text": "个人中心（占位）"
+                       }
+                      ]
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "qk_login_method": {
+   "root": {
+    "t": "root",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "Navigation",
+      "b": [
+       0,
+       0,
+       1320,
+       2848
+      ],
+      "children": [
+       {
+        "t": "NavigationContent",
+        "b": [
+         0,
+         0,
+         1320,
+         2848
+        ],
+        "children": [
+         {
+          "t": "NavDestination",
+          "b": [
+           0,
+           0,
+           1320,
+           2848
+          ],
+          "children": [
+           {
+            "t": "NavDestinationContent",
+            "b": [
+             0,
+             0,
+             1320,
+             2848
+            ],
+            "children": [
+             {
+              "t": "Navigation",
+              "b": [
+               0,
+               0,
+               1320,
+               2848
+              ],
+              "children": [
+               {
+                "t": "NavigationContent",
+                "b": [
+                 0,
+                 0,
+                 1320,
+                 2848
+                ],
+                "children": [
+                 {
+                  "t": "NavDestination",
+                  "b": [
+                   0,
+                   0,
+                   1320,
+                   2848
+                  ],
+                  "children": [
+                   {
+                    "t": "NavDestinationContent",
+                    "b": [
+                     0,
+                     0,
+                     1320,
+                     2848
+                    ],
+                    "children": [
+                     {
+                      "t": "Column",
+                      "b": [
+                       0,
+                       0,
+                       1320,
+                       2848
+                      ],
+                      "children": [
+                       {
+                        "t": "Text",
+                        "b": [
+                         60,
+                         300,
+                         800,
+                         380
+                        ],
+                        "text": "选择登录方式（占位）"
+                       },
+                       {
+                        "t": "Row",
+                        "b": [
+                         60,
+                         500,
+                         1260,
+                         640
+                        ],
+                        "go": "qk_pwd_page",
+                        "children": [
+                         {
+                          "t": "Text",
+                          "b": [
+                           520,
+                           540,
+                           800,
+                           600
+                          ],
+                          "text": "密码登录"
+                         }
+                        ]
+                       }
+                      ]
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "qk_pwd_page": {
+   "root": {
+    "t": "root",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "Navigation",
+      "b": [
+       0,
+       0,
+       1320,
+       2848
+      ],
+      "children": [
+       {
+        "t": "NavigationContent",
+        "b": [
+         0,
+         0,
+         1320,
+         2848
+        ],
+        "children": [
+         {
+          "t": "NavDestination",
+          "b": [
+           0,
+           0,
+           1320,
+           2848
+          ],
+          "children": [
+           {
+            "t": "NavDestinationContent",
+            "b": [
+             0,
+             0,
+             1320,
+             2848
+            ],
+            "children": [
+             {
+              "t": "Navigation",
+              "b": [
+               0,
+               0,
+               1320,
+               2848
+              ],
+              "children": [
+               {
+                "t": "NavigationContent",
+                "b": [
+                 0,
+                 0,
+                 1320,
+                 2848
+                ],
+                "children": [
+                 {
+                  "t": "NavDestination",
+                  "b": [
+                   0,
+                   0,
+                   1320,
+                   2848
+                  ],
+                  "children": [
+                   {
+                    "t": "NavDestinationContent",
+                    "b": [
+                     0,
+                     0,
+                     1320,
+                     2848
+                    ],
+                    "children": [
+                     {
+                      "t": "Column",
+                      "b": [
+                       0,
+                       0,
+                       1320,
+                       2848
+                      ],
+                      "children": [
+                       {
+                        "t": "Column",
+                        "b": [
+                         60,
+                         150,
+                         1260,
+                         280
+                        ],
+                        "children": [
+                         {
+                          "t": "Text",
+                          "b": [
+                           60,
+                           160,
+                           900,
+                           260
+                          ],
+                          "text": "账号密码登录（占位）"
+                         }
+                        ]
+                       },
+                       {
+                        "t": "Row",
+                        "b": [
+                         0,
+                         300,
+                         1320,
+                         500
+                        ],
+                        "children": [
+                         {
+                          "t": "Column",
+                          "b": [
+                           40,
+                           320,
+                           160,
+                           480
+                          ],
+                          "children": [
+                           {
+                            "t": "Text",
+                            "b": [
+                             50,
+                             360,
+                             150,
+                             440
+                            ],
+                            "text": "+86"
+                           }
+                          ]
+                         },
+                         {
+                          "t": "Column",
+                          "b": [
+                           170,
+                           340,
+                           180,
+                           460
+                          ]
+                         },
+                         {
+                          "t": "Column",
+                          "b": [
+                           300,
+                           300,
+                           1250,
+                           500
+                          ],
+                          "children": [
+                           {
+                            "t": "TextInput",
+                            "b": [
+                             320,
+                             320,
+                             1230,
+                             480
+                            ],
+                            "click": true,
+                            "bind": "account",
+                            "text_bound": "account",
+                            "text": ""
+                           }
+                          ]
+                         }
+                        ]
+                       },
+                       {
+                        "t": "Column",
+                        "b": [
+                         0,
+                         520,
+                         1320,
+                         720
+                        ],
+                        "children": [
+                         {
+                          "t": "TextInput",
+                          "b": [
+                           320,
+                           540,
+                           1230,
+                           700
+                          ],
+                          "click": true,
+                          "bind": "password",
+                          "text": ""
+                         }
+                        ]
+                       },
+                       {
+                        "t": "Row",
+                        "b": [
+                         60,
+                         760,
+                         1320,
+                         860
+                        ],
+                        "children": [
+                         {
+                          "t": "Checkbox",
+                          "b": [
+                           60,
+                           770,
+                           140,
+                           850
+                          ],
+                          "text": "userProtocol",
+                          "click": true,
+                          "set_flag": {
+                           "agreed": true
+                          }
+                         },
+                         {
+                          "t": "Text",
+                          "b": [
+                           150,
+                           770,
+                           1000,
+                           850
+                          ],
+                          "text": "我已阅读并同意用户协议（占位）"
+                         }
+                        ]
+                       },
+                       {
+                        "t": "Button",
+                        "b": [
+                         60,
+                         900,
+                         1260,
+                         1040
+                        ],
+                        "go": "@root",
+                        "show_if_flag": "agreed",
+                        "set_flag": {
+                         "logged_in": true
+                        },
+                        "children": [
+                         {
+                          "t": "Text",
+                          "b": [
+                           80,
+                           920,
+                           1240,
+                           1020
+                          ],
+                          "text": "登录"
+                         }
+                        ]
+                       },
+                       {
+                        "t": "Button",
+                        "b": [
+                         60,
+                         900,
+                         1260,
+                         1040
+                        ],
+                        "click": true,
+                        "hide_if_flag": "agreed",
+                        "children": [
+                         {
+                          "t": "Text",
+                          "b": [
+                           80,
+                           920,
+                           1240,
+                           1020
+                          ],
+                          "text": "登录"
+                         }
+                        ]
+                       }
+                      ]
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "qk_vehicle_list": {
+   "root": {
+    "t": "root",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "Navigation",
+      "b": [
+       0,
+       0,
+       1320,
+       2848
+      ],
+      "children": [
+       {
+        "t": "NavigationContent",
+        "b": [
+         0,
+         0,
+         1320,
+         2848
+        ],
+        "children": [
+         {
+          "t": "NavDestination",
+          "b": [
+           0,
+           0,
+           1320,
+           2848
+          ],
+          "children": [
+           {
+            "t": "NavDestinationContent",
+            "b": [
+             0,
+             0,
+             1320,
+             2848
+            ],
+            "children": [
+             {
+              "t": "Navigation",
+              "b": [
+               0,
+               0,
+               1320,
+               2848
+              ],
+              "children": [
+               {
+                "t": "NavigationContent",
+                "b": [
+                 0,
+                 0,
+                 1320,
+                 2848
+                ],
+                "children": [
+                 {
+                  "t": "NavDestination",
+                  "b": [
+                   0,
+                   0,
+                   1320,
+                   2848
+                  ],
+                  "children": [
+                   {
+                    "t": "NavDestinationContent",
+                    "b": [
+                     0,
+                     0,
+                     1320,
+                     2848
+                    ],
+                    "children": [
+                     {
+                      "t": "Column",
+                      "b": [
+                       0,
+                       0,
+                       1320,
+                       2848
+                      ],
+                      "children": [
+                       {
+                        "t": "Text",
+                        "b": [
+                         60,
+                         150,
+                         800,
+                         250
+                        ],
+                        "text": "我的车辆（占位）"
+                       },
+                       {
+                        "t": "List",
+                        "b": [
+                         0,
+                         300,
+                         1320,
+                         2000
+                        ],
+                        "children": [
+                         {
+                          "t": "Row",
+                          "b": [
+                           0,
+                           300,
+                           1320,
+                           460
+                          ],
+                          "go": "@back",
+                          "set_flag": {
+                           "vehicle": "问界M9（占位）"
+                          },
+                          "children": [
+                           {
+                            "t": "Text",
+                            "b": [
+                             60,
+                             320,
+                             700,
+                             380
+                            ],
+                            "text": "问界M9（占位）"
+                           },
+                           {
+                            "t": "Text",
+                            "b": [
+                             60,
+                             390,
+                             900,
+                             450
+                            ],
+                            "text": "车架号 310245(后6位)"
+                           }
+                          ]
+                         },
+                         {
+                          "t": "Row",
+                          "b": [
+                           0,
+                           480,
+                           1320,
+                           640
+                          ],
+                          "go": "@back",
+                          "set_flag": {
+                           "vehicle": "问界M5（占位）"
+                          },
+                          "children": [
+                           {
+                            "t": "Text",
+                            "b": [
+                             60,
+                             500,
+                             700,
+                             560
+                            ],
+                            "text": "问界M5（占位）"
+                           },
+                           {
+                            "t": "Text",
+                            "b": [
+                             60,
+                             570,
+                             900,
+                             630
+                            ],
+                            "text": "车架号 207885(后6位)"
+                           }
+                          ]
+                         },
+                         {
+                          "t": "Row",
+                          "b": [
+                           0,
+                           660,
+                           1320,
+                           820
+                          ],
+                          "go": "@back",
+                          "set_flag": {
+                           "vehicle": "问界M7（占位）"
+                          },
+                          "children": [
+                           {
+                            "t": "Text",
+                            "b": [
+                             60,
+                             680,
+                             700,
+                             740
+                            ],
+                            "text": "问界M7（占位）"
+                           },
+                           {
+                            "t": "Text",
+                            "b": [
+                             60,
+                             750,
+                             900,
+                             810
+                            ],
+                            "text": "车架号 998812(后6位)"
+                           }
+                          ]
+                         }
+                        ]
+                       }
+                      ]
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "qk_vpd_loading": {
+   "after_obs": {
+    "n": 2,
+    "go": "qk_vpd_home",
+    "replace": true
+   },
+   "root": {
+    "t": "Column",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "Text",
+      "b": [
+       400,
+       1300,
+       920,
+       1380
+      ],
+      "text": "正在加载..."
+     }
+    ]
+   }
+  },
+  "qk_vpd_home": {
+   "root": {
+    "t": "Column",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "XComponent",
+      "b": [
+       0,
+       0,
+       1320,
+       1700
+      ],
+      "go": "qk_spot_card"
+     },
+     {
+      "t": "Row",
+      "b": [
+       40,
+       120,
+       1280,
+       240
+      ],
+      "go": "qk_search",
+      "children": [
+       {
+        "t": "Text",
+        "b": [
+         80,
+         150,
+         900,
+         210
+        ],
+        "text": "搜索车位号设为目的地"
+       }
+      ]
+     },
+     {
+      "t": "Button",
+      "b": [
+       1120,
+       1300,
+       1280,
+       1400
+      ],
+      "click": true,
+      "children": [
+       {
+        "t": "Text",
+        "b": [
+         1140,
+         1320,
+         1260,
+         1380
+        ],
+        "text": "全览"
+       }
+      ]
+     },
+     {
+      "t": "Button",
+      "b": [
+       1120,
+       1420,
+       1280,
+       1520
+      ],
+      "click": true,
+      "children": [
+       {
+        "t": "Text",
+        "b": [
+         1140,
+         1440,
+         1260,
+         1500
+        ],
+        "text": "回自车"
+       }
+      ]
+     },
+     {
+      "t": "Column",
+      "b": [
+       0,
+       1700,
+       1320,
+       2848
+      ],
+      "id": "VPD_HOME_VIEW",
+      "children": [
+       {
+        "t": "RelativeContainer",
+        "b": [
+         0,
+         1700,
+         1320,
+         2848
+        ],
+        "children": [
+         {
+          "t": "Column",
+          "b": [
+           0,
+           1700,
+           1320,
+           2848
+          ],
+          "children": [
+           {
+            "t": "__Common__",
+            "b": [
+             0,
+             0,
+             0,
+             0
+            ]
+           },
+           {
+            "t": "__Common__",
+            "b": [
+             0,
+             1700,
+             1320,
+             2848
+            ],
+            "children": [
+             {
+              "t": "Stack",
+              "b": [
+               0,
+               1700,
+               1320,
+               2848
+              ],
+              "children": [
+               {
+                "t": "Column",
+                "b": [
+                 0,
+                 1700,
+                 1320,
+                 2848
+                ],
+                "children": [
+                 {
+                  "t": "Column",
+                  "b": [
+                   0,
+                   1700,
+                   1320,
+                   2848
+                  ],
+                  "children": [
+                   {
+                    "t": "Column",
+                    "b": [
+                     0,
+                     1700,
+                     1320,
+                     2848
+                    ],
+                    "children": [
+                     {
+                      "t": "Column",
+                      "b": [
+                       0,
+                       1720,
+                       1320,
+                       1840
+                      ],
+                      "children": [
+                       {
+                        "t": "Column",
+                        "b": [
+                         0,
+                         1720,
+                         1320,
+                         1840
+                        ],
+                        "children": [
+                         {
+                          "t": "Row",
+                          "b": [
+                           0,
+                           1720,
+                           1320,
+                           1840
+                          ],
+                          "children": [
+                           {
+                            "t": "Text",
+                            "b": [
+                             60,
+                             1730,
+                             700,
+                             1790
+                            ],
+                            "text": "示例停车场（占位）"
+                           },
+                           {
+                            "t": "Row",
+                            "b": [
+                             720,
+                             1730,
+                             1260,
+                             1790
+                            ],
+                            "children": [
+                             {
+                              "t": "Text",
+                              "b": [
+                               720,
+                               1730,
+                               1260,
+                               1790
+                              ],
+                              "text": "共 120 个车位（占位）"
+                             }
+                            ]
+                           }
+                          ]
+                         }
+                        ]
+                       }
+                      ]
+                     },
+                     {
+                      "t": "Row",
+                      "b": [
+                       0,
+                       1860,
+                       1320,
+                       1980
+                      ],
+                      "go": "qk_route_planning",
+                      "children": [
+                       {
+                        "t": "Text",
+                        "b": [
+                         60,
+                         1880,
+                         600,
+                         1960
+                        ],
+                        "text": "B2-018（占位）"
+                       },
+                       {
+                        "t": "Text",
+                        "b": [
+                         620,
+                         1880,
+                         900,
+                         1960
+                        ],
+                        "text": "默认车位"
+                       }
+                      ]
+                     },
+                     {
+                      "t": "Row",
+                      "b": [
+                       0,
+                       2000,
+                       1320,
+                       2120
+                      ],
+                      "children": [
+                       {
+                        "t": "Text",
+                        "b": [
+                         60,
+                         2020,
+                         600,
+                         2100
+                        ],
+                        "text": "未设置（占位）"
+                       },
+                       {
+                        "t": "Text",
+                        "b": [
+                         620,
+                         2020,
+                         900,
+                         2100
+                        ],
+                        "text": "默认上车点"
+                       }
+                      ]
+                     },
+                     {
+                      "t": "Row",
+                      "b": [
+                       0,
+                       2140,
+                       1320,
+                       2220
+                      ],
+                      "children": [
+                       {
+                        "t": "Text",
+                        "b": [
+                         60,
+                         2150,
+                         400,
+                         2210
+                        ],
+                        "text": "常去地点"
+                       }
+                      ]
+                     },
+                     {
+                      "t": "Column",
+                      "b": [
+                       0,
+                       2230,
+                       1320,
+                       2500
+                      ],
+                      "children": [
+                       {
+                        "t": "Row",
+                        "b": [
+                         0,
+                         2240,
+                         1320,
+                         2360
+                        ],
+                        "show_if_flag": "faved",
+                        "children": [
+                         {
+                          "t": "Column",
+                          "b": [
+                           0,
+                           2240,
+                           900,
+                           2360
+                          ],
+                          "go": "qk_spot_card_faved",
+                          "children": [
+                           {
+                            "t": "Text",
+                            "b": [
+                             60,
+                             2260,
+                             880,
+                             2340
+                            ],
+                            "text": "B2-156（占位）",
+                            "text_bound": "spot_name"
+                           }
+                          ]
+                         },
+                         {
+                          "t": "Button",
+                          "b": [
+                           960,
+                           2250,
+                           1260,
+                           2350
+                          ],
+                          "go": "qk_route_planning",
+                          "children": [
+                           {
+                            "t": "Text",
+                            "b": [
+                             980,
+                             2270,
+                             1240,
+                             2330
+                            ],
+                            "text": "去这里"
+                           }
+                          ]
+                         }
+                        ]
+                       },
+                       {
+                        "t": "Text",
+                        "b": [
+                         60,
+                         2260,
+                         1260,
+                         2340
+                        ],
+                        "text": "暂无常去地点，您可在地图中收藏车位（占位）",
+                        "hide_if_flag": "faved"
+                       }
+                      ]
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "qk_spot_card": {
+   "kind": "popup",
+   "root": {
+    "t": "Column",
+    "b": [
+     60,
+     520,
+     1260,
+     1000
+    ],
+    "children": [
+     {
+      "t": "Text",
+      "b": [
+       100,
+       540,
+       700,
+       610
+      ],
+      "text": "B2-156（占位）"
+     },
+     {
+      "t": "Text",
+      "b": [
+       100,
+       620,
+       700,
+       680
+      ],
+      "text": "地下二层（占位）"
+     },
+     {
+      "t": "Button",
+      "b": [
+       100,
+       720,
+       560,
+       840
+      ],
+      "go": "qk_spot_card_faved",
+      "set_flag": {
+       "faved": true
+      },
+      "children": [
+       {
+        "t": "Text",
+        "b": [
+         120,
+         740,
+         540,
+         820
+        ],
+        "text": "收藏"
+       }
+      ]
+     },
+     {
+      "t": "Button",
+      "b": [
+       640,
+       720,
+       1200,
+       840
+      ],
+      "go": "qk_route_planning",
+      "children": [
+       {
+        "t": "Text",
+        "b": [
+         660,
+         740,
+         1180,
+         820
+        ],
+        "text": "去这里"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "qk_spot_card_faved": {
+   "kind": "popup",
+   "root": {
+    "t": "Column",
+    "b": [
+     60,
+     520,
+     1260,
+     1000
+    ],
+    "children": [
+     {
+      "t": "Text",
+      "b": [
+       100,
+       540,
+       1200,
+       610
+      ],
+      "text": "B2-156（占位）",
+      "text_bound": "spot_name"
+     },
+     {
+      "t": "Text",
+      "b": [
+       100,
+       620,
+       500,
+       680
+      ],
+      "text": "已收藏（占位）"
+     },
+     {
+      "t": "Text",
+      "b": [
+       520,
+       620,
+       1200,
+       680
+      ],
+      "text": "未设置标签（占位）",
+      "text_flag": "tag_label"
+     },
+     {
+      "t": "Row",
+      "b": [
+       100,
+       720,
+       1200,
+       840
+      ],
+      "children": [
+       {
+        "t": "Button",
+        "b": [
+         100,
+         720,
+         440,
+         840
+        ],
+        "go": "qk_rename_dialog",
+        "children": [
+         {
+          "t": "Text",
+          "b": [
+           120,
+           740,
+           420,
+           820
+          ],
+          "text": "重命名"
+         }
+        ]
+       },
+       {
+        "t": "Button",
+        "b": [
+         480,
+         720,
+         820,
+         840
+        ],
+        "go": "qk_tag_dialog",
+        "children": [
+         {
+          "t": "Text",
+          "b": [
+           500,
+           740,
+           800,
+           820
+          ],
+          "text": "标签"
+         }
+        ]
+       },
+       {
+        "t": "Button",
+        "b": [
+         860,
+         720,
+         1200,
+         840
+        ],
+        "go": "qk_spot_card",
+        "set_flag": {
+         "faved": false
+        },
+        "children": [
+         {
+          "t": "Text",
+          "b": [
+           880,
+           740,
+           1180,
+           820
+          ],
+          "text": "取消收藏"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "qk_rename_dialog": {
+   "kind": "popup",
+   "root": {
+    "t": "Dialog",
+    "b": [
+     100,
+     800,
+     1220,
+     1400
+    ],
+    "children": [
+     {
+      "t": "Text",
+      "b": [
+       140,
+       830,
+       800,
+       900
+      ],
+      "text": "修改名称（占位）"
+     },
+     {
+      "t": "TextInput",
+      "b": [
+       140,
+       950,
+       1180,
+       1080
+      ],
+      "click": true,
+      "bind": "spot_name",
+      "text_bound": "spot_name",
+      "text": "B2-156（占位）"
+     },
+     {
+      "t": "Button",
+      "b": [
+       140,
+       1200,
+       620,
+       1340
+      ],
+      "go": "qk_spot_card_faved",
+      "children": [
+       {
+        "t": "Text",
+        "b": [
+         160,
+         1220,
+         600,
+         1320
+        ],
+        "text": "取消"
+       }
+      ]
+     },
+     {
+      "t": "Button",
+      "b": [
+       700,
+       1200,
+       1180,
+       1340
+      ],
+      "go": "qk_spot_card_faved",
+      "children": [
+       {
+        "t": "Text",
+        "b": [
+         720,
+         1220,
+         1160,
+         1320
+        ],
+        "text": "确定"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "qk_tag_dialog": {
+   "kind": "popup",
+   "root": {
+    "t": "Dialog",
+    "b": [
+     100,
+     800,
+     1220,
+     1500
+    ],
+    "children": [
+     {
+      "t": "Text",
+      "b": [
+       140,
+       830,
+       800,
+       900
+      ],
+      "text": "选择标签（占位）"
+     },
+     {
+      "t": "Button",
+      "b": [
+       140,
+       950,
+       480,
+       1070
+      ],
+      "go": "qk_spot_card_faved",
+      "set_flag": {
+       "tag_label": "常用"
+      },
+      "children": [
+       {
+        "t": "Text",
+        "b": [
+         160,
+         970,
+         460,
+         1050
+        ],
+        "text": "常用"
+       }
+      ]
+     },
+     {
+      "t": "Button",
+      "b": [
+       520,
+       950,
+       860,
+       1070
+      ],
+      "go": "qk_spot_card_faved",
+      "set_flag": {
+       "tag_label": "公司（占位）"
+      },
+      "children": [
+       {
+        "t": "Text",
+        "b": [
+         540,
+         970,
+         840,
+         1050
+        ],
+        "text": "公司（占位）"
+       }
+      ]
+     },
+     {
+      "t": "Button",
+      "b": [
+       900,
+       950,
+       1180,
+       1070
+      ],
+      "go": "qk_spot_card_faved",
+      "set_flag": {
+       "tag_label": "家（占位）"
+      },
+      "children": [
+       {
+        "t": "Text",
+        "b": [
+         920,
+         970,
+         1160,
+         1050
+        ],
+        "text": "家（占位）"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "qk_search": {
+   "stage": true,
+   "root": {
+    "t": "Column",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "Column",
+      "b": [
+       0,
+       100,
+       1320,
+       260
+      ],
+      "children": [
+       {
+        "t": "Row",
+        "b": [
+         40,
+         120,
+         1280,
+         240
+        ],
+        "children": [
+         {
+          "t": "TextInput",
+          "b": [
+           60,
+           130,
+           1100,
+           230
+          ],
+          "id": "search_input",
+          "click": true,
+          "bind": "search_q",
+          "text_bound": "search_q",
+          "text": ""
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "t": "List",
+      "b": [
+       0,
+       300,
+       1320,
+       2000
+      ],
+      "children": [
+       {
+        "t": "Row",
+        "b": [
+         0,
+         300,
+         1320,
+         460
+        ],
+        "show_if_match": [
+         "search_q",
+         "spot_name"
+        ],
+        "children": [
+         {
+          "t": "Column",
+          "b": [
+           0,
+           300,
+           900,
+           460
+          ],
+          "children": [
+           {
+            "t": "Text",
+            "b": [
+             60,
+             320,
+             880,
+             380
+            ],
+            "text": "",
+            "text_bound": "spot_name"
+           },
+           {
+            "t": "Text",
+            "b": [
+             60,
+             390,
+             880,
+             440
+            ],
+            "text": "已收藏 · 常用（占位）"
+           }
+          ]
+         },
+         {
+          "t": "Button",
+          "b": [
+           960,
+           320,
+           1260,
+           440
+          ],
+          "go": "qk_route_planning",
+          "children": [
+           {
+            "t": "Text",
+            "b": [
+             980,
+             340,
+             1240,
+             420
+            ],
+            "text": "去这里"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "t": "Row",
+        "b": [
+         0,
+         480,
+         1320,
+         640
+        ],
+        "show_if_bound": "search_q",
+        "children": [
+         {
+          "t": "Column",
+          "b": [
+           0,
+           480,
+           900,
+           640
+          ],
+          "children": [
+           {
+            "t": "Text",
+            "b": [
+             60,
+             500,
+             880,
+             560
+            ],
+            "text": "B2-001（占位）"
+           },
+           {
+            "t": "Text",
+            "b": [
+             60,
+             570,
+             880,
+             620
+            ],
+            "text": "地下二层（占位）"
+           }
+          ]
+         },
+         {
+          "t": "Button",
+          "b": [
+           960,
+           500,
+           1260,
+           620
+          ],
+          "go": "qk_route_planning",
+          "children": [
+           {
+            "t": "Text",
+            "b": [
+             980,
+             520,
+             1240,
+             600
+            ],
+            "text": "去这里"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "qk_route_planning": {
+   "stage": true,
+   "after_obs": {
+    "n": 2,
+    "go": "qk_route_result",
+    "replace": true
+   },
+   "root": {
+    "t": "Column",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "XComponent",
+      "b": [
+       0,
+       0,
+       1320,
+       1700
+      ]
+     },
+     {
+      "t": "Text",
+      "b": [
+       300,
+       1760,
+       1020,
+       1840
+      ],
+      "text": "路线规划中，请稍后…"
+     }
+    ]
+   }
+  },
+  "qk_route_result": {
+   "stage": true,
+   "root": {
+    "t": "Column",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "XComponent",
+      "b": [
+       0,
+       0,
+       1320,
+       1700
+      ]
+     },
+     {
+      "t": "Column",
+      "b": [
+       0,
+       1700,
+       1320,
+       2848
+      ],
+      "id": "VPD_HOME_VIEW",
+      "children": [
+       {
+        "t": "RelativeContainer",
+        "b": [
+         0,
+         1700,
+         1320,
+         2848
+        ],
+        "children": [
+         {
+          "t": "Column",
+          "b": [
+           0,
+           1700,
+           1320,
+           2848
+          ],
+          "children": [
+           {
+            "t": "__Common__",
+            "b": [
+             0,
+             0,
+             0,
+             0
+            ]
+           },
+           {
+            "t": "__Common__",
+            "b": [
+             0,
+             1700,
+             1320,
+             2848
+            ],
+            "children": [
+             {
+              "t": "Stack",
+              "b": [
+               0,
+               1700,
+               1320,
+               2848
+              ],
+              "children": [
+               {
+                "t": "Column",
+                "b": [
+                 0,
+                 1700,
+                 1320,
+                 2848
+                ],
+                "children": [
+                 {
+                  "t": "Column",
+                  "b": [
+                   0,
+                   1700,
+                   1320,
+                   2848
+                  ],
+                  "children": [
+                   {
+                    "t": "Column",
+                    "b": [
+                     0,
+                     1700,
+                     1320,
+                     2848
+                    ],
+                    "children": [
+                     {
+                      "t": "Column",
+                      "b": [
+                       0,
+                       1720,
+                       1320,
+                       1900
+                      ],
+                      "children": [
+                       {
+                        "t": "Text",
+                        "b": [
+                         60,
+                         1730,
+                         300,
+                         1790
+                        ],
+                        "text": "默认车位"
+                       },
+                       {
+                        "t": "Text",
+                        "b": [
+                         320,
+                         1730,
+                         1000,
+                         1790
+                        ],
+                        "text": "终点：B2-018（占位）"
+                       },
+                       {
+                        "t": "Text",
+                        "b": [
+                         60,
+                         1810,
+                         700,
+                         1870
+                        ],
+                        "text": "全程约 356米（占位）"
+                       }
+                      ]
+                     },
+                     {
+                      "t": "GridRow",
+                      "b": [
+                       0,
+                       2400,
+                       1320,
+                       2600
+                      ],
+                      "children": [
+                       {
+                        "t": "GridCol",
+                        "b": [
+                         0,
+                         2400,
+                         860,
+                         2600
+                        ],
+                        "children": [
+                         {
+                          "t": "Row",
+                          "b": [
+                           0,
+                           2400,
+                           860,
+                           2600
+                          ],
+                          "children": [
+                           {
+                            "t": "Column",
+                            "b": [
+                             40,
+                             2410,
+                             840,
+                             2590
+                            ],
+                            "children": [
+                             {
+                              "t": "Text",
+                              "b": [
+                               60,
+                               2420,
+                               820,
+                               2490
+                              ],
+                              "text": "泊车代驾辅助暂不可用"
+                             },
+                             {
+                              "t": "Text",
+                              "b": [
+                               60,
+                               2500,
+                               820,
+                               2570
+                              ],
+                              "text": "车辆故障，请检修后再试（占位）"
+                             }
+                            ]
+                           }
+                          ]
+                         }
+                        ]
+                       },
+                       {
+                        "t": "GridCol",
+                        "b": [
+                         880,
+                         2400,
+                         1320,
+                         2600
+                        ],
+                        "children": [
+                         {
+                          "t": "Button",
+                          "b": [
+                           900,
+                           2420,
+                           1280,
+                           2580
+                          ],
+                          "attrs": {
+                           "opacity": "0.400000"
+                          },
+                          "click": true,
+                          "children": [
+                           {
+                            "t": "Text",
+                            "b": [
+                             1020,
+                             2470,
+                             1160,
+                             2530
+                            ],
+                            "text": "开始"
+                           }
+                          ]
+                         }
+                        ]
+                       }
+                      ]
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "qk_start_confirm": {
+   "kind": "popup",
+   "root": {
+    "t": "Dialog",
+    "b": [
+     100,
+     1000,
+     1220,
+     1600
+    ],
+    "children": [
+     {
+      "t": "Text",
+      "b": [
+       140,
+       1040,
+       1180,
+       1120
+      ],
+      "text": "确认开始泊车？（占位）"
+     },
+     {
+      "t": "Text",
+      "b": [
+       140,
+       1140,
+       1180,
+       1220
+      ],
+      "text": "请确认车辆周围安全（占位）"
+     },
+     {
+      "t": "Button",
+      "b": [
+       140,
+       1400,
+       620,
+       1540
+      ],
+      "go": "@dismiss",
+      "children": [
+       {
+        "t": "Text",
+        "b": [
+         160,
+         1420,
+         600,
+         1520
+        ],
+        "text": "取消"
+       }
+      ]
+     },
+     {
+      "t": "Button",
+      "b": [
+       700,
+       1400,
+       1180,
+       1540
+      ],
+      "go": "qk_moving",
+      "children": [
+       {
+        "t": "Text",
+        "b": [
+         720,
+         1420,
+         1160,
+         1520
+        ],
+        "text": "确定"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "qk_moving": {
+   "stage": true,
+   "root": {
+    "t": "Column",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "XComponent",
+      "b": [
+       0,
+       0,
+       1320,
+       1700
+      ]
+     },
+     {
+      "t": "Text",
+      "b": [
+       60,
+       1760,
+       1260,
+       1830
+      ],
+      "text": "泊入中（占位）"
+     },
+     {
+      "t": "Text",
+      "b": [
+       60,
+       1850,
+       1260,
+       1920
+      ],
+      "text": "车速 3 km/h（占位）"
+     },
+     {
+      "t": "Text",
+      "b": [
+       60,
+       1940,
+       1260,
+       2010
+      ],
+      "text": "剩余 42米（占位）"
+     },
+     {
+      "t": "Button",
+      "b": [
+       60,
+       2400,
+       1260,
+       2560
+      ],
+      "go": "qk_paused",
+      "children": [
+       {
+        "t": "Text",
+        "b": [
+         80,
+         2420,
+         1240,
+         2540
+        ],
+        "text": "暂停"
+       }
+      ]
+     }
+    ]
+   },
+   "after_obs": {
+    "n": 4,
+    "go": "qk_moving_tor",
+    "replace": true
+   }
+  },
+  "qk_moving_tor": {
+   "stage": true,
+   "root": {
+    "t": "Column",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "XComponent",
+      "b": [
+       0,
+       0,
+       1320,
+       1700
+      ]
+     },
+     {
+      "t": "Text",
+      "b": [
+       60,
+       1760,
+       1260,
+       1830
+      ],
+      "text": "前方有行人，请注意（占位）"
+     },
+     {
+      "t": "Text",
+      "b": [
+       60,
+       1850,
+       1260,
+       1920
+      ],
+      "text": "车速 0 km/h（占位）"
+     },
+     {
+      "t": "Button",
+      "b": [
+       60,
+       2400,
+       1260,
+       2560
+      ],
+      "go": "qk_paused",
+      "children": [
+       {
+        "t": "Text",
+        "b": [
+         80,
+         2420,
+         1240,
+         2540
+        ],
+        "text": "暂停"
+       }
+      ]
+     }
+    ]
+   },
+   "after_obs": {
+    "n": 3,
+    "go": "qk_moving_2",
+    "replace": true
+   }
+  },
+  "qk_moving_2": {
+   "stage": true,
+   "root": {
+    "t": "Column",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "XComponent",
+      "b": [
+       0,
+       0,
+       1320,
+       1700
+      ]
+     },
+     {
+      "t": "Text",
+      "b": [
+       60,
+       1760,
+       1260,
+       1830
+      ],
+      "text": "泊入中（占位）"
+     },
+     {
+      "t": "Text",
+      "b": [
+       60,
+       1850,
+       1260,
+       1920
+      ],
+      "text": "车速 2 km/h（占位）"
+     },
+     {
+      "t": "Text",
+      "b": [
+       60,
+       1940,
+       1260,
+       2010
+      ],
+      "text": "剩余 20米（占位）"
+     },
+     {
+      "t": "Button",
+      "b": [
+       60,
+       2400,
+       1260,
+       2560
+      ],
+      "go": "qk_paused",
+      "children": [
+       {
+        "t": "Text",
+        "b": [
+         80,
+         2420,
+         1240,
+         2540
+        ],
+        "text": "暂停"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "qk_moving_final": {
+   "stage": true,
+   "root": {
+    "t": "Column",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "XComponent",
+      "b": [
+       0,
+       0,
+       1320,
+       1700
+      ]
+     },
+     {
+      "t": "Text",
+      "b": [
+       60,
+       1760,
+       1260,
+       1830
+      ],
+      "text": "泊入中（占位）"
+     },
+     {
+      "t": "Text",
+      "b": [
+       60,
+       1850,
+       1260,
+       1920
+      ],
+      "text": "车速 2 km/h（占位）"
+     },
+     {
+      "t": "Text",
+      "b": [
+       60,
+       1940,
+       1260,
+       2010
+      ],
+      "text": "剩余 8米（占位）"
+     },
+     {
+      "t": "Button",
+      "b": [
+       60,
+       2400,
+       1260,
+       2560
+      ],
+      "go": "qk_paused",
+      "children": [
+       {
+        "t": "Text",
+        "b": [
+         80,
+         2420,
+         1240,
+         2540
+        ],
+        "text": "暂停"
+       }
+      ]
+     }
+    ]
+   },
+   "after_obs": {
+    "n": 5,
+    "go": "qk_parked",
+    "replace": true
+   }
+  },
+  "qk_paused": {
+   "stage": true,
+   "root": {
+    "t": "Column",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "XComponent",
+      "b": [
+       0,
+       0,
+       1320,
+       1700
+      ]
+     },
+     {
+      "t": "Text",
+      "b": [
+       60,
+       1760,
+       800,
+       1840
+      ],
+      "text": "已暂停（占位）"
+     },
+     {
+      "t": "Button",
+      "b": [
+       60,
+       2400,
+       640,
+       2560
+      ],
+      "go": "qk_moving_final",
+      "children": [
+       {
+        "t": "Text",
+        "b": [
+         80,
+         2420,
+         620,
+         2540
+        ],
+        "text": "继续"
+       }
+      ]
+     },
+     {
+      "t": "Button",
+      "b": [
+       680,
+       2400,
+       1260,
+       2560
+      ],
+      "go": "@back",
+      "children": [
+       {
+        "t": "Text",
+        "b": [
+         700,
+         2420,
+         1240,
+         2540
+        ],
+        "text": "退出"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "qk_parked": {
+   "stage": true,
+   "root": {
+    "t": "Column",
+    "b": [
+     0,
+     0,
+     1320,
+     2848
+    ],
+    "children": [
+     {
+      "t": "XComponent",
+      "b": [
+       0,
+       0,
+       1320,
+       1700
+      ]
+     },
+     {
+      "t": "Text",
+      "b": [
+       60,
+       1760,
+       800,
+       1840
+      ],
+      "text": "车已泊入车位"
+     },
+     {
+      "t": "Text",
+      "b": [
+       60,
+       1860,
+       800,
+       1930
+      ],
+      "text": "行驶距离 38米（占位）"
+     },
+     {
+      "t": "Button",
+      "b": [
+       60,
+       2400,
+       1260,
+       2560
+      ],
+      "go": "@back",
+      "children": [
+       {
+        "t": "Text",
+        "b": [
+         80,
+         2420,
+         1240,
+         2540
+        ],
+        "text": "返回"
+       }
+      ]
+     }
+    ]
+   }
+  }
+ }
+}

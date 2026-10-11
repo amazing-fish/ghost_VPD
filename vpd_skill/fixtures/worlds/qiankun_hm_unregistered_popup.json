@@ -1,0 +1,20 @@
+{
+  "note": "没登记过的弹窗（文案全新），只有通用推迟按钮「以后再说」：执行层按 dialog_policy 兜底关闭并记事件。",
+  "extends": "qiankun_hm_ready.json",
+  "launch_popup": "qk_new_dialog",
+  "patch_screens": {
+    "qk_new_dialog": {
+      "kind": "popup",
+      "root": {
+        "t": "Dialog", "b": [120, 1000, 1200, 1700],
+        "children": [
+          {"t": "Text", "text": "开启消息通知，第一时间了解车辆状态", "b": [200, 1060, 1100, 1140]},
+          {"t": "Button", "b": [160, 1500, 640, 1640], "click": true, "go": "@dismiss",
+           "children": [{"t": "Text", "text": "以后再说", "b": [200, 1540, 600, 1600]}]},
+          {"t": "Button", "b": [680, 1500, 1160, 1640], "click": true,
+           "children": [{"t": "Text", "text": "去开启", "b": [720, 1540, 1120, 1600]}]}
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "id": "motor_hm_smoke",
+  "desc": "鸿蒙智行导航类冒烟集（不涉及车辆）。经验验证默认使用本集合，避免只在产生经验的单一样例上验证。",
+  "cases": ["TC-MOTOR-HM-001", "TC-MOTOR-HM-002", "TC-MOTOR-HM-003"]
+}

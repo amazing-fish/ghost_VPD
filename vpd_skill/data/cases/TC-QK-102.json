@@ -1,0 +1,48 @@
+{
+  "id": "TC-QK-102",
+  "version": 1,
+  "status": "draft",
+  "app": "qiankun_hm",
+  "title": "随机拖动地图选车位并收藏、重命名、设标签，再在 VPD 首页按收藏名搜索算路并读取距离",
+  "purpose": "验证收藏车位的重命名与标签生效：按新名字能在 VPD 首页搜到并发起算路，算路后能读到路线距离。不点「开始」，不触发车辆运动；结束时取消收藏。",
+  "preconditions": [
+    "手机已由测试人员手动解锁",
+    "已登录测试账号且当前车辆为 M5（末位 7885）；可先跑 TC-QK-101 的登录/切车部分（测试人员声明：--env account_state=logged_in）",
+    "车辆当前位置在 VPD 地图范围内（不在图内时 K-QK-USR-003 不适用）；测试人员确认后声明 --env vehicle_in_vpd_map=yes",
+    "地图区域在真机上可点选车位（未验证：地图可能是没有 UI 树子节点的自绘控件，K-QK-USR-003）",
+    "test_data.tag 的标签选项在 APP 中存在（「常用」是占位值；标签也可能是自由输入，未验证）",
+    "算路可能唤醒车辆（K-QK-006）：车旁有人知情"
+  ],
+  "env_requirements": {"account_state": "logged_in", "vehicle_in_vpd_map": "yes"},
+  "test_data": {
+    "spot_name": {"template": "VPDT{run}"},
+    "tag": "常用"
+  },
+  "authorizations": ["vpd_entry", "user_data", "route_planning"],
+  "steps": [
+    {"id": "S1", "action": "ensure_state", "state": "qk_vpd_home"},
+    {"id": "S2", "action": "flow", "flow": "favorite_random_spot", "params": {"name": "${var:spot_name}", "tag": "${var:tag}"}},
+    {"id": "S3", "action": "flow", "flow": "search_and_plan", "params": {"name": "${var:spot_name}"}},
+    {"id": "S4", "action": "read", "read_scope": "page", "measure": "route_distance",
+     "pattern": "(\\d+(?:\\.\\d+)?)\\s*(?:公里|千米|米|km(?!/)|m(?![a-z/]))", "unit": "按原文",
+     "desc": "在算路结果页整页文字里找距离（格式未知，按数字+长度单位匹配，排除 km/h）"}
+  ],
+  "assertions": [
+    {"id": "A1", "at": "S3", "type": "state_seen", "state": "qk_route_result",
+     "desc": "按收藏名搜索后能发起算路并得到算路结果", "oracle_refs": ["K-QK-USR-003"]},
+    {"id": "A2", "at": "S4", "type": "value_present", "pattern": "\\d+(?:\\.\\d+)?",
+     "desc": "算路结果页能读到路线距离（数值记入 measurements，不与期望值比较）", "oracle_refs": ["K-QK-USR-003"]},
+    {"id": "A3", "at": "S3", "type": "text_seen", "pattern": "路径规划失败|路线规划失败|无可达路径", "expected": false,
+     "desc": "算路过程中没有出现规划失败", "oracle_refs": ["K-QK-003"]}
+  ],
+  "cleanup": [
+    {"action": "back", "desc": "离开算路结果页回到首页"},
+    {"action": "flow", "flow": "unfavorite", "params": {"name": "${var:spot_name}"}},
+    {"action": "stop_app"}
+  ],
+  "sources": [
+    {"type": "reviewer", "ref": "用户样例需求 2（2026-09-29）"},
+    {"type": "repo_code", "ref": "app/service/vpd/vpd_harmony.py:17-54 按车位号搜索并「去这里」算路（按收藏名搜索是推测）", "commit": "90545b9"}
+  ],
+  "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "draft", "why": "用户样例用例 2；地图选点/收藏/重命名/标签目标均为假设，须真机校准"}]
+}

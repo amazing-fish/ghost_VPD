@@ -1,0 +1,89 @@
+{
+  "extends": "motor_hm_base.json",
+  "note": "变体：折叠屏展开态（2200×2480，密度 3.0 → 733 vp，宽屏 md）。导航改为左侧竖排 TabBar；「我的」页为左右分栏：左栏列表、右栏详情，进入「设置」只替换右栏，左栏和导航仍在。鸿蒙智行在折叠屏上的真实布局未经真机确认，这里只用于验证执行器的分栏识别、容器内滑动与定位，不代表产品行为。",
+  "device": {"model": "REPLAY-FOLDABLE", "os": "OpenHarmony (replay)"},
+  "screen": [2200, 2480],
+  "display": {"density": 3.0, "fold_status": "expanded", "device_form": "foldable", "source": "合成：折叠屏展开态参数"},
+  "fragments": {
+    "rail": {"t": "TabBar", "b": [0, 0, 240, 2480], "children": [
+      {"t": "Column", "b": [0, 400, 240, 640], "click": true, "go": "discover_tab", "children": [
+        {"t": "Image", "b": [80, 430, 160, 510], "icon": "tab-discover"},
+        {"t": "Text", "text": "发现", "b": [86, 530, 154, 580]}]},
+      {"t": "Column", "b": [0, 700, 240, 940], "click": true, "go": "car_tab", "children": [
+        {"t": "Image", "b": [80, 730, 160, 810], "icon": "tab-car"},
+        {"t": "Text", "text": "爱车", "b": [86, 830, 154, 880]}]},
+      {"t": "Column", "b": [0, 1000, 240, 1240], "click": true, "go": "my_tab", "children": [
+        {"t": "Image", "b": [80, 1030, 160, 1110], "icon": "tab-my"},
+        {"t": "Text", "text": "我的", "b": [86, 1130, 154, 1180]}]}]},
+    "navlist_top": {"t": "NavBar", "b": [240, 0, 1000, 2480], "children": [
+      {"t": "List", "scroll": true, "b": [240, 120, 1000, 2480], "children": [
+        {"t": "Column", "b": [270, 150, 970, 410], "click": true, "children": [
+          {"t": "Image", "b": [290, 190, 430, 330], "icon": "avatar"},
+          {"t": "Text", "text": "注册/登录", "b": [460, 240, 860, 310]}]},
+        {"t": "Column", "b": [270, 450, 970, 1250], "children": [
+          {"t": "Text", "text": "服务卡片占位", "b": [300, 490, 740, 550]}]},
+        {"t": "Column", "b": [270, 1290, 970, 2090], "children": [
+          {"t": "Text", "text": "活动卡片占位", "b": [300, 1330, 740, 1390]}]},
+        {"t": "Row", "b": [270, 2130, 970, 2250], "click": true, "go": "help_page", "children": [
+          {"t": "Text", "text": "帮助与反馈", "b": [300, 2160, 640, 2220]}]}]}]},
+    "navlist_scrolled": {"t": "NavBar", "b": [240, 0, 1000, 2480], "children": [
+      {"t": "List", "scroll": true, "b": [240, 120, 1000, 2480], "children": [
+        {"t": "Column", "b": [270, 150, 970, 950], "children": [
+          {"t": "Text", "text": "活动卡片占位", "b": [300, 190, 740, 250]}]},
+        {"t": "Row", "b": [270, 990, 970, 1110], "click": true, "go": "help_page", "children": [
+          {"t": "Text", "text": "帮助与反馈", "b": [300, 1020, 640, 1080]}]},
+        {"t": "Row", "b": [270, 1150, 970, 1270], "click": true, "go": "settings", "children": [
+          {"t": "Text", "text": "设置", "b": [300, 1180, 480, 1240]}]}]}]}
+  },
+  "patch_screens": {
+    "car_tab": {"tab": true, "root": {"t": "Row", "b": [0, 0, 2200, 2480], "children": [
+      {"use": "rail", "sel": "爱车"},
+      {"t": "Column", "b": [240, 0, 2200, 2480], "children": [
+        {"t": "Text", "text": "我的车辆", "b": [300, 140, 700, 220]},
+        {"t": "Column", "b": [280, 260, 2160, 760], "click": true, "children": [
+          {"t": "Text", "text": "示例车辆", "b": [320, 300, 840, 380]},
+          {"t": "Text", "text": "车架号 000000(后六位)", "b": [320, 400, 1040, 460]}]},
+        {"t": "Row", "b": [280, 820, 2160, 1060], "children": [
+          {"t": "Button", "b": [280, 820, 700, 1060], "click": true, "children": [
+            {"t": "Text", "text": "解锁", "b": [420, 900, 560, 980]}]},
+          {"t": "Button", "b": [740, 820, 1160, 1060], "click": true, "children": [
+            {"t": "Text", "text": "空调", "b": [880, 900, 1020, 980]}]},
+          {"t": "Button", "b": [1200, 820, 1620, 1060], "click": true, "children": [
+            {"t": "Text", "text": "寻车", "b": [1340, 900, 1480, 980]}]}]},
+        {"t": "Column", "b": [280, 1120, 2160, 1300], "click": true, "go": "vpd_home", "children": [
+          {"t": "Text", "text": "泊车代驾", "b": [320, 1170, 720, 1250]}]}]}]}},
+    "discover_tab": {"tab": true, "root": {"t": "Row", "b": [0, 0, 2200, 2480], "children": [
+      {"use": "rail", "sel": "发现"},
+      {"t": "Column", "b": [240, 0, 2200, 2480], "children": [
+        {"t": "Text", "text": "发现占位内容", "b": [300, 200, 940, 280]}]}]}},
+    "my_tab": {"tab": true, "on_swipe_up": "my_tab_scrolled", "root": {"t": "Row", "b": [0, 0, 2200, 2480], "children": [
+      {"use": "rail", "sel": "我的"},
+      {"t": "Navigation", "b": [240, 0, 2200, 2480], "children": [
+        {"use": "navlist_top"},
+        {"t": "NavDestination", "b": [1000, 0, 2200, 2480], "children": [
+          {"t": "Text", "text": "详情区占位", "b": [1300, 1180, 1900, 1260]}]}]}]}},
+    "my_tab_scrolled": {"tab": true, "on_swipe_down": "my_tab", "root": {"t": "Row", "b": [0, 0, 2200, 2480], "children": [
+      {"use": "rail", "sel": "我的"},
+      {"t": "Navigation", "b": [240, 0, 2200, 2480], "children": [
+        {"use": "navlist_scrolled"},
+        {"t": "NavDestination", "b": [1000, 0, 2200, 2480], "children": [
+          {"t": "Text", "text": "详情区占位", "b": [1300, 1180, 1900, 1260]}]}]}]}},
+    "settings": {"root": {"t": "Row", "b": [0, 0, 2200, 2480], "children": [
+      {"use": "rail", "sel": "我的"},
+      {"t": "Navigation", "b": [240, 0, 2200, 2480], "children": [
+        {"use": "navlist_scrolled"},
+        {"t": "NavDestination", "b": [1000, 0, 2200, 2480], "children": [
+          {"t": "Text", "text": "设置", "b": [1500, 140, 1700, 220]},
+          {"t": "Row", "b": [1040, 320, 2160, 460], "click": true, "children": [
+            {"t": "Text", "text": "账号与安全", "b": [1080, 360, 1500, 420]}]},
+          {"t": "Row", "b": [1040, 2200, 2160, 2340], "click": true, "children": [
+            {"t": "Text", "text": "退出登录", "b": [1480, 2240, 1760, 2300]}]}]}]}]}},
+    "help_page": {"root": {"t": "Row", "b": [0, 0, 2200, 2480], "children": [
+      {"use": "rail", "sel": "我的"},
+      {"t": "Navigation", "b": [240, 0, 2200, 2480], "children": [
+        {"use": "navlist_top"},
+        {"t": "NavDestination", "b": [1000, 0, 2200, 2480], "children": [
+          {"t": "Text", "text": "帮助与反馈", "b": [1400, 140, 1800, 220]},
+          {"t": "Text", "text": "常见问题占位", "b": [1060, 320, 1600, 400]}]}]}]}}
+  }
+}

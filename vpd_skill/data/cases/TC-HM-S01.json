@@ -1,0 +1,267 @@
+{
+  "id": "TC-HM-S01",
+  "version": 1,
+  "status": "exploration_record",
+  "app": "motor_hm",
+  "title": "[会话生成] 从爱车页进入我的页的设置并返回",
+  "goal": "从爱车页进入我的页的设置并返回",
+  "purpose": "从「我的」页上滑进入设置，确认设置页有「退出登录」入口（不点击），返回后回到「我的」页",
+  "preconditions": [
+    "鸿蒙智行已登录（设置页才有「退出登录」）",
+    "手机解锁，APP 可切到前台"
+  ],
+  "env_requirements": {
+    "account_state": "logged_in"
+  },
+  "test_data": {},
+  "test_data_none": true,
+  "authorizations": [],
+  "steps": [
+    {
+      "id": "S1",
+      "action": "launch",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-hm-sel2",
+        "seq": 1,
+        "step": "A1",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0001",
+        "obs_after": "obs-0002"
+      }
+    },
+    {
+      "id": "S1b",
+      "action": "ensure_state",
+      "state": "my_tab",
+      "critical": true,
+      "note": "会话里启动后直接回到了上次的「我的」页，A2（点「我的」多匹配）被排除；复测时起点可能是爱车页，用已有 recipe 显式到达"
+    },
+    {
+      "id": "S3",
+      "action": "swipe",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-hm-sel2",
+        "seq": 3,
+        "step": "A3",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0004",
+        "obs_after": "obs-0005"
+      },
+      "direction": "up"
+    },
+    {
+      "id": "S4",
+      "action": "tap",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-hm-sel2",
+        "seq": 4,
+        "step": "A4",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0006",
+        "obs_after": "obs-0008"
+      },
+      "expect_state": "settings",
+      "revalidate": true,
+      "target": {
+        "label": "select:text=设置",
+        "strategies": [
+          {
+            "kind": "text",
+            "value": "设置"
+          }
+        ],
+        "side_effect": "navigation",
+        "origin": "agent_select",
+        "observed": {
+          "session": "session-hm-sel2",
+          "seq": 4,
+          "obs": "obs-0007",
+          "outcome": "passed",
+          "node": {
+            "idx": 102,
+            "type": "Text",
+            "text": "设置",
+            "id": "",
+            "bounds": [
+              242,
+              2137,
+              350,
+              2200
+            ],
+            "clickable": false,
+            "selected": false
+          },
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": "3.0.3.200",
+          "device_form": "bar",
+          "validation_level": "real_device"
+        }
+      }
+    },
+    {
+      "id": "S5",
+      "action": "back",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-hm-sel2",
+        "seq": 5,
+        "step": "A5",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0009",
+        "obs_after": "obs-0010"
+      },
+      "expect_state": "my_tab"
+    }
+  ],
+  "assertions": [
+    {
+      "id": "A1",
+      "at": "S4",
+      "type": "target_present",
+      "target": "logout_entry",
+      "desc": "设置页可见「退出登录」（不点击）",
+      "oracle_refs": [
+        "K-MOT-002"
+      ]
+    },
+    {
+      "id": "A2",
+      "at": "S5",
+      "type": "state_is",
+      "state": "my_tab",
+      "desc": "返回后回到我的页",
+      "oracle_refs": [
+        "K-MOT-001"
+      ]
+    }
+  ],
+  "cleanup": [
+    {
+      "id": "C1",
+      "action": "back",
+      "required": false
+    }
+  ],
+  "knowledge_used": [
+    {
+      "id": "K-MOT-002",
+      "use": "判据：设置页应有「退出登录」",
+      "applicability": "applies",
+      "rationale": "applies_to=motor_hm 3.0.3.200，本机实测 3.0.3.200；状态 unconfirmed，结论只能待确认",
+      "steps": [
+        "S4"
+      ]
+    },
+    {
+      "id": "K-MOT-001",
+      "use": "判据：返回后回到「我的」页",
+      "applicability": "applies",
+      "rationale": "同上",
+      "steps": [
+        "S5"
+      ]
+    },
+    {
+      "id": "target:tab_my / state:my_tab",
+      "use": "操作经验：ensure_state my_tab 的 recipe",
+      "applicability": "calibrated",
+      "rationale": "states.json 中 my_tab 签名已在 3.0.3.200 真机校准",
+      "steps": [
+        "S1b"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "type": "session",
+      "run": "session-hm-sel2",
+      "validation_level": "real_device",
+      "facts": {
+        "app": "motor_hm",
+        "app_version": "3.0.3.200",
+        "device_form": "bar",
+        "device": "hdc:5MT0225B05000904",
+        "validation_level": "real_device"
+      },
+      "included": [
+        1,
+        3,
+        4,
+        5
+      ],
+      "excluded": [
+        {
+          "seq": 2,
+          "step": "A2",
+          "action": "tap",
+          "outcome": "blocked",
+          "reason": "「我的」多匹配，未下发；A1 已在我的页",
+          "effect_unknown": false,
+          "obs": [
+            "obs-0003",
+            "obs-0003"
+          ]
+        }
+      ],
+      "rejected": [],
+      "incomplete": [],
+      "obs": [
+        "obs-0001",
+        "obs-0002",
+        "obs-0004",
+        "obs-0005",
+        "obs-0006",
+        "obs-0008",
+        "obs-0009",
+        "obs-0010"
+      ],
+      "trail": "runs/session-hm-sel2/events.jsonl"
+    }
+  ],
+  "history": [
+    {
+      "ts": "2026-09-30T03:51:43.214+08:00",
+      "to": "exploration_record",
+      "why": "由会话生成：待补齐目的、判据（独立来源）、清理与 knowledge_used"
+    }
+  ],
+  "replays": [
+    {
+      "run_id": "run-20260930-035258-c897",
+      "verdict": "pending",
+      "hash": "0b048a3b3dc6",
+      "validation_level": "real_device",
+      "device": "hdc:5MT0225B05000904",
+      "ts": "2026-09-30T03:53:37.819+08:00",
+      "failure_signature": [],
+      "alerts": 0,
+      "not_verified": 0,
+      "facts": {
+        "account_state": "logged_in",
+        "app": "motor_hm",
+        "app_version": "3.0.3.200",
+        "device_form": "bar"
+      }
+    }
+  ]
+}

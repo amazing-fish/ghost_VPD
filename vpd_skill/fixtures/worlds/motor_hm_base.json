@@ -1,0 +1,753 @@
+{
+  "note": "合成回放世界：结构模仿 Harmony dumpLayout；底部导航结构按 2026-09-29 真机观测校准（三个 tab：发现/爱车/我的，selected 标在 TabBar 下可点击的 Column 上）；其余文案取自原工程代码或为占位文本，不是真实 APP 布局的抓取。",
+  "bundle": "app.huawei.hmos.motor",
+  "app_version": "3.0.3.200-replay",
+  "device": {
+    "model": "REPLAY-SGT-AL10",
+    "os": "OpenHarmony-7.0.0.105 (replay)"
+  },
+  "screen": [
+    1320,
+    2848
+  ],
+  "display": {
+    "density": 3.375,
+    "fold_status": "unknown",
+    "device_form": "bar",
+    "source": "2026-09-29 真机 SGT-AL10 hidumper -s DisplayManagerService：VirtualPixelRatio 3.375，PhysicalFoldStatus UNKNOWN"
+  },
+  "initial": {
+    "locked": false,
+    "screen_on": true,
+    "foreground": "com.ohos.sceneboard",
+    "installed": true
+  },
+  "env_facts": {
+    "account_state": "logged_out"
+  },
+  "launch_screen": "car_tab",
+  "fragments": {
+    "tabbar": {
+      "t": "TabBar",
+      "b": [
+        0,
+        2640,
+        1320,
+        2848
+      ],
+      "children": [
+        {
+          "t": "Column",
+          "b": [
+            0,
+            2640,
+            440,
+            2848
+          ],
+          "click": true,
+          "go": "discover_tab",
+          "children": [
+            {
+              "t": "Stack",
+              "b": [
+                0,
+                2640,
+                440,
+                2848
+              ],
+              "children": [
+                {
+                  "t": "Column",
+                  "b": [
+                    140,
+                    2650,
+                    300,
+                    2740
+                  ],
+                  "children": [
+                    {
+                      "t": "Image",
+                      "b": [
+                        180,
+                        2600,
+                        260,
+                        2670
+                      ],
+                      "icon": "tab-discover"
+                    },
+                    {
+                      "t": "Text",
+                      "text": "发现",
+                      "b": [
+                        186,
+                        2676,
+                        254,
+                        2723
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "t": "Column",
+          "b": [
+            440,
+            2640,
+            880,
+            2848
+          ],
+          "click": true,
+          "go": "car_tab",
+          "children": [
+            {
+              "t": "Stack",
+              "b": [
+                440,
+                2640,
+                880,
+                2848
+              ],
+              "children": [
+                {
+                  "t": "Column",
+                  "b": [
+                    580,
+                    2650,
+                    740,
+                    2740
+                  ],
+                  "children": [
+                    {
+                      "t": "Image",
+                      "b": [
+                        620,
+                        2600,
+                        700,
+                        2670
+                      ],
+                      "icon": "tab-car"
+                    },
+                    {
+                      "t": "Text",
+                      "text": "爱车",
+                      "b": [
+                        626,
+                        2676,
+                        694,
+                        2723
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "t": "Column",
+          "b": [
+            880,
+            2640,
+            1320,
+            2848
+          ],
+          "click": true,
+          "go": "my_tab",
+          "children": [
+            {
+              "t": "Stack",
+              "b": [
+                880,
+                2640,
+                1320,
+                2848
+              ],
+              "children": [
+                {
+                  "t": "Column",
+                  "b": [
+                    1020,
+                    2650,
+                    1180,
+                    2740
+                  ],
+                  "children": [
+                    {
+                      "t": "Image",
+                      "b": [
+                        1060,
+                        2600,
+                        1140,
+                        2670
+                      ],
+                      "icon": "tab-my"
+                    },
+                    {
+                      "t": "Text",
+                      "text": "我的",
+                      "b": [
+                        1066,
+                        2676,
+                        1134,
+                        2723
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "screens": {
+    "car_tab": {
+      "tab": true,
+      "root": {
+        "t": "Column",
+        "b": [
+          0,
+          0,
+          1320,
+          2848
+        ],
+        "children": [
+          {
+            "t": "Text",
+            "text": "我的车辆",
+            "b": [
+              60,
+              140,
+              460,
+              220
+            ]
+          },
+          {
+            "t": "Column",
+            "b": [
+              40,
+              260,
+              1280,
+              760
+            ],
+            "click": true,
+            "children": [
+              {
+                "t": "Text",
+                "text": "示例车辆",
+                "b": [
+                  80,
+                  300,
+                  600,
+                  380
+                ]
+              },
+              {
+                "t": "Text",
+                "text": "车架号 000000(后六位)",
+                "b": [
+                  80,
+                  400,
+                  800,
+                  460
+                ]
+              }
+            ]
+          },
+          {
+            "t": "Row",
+            "b": [
+              40,
+              820,
+              1280,
+              1060
+            ],
+            "children": [
+              {
+                "t": "Button",
+                "b": [
+                  40,
+                  820,
+                  330,
+                  1060
+                ],
+                "click": true,
+                "children": [
+                  {
+                    "t": "Text",
+                    "text": "解锁",
+                    "b": [
+                      120,
+                      900,
+                      250,
+                      980
+                    ]
+                  }
+                ]
+              },
+              {
+                "t": "Button",
+                "b": [
+                  350,
+                  820,
+                  640,
+                  1060
+                ],
+                "click": true,
+                "children": [
+                  {
+                    "t": "Text",
+                    "text": "空调",
+                    "b": [
+                      430,
+                      900,
+                      560,
+                      980
+                    ]
+                  }
+                ]
+              },
+              {
+                "t": "Button",
+                "b": [
+                  660,
+                  820,
+                  950,
+                  1060
+                ],
+                "click": true,
+                "children": [
+                  {
+                    "t": "Text",
+                    "text": "寻车",
+                    "b": [
+                      740,
+                      900,
+                      870,
+                      980
+                    ]
+                  }
+                ]
+              },
+              {
+                "t": "Button",
+                "b": [
+                  970,
+                  820,
+                  1280,
+                  1060
+                ],
+                "click": true,
+                "children": [
+                  {
+                    "t": "Image",
+                    "b": [
+                      1060,
+                      880,
+                      1190,
+                      1000
+                    ],
+                    "icon": "more-controls"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "t": "Column",
+            "b": [
+              40,
+              1120,
+              1280,
+              1300
+            ],
+            "click": true,
+            "go": "vpd_home",
+            "children": [
+              {
+                "t": "Text",
+                "text": "泊车代驾",
+                "b": [
+                  80,
+                  1170,
+                  480,
+                  1250
+                ]
+              }
+            ]
+          },
+          {
+            "use": "tabbar",
+            "sel": "爱车"
+          }
+        ]
+      }
+    },
+    "my_tab": {
+      "tab": true,
+      "root": {
+        "t": "Column",
+        "b": [
+          0,
+          0,
+          1320,
+          2848
+        ],
+        "children": [
+          {
+            "t": "Column",
+            "b": [
+              40,
+              160,
+              1280,
+              420
+            ],
+            "click": true,
+            "children": [
+              {
+                "t": "Image",
+                "b": [
+                  60,
+                  200,
+                  220,
+                  360
+                ],
+                "icon": "avatar"
+              },
+              {
+                "t": "Text",
+                "text": "注册/登录",
+                "b": [
+                  260,
+                  240,
+                  700,
+                  320
+                ]
+              }
+            ]
+          },
+          {
+            "t": "Row",
+            "b": [
+              40,
+              560,
+              1280,
+              700
+            ],
+            "click": true,
+            "go": "help_page",
+            "children": [
+              {
+                "t": "Text",
+                "text": "帮助与反馈",
+                "b": [
+                  80,
+                  600,
+                  500,
+                  660
+                ]
+              }
+            ]
+          },
+          {
+            "t": "Row",
+            "b": [
+              40,
+              720,
+              1280,
+              860
+            ],
+            "click": true,
+            "go": "settings",
+            "children": [
+              {
+                "t": "Text",
+                "text": "设置",
+                "b": [
+                  80,
+                  760,
+                  300,
+                  820
+                ]
+              }
+            ]
+          },
+          {
+            "use": "tabbar",
+            "sel": "我的"
+          }
+        ]
+      }
+    },
+    "discover_tab": {
+      "tab": true,
+      "root": {
+        "t": "Column",
+        "b": [
+          0,
+          0,
+          1320,
+          2848
+        ],
+        "children": [
+          {
+            "t": "Text",
+            "text": "发现占位内容",
+            "b": [
+              60,
+              200,
+              700,
+              280
+            ]
+          },
+          {
+            "use": "tabbar",
+            "sel": "发现"
+          }
+        ]
+      }
+    },
+    "help_page": {
+      "root": {
+        "t": "Column",
+        "b": [
+          0,
+          0,
+          1320,
+          2848
+        ],
+        "children": [
+          {
+            "t": "Button",
+            "b": [
+              20,
+              120,
+              140,
+              240
+            ],
+            "click": true,
+            "go": "@back",
+            "children": [
+              {
+                "t": "Text",
+                "text": "返回",
+                "b": [
+                  30,
+                  150,
+                  130,
+                  210
+                ]
+              }
+            ]
+          },
+          {
+            "t": "Text",
+            "text": "帮助与反馈",
+            "b": [
+              460,
+              140,
+              860,
+              220
+            ]
+          },
+          {
+            "t": "Text",
+            "text": "常见问题占位",
+            "b": [
+              60,
+              320,
+              600,
+              400
+            ]
+          }
+        ]
+      }
+    },
+    "settings": {
+      "root": {
+        "t": "Column",
+        "b": [
+          0,
+          0,
+          1320,
+          2848
+        ],
+        "children": [
+          {
+            "t": "Button",
+            "b": [
+              20,
+              120,
+              140,
+              240
+            ],
+            "click": true,
+            "go": "@back",
+            "children": [
+              {
+                "t": "Text",
+                "text": "返回",
+                "b": [
+                  30,
+                  150,
+                  130,
+                  210
+                ]
+              }
+            ]
+          },
+          {
+            "t": "Text",
+            "text": "设置",
+            "b": [
+              560,
+              140,
+              760,
+              220
+            ]
+          },
+          {
+            "t": "Row",
+            "b": [
+              40,
+              320,
+              1280,
+              460
+            ],
+            "click": true,
+            "children": [
+              {
+                "t": "Text",
+                "text": "账号与安全",
+                "b": [
+                  80,
+                  360,
+                  500,
+                  420
+                ]
+              }
+            ]
+          },
+          {
+            "t": "Row",
+            "b": [
+              40,
+              2400,
+              1280,
+              2540
+            ],
+            "click": true,
+            "children": [
+              {
+                "t": "Text",
+                "text": "退出登录",
+                "b": [
+                  520,
+                  2440,
+                  800,
+                  2500
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "vpd_home": {
+      "root": {
+        "t": "Column",
+        "b": [
+          0,
+          0,
+          1320,
+          2848
+        ],
+        "children": [
+          {
+            "t": "Text",
+            "text": "泊车代驾占位（回放中不应到达）",
+            "b": [
+              60,
+              200,
+              1200,
+              280
+            ]
+          }
+        ]
+      }
+    },
+    "update_dialog": {
+      "kind": "popup",
+      "root": {
+        "t": "Dialog",
+        "b": [
+          120,
+          1000,
+          1200,
+          1700
+        ],
+        "children": [
+          {
+            "t": "Text",
+            "text": "发现新版本",
+            "b": [
+              200,
+              1060,
+              1100,
+              1140
+            ]
+          },
+          {
+            "t": "Button",
+            "b": [
+              160,
+              1500,
+              640,
+              1640
+            ],
+            "click": true,
+            "go": "@dismiss",
+            "children": [
+              {
+                "t": "Text",
+                "text": "下次再说",
+                "b": [
+                  260,
+                  1540,
+                  540,
+                  1600
+                ]
+              }
+            ]
+          },
+          {
+            "t": "Button",
+            "b": [
+              680,
+              1500,
+              1160,
+              1640
+            ],
+            "click": true,
+            "children": [
+              {
+                "t": "Text",
+                "text": "更新",
+                "b": [
+                  860,
+                  1540,
+                  980,
+                  1600
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

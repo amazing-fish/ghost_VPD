@@ -1,0 +1,55 @@
+{
+  "id": "TC-QK-101",
+  "version": 1,
+  "status": "draft",
+  "app": "qiankun_hm",
+  "title": "登录乾崑账号、切到 M5（末位 7885）、进入 VPD 选默认车位算路：有故障时不能激活",
+  "purpose": "验证车辆当前有故障时，默认车位算路后「开始」不可用（或不出现），并显示不可用/故障提示。整个用例不点「开始」，不触发车辆运动。",
+  "preconditions": [
+    "手机已由测试人员手动解锁（Skill 不输入锁屏密码）",
+    "乾崑 APP 已安装（2026-09-29 设备上为 1.0.26.100）",
+    "账号未登录（测试人员声明：--env account_state=logged_out）",
+    "测试账号下有 M5，车架号末位 7885，且该车当前有故障（K-QK-USR-001 / K-QK-USR-002）",
+    "环境变量 VPD_SECRET_QIANKUN_PHONE、VPD_SECRET_QIANKUN_PASSWORD 已设置（只从环境变量读取，不写入任何文件）",
+    "算路可能唤醒车辆（K-QK-006）：车旁有人知情"
+  ],
+  "env_requirements": {"account_state": "logged_out"},
+  "test_data": {
+    "account": {"secret": "QIANKUN_PHONE"},
+    "password": {"secret": "QIANKUN_PASSWORD"},
+    "vin_tail": "7885"
+  },
+  "authorizations": ["account_state", "vehicle_selection", "vpd_entry", "route_planning"],
+  "steps": [
+    {"id": "S1", "action": "ensure_state", "state": "qk_car_tab"},
+    {"id": "S2", "action": "flow", "flow": "login_password",
+     "params": {"account": "${var:account}", "password": "${var:password}"}},
+    {"id": "S3", "action": "flow", "flow": "switch_vehicle", "params": {"vin_tail": "${var:vin_tail}"}},
+    {"id": "S4", "action": "flow", "flow": "enter_vpd", "params": {}},
+    {"id": "S5", "action": "flow", "flow": "plan_default_spot", "params": {}},
+    {"id": "S6", "action": "wait", "duration_s": 12,
+     "desc": "原工程规则：「泊车代驾辅助暂不可用」持续 10 秒以上才算失败（vpd.py:2040-2048），等过 10 秒再判"},
+    {"id": "S7", "action": "read", "target": "qk_cruise_tip", "measure": "cruise_tip", "critical": false,
+     "desc": "记录「开始」左侧的提示原文（用于校准 K-QK-003 的文案）"}
+  ],
+  "assertions": [
+    {"id": "A1", "at": "S6", "type": "target_enabled", "target": "qk_start", "expected": false, "absent_is": "disabled",
+     "desc": "有故障时「开始」不可用（置灰 opacity<1，或按钮不出现）", "oracle_refs": ["K-QK-USR-002", "K-QK-002"]},
+    {"id": "A2", "at": "S6", "type": "text_present_any",
+     "any": ["泊车代驾辅助暂不可用", "路径规划失败", "路线规划失败", "抱歉，无可达路径", "暂不可用"],
+     "desc": "10 秒后仍显示不可用/失败提示", "oracle_refs": ["K-QK-USR-002", "K-QK-003"]},
+    {"id": "A3", "at": "S3", "type": "value_present", "pattern": "(?s).*(M5|7885).*", "severity": "minor",
+     "desc": "切换后车辆入口显示 M5 或末位 7885", "oracle_refs": ["K-QK-USR-001"]},
+    {"id": "A4", "at": "S6", "type": "visual_review", "advisory": true, "desc": "故障提示是否清楚说明原因",
+     "prompt": "主观建议：不可激活时，用户能否从页面上看懂原因与下一步；不作为缺陷结论"}
+  ],
+  "cleanup": [
+    {"action": "back", "desc": "离开算路结果页"},
+    {"action": "stop_app"}
+  ],
+  "sources": [
+    {"type": "reviewer", "ref": "用户样例需求 1（2026-09-29）"},
+    {"type": "repo_code", "ref": "app/service/vpd/vpd.py:2261-2377 登录/切车；571-656 进入 VPD；2009-2056 默认车位算路与失败提示", "commit": "90545b9"}
+  ],
+  "history": [{"ts": "2026-09-29T09:30:00+08:00", "to": "draft", "why": "用户样例用例 1；判据待确认，选择器未经真机校准"}]
+}
