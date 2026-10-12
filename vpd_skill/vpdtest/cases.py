@@ -7,6 +7,8 @@
 """
 from __future__ import annotations
 
+import re
+from pathlib import Path
 from typing import Optional
 
 from .safety import untreed_strategies
@@ -17,8 +19,36 @@ CONTENT_KEYS = ("app", "preconditions", "env_requirements", "test_data", "steps"
 # 只在声明时计入，避免改变既有用例的内容哈希。授权与安全停止决定实际会产生哪些物理副作用，改了就要重新重放
 OPTIONAL_CONTENT_KEYS = ("layout_requirements", "authorizations", "safety")
 TREE_KINDS = ("text", "id", "xpath")
+# Issue #14：obs 编号属于单次运行（重放后编号会变）。裸引用会让判定证据链指向不存在的观测
+# （真机上出现过：rationale 引 obs-0010/0012，而本 run 实际是 obs-0007/0008）。
+# 但「run 目录名/会话名 + obs 编号」是可解析引用：锚点目录确实留存了该观测时证据链可追溯，允许。
+# (?<![A-Za-z0-9_-]) 排除复合标识里的片段——K-QK-OBS-201 是知识 ID（稳定标识），不是观测编号。
+OBS_REF_RE = re.compile(r"(?<![A-Za-z0-9_-])obs-\d{3,6}\b", re.IGNORECASE)
+RUN_ANCHOR_RE = re.compile(r"\b(run-\d{8}-\d{6}-[0-9a-z]+|session-[0-9a-z_-]+)", re.IGNORECASE)
 NEXT = {"exploration_record": "candidate", "draft": "candidate", "candidate": "replay_verified",
         "replay_verified": "regression"}
+
+
+def unresolvable_obs_refs(text: str, runs_dir: Optional[Path] = None) -> list:
+    """rationale 里的 obs 引用哪些不可解析（check-refs）。
+
+    - 无 run/session 锚点 → 不可解析（裸编号，重放后必过期）；
+    - 有锚点且给出 runs_dir（正常 lint 都给）→ 锚点目录必须真实存在且包含该观测，否则不可解析
+      （防止「随手加个 run- 前缀」绕过：真机缺陷正是锚点 run 里根本没有被引的那个编号）；
+    - 有锚点但没给 runs_dir → 只能核对形式，暂不判不可解析。
+    """
+    text = text or ""
+    problems = []
+    # 每个 obs 引用归属其前方最近的锚点（“run-A obs-1；run-B obs-2”各归各），不做全文笛卡尔匹配——
+    # 否则错引能在其它 run 留存同名观测时蒙混过关（review P2：跨 run 错配）。
+    anchors = [(m.start(), m.group(1).lower()) for m in RUN_ANCHOR_RE.finditer(text)]
+    for m in OBS_REF_RE.finditer(text):
+        prior = [a for s, a in anchors if s < m.start()]
+        if not prior:
+            problems.append(f"{m.group(0)}：无 run/session 锚点（引用须写在锚点之后）")
+        elif runs_dir is not None and not (runs_dir / prior[-1] / "obs" / m.group(0).lower()).is_dir():
+            problems.append(f"{m.group(0)}：锚点 {prior[-1]} 未留存该观测（目录不存在或缺 obs）")
+    return problems
 
 
 def content_hash(case: dict) -> str:
@@ -153,7 +183,8 @@ def _lint_effects(case: dict, app, policy) -> list:
     return issues
 
 
-def lint(case: dict, app, knowledge, policy=None) -> list:
+def lint(case: dict, app, knowledge, policy=None, runs_dir: Optional[Path] = None) -> list:
+    """runs_dir 用于 check-refs：核对 rationale 里「run/会话 + obs」引用是否真的可解析到留存证据。"""
     issues = []
     for k in REQUIRED:
         v = case.get(k)
@@ -224,6 +255,18 @@ def lint(case: dict, app, knowledge, policy=None) -> list:
     if any(s.get("type") == "session" for s in case.get("sources", [])) and not case.get("knowledge_used"):
         issues.append({"field": "knowledge_used", "problem": "由会话生成的用例须说明用到了哪些知识、是否适用、怎样映射到动作"
                                                              "（没有可用知识也要写明，例如 [{\"id\": null, \"note\": \"...\"}]）"})
+    # Issue #14：支持可解析的 run/session + obs 证据引用，不能一刀切禁止 obs 编号——
+    # 不可解析的引用（裸编号、锚点目录未留存该观测）才拦。稳定引用 = 知识 ID / 步骤 ID，
+    # 或「run 目录名/会话名 + obs 编号」且证据确实还在。
+    for k in case.get("knowledge_used") or []:
+        if not k:
+            continue
+        bad = unresolvable_obs_refs(str(k.get("rationale") or ""), runs_dir)
+        if bad:
+            issues.append({"field": "knowledge_used", "problem":
+                f"knowledge_used[{k.get('id')}] 的 rationale 引用了不可解析的 obs 证据（{'；'.join(bad)}）："
+                "观测编号属于单次运行、重放后会过期。请改引稳定标识（知识 ID / 步骤 ID），"
+                "或写成「run 目录名/会话名 + obs 编号」并确保该目录留存了对应观测"})
     for a in real:
         if not a.get("oracle_refs"):
             issues.append({"field": f"assertions.{a.get('id')}", "problem": "缺少 oracle_refs（需求/已确认用例/产品规则）"})
@@ -324,7 +367,7 @@ def promote(ws, case_id: str, to: str, knowledge, reviewer: Optional[str] = None
     cur = case.get("status", "draft")
     if NEXT.get(cur) != to:
         raise PermissionError(f"不能从 {cur} 晋级到 {to}（允许：{cur} → {NEXT.get(cur)}）")
-    issues = lint(case, app, knowledge, ws.policy())
+    issues = lint(case, app, knowledge, ws.policy(), runs_dir=ws.runs_dir)
     if issues:
         raise PermissionError(f"用例不完整，不能晋级：{issues}")
     h = content_hash(case)

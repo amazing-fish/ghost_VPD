@@ -1,9 +1,7 @@
 """物理动作的唯一调用入口：声明前置状态、复核、下发、记录执行器结果。"""
 from __future__ import annotations
 
-from .devices import DeviceResult
-
-LAUNCHER = "com.ohos.sceneboard"
+from .devices import LAUNCHER, DeviceResult
 
 
 class Dispatcher:
