@@ -371,7 +371,9 @@ def cmd_case(ws: Workspace, a) -> dict:
             raise FileNotFoundError(f"没有会话 {sdir}")
         if ws.case_path(a.new_id).exists():
             raise FileExistsError(f"用例 {a.new_id} 已存在")
-        case = from_session(sdir, a.new_id, ws.app(a.app), a.goal, a.drop, a.title)
+        # 读会话记录要持会话锁：会话进行中生成用例不能读到写了一半的记录（与 observe/act 同一互斥）
+        with session_lock(sdir):
+            case = from_session(sdir, a.new_id, ws.app(a.app), a.goal, a.drop, a.title)
         write_json(ws.case_path(a.new_id), case)
         src = case["sources"][0]
         return {"case": a.new_id, "path": str(ws.case_path(a.new_id)), "steps": len(case["steps"]),

@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Optional
 
 from .tree import UiTree
-from .util import now_iso, read_json, read_jsonl
+from .util import now_iso, read_json, read_jsonl, read_jsonl_recoverable
 
 SELECT_RE = re.compile(r"^(text~|text|id|xpath)=(.+)$", re.S)
 REPLAYABLE = ("tap", "input", "back", "home", "swipe", "launch", "resume", "stop_app", "wait", "monitor")
@@ -92,6 +92,9 @@ class SessionMismatch(PermissionError):
 
 # 这些事件表示"已经向设备发出了手势/按键"：动作是否执行以它们为准，不看最后是结果还是报错
 SENT_EVENTS = ("dispatch", "clear_text", "scroll_search")
+# 不向设备下发手势/按键的请求：monitor 只采样观测、wait 只计时。这类请求被中断时
+# 不会有物理动作在途，恢复预算时不按"已下发"保守计入（手势类仍保守计入）。
+GESTURELESS_ACTIONS = ("monitor", "wait")
 IDENTITY_KEYS = ("app", "device", "validation_level")
 
 
@@ -109,9 +112,12 @@ def trail(session_dir: Path, expect: Optional[dict] = None) -> dict:
     - expect 给出时逐项与会话身份比较，不一致抛 SessionMismatch；会话里已有动作/观测却没有身份也拒绝。
     - 每个请求是否已下发，以请求与结束事件之间的 dispatch/clear_text/scroll_search 为准（act 是单进程、
       顺序执行，中间的事件都属于这个请求）。下发后才报错的 act_error 是"效果未知"，不是被拒。
+    - 进程被杀时 events/steps 的末行可能写了一半：丢弃截断的末行并在结果里留证（truncated_tail），
+      会话仍可恢复；中间行损坏不是截断，仍然报错。
     """
-    events = read_jsonl(session_dir / "events.jsonl")
-    records = {r["seq"]: r for r in read_jsonl(session_dir / "steps.jsonl")}
+    events, dropped_events = read_jsonl_recoverable(session_dir / "events.jsonl")
+    step_records, dropped_steps = read_jsonl_recoverable(session_dir / "steps.jsonl")
+    records = {r["seq"]: r for r in step_records}
     items, open_req, cur = [], {}, None
     identity, secret_typed, used, actions = None, False, False, 0
     counted = set()  # 已有下发事件计入预算的请求
@@ -155,14 +161,20 @@ def trail(session_dir: Path, expect: Optional[dict] = None) -> dict:
                 identity = e.get("identity") or ({k: f.get(k) for k in IDENTITY_KEYS} if f else None)
             items.append({"kind": "facts", "facts": e.get("facts"), "ts": e["ts"], "identity": e.get("identity")})
     for it in open_req.values():
-        # 进程在下发途中被杀时 dispatch 事件可能来不及写：没有结果的请求一律按效果未知处理，
-        # 预算上也按已下发保守计入（命令可能已到设备）；已有下发事件的请求不重复加
-        if it["seq"] not in counted:
+        # 进程在下发途中被杀时 dispatch 事件可能来不及写：没有结果的请求一律按效果未知处理；
+        # 手势类请求在预算上按已下发保守计入（命令可能已到设备），monitor/wait 不下发手势，
+        # 被中断也不会有动作在途，不计入；已有下发事件的请求不重复加
+        if it["seq"] not in counted and (it.get("request") or {}).get("action") not in GESTURELESS_ACTIONS:
             actions += 1
         it.update(kind="incomplete", effect_unknown=True,
                   reason="有请求没有结果（进程中断/超时）：现场可能已经发生变化")
     tr = {"session": session_dir.name, "items": items, "identity": identity, "secret_typed": secret_typed,
           "actions": actions}
+    dropped = {k: v for k, v in (("events", dropped_events), ("steps", dropped_steps)) if v is not None}
+    if dropped:
+        # 末行截断已丢弃：留证（哪份文件、截断内容前缀）。被丢弃的行可能是某请求的结束事件，
+        # 该请求会以 incomplete 出现并按保守口径计入预算，不会低估。
+        tr["truncated_tail"] = dropped
     if expect:
         if identity is None:
             if used:

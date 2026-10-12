@@ -9,7 +9,9 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
+import tempfile
 import time
 import uuid
 from pathlib import Path
@@ -277,19 +279,26 @@ class HdcDevice:
         return r
 
     def dump_tree(self, bundle: str, local_path) -> DeviceResult:
+        """拉取布局树并解析。原树先落到系统临时目录（运行目录之外），解析成功也只把结果放在
+        DeviceResult.data 里返回，不写 local_path：最终路径由调用方打码后再落盘。
+        解析失败/中途被杀时，运行目录里不会出现未打码的树（临时目录在 finally 里清理）。"""
         remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.json"
         local = Path(local_path)
         r = self._shell("uitest", "dumpLayout", "-b", bundle, "-p", remote, op="dump_tree", timeout=30)
         if not r.ok:
             return r
-        p = self._pull(remote, local, "dump_tree_pull")
-        if not p.ok:
-            return p
+        tmp_dir = Path(tempfile.mkdtemp(prefix="vpd_tree_"))
         try:
-            r.data["tree"] = json.loads(local.read_text(encoding="utf-8"))
-        except (ValueError, OSError) as e:
-            r.ok, r.error_class, r.error = False, "tree_parse_error", str(e)
-        return r
+            p = self._pull(remote, tmp_dir / "tree.json", "dump_tree_pull")
+            if not p.ok:
+                return p
+            try:
+                r.data["tree"] = json.loads((tmp_dir / "tree.json").read_text(encoding="utf-8"))
+            except (ValueError, OSError) as e:
+                r.ok, r.error_class, r.error = False, "tree_parse_error", str(e)
+            return r
+        finally:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
     def screenshot(self, local_path) -> DeviceResult:
         remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.png"

@@ -63,6 +63,28 @@ def read_jsonl(path) -> list:
         return [json.loads(line) for line in f if line.strip()]
 
 
+def read_jsonl_recoverable(path) -> tuple:
+    """读取 JSONL，只容忍末行被截断（进程被杀时写了一半）：丢弃末行并返回 (records, dropped)。
+    dropped 为 None 表示没有截断，否则是 {"tail": "<末行前 120 字符>"}，由调用方留证。
+    中间行损坏仍然抛 json.JSONDecodeError——不静默吞掉非末行的数据损坏。"""
+    p = Path(path)
+    if not p.exists():
+        return [], None
+    lines = p.read_text(encoding="utf-8").splitlines()
+    out, dropped = [], None
+    for i, line in enumerate(lines):
+        if not line.strip():
+            continue
+        try:
+            out.append(json.loads(line))
+        except ValueError:
+            if i == len(lines) - 1:
+                dropped = {"tail": line[:120]}
+            else:
+                raise
+    return out, dropped
+
+
 def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 

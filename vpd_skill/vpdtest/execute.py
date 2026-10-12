@@ -175,8 +175,10 @@ class Executor:
             res = self._send_target("tap", loc, obs, tree, target, tid, step, att)
             if att.get("status"):
                 return att
-            if res.ok and target.get("side_effect") == "vehicle_motion":
-                # 先挂上看门狗再做后置观测：后置观测里出现的停止状态会按规则解除
+            if res.sent and target.get("side_effect") == "vehicle_motion":
+                # 命令已发出就挂看门狗，成败不论：HDC 超时/失败时车可能已收到命令，
+                # 不能因为执行器没确认成功就不监护——停止要由后续观测确认，而不是由下发结果推断。
+                # 唯一入口：vehicle_motion 的挂载只在这里（观测到运动状态时由 MotionGuard 自己挂）
                 ctx.motion.arm(step["id"], pol.get("label") or tid, obs["page"]["state"])
         elif kind == "launch":
             res = ctx.dispatcher.send("launch", ctx.app.bundle, ctx.app.ability,
