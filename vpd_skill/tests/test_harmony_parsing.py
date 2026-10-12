@@ -1,5 +1,7 @@
 """基于 2026-09-29 在 SGT-AL10 / OpenHarmony-7.0.0.105 上实际采集的输出（已去除无关内容）。"""
-from vpdtest.devices.harmony_hdc import classify_output, parse_foreground, parse_kv, parse_version
+from vpdtest.devices import LAUNCHER
+from vpdtest.devices.harmony_hdc import (classify_output, foreground_from_evidence, parse_foreground, parse_kv,
+                                         parse_version)
 from vpdtest.devices.replay import placeholder_tree
 from vpdtest.tree import UiTree
 
@@ -35,6 +37,22 @@ def test_foreground_and_lock_parsing():
     assert parse_kv(LOCK_DUMP, "screenLocked") == "true"
     assert parse_kv("Current State: SLEEP  Reason: 1", "Current State") == "SLEEP"
     assert parse_version('"versionName": ""\n"versionName": "3.0.3.200"') == "3.0.3.200"
+
+
+def test_launcher_foreground_via_window_fallback():
+    """OpenHarmony 6.1.1.120（Mate 80，2026-10-12 实测）：桌面前台时 aa dump -l 全部 #BACKGROUND、
+    没有 #FOREGROUND 任务——只看任务列表会把桌面判成“查不到”，launch 前置检查永远过不去。
+    窗口表兜底：正在显示的窗口全部是 SCB*（桌面/壁纸/状态栏/导航条）→ 桌面前台（LAUNCHER）。"""
+    all_background = AA_DUMP.replace("#FOREGROUND  start", "#BACKGROUND  start")
+    launcher_windows = ["SCBScenePanel1", "SCBWallpaper5", "SCBDesktop7", "SCBGestureNavBar16",
+                        "SCBStatusBar18", "SCBGestureBack22"]
+    assert foreground_from_evidence(all_background, launcher_windows) == LAUNCHER
+    # 有应用窗口却对不上任何 FOREGROUND 任务：仍不猜
+    assert foreground_from_evidence(all_background, ["app0", "SCBStatusBar18"]) is None
+    # 窗口表查不到：不猜
+    assert foreground_from_evidence(all_background, None) is None
+    # 任务列表能判前台时以任务列表为准
+    assert foreground_from_evidence(AA_DUMP, launcher_windows) == "com.example.chat"
 
 
 def test_scoped_dump_of_background_app_is_empty_not_ok():

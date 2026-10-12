@@ -17,7 +17,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from . import DeviceResult
+from . import LAUNCHER, DeviceResult
 
 KEYS = {"back": "Back", "home": "Home", "move_end": "2082", "delete": "2055"}
 _FAIL_MARKERS = ("[fail]", "error:", "error code:")
@@ -53,6 +53,17 @@ def parse_foreground(dump: str) -> Optional[str]:
         elif s.startswith("Mission ID"):
             bundle = None
     return None
+
+
+def foreground_from_evidence(aa_dump: str, windows: Optional[list]) -> Optional[str]:
+    """前台判定：aa dump 的 #FOREGROUND 任务为准；OpenHarmony 6.x（Mate 80 6.1.1.120 实测）
+    桌面前台时任务列表里没有 #FOREGROUND——用窗口表兜底：正在显示的窗口全部属于 SCB*
+    （sceneboard：桌面/壁纸/状态栏/导航条）时判为桌面前台（LAUNCHER）。
+    窗口表里有非 SCB 窗口却对不上任何 FOREGROUND 任务、或窗口表查不到 → None（不猜）。"""
+    fg = parse_foreground(aa_dump)
+    if fg is None and windows and all(w.startswith("SCB") for w in windows):
+        return LAUNCHER
+    return fg
 
 
 def parse_kv(dump: str, key: str) -> Optional[str]:
@@ -265,7 +276,9 @@ class HdcDevice:
         """查询失败时返回 None 并在 last_query_error 记录原因，避免把"查不到"当成"不在 APP 内"。"""
         r = self._shell("aa", "dump", "-l", op="aa_dump")
         self.last_query_error = None if r.ok else (r.error_class or "command_failed")
-        return parse_foreground(r.raw) if r.ok else None
+        if not r.ok:
+            return None
+        return foreground_from_evidence(r.raw, self.shown_windows())
 
     def process_alive(self, bundle: str) -> Optional[bool]:
         r = self._shell("pidof", bundle, op="pidof")
