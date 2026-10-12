@@ -81,6 +81,43 @@ def test_clean_session_has_no_truncated_tail_marker(tmp_path):
     assert "truncated_tail" not in tr and tr["actions"] == 0
 
 
+def test_utf8_truncated_multibyte_tail_is_recovered(tmp_path):
+    """PR #26 检视 P2：中文文案（ensure_ascii=False 落盘）写一半被杀——坏字节在末尾，
+    按截断恢复；不能因为 UTF-8 解码错误整份轨迹读不出来。"""
+    path = tmp_path / "events.jsonl"
+    append_jsonl(path, {"ts": "t", "event": "act_request", "seq": 1, "step_id": "A1",
+                        "request": {"action": "tap"}})
+    # 「已」的 UTF-8 是 e5 b7 b2，只写了前两个字节
+    with path.open("ab") as f:
+        f.write(b'{"ts": "t", "event": "act_result", "seq": 1, "note": "\xe5\xb7')
+    tr = trail(tmp_path)  # 解码前缀有效：恢复，不抛 UnicodeDecodeError
+    assert tr["actions"] == 1
+    tail = tr["truncated_tail"]["events"]["tail"]
+    assert "act_result" in tail and "<utf8:" in tail  # 坏字节数留证
+
+
+def test_utf8_corruption_mid_file_still_raises(tmp_path):
+    """坏字节后面还有完整行：中间损坏不是截断，照常报错。"""
+    path = tmp_path / "events.jsonl"
+    append_jsonl(path, {"ts": "t", "event": "act_request", "seq": 1, "step_id": "A1",
+                        "request": {"action": "tap"}})
+    data = path.read_bytes() + b'{"ts": "t", "note": "\xe5\xb7"}\n' + b'{"ts": "t", "event": "done"}\n'
+    path.write_bytes(data)
+    with pytest.raises(UnicodeDecodeError):
+        trail(tmp_path)
+
+
+def test_newline_terminated_malformed_last_line_raises(tmp_path):
+    """PR #26 检视 P2：末行带着换行终止但 JSON 非法——进程不会在写完换行后再写坏行，
+    这是损坏不是截断，静默丢掉等于吞掉未知数据。"""
+    path = tmp_path / "events.jsonl"
+    append_jsonl(path, {"ts": "t", "event": "act_request", "seq": 1, "step_id": "A1",
+                        "request": {"action": "tap"}})
+    path.write_text(path.read_text(encoding="utf-8") + '{"broken": tru\n', encoding="utf-8")
+    with pytest.raises(json.JSONDecodeError):
+        trail(tmp_path)
+
+
 # ---- #19：case from-session 持有会话锁 ----
 
 def test_case_from_session_holds_the_session_lock(ws, tmp_path, monkeypatch):
