@@ -98,11 +98,12 @@ class Console:
         self.store.event("console_source", source=self.src.name, reason=self.fallback_reason)
 
     def _fallback(self, reason: str) -> None:
-        """由帧流线程在连续失败后调用。已关闭（或正在关闭）时什么都不做。"""
+        """由帧流线程调用：连续失败，或出过帧后持续静止（静止画面不出帧、无法支撑交互）。
+        已关闭（或正在关闭）时什么都不做。"""
         with self._life:
             if self._closed:
                 return
-            self.fallback_reason = f"帧流连续失败，改用 snapshot_display：{reason}"
+            self.fallback_reason = f"帧流已停用，改用 snapshot_display 轮询：{reason}"
             self.fast = self.control.fast = None
             self.src = SnapshotSource(self.device, self.hub, self.store.dir / "tmp")
             self.src.start()

@@ -12,8 +12,8 @@ import pytest
 
 from vpdtest.console import progress
 from vpdtest.console.control import Control
-from vpdtest.console.frames import (FrameHub, SessionUnavailable, SnapshotSource, UitestStreamSource, jpeg_size,
-                                    split_frames)
+from vpdtest.console.frames import (FrameHub, SessionUnavailable, SnapshotSource, StreamGiveUp, UitestStreamSource,
+                                    jpeg_size, split_frames)
 from vpdtest.console.server import Console, is_loopback, serve
 from vpdtest.devices import DeviceResult
 from vpdtest.devices.harmony_hdc import HdcDevice
@@ -478,6 +478,66 @@ def test_pump_tolerates_stall_after_frames_without_giving_up():
     hub.set_status = spy
     src._pump()                               # 出过一帧后再 stall：不抛，循环靠 _stop 正常退出
     assert stalled.is_set() and hub.seq == 1  # 标 stalled、保留那一帧
+
+
+class _ScriptSock:
+    """脚本化假 socket：按脚本逐次返回一帧 / 抛超时 / 抛 ConnectionError，每次调用把假时钟推进 step 秒。
+    用于精确驱动 _pump 的持续静止计时（真 sleep 在慢机上会抖，改成假时钟保证确定性）。"""
+
+    def __init__(self, script, clock, step):
+        self.script, self.clock, self.step = list(script), clock, step
+
+    def settimeout(self, s): pass
+
+    def recv(self, n):
+        self.clock["t"] += self.step
+        act = self.script.pop(0)
+        if act == "frame":
+            return fake_jpeg()
+        if act == "eof":
+            raise ConnectionError("closed")
+        raise TimeoutError()  # 3.10+ 起与 socket.timeout 同一类，_pump 的 except 照常捕获
+
+    def close(self): pass
+
+
+def test_pump_gives_up_when_stall_persists_after_frames(monkeypatch):
+    import vpdtest.console.frames as frames_mod
+    hub, clock = FrameHub(), {"t": 0.0}
+    monkeypatch.setattr(frames_mod.time, "monotonic", lambda: clock["t"])  # _pump 只用它计时
+    src = UitestStreamSource("S", hub, stall_s=5.0, stall_give_up_s=10.0)
+    src._sock = _ScriptSock(["frame", "timeout", "timeout", "timeout"], clock, step=5.0)
+    with pytest.raises(StreamGiveUp):       # 首个 stall 5s 容忍，持续到 10s 仍无新帧 → 交给 _loop 回退
+        src._pump()
+    assert hub.seq == 1 and hub.status == "stalled"  # 帧保留、状态如实
+
+
+def test_pump_stall_timer_resets_when_data_resumes(monkeypatch):
+    import vpdtest.console.frames as frames_mod
+    hub, clock = FrameHub(), {"t": 0.0}
+    monkeypatch.setattr(frames_mod.time, "monotonic", lambda: clock["t"])
+    src = UitestStreamSource("S", hub, stall_s=5.0, stall_give_up_s=10.0)
+    # 帧→超时(5s)→帧→超时→帧→断开：若 stall 计时不因新数据清零，第二个超时时已累计 10s 会误判放弃
+    src._sock = _ScriptSock(["frame", "timeout", "frame", "timeout", "frame", "eof"], clock, step=5.0)
+    with pytest.raises(ConnectionError):    # 最终是连接断开（错误路径），不是静止放弃
+        src._pump()
+    assert hub.seq == 3 and hub.status == "live"  # 每次 stall 后都能恢复出帧并转回 live
+
+
+def test_stream_falls_back_when_stall_persists():
+    hub, gave_up = FrameHub(), threading.Event()
+    reasons = []
+    src = UitestStreamSource("S", hub, on_give_up=lambda why: (reasons.append(why), gave_up.set()),
+                             stall_s=5.0, stall_give_up_s=0.0)
+    src.retry_s, opened = 0.01, []
+    src._open = lambda: opened.append(1)
+    src._sock = _TimeoutSock(first_frame=True)          # 出过一帧后永久超时
+    src._close = lambda: None
+    src.start()
+    assert gave_up.wait(3) and len(opened) == 1         # 持续静止直接回退，不重开流重试
+    src._th.join(1)
+    assert not src._th.is_alive()
+    assert hub.seq == 1 and "静止" in reasons[0]
 
 
 def _awake_console(tmp_path):
