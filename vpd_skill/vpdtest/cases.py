@@ -39,13 +39,15 @@ def unresolvable_obs_refs(text: str, runs_dir: Optional[Path] = None) -> list:
     """
     text = text or ""
     problems = []
+    # 每个 obs 引用归属其前方最近的锚点（“run-A obs-1；run-B obs-2”各归各），不做全文笛卡尔匹配——
+    # 否则错引能在其它 run 留存同名观测时蒙混过关（review P2：跨 run 错配）。
+    anchors = [(m.start(), m.group(1).lower()) for m in RUN_ANCHOR_RE.finditer(text)]
     for m in OBS_REF_RE.finditer(text):
-        anchors = [a.lower() for a in RUN_ANCHOR_RE.findall(text)]
-        if not anchors:
-            problems.append(f"{m.group(0)}：无 run/session 锚点")
-        elif runs_dir is not None and not any((runs_dir / a / "obs" / m.group(0).lower()).is_dir()
-                                              for a in anchors):
-            problems.append(f"{m.group(0)}：锚点 {'、'.join(anchors)} 均未留存该观测（目录不存在或缺 obs）")
+        prior = [a for s, a in anchors if s < m.start()]
+        if not prior:
+            problems.append(f"{m.group(0)}：无 run/session 锚点（引用须写在锚点之后）")
+        elif runs_dir is not None and not (runs_dir / prior[-1] / "obs" / m.group(0).lower()).is_dir():
+            problems.append(f"{m.group(0)}：锚点 {prior[-1]} 未留存该观测（目录不存在或缺 obs）")
     return problems
 
 
@@ -365,7 +367,7 @@ def promote(ws, case_id: str, to: str, knowledge, reviewer: Optional[str] = None
     cur = case.get("status", "draft")
     if NEXT.get(cur) != to:
         raise PermissionError(f"不能从 {cur} 晋级到 {to}（允许：{cur} → {NEXT.get(cur)}）")
-    issues = lint(case, app, knowledge, ws.policy(), runs_dir=ws.root / "runs")
+    issues = lint(case, app, knowledge, ws.policy(), runs_dir=ws.runs_dir)
     if issues:
         raise PermissionError(f"用例不完整，不能晋级：{issues}")
     h = content_hash(case)

@@ -77,22 +77,33 @@ def _diag_dir(store, seq: int) -> Path:
 
 def diagnose_cover(device, store, d: Path, dialogs: dict, redact=None) -> dict:
     """只读诊断：窗口表 + 整屏布局树 → 覆盖物是什么、是否命中已登记弹窗。不下发任何动作。
-    整屏树落在 d/screen_tree.json 作证据（redact 提供时与 bundle 树同一规则脱敏后写盘）；
+
+    隐私门禁（与截图同一规则）：整屏树和截图一样可能带通知横幅/锁屏/输入法内容——
+    隐私类系统窗口在显示、或窗口查询失败/设备不支持时，不取整屏树，只留窗口名证据。
+    通过门禁后整屏树落在 d/screen_tree.json 作证据（redact 提供时与 bundle 树同一规则脱敏后写盘）；
     返回里的 _tree 仅内部用于选关闭按钮，不进事件/obs。"""
-    windows = device.shown_windows() if hasattr(device, "shown_windows") else []
-    dump_ok, error_class, tree = False, "unsupported", None
-    if hasattr(device, "dump_screen"):
-        d.mkdir(parents=True, exist_ok=True)
-        r = device.dump_screen(d / "screen_tree.json")
-        dump_ok, error_class = bool(r.ok), r.error_class
-        if dump_ok:
-            raw = r.data.get("tree")
-            if redact is not None:
-                red = redact(raw)
-                if red != raw:
-                    write_json(d / "screen_tree.json", red)
-                raw = red
-            tree = UiTree(raw)
+    from .observe import KEYBOARD_WINDOWS, PRIVATE_WINDOWS
+    windows = device.shown_windows() if hasattr(device, "shown_windows") else None
+    if windows is None:
+        dump_ok, error_class = False, ("window_query_failed" if hasattr(device, "shown_windows")
+                                       else "window_query_unsupported")
+    elif any(w.startswith(PRIVATE_WINDOWS + KEYBOARD_WINDOWS) for w in windows):
+        dump_ok, error_class = False, "privacy_window_present"
+    else:
+        dump_ok, error_class = False, "unsupported"
+        if hasattr(device, "dump_screen"):
+            d.mkdir(parents=True, exist_ok=True)
+            r = device.dump_screen(d / "screen_tree.json")
+            dump_ok, error_class = bool(r.ok), r.error_class
+    tree = None
+    if dump_ok and hasattr(device, "dump_screen"):
+        raw = r.data.get("tree")
+        if redact is not None:
+            red = redact(raw)
+            if red != raw:
+                write_json(d / "screen_tree.json", red)
+            raw = red
+        tree = UiTree(raw)
     texts = tree.visible_texts()[:60] if dump_ok else []
     did, spec = match_dialog(dialogs, texts) if dump_ok else (None, None)
     out = {"windows": windows, "dump_ok": dump_ok, "dump_error": None if dump_ok else error_class,
@@ -111,10 +122,11 @@ def _public(diag: dict) -> dict:
     return {k: v for k, v in diag.items() if not k.startswith("_")}
 
 
-def resolve_screen_cover(ws, device, store, dispatcher=None, observer=None, dialogs=None) -> dict:
+def resolve_screen_cover(ws, device, store, dispatcher=None, observer=None, dialogs=None, redact=None) -> dict:
     """能力入口：诊断覆盖物；命中已登记良性弹窗时点它的安全按钮并复核已消失。
     状态：dismissed（已关闭并复核）/ no_cover（无覆盖或未命中登记）/ no_safe_button /
-    needs_review（命中但未评审/非良性）/ dismiss_failed / indeterminate（查询失败）。"""
+    needs_review（命中但未评审/非良性）/ dismiss_failed / indeterminate（查询失败）。
+    redact 提供时（会话内恢复路径可能已输入过密钥）整屏诊断树同样脱敏后落盘。"""
     from .dispatch import Dispatcher
     dispatcher = dispatcher or Dispatcher(device, store)
     dialogs = load_dialogs(ws) if dialogs is None else dialogs
@@ -124,7 +136,7 @@ def resolve_screen_cover(ws, device, store, dispatcher=None, observer=None, dial
     def next_diag():
         nonlocal seq
         seq += 1
-        return diagnose_cover(device, store, _diag_dir(store, seq), dialogs)
+        return diagnose_cover(device, store, _diag_dir(store, seq), dialogs, redact=redact)
 
     diag = next_diag()
     did, tree = diag.get("matched"), diag.get("_tree")
@@ -141,23 +153,41 @@ def resolve_screen_cover(ws, device, store, dispatcher=None, observer=None, dial
         if btn is None:
             status, reason = "no_safe_button", f"弹窗 {did} 树里找不到声明的安全关闭按钮（prefer）"
         else:
-            r = dispatcher.send("tap", *btn["point"], preconditions={"screen_locked": False},
-                                att={"action": "dismiss_system_dialog", "step_id": "system_dialog",
-                                     "dialog": did, "button_text": btn["text"]})
-            res["dismiss"] = {"button": btn["text"], "sent": bool(r.sent), "ok": bool(r.ok),
-                              "error_class": r.error_class}
-            if not r.ok:
-                status, reason = "dismiss_failed", f"关闭按钮点击未完成：{r.error_class}"
+            # 点击前复核：采集树到下发之间弹窗可能已自行消失/变化——按陈旧坐标盲点会误中底下的
+            # 控件（可能是带副作用的）。重新诊断并重选按钮；弹窗没了/换了就不点。
+            fresh = next_diag()
+            fdid, ftree = fresh.get("matched"), fresh.get("_tree")
+            fbtn = pick_dismiss(dialogs[fdid], ftree) if (fdid and ftree is not None) else None
+            if not fresh["dump_ok"]:
+                status, reason = "indeterminate", f"点击前复核采集失败（{fresh['dump_error']}），不按旧坐标盲点"
+            elif fdid is None:
+                status, reason = "no_cover", f"弹窗 {did} 在点击前已自行消失，无需关闭"
+            elif fdid != did:
+                status, reason = "dismiss_failed", f"点击前覆盖物已从 {did} 变为 {fdid}，登记的关闭方案不再适用"
+            elif fbtn is None:
+                status, reason = "no_safe_button", f"弹窗 {did} 点击前复核未再见安全关闭按钮（prefer）"
             else:
-                _sleep(device, 0.8)
-                again = next_diag()
-                res["recheck"] = {k: again.get(k) for k in ("windows", "dump_ok", "matched", "texts")}
-                if again.get("matched") == did:
-                    status, reason = "dismiss_failed", f"点击后弹窗 {did} 仍在显示"
+                btn = fbtn  # 用复核后的新坐标下发
+                r = dispatcher.send("tap", *btn["point"], preconditions={"screen_locked": False},
+                                    att={"action": "dismiss_system_dialog", "step_id": "system_dialog",
+                                         "dialog": did, "button_text": btn["text"]})
+                res["dismiss"] = {"button": btn["text"], "sent": bool(r.sent), "ok": bool(r.ok),
+                                  "error_class": r.error_class}
+                if not r.ok:
+                    status, reason = "dismiss_failed", f"关闭按钮点击未完成：{r.error_class}"
                 else:
-                    status, reason = "dismissed", f"已关闭弹窗 {did}（按钮「{btn['text']}」）并复核消失"
-                    if observer is not None and hasattr(observer, "invalidate_dialog_diag"):
-                        observer.invalidate_dialog_diag()  # 覆盖已消失：观测器的诊断缓存失效
+                    _sleep(device, 0.8)
+                    again = next_diag()
+                    res["recheck"] = {k: again.get(k) for k in ("windows", "dump_ok", "matched", "texts")}
+                    if not again["dump_ok"]:
+                        # 复核采集失败：点击效果未知，不谎报“已关闭并复核消失”
+                        status, reason = "indeterminate", f"点击后复核采集失败（{again['dump_error']}），关闭效果未知"
+                    elif again.get("matched") == did:
+                        status, reason = "dismiss_failed", f"点击后弹窗 {did} 仍在显示"
+                    else:
+                        status, reason = "dismissed", f"已关闭弹窗 {did}（按钮「{btn['text']}」）并复核消失"
+                        if observer is not None and hasattr(observer, "invalidate_dialog_diag"):
+                            observer.invalidate_dialog_diag()  # 覆盖已消失：观测器的诊断缓存失效
     res.update(status=status, reason=reason)
     store.event("capability_result", capability="system_dialog", **{k: v for k, v in res.items()})
     return res

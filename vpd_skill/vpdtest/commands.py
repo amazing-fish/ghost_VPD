@@ -391,7 +391,7 @@ def cmd_case(ws: Workspace, a) -> dict:
     if a.case_cmd == "lint":
         case = ws.load_case(a.case)
         return {"case": a.case, "status": case.get("status"), "hash": case_mod.content_hash(case),
-                "issues": case_mod.lint(case, ws.app(case["app"]), kn, ws.policy(), runs_dir=ws.root / "runs")}
+                "issues": case_mod.lint(case, ws.app(case["app"]), kn, ws.policy(), runs_dir=ws.runs_dir)}
     if a.case_cmd == "from-exploration":
         exp = case_mod.load_exploration(ws, a.run)
         case = case_mod.from_exploration(exp, a.transitions, a.new_id, exp["app"])
@@ -399,7 +399,7 @@ def cmd_case(ws: Workspace, a) -> dict:
             raise FileExistsError(f"用例 {a.new_id} 已存在")
         write_json(ws.case_path(a.new_id), case)
         return {"case": a.new_id, "path": str(ws.case_path(a.new_id)),
-                "issues": case_mod.lint(case, ws.app(case["app"]), kn, ws.policy(), runs_dir=ws.root / "runs")}
+                "issues": case_mod.lint(case, ws.app(case["app"]), kn, ws.policy(), runs_dir=ws.runs_dir)}
     if a.case_cmd == "from-session":
         sdir = ws.runs_dir / f"session-{a.session}"
         if not (sdir / "events.jsonl").exists():
@@ -411,7 +411,7 @@ def cmd_case(ws: Workspace, a) -> dict:
         src = case["sources"][0]
         return {"case": a.new_id, "path": str(ws.case_path(a.new_id)), "steps": len(case["steps"]),
                 "excluded": src["excluded"], "rejected": len(src["rejected"]), "incomplete": src["incomplete"],
-                "issues": case_mod.lint(case, ws.app(case["app"]), kn, ws.policy(), runs_dir=ws.root / "runs"),
+                "issues": case_mod.lint(case, ws.app(case["app"]), kn, ws.policy(), runs_dir=ws.runs_dir),
                 "next": "补齐 purpose / preconditions / assertions（oracle_refs 须独立于本会话）/ cleanup / knowledge_used 后 case lint"}
     if a.case_cmd == "promote":
         case = case_mod.promote(ws, a.case, a.to, kn, a.reviewer, a.allow_offline, a.known_issue)

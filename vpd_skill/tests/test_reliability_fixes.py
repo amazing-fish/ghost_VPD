@@ -119,7 +119,7 @@ def _lint_case(ws, **kw):
     base = {"id": "TC-KU-1", "purpose": "p", "preconditions": [], "test_data": {}, "test_data_none": True,
             "steps": [{"id": "S1", "action": "launch"}], "assertions": [], "cleanup": [], "sources": []}
     base.update(kw)
-    return C.lint(base, ws.app("motor_hm"), KnowledgeStore(ws.root), runs_dir=ws.root / "runs")
+    return C.lint(base, ws.app("motor_hm"), KnowledgeStore(ws.root), runs_dir=ws.runs_dir)
 
 
 def test_rationale_citing_bare_obs_ids_is_flagged(ws):
@@ -132,7 +132,7 @@ def test_rationale_citing_bare_obs_ids_is_flagged(ws):
 
 def test_resolvable_run_obs_reference_passes(ws):
     """「run 目录名 + obs 编号」且该目录确实留存了对应观测：证据链可追溯，放行。"""
-    obs_dir = ws.root / "runs" / "run-20261008-201507-4990" / "obs" / "obs-0007"
+    obs_dir = ws.runs_dir / "run-20261008-201507-4990" / "obs" / "obs-0007"
     obs_dir.mkdir(parents=True)
     issues = _lint_case(ws, knowledge_used=[
         {"id": "K-AV-001", "use": "entry_success", "applicability": "适用",
@@ -143,7 +143,7 @@ def test_resolvable_run_obs_reference_passes(ws):
 def test_anchored_obs_ref_with_missing_evidence_is_flagged(ws):
     """锚点 run 目录不存在/不含该观测（真机缺陷形态：引用 obs-0010，实际 run 里是 obs-0007）：
     加个 run- 前缀不能绕过 check-refs。"""
-    (ws.root / "runs" / "run-20261008-201507-4990" / "obs" / "obs-0007").mkdir(parents=True)
+    (ws.runs_dir / "run-20261008-201507-4990" / "obs" / "obs-0007").mkdir(parents=True)
     issues = _lint_case(ws, knowledge_used=[
         {"id": "K-AV-001", "use": "entry_success", "applicability": "适用",
          "rationale": "run-20261008-201507-4990 的 obs-0010 显示入口成功"}])
