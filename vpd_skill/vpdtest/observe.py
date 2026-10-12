@@ -97,17 +97,22 @@ class Observer:
         tree = None
         if fg == self.bundle:
             r = self.device.dump_tree(self.bundle, d / "tree.json")
-            if r.ok and self.params is not None:
-                # 输入过的账号/密码可能以明文出现在布局树里：落盘前替换为 ***
-                raw = self.params.redact(r.data.get("tree"))
-                if raw != r.data.get("tree"):
-                    write_json(d / "tree.json", raw)
-                    obs["redacted"] = True
-                r.data["tree"] = raw
             if r.ok:
-                tree = UiTree(r.data.get("tree"))
+                # 输入过的账号/密码可能以明文出现在布局树里：最终路径只写打码后的内容。
+                # 真机适配器不再把原文写到这里（拉取走系统临时目录），回放适配器写的是合成数据，
+                # 这里统一重写一遍保证落盘的永远是脱敏产物。
+                raw = r.data.get("tree")
+                if self.params is not None:
+                    red = self.params.redact(raw)
+                    if red != raw:
+                        obs["redacted"] = True
+                        raw = red
+                write_json(d / "tree.json", raw)
+                r.data["tree"] = raw
+                tree = UiTree(raw)
                 obs["tree"] = {"status": tree.status, "path": self.store.rel(d / "tree.json"), "nodes": len(tree.nodes)}
             else:
+                # 解析失败/拉取失败：运行目录里没有 tree.json（也不该有——可能是没打码的原文）
                 obs["tree"] = {"status": "unavailable" if r.error_class == "tree_unavailable" else "error",
                                "error_class": r.error_class, "error": r.error}
         else:
