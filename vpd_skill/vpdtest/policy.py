@@ -33,14 +33,11 @@ class Policy:
         self.allow_input = bool(data.get("allow_text_input", False))
         self.max_actions_per_run = int(data.get("max_actions_per_run", 60))
         self.max_wait_s = float(data.get("max_wait_s", 30))
-        self.privacy = data.get("privacy", {})
 
     def package_allowed(self, pkg: Optional[str]) -> bool:
         return bool(pkg) and pkg in self.allowed_packages
 
     def screenshot_allowed(self, fg_pkg: Optional[str]) -> bool:
-        if not self.privacy.get("screenshot_only_when_target_foreground", True):
-            return True
         return self.package_allowed(fg_pkg)
 
     def match_deny(self, texts: list, extra: Optional[list] = None) -> Optional[dict]:

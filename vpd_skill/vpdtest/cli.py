@@ -28,7 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
     u.add_argument("--lock-secret",
                    help="用哪个 secrets 键的 PIN（只传键名，如 LOCK_PIN_TEST；不接受 PIN 本身）")
 
-    g = sub.add_parser("sysdiag", help="只读整屏诊断：窗口表 + 整屏树 + 无隐私窗口时截图 + 系统弹窗登记比对")
+    g = sub.add_parser("sysdiag", help="只读整屏诊断：窗口表 + 整屏树 + APP 白名单截图 + 系统弹窗登记比对")
     g.add_argument("--app", default="motor_hm")
     g.add_argument("--device")
     g.add_argument("--dismiss", action="store_true",

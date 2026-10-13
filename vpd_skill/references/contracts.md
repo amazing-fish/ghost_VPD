@@ -10,9 +10,9 @@
 | `obs_id` / `ts` / `label` | 观测编号、时间、触发点（如 `S2#1:after`） |
 | `source` | `hdc`（真机）或 `replay`（离线替身） |
 | `foreground` / `process_alive` | 前台 bundle、目标进程是否存活（`pidof`） |
-| `tree.status` | `ok` 有可用内容 / `empty` 调用成功但只有占位根节点 / `unavailable` 页面不提供 UI 树 / `error` 采集或解析失败 / `not_collected` 目标不在前台，按隐私策略不采 |
-| `screenshot.status` | `ok` / `withheld`（前台非目标 APP、树为空、页面含已输入密钥、系统弹层在显示或窗口查询失败，都不截图；`reason` 写明）/ `error` / `skipped` |
-| `system_overlays` | 截图前后查到的、会带出个人内容的系统窗口（通知横幅、下拉栏、锁屏、负一屏、全局搜索；输入过密钥后还包括输入法），`null` 表示窗口查询失败。截完才出现的会把截图删掉。这些窗口不在按 bundle 取的树里，被盖住的控件会从树里消失 |
+| `tree.status` | `ok` 有可用内容 / `empty` 调用成功但只有占位根节点 / `unavailable` 页面不提供 UI 树 / `error` 采集或解析失败 / `not_collected` 目标不在前台，不采其他 APP 的业务树 / `stale` 前台变化，旧树只作证据 |
+| `screenshot.status` | `ok` / `withheld`（前台未知或不在 APP 白名单；`reason` 写明）/ `error`（设备实际采集失败）/ `skipped`（调用方关闭截图）。覆盖窗口、空树和输入内容不拦截 |
+| `screen_cover` | 目标 bundle 树为空时的独立整屏诊断：`windows`（未知为 null）、`dump_ok`、`dump_error`、`screen_tree`、`texts`、`matched`；每次重新采集，不复用旧覆盖物证据；整屏树不替代业务树 |
 | `page.state` | 已声明状态 ID，或 `unknown`（附 `signature`）、`ambiguous`（附 `candidates`）、`undetermined`（无可用树）、`out_of_app`（附 `suspected_crash`） |
 | `page.interrupts` | 命中的中断：`{id, class: benign/anomaly/unknown, review: reviewed/pending}` |
 | `texts` | 可见文本（前 60 条），便于 Agent 快速判断 |
@@ -25,6 +25,8 @@
 所有分支（无截图、失败、被拦及成功）在设备采集结束后复查前台。截图前的前台检查仍保留，决定能否截图。
 前台变化、切走后切回，或末次前台未知时，`fresh=false`、`tree.status=stale`，返回的树为 `None`，旧 `tree.json` 保留。
 同时重查目标进程存活，用末次前台和无树重新识别页面，清空旧树派生的 texts/ui_alerts，记录 `observation_stale`。
+最终断言装载器不把 stale 原始树重新恢复成可判定树；判定端也独立拒绝过时状态/树。
+监视按逐项 obs 引用检查新鲜度：有效命中可支持已出现事实；没有有效命中但有过时采样时为 undeterminable，不以证据缺口证明未出现。
 已离开目标 APP 为 out_of_app；末次前台未知为 undetermined，不用旧树制造后置通过。Observer 不自动重采，重试由调用方决定。
 
 ### 窗口形态 `layout`
@@ -125,7 +127,7 @@ agent 模式的 `--point` 记录提出时的窗口尺寸（`point_window`）；�
 
 **授权与运动安全**（`run.json`）：`authorized`（本次授予的副作用）、`supervision.{supervisor, supervised_granted, safety}`、`motion[]`（看门狗事件：`armed` 附触发步骤与控件；由 `moving_states` 观测挂上的记 `step: observed`、`label: state:<状态>`；`stopped_observed` 附状态与耗时）、`safety_stops[]`（触发原因、执行的安全停止步骤、`confirmed_stopped`；未确认时 `action_required` 要求人工接管）。安全停止记录独立于步骤结果，不覆盖首次失败。
 
-**脱敏**：带密钥参数的运行里，`tree.json` 落盘前把密钥值替换为 `***`，观测里的文字取自脱敏后的树；`run.json`、`events.jsonl` 写盘前同样脱敏；被脱敏的观测 `redacted: true` 且 `screenshot.status=withheld`。回放设备的输入值只在内存里，不写 `replay_state.json`。
+**原文取证（#32 裁决）**：树、可见文字、设备错误、事件和运行汇总保留采集原文，不脱敏、不按系统窗口扣留。窗口表未知不代表整屏 dump 失败；`dump_error` 仅反映实际采集错误或设备不支持 dump。截图仍受 APP 白名单约束，白名单内 APP 相互切换时保留截图，但旧业务树按 `fresh=false` 失效。旧 `redacted`、`private_windows`、`system_overlays`、`clipboard_may_hold_secret` 字段及 `secret_typed` 事件不再生成；旧会话事件可以读取但不再控制取证。密钥的外置引用、缺失检测、输入目标授权及生成用例的外置参数分类保持；回放设备的输入值只在内存中，恢复状态仍沿用现有格式。
 
 ## 3. 判定（`assertions[]` 与 `verdict`）
 

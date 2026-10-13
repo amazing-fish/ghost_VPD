@@ -2,7 +2,7 @@
 
 - P1 runs_dir：case lint / from-exploration / from-session 的 check-refs 必须按
   工作区真实 runs 目录（ws.runs_dir）核对，而不是 ws.root/runs（data/runs）
-- P1 整屏树隐私门禁：隐私类系统窗口在显示、或窗口查询失败时，诊断不落整屏树
+- Issue #32 整屏原文取证：覆盖窗口及窗口查询失败不阻止诊断
 - P1 点击前复核：弹窗在采集与下发之间自行消失 → 不按旧坐标盲点，no_cover
 - P2 复核失败不谎报：点击后复核采集失败 → indeterminate（效果未知），不是 dismissed
 - P2 锚点归属：每个 obs 引用只核对它前方最近的 run/session 锚点，不做跨 run 笛卡尔匹配
@@ -63,7 +63,7 @@ def test_case_from_session_lint_uses_workspace_runs_dir(ws, tmp_path):
     assert not [i for i in out["issues"] if i["field"] == "knowledge_used"], out["issues"]
 
 
-# ---- P1：整屏树隐私门禁 ----
+# ---- Issue #32：整屏取证 ----
 
 def _diag_ctx(ws):
     dev = ws.device(world("motor_hm_usb_dialog.json"))
@@ -73,29 +73,29 @@ def _diag_ctx(ws):
     return dev, store
 
 
-def test_diagnose_cover_withholds_tree_when_private_window_shown(ws):
-    """锁屏/通知横幅在显示：整屏树与截图同样可能带隐私内容——不取整屏树，只留窗口名。"""
+def test_diagnose_cover_collects_tree_when_lock_window_shown(ws):
+    """锁屏窗口在显示仍采集整屏树；动作能力保持独立约束。"""
     _register(ws)
     dev, store = _diag_ctx(ws)
     dev.state["windows"] = ["app0", "SCBScreenLock"]
     d = store.dir / "diag-private"
     diag = diagnose_cover(dev, store, d, load_dialogs(ws.root))
-    assert not diag["dump_ok"] and diag["dump_error"] == "privacy_window_present"
+    assert diag["dump_ok"] and diag["dump_error"] is None
     assert "SCBScreenLock" in diag["windows"]
-    assert not list(store.dir.rglob("screen_tree.json"))  # 任何地方都没落整屏树
+    assert (store.dir / diag["screen_tree"]).is_file()
 
 
-def test_diagnose_cover_withholds_tree_when_window_query_fails(ws):
+def test_diagnose_cover_collects_tree_when_window_query_fails(ws):
     _register(ws)
     dev, store = _diag_ctx(ws)
-    dev.state["windows"] = None  # 查询失败：不能确认没有隐私窗口
+    dev.state["windows"] = None  # 窗口查询失败不影响整屏采集
     diag = diagnose_cover(dev, store, store.dir / "diag-qfail", load_dialogs(ws.root))
-    assert not diag["dump_ok"] and diag["dump_error"] == "window_query_failed"
-    assert not list(store.dir.rglob("screen_tree.json"))
+    assert diag["dump_ok"] and diag["windows"] is None
+    assert (store.dir / diag["screen_tree"]).is_file()
 
 
-def test_diagnose_cover_dumps_when_no_private_window(ws):
-    """无隐私窗口（含已登记系统弹窗本身）：整屏诊断照常取证——治理要求不回退。"""
+def test_diagnose_cover_collects_registered_dialog(ws):
+    """已登记系统弹窗：整屏诊断照常取证。"""
     _register(ws)
     dev, store = _diag_ctx(ws)
     dev.state["windows"] = ["app0", "UsbModeDialog"]

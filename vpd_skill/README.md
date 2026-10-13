@@ -19,7 +19,7 @@ vpd_skill/
     devices/harmony_hdc.py 真机适配（hdc / uitest / aa / bm）
     devices/replay.py      离线替身设备（回放 world.json）
   data/
-    policy.json            运行边界（禁止文本、禁止副作用、隐私、预算）
+    policy.json            运行边界（APP 白名单、禁止文本、副作用授权、预算）
     apps/motor_hm/         app.json / targets.json（定位策略）/ states.json（状态签名、中断、recipe）
     apps/qiankun_hm/       同上，另有 flows.json（参数化流程：登录、切车、进入 VPD、算路、收藏等）
     knowledge/             items.json（有来源的知识）、text_cases/（文字用例）
@@ -78,7 +78,7 @@ $env:VPD_SECRET_QIANKUN_PHONE = '<账号>'; $env:VPD_SECRET_QIANKUN_PASSWORD = '
 ```
 
 每次运行输出到 `runs/<run_id>/`：`report.md`、`run.json`、`events.jsonl`、`obs/<id>/{observation.json, tree.json, screen.png}`。
-截图可能含个人信息，`runs/` 已 gitignore，外发前请自行检查。用例里的账号/密码只写成 `{"secret": "NAME"}`，值只从环境变量 `VPD_SECRET_NAME`（或 `config.local.json` 的 `secrets`）读取；UI 树、run.json、events.jsonl 落盘前按值脱敏，页面含已输入的敏感值时不截图。
+按 #32 裁决，UI 树、事件、运行汇总与截图保留采集原文，不脱敏，也不因系统覆盖物或窗口查询失败停止取证。截图仍受 APP 白名单约束，业务树仍要求属于本次目标 APP 且观测新鲜；空业务树另留整屏诊断证据。`runs/` 已 gitignore。用例中的账号/密码继续写成 `{"secret": "NAME"}`，由环境变量 `VPD_SECRET_NAME` 或 `config.local.json` 的 `secrets` 提供；生成资产保持外置参数引用。
 
 回归、探索、单步决策、探索转用例、经验晋级的完整步骤见 [references/workflows.md](references/workflows.md)
 与 [references/knowledge-rsi.md](references/knowledge-rsi.md)。
@@ -106,8 +106,9 @@ Console 是人工控制入口，手动操作写入独立的 `console-*` 运行�
 
 ## 数据状态说明（重要）
 
-- 仓库和本机均**未找到既有的 VPD 知识库或文字用例**。`data/knowledge/items.json` 中 K-MOT-* 条目提取自原工程代码（附文件行号与提交号），状态均为 **unconfirmed**；`TC-MOTOR-HM-001.md` 是按原工程登录/登出路径整理的种子样例。因此在真机上运行这些用例，结论会是"待确认"而不是"通过"，这是预期行为。
-- 由用例负责人 `knowledge confirm` 后，同样的运行才会给出通过/失败。
+- 2026-10-13 主干 `d7e7185` 快照：75 条知识（12 confirmed、62 unconfirmed、1 deprecated）；11 条用例（6 draft、5 exploration_record），正式回归 0。K-QK-001 已退役，采用的 K-AV-001 仍为 unconfirmed 且限定原 debug 范围。
+- 产品通过/失败要求每条 Oracle 明确 confirmed 且适用；入口选定、设备操作成功或框架 pytest 通过均不代替产品判据确认。人工 `knowledge confirm` 仍是独立治理动作。
+- PR #36 的拟新增资产未合入此快照，不能计为现有正式 VPD 覆盖。下一阶段优先完整取证、策略误报修复、资产人审入口和单个真实 VPD 闭环。详见 [方向与漂移审查](../docs/PROJECT_DIRECTION.md)。
 - `car_tab` / `my_tab` 的状态签名已在真机（3.0.3.200）上校准：选中态 `selected=true` 标在 `TabBar` 下可点击的 `Column` 容器上，而非文字节点，见 `states.json` 的 `source`。`settings` 签名与 `update_dialog` 中断仍是 `review: pending`，需在真机上核对后改为 `reviewed`。
 
 ## 屏幕形态
@@ -119,12 +120,14 @@ Console 是人工控制入口，手动操作写入独立的 `console-*` 运行�
 
 ## 验证情况
 
+下表包含历次采集与验证记录；旧 APP/build 的结果不表示本次已重新完成真机验证。取证行为以当前 #32 契约为准。
+
 | 项 | 方式 | 结果 |
 |---|---|---|
 | hdc 输出解析（锁屏、错误序列号、包不存在时退出码为 0） | 真机采集的输出 → 单元测试 | 通过 |
 | 目标不在前台时 `dumpLayout -b` 返回空占位树 → 识别为 `empty` 而不是"元素不存在" | 真机现象 → 单元测试 | 通过 |
 | 前置检查：锁屏 / 解锁、亮屏、APP 版本 | 真机 `doctor` | 锁屏时 `screen_unlocked=false`；解锁后四项通过，版本 3.0.3.200 |
-| 隐私：前台为其他 APP 时不采集布局、不截图 | 真机 `observe` | 通过（前台为其他 APP 时 tree=not_collected、screenshot=withheld） |
+| APP 取证边界：只取目标业务树，截图采用 APP 白名单 | 离线回放 + pytest | 覆盖窗口/窗口未知照常取证；白名单 APP 切换保留截图、旧业务树 stale；未白名单或未知前台不留截图 |
 | 满足预期判通过 / 违反预期判失败 / 锁屏与环境事实不足判阻塞 / 判据未确认或缺失判待确认 / 崩溃判失败 / 空树上的"不存在"断言不可判定 | 离线回放 + pytest | 通过 |
 | 工具恢复不擦除首次异常；未评审弹窗不自动关闭；从不点击「更新」 | 离线回放 + pytest | 通过 |
 | 定位漂移 → 经验候选 → 跨 3 用例 × 2 世界验证 → 采纳 → 回滚 | 离线回放 + pytest | 通过 |
@@ -135,7 +138,7 @@ Console 是人工控制入口，手动操作写入独立的 `console-*` 运行�
 | 读取像素密度与折叠状态 | 真机 `doctor` | Mate 80 Pro Max：1320×2848 px，密度 3.375 → 391.1 vp（sm 窄屏），折叠状态 UNKNOWN、无 foldscreen 参数 → 直板 |
 | 形态自适应后真机重跑 TC-MOTOR-HM-001 | 真机 `run` | 4 步全部执行成功；「设置」在可滚动 List 容器内上滑 1 次后找到，可见比例 100%；结论"待确认"（判据未确认）。重跑前一次运行因 hdc 通道重建（`E000004`）中断，据此修正为"观测失败·环境" |
 | 新逻辑重放既有真机记录（11 次观测） | 本地真机树 → 新的状态识别与定位 | 页面状态与点击点和原记录完全一致；真机树不入库 |
-| 乾崑 TC-QK-101：登录→切车→进入 VPD→默认车位算路，故障时「开始」置灰（opacity 0.4）→ A1/A2 观测成立 | 离线回放 + pytest | 通过（判据未确认 → 待确认）；账号/密码假值不出现在运行目录任何文件中，输入后的观测不截图 |
+| 乾崑 TC-QK-101：登录→切车→进入 VPD→默认车位算路，故障时「开始」置灰（opacity 0.4）→ A1/A2 观测成立 | 离线回放 + pytest | 通过（判据未确认 → 待确认）；按 #32 契约，输入后树和截图保留原文证据，参数汇总保持外置引用 |
 | 乾崑 TC-QK-102：随机拖动地图、随机点选车位、收藏、重命名、设标签，按新名字搜索并算路，读到距离 356；清理后取消收藏 | 离线回放 + pytest | 通过（地图/收藏/标签控件都是假设，世界按假设搭建） |
 | 乾崑 TC-QK-103：激活→运动中 TOR 提示→暂停→后台 10 s→拉回→继续→泊入完成；看门狗 armed/stopped ×2，无安全停止 | 离线回放 + pytest | 通过；故障世界在「开始」处判阻塞且不点击；车辆在后台自行恢复运动的变体由 moving_states 观测挂上看门狗 |
 | 缺密钥 / 缺授权 / 缺监护人 | 离线回放 + pytest | 运行前判阻塞（环境），一步都不执行 |

@@ -75,35 +75,21 @@ def _diag_dir(store, seq: int) -> Path:
     return d
 
 
-def diagnose_cover(device, store, d: Path, dialogs: dict, redact=None) -> dict:
-    """只读诊断：窗口表 + 整屏布局树 → 覆盖物是什么、是否命中已登记弹窗。不下发任何动作。
+def diagnose_cover(device, store, d: Path, dialogs: dict) -> dict:
+    """只读诊断：窗口表仅记录现场，任何窗口及查询未知均尝试整屏采集。
 
-    隐私门禁（与截图同一规则）：整屏树和截图一样可能带通知横幅/锁屏/输入法内容——
-    隐私类系统窗口在显示、或窗口查询失败/设备不支持时，不取整屏树，只留窗口名证据。
-    通过门禁后整屏树落在 d/screen_tree.json 作证据（redact 提供时与 bundle 树同一规则脱敏后写盘）；
-    返回里的 _tree 仅内部用于选关闭按钮，不进事件/obs。"""
-    from .observe import KEYBOARD_WINDOWS, PRIVATE_WINDOWS
+    整屏原文树落在 d/screen_tree.json；_tree 仅内部用于选择已登记弹窗按钮，
+    不代替目标 bundle 树参与业务状态识别或产品断言。"""
     windows = device.shown_windows() if hasattr(device, "shown_windows") else None
-    if windows is None:
-        dump_ok, error_class = False, ("window_query_failed" if hasattr(device, "shown_windows")
-                                       else "window_query_unsupported")
-    elif any(w.startswith(PRIVATE_WINDOWS + KEYBOARD_WINDOWS) for w in windows):
-        dump_ok, error_class = False, "privacy_window_present"
-    else:
-        dump_ok, error_class = False, "unsupported"
-        if hasattr(device, "dump_screen"):
-            d.mkdir(parents=True, exist_ok=True)
-            r = device.dump_screen(d / "screen_tree.json")
-            dump_ok, error_class = bool(r.ok), r.error_class
-    tree = None
-    if dump_ok and hasattr(device, "dump_screen"):
-        raw = r.data.get("tree")
-        if redact is not None:
-            red = redact(raw)
-            if red != raw:
-                write_json(d / "screen_tree.json", red)
-            raw = red
-        tree = UiTree(raw)
+    dump_ok, error_class, tree = False, "unsupported", None
+    if hasattr(device, "dump_screen"):
+        d.mkdir(parents=True, exist_ok=True)
+        r = device.dump_screen(d / "screen_tree.json")
+        dump_ok, error_class = bool(r.ok), r.error_class
+        if dump_ok:
+            raw = r.data.get("tree")
+            write_json(d / "screen_tree.json", raw)
+            tree = UiTree(raw)
     texts = tree.visible_texts()[:60] if dump_ok else []
     did, spec = match_dialog(dialogs, texts) if dump_ok else (None, None)
     out = {"windows": windows, "dump_ok": dump_ok, "dump_error": None if dump_ok else error_class,
@@ -122,11 +108,10 @@ def _public(diag: dict) -> dict:
     return {k: v for k, v in diag.items() if not k.startswith("_")}
 
 
-def resolve_screen_cover(ws, device, store, dispatcher=None, observer=None, dialogs=None, redact=None) -> dict:
+def resolve_screen_cover(ws, device, store, dispatcher=None, dialogs=None) -> dict:
     """能力入口：诊断覆盖物；命中已登记良性弹窗时点它的安全按钮并复核已消失。
     状态：dismissed（已关闭并复核）/ no_cover（无覆盖或未命中登记）/ no_safe_button /
-    needs_review（命中但未评审/非良性）/ dismiss_failed / indeterminate（查询失败）。
-    redact 提供时（会话内恢复路径可能已输入过密钥）整屏诊断树同样脱敏后落盘。"""
+    needs_review（命中但未评审/非良性）/ dismiss_failed / indeterminate（采集失败）。"""
     from .dispatch import Dispatcher
     dispatcher = dispatcher or Dispatcher(device, store)
     dialogs = load_dialogs(ws) if dialogs is None else dialogs
@@ -136,7 +121,7 @@ def resolve_screen_cover(ws, device, store, dispatcher=None, observer=None, dial
     def next_diag():
         nonlocal seq
         seq += 1
-        return diagnose_cover(device, store, _diag_dir(store, seq), dialogs, redact=redact)
+        return diagnose_cover(device, store, _diag_dir(store, seq), dialogs)
 
     diag = next_diag()
     did, tree = diag.get("matched"), diag.get("_tree")
@@ -186,14 +171,12 @@ def resolve_screen_cover(ws, device, store, dispatcher=None, observer=None, dial
                         status, reason = "dismiss_failed", f"点击后弹窗 {did} 仍在显示"
                     else:
                         status, reason = "dismissed", f"已关闭弹窗 {did}（按钮「{btn['text']}」）并复核消失"
-                        if observer is not None and hasattr(observer, "invalidate_dialog_diag"):
-                            observer.invalidate_dialog_diag()  # 覆盖已消失：观测器的诊断缓存失效
     res.update(status=status, reason=reason)
     store.event("capability_result", capability="system_dialog", **{k: v for k, v in res.items()})
     return res
 
 
-def preflight_dialog_check(ws, device, store, dispatcher=None, observer=None) -> dict:
+def preflight_dialog_check(ws, device, store, dispatcher=None) -> dict:
     """preflight 快查：窗口表里出现已登记弹窗的窗口名才做整屏诊断并关闭。
     未命中/查询失败不阻塞（preflight 全绿≠屏幕没被盖住），动作后的 unobservable 恢复会兜底。"""
     windows = device.shown_windows() if hasattr(device, "shown_windows") else None
@@ -206,7 +189,7 @@ def preflight_dialog_check(ws, device, store, dispatcher=None, observer=None) ->
             and any(w.startswith(n) for n in spec["window_names"] for w in windows)]
     if not hits:
         return {"status": "no_cover", "windows": windows}
-    return resolve_screen_cover(ws, device, store, dispatcher=dispatcher, observer=observer, dialogs=dialogs)
+    return resolve_screen_cover(ws, device, store, dispatcher=dispatcher, dialogs=dialogs)
 
 
 def _sleep(device, seconds: float) -> None:

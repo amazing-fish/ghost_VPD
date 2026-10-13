@@ -98,7 +98,7 @@ def _covered_ctx(ws, windows=None):
 
 
 def test_covered_screen_screenshot_captured_as_evidence(ws):
-    """弹窗盖住（树为空）且窗口表确认无隐私窗口：截屏留证 + 整屏诊断树落盘——
+    """弹窗盖住（树为空）：截屏留证 + 整屏诊断树落盘——
     2026-10-08 治理要求：无法确认的屏幕状态尽可能通过截屏解决。"""
     _register(ws)
     ctx, dev, store = _covered_ctx(ws)
@@ -111,15 +111,15 @@ def test_covered_screen_screenshot_captured_as_evidence(ws):
     assert (Path(store.dir) / obs["screen_cover"]["screen_tree"]).exists()
 
 
-def test_lock_screen_cover_still_withholds_screenshot(ws):
-    """锁屏窗口在显示（隐私类）：仍不截图——证据化门禁只放开"确认无隐私窗口"的覆盖。"""
+def test_lock_screen_cover_keeps_screenshot_and_tree(ws):
     _register(ws)
     ctx, dev, store = _covered_ctx(ws, windows=["app0", "SCBScreenLock"])
     obs, tree = ctx.observe("lock-covered")
-    assert obs["tree"]["status"] == "empty"
-    assert obs["screenshot"]["status"] == "withheld"
-    assert "隐私" in obs["screenshot"]["reason"]
-    assert obs["system_overlays"] == ["SCBScreenLock"]
+    assert tree.status == "empty"
+    assert obs["screenshot"]["status"] == "ok"
+    assert (store.dir / obs["screenshot"]["path"]).is_file()
+    assert "SCBScreenLock" in obs["screen_cover"]["windows"]
+    assert (store.dir / obs["screen_cover"]["screen_tree"]).is_file()
 
 
 def test_pick_dismiss_prefers_cancel_and_never_forbidden():

@@ -1,7 +1,7 @@
-"""用例参数：test_data 变量、密钥引用、流程参数与脱敏。
+"""用例参数：test_data 变量、密钥引用、流程参数与可复用输入分类。
 
 - test_data 中 {"secret": "NAME"} 的值只从环境变量 VPD_SECRET_<NAME> 或 config.local.json 的 secrets 读取，
-  不写入用例、事件、观测、报告；UI 树与可见文本里出现的密钥值在落盘前替换为 ***。
+  生成用例与参数汇总保留引用；现场树、事件和报告按采集原文留证。
 - {"template": "VPD测试-{run}"} 在每次运行时生成（避免多次运行互相干扰），实际值记入 run.json。
 - 步骤/目标中的 ${var:x} 引用 test_data，${param:x} 引用流程参数。
 """
@@ -13,8 +13,7 @@ import re
 from typing import Optional
 
 _REF = re.compile(r"\$\{(var|param|secret):([A-Za-z0-9_.-]+)\}")
-MASK = "***"
-MIN_FRAGMENT = 6  # 密钥片段达到这个长度就脱敏
+MIN_FRAGMENT = 6  # 可复用输入分类的密钥片段最短长度
 
 
 class Params:
@@ -62,13 +61,13 @@ class Params:
         return obj
 
     def add_secret_values(self, values) -> None:
-        """只参与脱敏/敏感判断，不成为可引用的变量。"""
+        """只参与可复用输入分类，不成为可引用变量，也不改写现场证据。"""
         self._secret_values |= {str(v) for v in values if v}
         self._frag_cache = None
 
     def _fragments(self) -> list:
         """密钥本身及其所有长度 ≥ MIN_FRAGMENT 的连续片段，长的在前。输入框可能截断、只收下一部分，
-        或把密码的一段落进另一个框（真机上见过），只按全值替换会漏。"""
+        或把密码的一段落进另一个框（真机上见过），仅按全值分类会漏掉外置参数片段。"""
         if getattr(self, "_frag_cache", None) is None:
             frags = set()
             for s in self._secret_values:
@@ -80,27 +79,11 @@ class Params:
             self._frag_cache = sorted(frags, key=len, reverse=True)
         return self._frag_cache
 
-    def redact(self, obj):
-        if not self._secret_values:
-            return obj
-        if isinstance(obj, str):
-            for s in self._fragments():
-                if s in obj:
-                    obj = obj.replace(s, MASK)
-            return obj
-        if isinstance(obj, list):
-            return [self.redact(x) for x in obj]
-        if isinstance(obj, dict):
-            return {k: self.redact(v) for k, v in obj.items()}
-        return obj
-
     def is_sensitive(self, text) -> bool:
-        """落盘前判断明文的唯一出口：含任一已配置密钥或其长度 ≥ MIN_FRAGMENT 的片段就算敏感（不只比较全等）。"""
+        """生成用例时判断输入是否引用外置参数；不影响现场树、事件或截图。"""
         t = str(text or "")
         return bool(t) and any(s in t for s in self._fragments())
 
-    def contains_secret(self, texts) -> bool:
-        return any(self.is_sensitive(t) for t in texts)
 
 
 def with_params(target: dict, params: Optional[Params], local: Optional[dict] = None) -> dict:

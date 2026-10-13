@@ -1,6 +1,6 @@
 # ghost_VPD · Issue 驱动协作规范 v1.0
 
-适用范围：**Issue / PR 协作、证据、隐私与授权要求适用于整个 ghost_VPD 仓库**；设备执行规则按实际工作树分域。默认分支 `main` 目前只有 Legacy 入口 `app/service/vpd/base.py::vpd_task_run()`；`vpdtest` 位于尚未合并的 Skill 开发线（PR #2），统一 `Dispatcher` 位于叠加在 PR #2 之上的 `feat/vpd-goal-loop`（PR #7）。不得把 PR 中的能力当作 `main` 已具备的功能。
+适用范围：**Issue / PR 协作、证据与授权要求适用于整个 ghost_VPD 仓库**；设备执行规则按实际工作树分域。2026-10-13 主干 `d7e7185` 已同时包含 Legacy 入口 `app/service/vpd/base.py::vpd_task_run()` 和 Skill 入口 `vpd_skill/vpdtest`（含统一 Dispatcher）；PR #2/#7/#8 已合入。两条设备执行链保持独立，不能假定 Legacy 自动获得 Skill 的授权、重检和运动看门狗能力。尚未合并的 PR #36 资产仍不属于主干能力。方向与成熟度快照见 [PROJECT_DIRECTION.md](PROJECT_DIRECTION.md)。
 
 核心约束：**Issue 定义任务契约，Agent 负责实现及取证，PR 承载可审查变更，人工负责授权与产品判据确认。**
 
@@ -20,7 +20,7 @@
 | 缺陷 / 异常 | `target_ambiguous`、`foreground_unknown`、hdc 掉线、疑似产品问题 | 复现环境、首次异常、证据链、正确归因 |
 | 知识 / 判据治理 | K-AV/K-QK/K-MOT 条目、Build 差异、产品要求确认 | scope、来源、reviewer、basis、受影响用例 |
 
-Issue 标题建议：`[Task] ...`、`[Bug] ...`、`[Knowledge] ...`。优先级：P0=安全/隐私或严重阻塞，P1=核心链路可靠性，P2=常规能力，P3=整理与体验。优先级不等于真实动作风险等级。
+Issue 标题建议：`[Task] ...`、`[Bug] ...`、`[Knowledge] ...`。优先级：P0=安全或严重阻塞，P1=核心链路可靠性，P2=常规能力，P3=整理与体验。优先级不等于真实动作风险等级。
 
 ## 3. 状态与职责（不强依赖 GitHub Labels）
 
@@ -35,7 +35,7 @@ Issue 标题建议：`[Task] ...`、`[Bug] ...`、`[Knowledge] ...`。优先级�
 | --- | --- | --- |
 | 需求方 / Maintainer（人） | 目标优先级、关键安全授权、产品判据确认、最终验收和合并 | 把“Agent 报告通过”直接当作证据 |
 | 实施 Agent | 检索上下文、分析、最小改动、离线测试、受控真机执行、取证、提交交接 | 自行 `confirm` 产品知识；越权车控；绕开所在工作树的设备安全门禁或擅自切换执行入口 |
-| Review Agent 或评审人 | 独立验证范围、正确性、安全、隐私和回归兼容 | 只审文字结论不核对证据 |
+| Review Agent 或评审人 | 独立验证范围、正确性、动作授权、原文证据和回归兼容 | 只审文字结论不核对证据 |
 
 单人同时担任多个角色时，也要保留**开发者结论与独立验收结果**的逻辑隔离，尤其不能凭单次探索确认产品需求。
 
@@ -52,10 +52,10 @@ Issue 标题建议：`[Task] ...`、`[Bug] ...`、`[Knowledge] ...`。优先级�
 
 - **一个 Agent / 一棵独立 worktree / 一个写入责任主体**，避免多个 Agent 修改相同工作树。可并行审计，但汇总者负责合并冲突。
 - 遵守 stacked PR：标明 `base` 与上游 PR，不能因为多个 PR 都未合并而直接改 `main`。禁止未经许可 `reset --hard`、`clean -fd`、force-push、历史重写或直接合并。
-- **选择真实存在且符合任务范围的执行入口**：`main` 的原工程入口是 `app/service/vpd/base.py::vpd_task_run()`，并非 `vpdtest` 或 Dispatcher。它属于独立 Legacy 链路，不得假定具备新 Skill 的权限、重检、留证与运动看门狗能力。Legacy 真机任务须先审计实际安全保护、明确本次授权与监护条件；没有可验证的安全边界时停止自动执行，不能为满足 Issue 直接调用驱动/HDC。
+- **选择真实存在且符合任务范围的执行入口**：Legacy 的实际入口是 `app/service/vpd/base.py::vpd_task_run()`；Skill 使用已合入主干的 `vpdtest` / Dispatcher。Legacy 属于独立执行链，不得假定具备新 Skill 的权限、重检、留证与运动看门狗能力。Legacy 真机任务须先审计实际安全保护、明确本次授权与监护条件；没有可验证的安全边界时停止自动执行，不能为满足 Issue 直接调用驱动/HDC。
 - **Skill 工作树**：设备动作必须走该版本实际存在的 `vpdtest` 受控入口；凡依赖统一 Dispatcher 的任务，须先核对当前代码确实包含该模块并经过相应安全测试。不得绕过 policy/Dispatcher 直接调用 HDC/uitest；如果当前工作树缺少所要求的安全组件，改用经授权且具备组件的工作树，或报告 `blocked`，**绝不自动降级到 Legacy 直连路径**。
 - 人工 Console 操作必须作为独立手工行为记录，不能算 Agent 自主动作证据。
-- 保护原始 `runs` 证据；不对失败事件做静默删除。`effect_unknown` 不能当作未下发。截图与 UI 树遵守隐私门禁；完整 VIN、手机号、口令等不得写入 Issue、PR、仓库和日志。
+- 保护原始 `runs` 证据；不对失败事件做静默删除。`effect_unknown` 不能当作未下发。按 #32 裁决，树、事件与截图原文取证，不脱敏、不因系统窗口扣留；APP 截图白名单、动作授权及观测新鲜度独立生效。用例中的实际凭据保持外置引用，运行证据仍与版本化资产分开存放。
 - 代码/配置修改后优先加正反向测试；不要只修改 fixture 或断言来掩盖知识 confirmed/unconfirmed 状态漂移。
 - 无需为每一次简单动作刷 Issue 评论。只在关键阶段、阻塞、范围调整、验收结果变化时更新。
 

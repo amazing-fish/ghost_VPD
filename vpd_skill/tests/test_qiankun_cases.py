@@ -3,7 +3,7 @@
 103 有人监护的激活→运动中监视→暂停→退后台→拉回→继续→泊入完成。
 
 世界 qiankun_hm_base/ready.json 的层级按原工程绝对 xpath 搭建，文案标（占位）的都是虚构：这些测试只证明
-执行器、策略、脱敏与判定逻辑，不代表乾崑 APP 的真实行为。
+执行器、策略、原文取证与判定逻辑，不代表乾崑 APP 的真实行为。
 """
 import json
 
@@ -52,18 +52,18 @@ def test_101_fault_blocks_activation_without_touching_start(ws, secrets):
     assert not any((t["locate"].get("target") or "") in ("qk_start", "qk_start_confirm") for t in taps)
 
 
-def test_101_secrets_never_reach_disk(ws, secrets):
+def test_101_keeps_raw_observation_and_secret_parameter_references(ws, secrets):
     run = run_case(ws, "TC-QK-101", device_spec=world("qiankun_hm_base.json"), propose=False, authorize=AUTH_101)
     d = ws.runs_dir / run["run_id"]
-    for p in d.rglob("*"):
-        if p.is_file() and p.suffix in (".json", ".jsonl", ".md", ".txt"):
-            body = p.read_text("utf-8", errors="ignore")
-            assert PHONE not in body and PASSWORD not in body, p
-    redacted = [read_json(p) for p in d.glob("obs/*/observation.json") if read_json(p).get("redacted")]
-    assert redacted, "输入账号后的页面应标记为已脱敏"
-    assert all(o["screenshot"]["status"] == "withheld" for o in redacted)
+    observed = [read_json(p) for p in d.glob("obs/*/observation.json")]
+    raw = [o for o in observed if PHONE in str(o.get("texts"))]
+    assert raw and all(o["screenshot"]["status"] == "ok" for o in raw)
+    assert not any("redacted" in o for o in observed)
+    assert PHONE in "".join(p.read_text() for p in d.glob("obs/*/tree.json"))
     inputs = [x["input"] for s in run["steps"] for x in s["attempts"] if x.get("input")]
     assert {i["secret"] for i in inputs} == {True} and all("ref" in i and "length" in i for i in inputs)
+    assert "clipboard_may_hold_secret" not in run
+    assert not any(e.get("event") == "secret_typed" for e in __import__("vpdtest.util", fromlist=["read_jsonl"]).read_jsonl(d / "events.jsonl"))
 
 
 def test_101_blocked_before_any_step_without_secrets_or_authorization(ws, monkeypatch):

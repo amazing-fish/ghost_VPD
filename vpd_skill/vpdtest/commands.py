@@ -50,7 +50,7 @@ def cmd_unlock(ws: Workspace, a) -> dict:
 
 
 def cmd_sysdiag(ws: Workspace, a) -> dict:
-    """只读整屏诊断：窗口表 + 整屏布局树 + （窗口表确认无隐私类窗口时）截图 + 已登记系统弹窗比对。
+    """只读整屏诊断：窗口表 + 整屏布局树 + 截图（APP 白名单） + 已登记系统弹窗比对。
     用途：登记新系统弹窗时取证；排查"preflight 全绿但屏幕被盖住"的现场。
     --dismiss 时对命中且已评审（class=benign, review=reviewed）的弹窗执行原子能力关闭。"""
     from .sysdialog import diagnose_cover, load_dialogs, resolve_screen_cover
@@ -62,21 +62,23 @@ def cmd_sysdiag(ws: Workspace, a) -> dict:
     diag = diagnose_cover(dev, store, d, load_dialogs(ws.root))
     out = {"run": store.run_id, "device": dev.spec, "obs": oid,
            **{k: v for k, v in diag.items() if not k.startswith("_")}}
-    # 截图门禁：窗口表确认无隐私类系统窗口（锁屏/通知横幅/键盘）在显示才截；查询失败不截。
-    # 2026-10-08 治理要求：无法确认的屏幕状态尽可能通过截屏取证——但取证不越过隐私边界。
-    from .observe import KEYBOARD_WINDOWS, PRIVATE_WINDOWS
-    wins = diag.get("windows")
-    private = [w for w in (wins or []) if w.startswith(PRIVATE_WINDOWS + KEYBOARD_WINDOWS)]
-    if wins is None:
-        out["screenshot"] = {"status": "withheld", "reason": "窗口查询失败，无法排除隐私内容，不截图"}
-    elif private:
-        out["screenshot"] = {"status": "withheld", "reason": f"隐私类系统窗口 {private} 正在显示，不截图"}
+    policy = ws.policy()
+    fg = dev.foreground()
+    fg_after = fg
+    if not policy.screenshot_allowed(fg):
+        out["screenshot"] = {"status": "withheld", "reason": f"前台 {fg} 不在截图 APP 白名单中"}
     else:
         r = dev.screenshot(d / "screen.png")
+        fg_after = dev.foreground()
         if r.ok and (d / "screen.png").exists():
-            out["screenshot"] = {"status": "ok", "path": store.rel(d / "screen.png")}
+            if not policy.screenshot_allowed(fg_after):
+                (d / "screen.png").unlink()
+                out["screenshot"] = {"status": "withheld", "reason": f"末查前台 {fg_after} 不在 APP 白名单中，已删除截图"}
+            else:
+                out["screenshot"] = {"status": "ok", "path": store.rel(d / "screen.png")}
         else:
             out["screenshot"] = {"status": "error", "error_class": r.error_class, "error": r.error}
+    out.update(foreground=fg, foreground_after=fg_after)
     if a.dismiss and diag.get("matched"):
         out["dismiss"] = resolve_screen_cover(ws, dev, store)
     write_json(d / "observation.json", {k: v for k, v in out.items() if not k.startswith("_")})
@@ -93,12 +95,12 @@ REQUEST_FIELDS = ("action", "select", "within", "target", "point", "basis", "sid
 
 
 def _open_session(ws, a):
-    """observe/act 的共同入口：取会话、设备、上下文，写入或核对会话头，挂上脱敏。"""
+    """observe/act 的共同入口：取会话、设备、上下文，写入或核对会话头，加载参数。"""
     app = ws.app(a.app)
     store = _session(ws, a.session)
     dev = ws.device(a.device, state_path=store.dir / "replay_state.json")
     ctx = RunContext(ws, app, dev, store, ExperienceStore(ws.root, app.id).overlay(), mode="agent")
-    _session_redaction(ws, ctx, store)
+    _session_params(ws, ctx, store)
     ident = {"app": app.id, "bundle": app.bundle, "device": dev.spec,
              "validation_level": "offline_replay" if dev.kind == "replay" else "real_device"}
     # 会话只从 trail() 读：身份核对（旧格式按第一条 session_facts）、没有会话头的旧会话拒绝续写都在里面
@@ -107,16 +109,13 @@ def _open_session(ws, a):
     except SessionMismatch as e:
         store.event("session_mismatch_rejected", diff=e.diff)
         raise
-    # 每条 act 是新进程：会话里输入过密钥（剪贴板可能留有原文）要沿用到后续观测
-    ctx.observer.secret_typed = tr["secret_typed"]
     # 动作预算按会话累计：否则每条 act 从 0 计数，max_actions_per_run 永远拦不住
     ctx.actions = tr["actions"]
     if tr["identity"] is None:
         disp = dev.display_info() if hasattr(dev, "display_info") else {}
         store.event("session_open", schema=SESSION_SCHEMA, identity=ident,
                     facts={**ident, "app_version": dev.app_version(app.bundle),
-                           "device_form": (disp or {}).get("device_form")},
-                    redaction={"secret_names": len(_secret_names(ws)), "fragments_min": 6})
+                           "device_form": (disp or {}).get("device_form")})
     return app, store, dev, ctx
 
 
@@ -125,17 +124,15 @@ def _secret_names(ws) -> set:
     return names | {k for k, v in (ws.config.get("secrets") or {}).items() if v}
 
 
-def _session_redaction(ws, ctx, store) -> None:
-    """会话没有用例参数：按已配置的密钥值（VPD_SECRET_* / config.local.json secrets）脱敏 UI 树与事件，
-    页面上出现这些值时不截图——和 run 的脱敏规则一致。"""
+def _session_params(ws, ctx, store) -> None:
+    """加载外置密钥引用，仅用于参数和可复用输入分类；不修改或扣留现场证据。"""
     names = _secret_names(ws)
     if names:
         p = Params({n: {"secret": n} for n in names}, ws.config.get("secrets"), store.run_id)
-        # 同名密钥在环境变量和 config 里值可能不同：Params 只取优先的那个，脱敏要覆盖全部已配置值
+        # 同名环境值与配置值都参与可复用输入分类，避免将外置参数硬编码进生成用例
         p.add_secret_values([v for k, v in os.environ.items() if k.startswith("VPD_SECRET_") and v]
                             + [v for v in (ws.config.get("secrets") or {}).values() if v])
-        ctx.params = ctx.observer.params = p
-        store.redactor = p.redact
+        ctx.params = p
 
 
 def cmd_observe(ws: Workspace, a) -> dict:
@@ -205,8 +202,6 @@ def _cmd_act(ws: Workspace, a) -> dict:
     first, last = (res.get("attempts") or [{}])[0], (res.get("attempts") or [{}])[-1]
     keep = _input_value_keepable(ctx, step, res)
     rec = {"seq": seq, "ts": now_iso(), "step": _scrub_step(step), "result": _scrub_input(res)}
-    # 密钥可能出现在 --text 以外（--select text=<账号>、--expect-text、--basis）：整条记录过会话脱敏器
-    rec = store.redactor(rec) if store.redactor else rec
     append_jsonl(store.dir / "steps.jsonl", {**rec, **({"input_value": a.text} if keep else {})})
     store.event("act_result", seq=seq, outcome=res["outcome"], effect_unknown=effect_unknown(res),
                 dispatched=dispatched(res), obs_before=first.get("obs_before"),
@@ -273,7 +268,7 @@ def _input_value_keepable(ctx, step: dict, res: dict) -> bool:
         return False
     _, target = ctx.app.target(step["target"])
     allowed = any((a.get("policy") or {}).get("allowed") for a in res.get("attempts", []))
-    # ctx.params 由 _session_redaction 按全部已配置密钥建立；包含密钥或其片段就不记原文
+    # 生成资产时外置参数仍需重新绑定；原文树与事件取证不受此分类影响
     return allowed and not target.get("secret") and not (ctx.params and ctx.params.is_sensitive(step["text"]))
 
 
