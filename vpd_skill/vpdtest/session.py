@@ -103,8 +103,8 @@ IDENTITY_KEYS = ("app", "device", "validation_level")
 
 
 def _sent(e: dict) -> bool:
-    if e.get("sent") is not None:
-        return bool(e["sent"])
+    if "sent" in e:
+        return e["sent"] is not False
     # 旧会话没有 sent 字段：clear_text 事件出现即已点过输入框；scroll_search 按 ok 判断
     return bool(e.get("ok")) if e.get("event") == "scroll_search" else True
 
@@ -127,7 +127,7 @@ def trail(session_dir: Path, expect: Optional[dict] = None) -> dict:
     counted = set()  # 已有下发事件计入预算的请求
     for e in events:
         ev = e.get("event")
-        if ev == "dispatch" and e.get("sent") and e.get("op") != "clear_text":
+        if ev == "dispatch" and _sent(e) and e.get("op") != "clear_text":
             actions += 1  # 与 Dispatcher 同一计数口径：已下发的物理动作，清空输入是聚合动作不单独计
             if cur in open_req:
                 counted.add(cur)
