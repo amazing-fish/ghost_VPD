@@ -15,8 +15,16 @@ status, confirmed_by, history`。`source.type` 取值：requirement_doc / text_c
 skill_policy / model_inference / observation。
 
 - 确认：`knowledge confirm <id> --reviewer <人>`；model_inference / observation 来源必须加 `--basis`。
+- 知识状态只允许 `unconfirmed` / `confirmed` / `deprecated`。未知、缺失或非字符串状态在判据端为
+  `invalid`，不能支撑通过/失败；`confirm` 只接受有效条目，不能复活废弃或无效知识。
+- `deprecated` 条目保留历史检索，但只作为 background，不提供可调用的判据/操作指引；
+  非建议断言引用废弃或无效条目时 `case lint` 拒绝，运行时判据仍为待确认。
 - 冲突：同一 `subject` 下多个有效条目的 `expected` 不同即视为冲突，引用它的断言判为待确认；
   `knowledge resolve --subject ... --keep <id> --reviewer ... --reason ...` 裁决，被废弃条目保留并记录理由。
+  部分范围重叠时仍需先拆分或明确独立裁决，不能扩大保留条目的范围来绕过保护。
+- 2026-10-13 用户裁决（[#33](https://github.com/amazing-fish/ghost_VPD/issues/33)）：
+  K-QK-001 已 `deprecated`，附 `superseded_by: K-AV-001`；K-AV-001 被选为入口基准，
+  仍为 `unconfirmed`，仅保持原内部 debug 范围。选定基准不等于确认产品要求，也不代表公网版适用。
 - 原工程选择器：`knowledge import-repo --repo .. --file app/config/motor_config.py --var MOTOR_HARMONY_CONFIG`
   用 AST 读取（不 import），生成带文件、行号、提交号的定位线索，状态为 unconfirmed_locator_hints。
 
@@ -33,6 +41,9 @@ skill_policy / model_inference / observation。
 | replay_verified → regression | 评审人 + 全部判据 confirmed + 至少 1 次真机通过重放（仅离线时须显式 `--allow-offline`） |
 
 修改步骤/断言/前置/清理会改变 `content_hash`，旧重放不再计数。
+外部判据退役或状态无效会改变 `dependency_hash`，旧重放不再支撑晋级；
+有效条目的 unconfirmed → confirmed 及历史追加不改变该指纹。仅修改 `knowledge_used`
+中的历史说明不改变用例内容/依赖指纹，是否需要重放应按实际可执行内容和依赖判断。
 
 ## 经验候选（RSI v0.1 的范围）
 

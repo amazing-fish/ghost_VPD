@@ -20,9 +20,9 @@
 ## 与本架构五类信息的对应
 
 - **knowledge items**：K-AV-001~030 已按 items.json schema 入库（unconfirmed）。
-  其中 K-AV-001 与 K-QK-001 同 subject、expected 不同 → 构成**冲突**（repo_code 的
-  「爱车页 ADS 按钮」vs 真机观察的「底栏 ADS tab」，注意 build 差异：前者公网版代码、
-  后者内部 debug 版 phone_fc78649），请用 `knowledge resolve` 裁决。
+  K-AV-001 与旧 K-QK-001 的入口冲突已由 2026-10-13 用户裁决（[#33](https://github.com/amazing-fish/ghost_VPD/issues/33)）：
+  采用 K-AV-001，K-QK-001 保留为 deprecated 历史条目。K-AV-001 仍未确认，
+  适用范围保持内部 debug 版 phone_fc78649，不将公网版「爱车页 ADS 按钮」与 debug「底栏 ADS tab」混为同一范围。
 - **运行观察（证据）**：原文档中的 run 目录号/截图文件名保留为 ref，原始 runs 工件在
   auto-vpd 本机（本 PR 不含大二进制）。
 - **执行经验**：troubleshooting §15/§16/§19（uiRecord 双通道、重启密码锁熔断、AAMS

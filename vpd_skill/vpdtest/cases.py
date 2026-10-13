@@ -11,6 +11,7 @@ import re
 from pathlib import Path
 from typing import Optional
 
+from .knowledge import ACTIVE, item_status
 from .safety import untreed_strategies
 from .util import now_iso, read_json, sha256_obj, write_json
 
@@ -60,7 +61,7 @@ def content_hash(case: dict) -> str:
 def dependency_hash(case: dict, app, knowledge) -> str:
     """用例引用的外部定义的指纹：content_hash 只覆盖用例文件本身，但目标选择器、展开后的 flow/recipe 步骤、
     页面状态/打断定义、判据条目的陈述和预期改了，同一份用例就测了另一件事，旧重放不再作数。
-    判据的确认状态、历史不计入（确认之后不必重新重放）。"""
+    有效判据的确认状态、历史不计入（确认之后不必重新重放）；废弃/无效使旧重放失效。"""
     steps, targets, oracles = [], {}, set()
 
     def want(t):
@@ -78,6 +79,8 @@ def dependency_hash(case: dict, app, knowledge) -> str:
     for kid in sorted(oracles):
         item = knowledge.get(kid) or {}
         facts[kid] = {k: item.get(k) for k in ("statement", "expected", "applies_to")}
+        if item_status(item) not in ACTIVE:
+            facts[kid]["inactive"] = True
     return sha256_obj({"steps": steps, "targets": targets, "states": app.states.states,
                        "interrupts": app.states.interrupts, "oracles": facts})[:12]
 
@@ -274,6 +277,9 @@ def lint(case: dict, app, knowledge, policy=None, runs_dir: Optional[Path] = Non
             it = knowledge.get(r)
             if it is None:
                 issues.append({"field": f"assertions.{a.get('id')}", "problem": f"判据 {r} 不存在"})
+            elif item_status(it) not in ACTIVE:
+                issues.append({"field": f"assertions.{a.get('id')}",
+                               "problem": f"判据 {r} 的状态 {it.get('status')!r} 已废弃或无效，不能作判据"})
             elif it["source"].get("type") == "observation" and it["source"].get("run") in {
                     s.get("run") for s in case.get("sources", [])}:
                 issues.append({"field": f"assertions.{a.get('id')}", "problem": f"判据 {r} 来自本用例的探索观察，不独立"})

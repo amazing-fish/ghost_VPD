@@ -8,7 +8,7 @@
 | 来源等级 | 内容 | 落地位置 | 能否支撑判定 |
 |---|---|---|---|
 | 真机只读观测 | 包名 `com.yinwang.qiankunapp.hm`、`EntryAbility`、版本 1.0.26.100（`bm dump -n`，未启动 APP） | `app.json.sources` | 只作环境事实 |
-| 原工程代码 | 32 个目标的选择器（`mhero_config.py` 原样 xpath，附行号）；登录、按车架号后 6 位切车、ADS 进入、默认车位算路、开始/确定激活、暂停/继续/退出的流程；「开始」可用 = Button opacity 1.0；不可用提示持续 10 s 才算失败；完成文案；算路可能唤醒车辆 | `targets.json`（status=unverified）、`flows.json`、`states.json`（review=pending）、K-QK-001…007 | unconfirmed，需负责人确认 |
+| 原工程代码 | 32 个目标的选择器（`mhero_config.py` 原样 xpath，附行号）；登录、按车架号后 6 位切车、ADS 进入、默认车位算路、开始/确定激活、暂停/继续/退出的流程；「开始」可用 = Button opacity 1.0；不可用提示持续 10 s 才算失败；完成文案；算路可能唤醒车辆 | `targets.json`（status=unverified）、`flows.json`、`states.json`（review=pending）、K-QK-002…007；旧 K-QK-001 已按 #33 废弃 | 需负责人确认；入口选定 K-AV-001 但仍未确认、仅限原 debug 范围 |
 | 用户描述 | 测试车 M5/末位 7885；当前有故障应无法激活；收藏→重命名→标签→按名搜索→算路→读距离；控车始终允许、探索受限 | K-QK-USR-001…004（source=reviewer） | unconfirmed，需负责人确认 |
 | Skill 推测 | 地图是 XComponent、点地图弹车位卡片、收藏/重命名/标签按钮文字、标签是固定选项、常去地点列表结构 | 9 个 status=hypothesis 目标、2 个 hypothesis 流程 | 不能晋级，`case lint` 会拦 |
 

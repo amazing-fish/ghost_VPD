@@ -14,7 +14,7 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from .knowledge import ORACLE_REASON, KnowledgeStore, applicability
+from .knowledge import ORACLE_REASON, KnowledgeStore, applicability, item_status
 from .util import read_json
 
 ROLE_LABEL = {"requirement": "产品要求", "operation": "操作经验", "observation": "现场观察", "background": "背景"}
@@ -27,6 +27,11 @@ DOC_ROLES = {  # knowledge/ 下 Markdown 文档的角色（按文件）
 
 def item_role(it: dict) -> tuple:
     """(role, note)。按来源而不是只按 kind 归类：来自单次观察的"产品规则"如实标为现场观察。"""
+    status = item_status(it)
+    if status == "deprecated":
+        return "background", "已废弃知识，仅保留历史来源，不能作为判据或操作指引"
+    if status == "invalid":
+        return "background", ORACLE_REASON["invalid"] + "；仅保留历史来源，不能作为判据或操作指引"
     kind, src = it["kind"], (it.get("source") or {}).get("type")
     if kind == "operation":
         return "operation", None
@@ -68,7 +73,7 @@ def _items(ws, kn: KnowledgeStore, terms: list, facts: dict) -> list:
         oracle = kn.oracle_status([it["id"]], facts=facts) if role == "requirement" else None
         out.append({"score": sc, "role": role, "role_label": ROLE_LABEL[role], "ref": it["id"], "kind": it["kind"],
                     "subject": it.get("subject"), "statement": it["statement"][:160], "expected": it.get("expected"),
-                    "status": it["status"], "conflict_subject": conflicted.get(it["id"]),
+                    "status": it.get("status"), "conflict_subject": conflicted.get(it["id"]),
                     "source": {"type": (it.get("source") or {}).get("type"), "ref": (it.get("source") or {}).get("ref")},
                     "applies_to": it.get("applies_to"), "applicability": app["status"],
                     "applicability_detail": app["unknown"] + app["mismatch"],
