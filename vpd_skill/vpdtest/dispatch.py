@@ -124,7 +124,7 @@ class Dispatcher:
             result = dev.stop(*args)
         else:
             raise ValueError(f"未知物理动作 {op}")
-        if result.sent and op != "clear_text" and self.ctx is not None:
+        if result.sent is not False and op != "clear_text" and self.ctx is not None:
             self.ctx.actions += 1
         if not result.ok and result.error_class in ("budget_exhausted", "motion_timeout", "safety_hold"):
             att["status"] = result.error_class
@@ -204,6 +204,12 @@ class Dispatcher:
             self.store.event("dispatch", step=att.get("step_id"), **data)
 
 
+def auxiliary_dispatches(att):
+    """定位滚动与弹窗处置也是物理动作；缺失的父dispatch不代表这些子动作未发。"""
+    return [item for item in ((att.get("locate") or {}).get("scroll") or []) +
+            (att.get("dismissed") or []) + ((att.get("post") or {}).get("dismissed") or []) if "sent" in item]
+
+
 def clear_text(device, x, y, count, dispatcher, preconditions, att=None):
     """每个按键都经过关口；中途拒绝仍保留已经下发的事实。"""
     sent = False
@@ -211,7 +217,10 @@ def clear_text(device, x, y, count, dispatcher, preconditions, att=None):
         result = dispatcher.send(op, *args, preconditions=preconditions,
                                  att={"action": "clear_text", "step_id": (att or {}).get("step_id"),
                                       "_safety": bool((att or {}).get("_safety"))})
-        sent = sent or result.sent
+        if sent is True or result.sent is True:
+            sent = True
+        elif result.sent is not False:
+            sent = None  # 后续未发不能抹掉前一步未知发送事实。
         if not result.ok:
             return DeviceResult("clear_text", sent, False, result.error_class,
                                 ("MoveEnd 失败：" if args == ("move_end",) else "") + (result.error or "前置状态失败"))

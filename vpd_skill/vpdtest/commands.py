@@ -210,7 +210,8 @@ def _cmd_act(ws: Workspace, a) -> dict:
     # cli 只看顶层 action_required 决定退出码 2：诊断里要求人工接管的，提到顶层
     return {"session": store.run_id, "seq": seq, "step_id": step_id, "result": _scrub_input(res),
             "input_value_recorded": keep if step.get("action") == "input" else None, "diagnosis": diag,
-            **({"action_required": diag["action_required"]} if (diag or {}).get("action_required") else {})}
+            **({"action_required": (diag or {}).get("action_required") or res["action_required"]}
+               if res.get("action_required") or (diag or {}).get("action_required") else {})}
 
 
 def _act_step(ctx, store, a, step_id: str) -> dict:
@@ -325,8 +326,10 @@ def diagnose(res: dict) -> Optional[dict]:
         gate = (last.get("locate") or {}).get("gate") or last
         out.update(state_check=gate.get("state_check"), foreground_check=gate.get("foreground_check"),
                    action_required=True,
-                   hint="查不到锁屏/前台状态，没有发任何手势：先人工确认手机状态（必要时 vpdtest unlock），再重新 observe"
-                   if st == "state_indeterminate" else "手机锁屏/熄屏，没有下发：vpdtest unlock 后重新 observe")
+                   hint="本步骤已有或可能有部分下发，后续动作被状态门禁拒绝；请先核对现场再重新 observe"
+                   if dispatched(res) else (
+                       "查不到锁屏/前台状态，没有发任何手势：先人工确认手机状态（必要时 vpdtest unlock），再重新 observe"
+                       if st == "state_indeterminate" else "手机锁屏/熄屏，没有下发：vpdtest unlock 后重新 observe"))
     return out
 
 

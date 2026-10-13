@@ -12,6 +12,7 @@ from typing import Optional
 
 from .devices import DeviceResult
 from .devices import LAUNCHER
+from .dispatch import auxiliary_dispatches
 from .layout import key as layout_key
 from .layout import resolve_scope
 from .locate import resolve
@@ -89,8 +90,9 @@ class Executor:
             rec = self._recover(step, att, case_id)
             recoveries.append(rec)
             self.ctx.store.event("recovery", step=step["id"], after_attempt=n,
-                                 **{k: v for k, v in rec.items() if k in ("action", "performed", "reason", "interrupt")})
-            if not rec["performed"] or (rec.get("post") or {}).get("status") == "ok":
+                                 **{k: v for k, v in rec.items() if k in (
+                                     "action", "performed", "reason", "interrupt", "action_required", "effect_unknown")})
+            if not rec["performed"] or rec.get("retry_original") is False or (rec.get("post") or {}).get("status") == "ok":
                 break
         return self._summarize(step, attempts, recoveries)
 
@@ -104,6 +106,7 @@ class Executor:
                                                         "locked": ctx.motion.timeout})
             return att
         mark = ctx.motion.breaches  # 本次尝试之后才发生的超时（含超时后才观测到停止）都算本步骤的
+        att["motion_mark"] = mark
         if kind == "monitor":
             return self._monitor(step, att, mark)
         if kind in FOREGROUND_BOUND and ctx.device.screen_locked() is True:
@@ -182,7 +185,7 @@ class Executor:
             res = self._send_target("tap", loc, obs, tree, target, tid, step, att)
             if att.get("status"):
                 return att
-            if res.sent and target.get("side_effect") == "vehicle_motion":
+            if res.sent is not False and target.get("side_effect") == "vehicle_motion":
                 # 命令已发出就挂看门狗，成败不论：HDC 超时/失败时车可能已收到命令，
                 # 不能因为执行器没确认成功就不监护——停止要由后续观测确认，而不是由下发结果推断。
                 # 唯一入口：vehicle_motion 的挂载只在这里（观测到运动状态时由 MotionGuard 自己挂）
@@ -254,7 +257,7 @@ class Executor:
                 node = _tree_node(tree, loc)
                 n_del = len((node.text if node is not None else "") or "") + 2
                 cr = self._send_target("clear_text", loc, obs, tree, target, tid, step, att, n_del)
-                att["clear"] = {"deleted": n_del, "ok": cr.ok, "error": cr.error}
+                att["clear"] = {"deleted": n_del, "sent": cr.sent, "ok": cr.ok, "error": cr.error}
                 ctx.store.event("clear_text", step=step["id"], n=n, deleted=n_del, ok=cr.ok, sent=cr.sent)
                 if not cr.ok:
                     # 输入框已被点过、可能删了一部分：记为已下发未确认，会话/判定都按效果未知处理
@@ -267,7 +270,7 @@ class Executor:
                 loc, obs, tree = self._locate(tid, target, obs, tree, step, scroll_ok=False)
                 att["clear"]["relocate"] = {"obs": obs["obs_id"], "status": loc["status"], "point": loc.get("point")}
                 if loc["status"] != "found":
-                    # 清空已下发、文字未输入：如实记为已下发，按定位失败处理（重试会完整地重新定位、清空、输入）
+                    # 清空已下发、文字未输入：保留部分执行事实，不整步重复清空/输入。
                     att["dispatch"] = {"op": cr.op, "sent": cr.sent, "executor_ok": cr.ok, "error_class": None,
                                        "error": "清空后输入框无法重新定位，文字未输入", "duration_ms": cr.duration_ms}
                     att.update(status=_unresolved(loc), obs_after=obs["obs_id"])
@@ -506,7 +509,7 @@ class Executor:
                 done.append({**rec, "ok": False, "gate": gate.get("status")})
                 break
             r = self._send_target("tap", loc, obs, tree, target, tid, {"id": label}, gate)
-            rec.update(ok=r.ok, point=list(loc["point"]), gate=gate.get("status"))
+            rec.update(ok=r.ok, sent=r.sent, point=list(loc["point"]), gate=gate.get("status"))
             ctx.store.event("interrupt_dismissed", at=label, **rec)
             done.append(rec)
             if not r.ok:
@@ -788,8 +791,48 @@ class Executor:
                 "dismissed": post_dismissed, "stop_check": stop_check}
 
     # ---- 恢复 ----
+    def _repeat_allowed(self, step: dict, att: dict) -> bool:
+        """只在可靠未下发，或明确低风险幂等时重放整个逻辑步骤。
+
+        clear 与 input 是同一步；后一次未下发不能抹掉先前的清空。
+        back/随机点选的旧幂等声明只用于已观察到后置未成立，不能用于丢回执后的盲重发。
+        """
+        if any(item["sent"] is not False and (item["sent"] is not True or item.get("ok") is not True)
+               for item in auxiliary_dispatches(att)):
+            return False
+        clear = att.get("clear")
+        if clear and clear.get("sent") is not False:
+            return False
+        dispatch = att.get("dispatch")
+        if dispatch is None:
+            return att["status"] != "device_error"
+        sent = dispatch.get("sent")
+        if sent is False:
+            return True
+        if sent is not True or step.get("idempotent") is not True:
+            return False
+        kind = step["action"]
+        if kind == "input":  # inputText 是追加，不能凭声明成为幂等。
+            return False
+        if kind == "tap":
+            _, target = self._target(step)
+            if target.get("side_effect") not in ("navigation", "dismiss_dialog"):
+                return False
+            return not step.get("random_point") or att["status"] == "postcondition_not_met"
+        # 返回可能先收键盘后退页面；只保留有后置观测依据的旧重试。
+        return kind in ("back", "home", "launch", "resume", "stop_app") and att["status"] == "postcondition_not_met"
+
     def _recover(self, step: dict, att: dict, case_id: str) -> dict:
         ctx, st = self.ctx, att["status"]
+        recoverable = {"interrupted", "target_unresolved", "target_partially_visible", "target_stale",
+                       "observation_failed", "device_error", "unobservable", "postcondition_not_met"}
+        if st in recoverable - {"interrupted", "unobservable"} and not self._repeat_allowed(step, att):
+            # 已下发后的异常不是未执行；维持原状态/首次失败，交接现场而不重复原动作。
+            att["effect_unknown"] = st != "postcondition_not_met" or bool(att.get("clear"))
+            att["action_required"] = True
+            return {"action": "none", "performed": False, "action_required": True,
+                    "effect_unknown": att["effect_unknown"],
+                    "reason": "原步骤已下发、部分执行或下发事实不明确，不能安全重放；请核对现场后人工接管"}
         if st == "interrupted":
             ints = att["post"]["interrupts"]
             bad = [i for i in ints if not (i["class"] == "benign" and i["review"] == "reviewed")]
@@ -803,9 +846,11 @@ class Executor:
                    "expect_state": step.get("expect_state"), "timeout_s": step.get("timeout_s", 8),
                    "_safety": bool(step.get("_safety"))}
             r = self._attempt(sub, 1, case_id)
-            return {"action": "dismiss_interrupt", "performed": "dispatch" in r, "interrupt": ints[0]["id"],
-                    "reason": "关闭已评审的良性中断后重新判定后置条件", "attempt": r, "post": r.get("post"),
-                    "status": r["status"]}
+            rec = {"action": "dismiss_interrupt", "performed": "dispatch" in r, "interrupt": ints[0]["id"],
+                   "reason": "关闭已评审的良性中断后重新判定原步骤后置条件", "attempt": r,
+                   "post": r.get("post"), "status": r["status"]}
+            return self._after_recovery(step, att, rec, case_id) if r["status"] == "ok" else {
+                **rec, "retry_original": False}
         if st in ("target_unresolved", "target_partially_visible", "target_stale"):
             time.sleep(min(1.0, ctx.device.poll_interval))
             return {"action": "reobserve_and_retry", "performed": True, "reason": "等待后重新观察并完整重试定位"}
@@ -813,7 +858,8 @@ class Executor:
             time.sleep(min(3.0, 3 * ctx.device.poll_interval))  # hdc 通道重建通常几秒内恢复
             return {"action": "reobserve_and_retry", "performed": True, "reason": "观测查询失败，等待后重新观察"}
         if st == "device_error" and att.get("error_class") in ("timeout", "command_failed", "transport_unavailable"):
-            return {"action": "redispatch", "performed": True, "reason": "执行器瞬时错误，重发"}
+            return {"action": "redispatch", "performed": True,
+                    "reason": "可靠未下发或明确低风险幂等步骤，允许在既有预算内重试"}
         if st == "unobservable":
             # 动作后取不到可判定的观测：先整屏诊断覆盖物。命中已登记且已评审的良性系统弹窗
             #（system_dialogs.json）时用原子能力关掉再重试；锁屏/未知覆盖物不属于允许的恢复范围。
@@ -822,25 +868,45 @@ class Executor:
             res = resolve_screen_cover(ctx.ws, ctx.device, ctx.store, dispatcher=ctx.dispatcher,
                                        dialogs=ctx.observer.dialogs)
             if res["status"] == "dismissed":
-                return {"action": "dismiss_system_dialog", "performed": True, "dialog": res["diagnosis"]["matched"],
-                        "reason": f"关闭已评审的良性系统弹窗 {res['diagnosis']['matched']}，重试本步",
-                        "capability": {k: res[k] for k in ("status", "reason") if k in res}}
+                return self._after_recovery(step, att, {
+                    "action": "dismiss_system_dialog", "performed": True, "dialog": res["diagnosis"]["matched"],
+                    "reason": f"关闭已评审的良性系统弹窗 {res['diagnosis']['matched']}，重新判定原步骤后置条件",
+                    "capability": {k: res[k] for k in ("status", "reason") if k in res}}, case_id)
             return {"action": "none", "performed": False,
                     "reason": f"unobservable：整屏覆盖诊断 {res['status']}（{res['reason']}），不属于允许的恢复范围"}
-        if st == "postcondition_not_met" and step.get("idempotent"):
+        if st == "postcondition_not_met" and step.get("idempotent") is True:
             return {"action": "redispatch", "performed": True, "reason": "步骤声明为幂等，允许重发一次"}
         return {"action": "none", "performed": False, "reason": f"{st} 不属于允许的恢复范围"}
+
+    def _after_recovery(self, step: dict, att: dict, rec: dict, case_id: str) -> dict:
+        """修复覆盖物后只核验原后置；不把关闭弹窗当成原动作可重复的证明。"""
+        post = self._post(step, att["n"], case_id,
+                          was_in_app=att.get("state_before") != "out_of_app", mark=att.get("motion_mark", 0))
+        rec.update(post=post, status=post["status"], retry_original=self._repeat_allowed(step, att))
+        if post["status"] != "ok" and rec["retry_original"] is False:
+            att.update(effect_unknown=True, action_required=True)
+            rec.update(effect_unknown=True, action_required=True)
+            rec["reason"] += "；原步骤已下发或部分执行，不重放，需人工核对现场"
+        return rec
 
     # ---- 汇总 ----
     def _summarize(self, step: dict, attempts: list, recoveries: list) -> dict:
         last, last_rec = attempts[-1], (recoveries[-1] if recoveries else None)
         rec_ok = bool(last_rec and last_rec.get("status") == "ok")
         ok = last["status"] == "ok" or rec_ok
+        # 单次 act、cleanup 和耗尽预算的最后尝试同样需要交接，不能依赖进入恢复分支。
+        if not ok and not self._repeat_allowed(step, last):
+            last["action_required"] = True
+            last["effect_unknown"] = last["status"] != "postcondition_not_met" or bool(last.get("clear"))
         adapted = any((a.get("locate") or {}).get("adapted") for a in attempts)
         first_bad = next((a for a in attempts if a["status"] != "ok"), None)
         out = {"step_id": step["id"], "action": step["action"], "critical": bool(step.get("critical", True)),
                "oracle_refs": step.get("oracle_refs", []), "attempts": attempts, "recoveries": recoveries,
                "adapted": adapted}
+        if any(a.get("effect_unknown") for a in attempts):
+            out["effect_unknown"] = True
+        if not ok and any(a.get("action_required") for a in attempts):
+            out["action_required"] = "原步骤已下发或部分执行，恢复未重放原动作；请核对现场后人工接管"
         dismissed = [d for a in attempts for d in (a.get("dismissed") or []) + ((a.get("post") or {}).get("dismissed") or [])]
         if dismissed:
             out["dismissed"] = dismissed
@@ -955,7 +1021,7 @@ def _unresolved(loc: dict) -> str:
 
 def _failure_detail(att: dict) -> dict:
     d = {"status": att["status"]}
-    for k in ("error_class", "policy", "dispatch", "dispatch_recheck", "motion"):
+    for k in ("error_class", "policy", "dispatch", "dispatch_recheck", "motion", "clear", "effect_unknown", "action_required"):
         if att.get(k):
             d[k] = att[k]
     if att.get("monitor"):
