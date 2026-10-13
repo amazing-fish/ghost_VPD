@@ -140,6 +140,8 @@ clear 与 input 均有可靠成功回执、只在可靠观测下原业务后置�
 
 Agent `diagnosis.status` 消费最终 `final_status`，并以匹配最后尝试和 `final_obs` 的恢复后置提供 `post/obs_id/recovery` 证据；不会引用旧恢复，成功恢复返回无失败诊断。可靠业务后置未达的诊断与产品 `fail_candidate` 一致，首次覆盖异常仅在历史失败记录中保留。
 
+可靠下发及成功回执后的可观测 `anomaly`、已知晚停/停止失败等确定失败保留交接，不因此标记 `effect_unknown`；该字段只取未知物理证据、部分执行或明确不可判的观测（如无可用树、查询失败、中断下业务状态不可判、停止查询未知）。可靠已知状态上的中断不因此变成未知执行。执行器三条汇总/恢复路径共用此判断，不用“不是 postcondition_not_met”代替未知性。
+
 步骤结果：`passed` / `passed_after_adaptation` / `passed_after_recovery` / `fail_candidate` / `blocked` / `not_run`。
 关键步骤未通过，后续步骤记为 `not_run`，清理步骤仍执行。
 

@@ -20,7 +20,7 @@ from .util import now_iso
 
 ENV_ERRORS = {"screen_locked", "screen_off", "device_offline", "app_missing", "tool_missing", "transport_unavailable"}
 STATUS_MAP = {
-    "observation_failed": ("blocked", "environment", "观测查询失败（设备连接/通道异常），未执行动作"),
+    "observation_failed": ("blocked", "environment", "观测查询失败（设备连接/通道异常），请依据下发记录核对现场"),
     "target_unresolved": ("blocked", "tool", "目标未能可靠定位（已重新观察）"),
     "target_ambiguous": ("blocked", "tool", "目标匹配到多个元素，拒绝盲点"),
     "target_partially_visible": ("blocked", "tool", "目标只露出一小部分（被裁剪/遮挡或已滑到底），不点边缘"),
@@ -792,6 +792,22 @@ class Executor:
                 "dismissed": post_dismissed, "stop_check": stop_check}
 
     # ---- 恢复 ----
+    def _effect_unknown(self, att: dict, *, status=None, post=None) -> bool:
+        """已知失败不等于执行未知；只取物理证据和明确不可判的观测。"""
+        status = status or att["status"]
+        post = (att.get("post") or {}) if post is None else post
+        ambiguous = status in {"unobservable", "observation_failed",
+                               "foreground_unknown", "state_indeterminate"}
+        if status == "interrupted":
+            ambiguous = post.get("observed") in (None, "undetermined", "unknown", "ambiguous")
+        if status == "stop_not_confirmed":
+            ambiguous = (post.get("stop_check") or att.get("stop_check") or {}).get("process_alive") is None
+        if status == "device_error" and att.get("dispatch") is None:
+            ambiguous = True  # 不能把缺失的下发记录当作可靠未发。
+        if status not in ("ok", "device_error") and status not in STATUS_MAP:
+            ambiguous = True
+        return bool(att.get("effect_unknown") or dispatch_effect_unknown(att) or ambiguous)
+
     def _repeat_allowed(self, step: dict, att: dict) -> bool:
         """只在可靠未下发，或明确低风险幂等时重放整个逻辑步骤。
 
@@ -830,8 +846,7 @@ class Executor:
                        "observation_failed", "device_error", "unobservable", "postcondition_not_met"}
         if st in recoverable - {"interrupted", "unobservable"} and not self._repeat_allowed(step, att):
             # 已下发后的异常不是未执行；维持原状态/首次失败，交接现场而不重复原动作。
-            att["effect_unknown"] = (bool(att.get("effect_unknown")) or st != "postcondition_not_met"
-                                     or dispatch_effect_unknown(att))
+            att["effect_unknown"] = self._effect_unknown(att)
             att["action_required"] = True
             return {"action": "none", "performed": False, "action_required": True,
                     "effect_unknown": att["effect_unknown"],
@@ -909,8 +924,7 @@ class Executor:
                           was_in_app=att.get("state_before") != "out_of_app", mark=att.get("motion_mark", 0))
         rec.update(post=post, status=post["status"], retry_original=self._repeat_allowed(step, att))
         if post["status"] != "ok" and rec["retry_original"] is False:
-            att.update(effect_unknown=bool(att.get("effect_unknown")) or post["status"] != "postcondition_not_met"
-                       or dispatch_effect_unknown(att), action_required=True)
+            att.update(effect_unknown=self._effect_unknown(att, status=post["status"], post=post), action_required=True)
             rec.update(effect_unknown=att["effect_unknown"], action_required=True)
             rec["reason"] += "；原步骤已下发或部分执行，不重放，需人工核对现场"
         return rec
@@ -927,9 +941,8 @@ class Executor:
         # 单次 act、cleanup 和耗尽预算的最后尝试同样需要交接，不能依赖进入恢复分支。
         if not ok and (not self._repeat_allowed(step, last) or dispatch_effect_unknown(last)):
             last["action_required"] = True
-            last["effect_unknown"] = (bool(last.get("effect_unknown"))
-                                      or final_status != "postcondition_not_met"
-                                      or dispatch_effect_unknown(last))
+            last["effect_unknown"] = self._effect_unknown(last, status=final_status,
+                                                          post=final_post or last.get("post") or {})
         adapted = any((a.get("locate") or {}).get("adapted") for a in attempts)
         first_bad = next((a for a in attempts if a["status"] != "ok"), None)
         out = {"step_id": step["id"], "action": step["action"], "critical": bool(step.get("critical", True)),
