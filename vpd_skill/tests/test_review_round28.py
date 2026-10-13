@@ -77,7 +77,9 @@ def _ready_case(ws):
                              "desc": "d", "oracle_refs": ["K-MOT-002"]}])
     case["steps"][1]["target"], case["steps"][2]["target"] = "tab_my", "settings_entry"
     write_json(ws.case_path("TC-EXP-001"), case)
-    return KnowledgeStore(ws.root)
+    kn = KnowledgeStore(ws.root)
+    C.approve(ws, "TC-EXP-001", kn, "pytest-human-reviewer", "isolated dependency-replay fixture")
+    return kn
 
 
 def _replay_twice(ws):
@@ -100,6 +102,7 @@ def test_changing_a_referenced_target_invalidates_replays(ws):
     data = read_json(p)
     data["targets"]["settings_entry"]["strategies"][0]["value"] += "[1]"  # 用例文件没变，目标选择器变了
     write_json(p, data)
+    C.approve(ws, "TC-EXP-001", kn, "pytest-human-reviewer", "isolated changed selector fixture")
     with pytest.raises(PermissionError, match="重放不足"):
         C.promote(ws, "TC-EXP-001", "replay_verified", kn)
 

@@ -351,6 +351,7 @@ def from_session(session_dir: Path, case_id: str, app, goal: Optional[str], drop
     first_state = next((it.get("state") for it in tr["items"] if it["kind"] == "observe"), None)
     return {
         "id": case_id, "version": 1, "status": "exploration_record", "app": app.id,
+        "origin": {"type": "session"},
         "title": title or f"[会话生成] {goal or session_dir.name}", "goal": goal,
         "purpose": "", "preconditions": [f"APP 处于 {first_state}（会话首次观察）"] if first_state else [],
         "env_requirements": {}, "test_data": test_data, "test_data_none": not test_data,

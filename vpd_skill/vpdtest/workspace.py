@@ -81,14 +81,15 @@ class RunContext:
     """一次运行共享的上下文：设备、APP、policy、观测器、经验 overlay 与动作预算。"""
 
     def __init__(self, ws: Workspace, app: App, device, store, overlay, mode: str = "regression",
-                 display: Optional[dict] = None):
+                 display: Optional[dict] = None, policy=None, layout_cfg=None, dialogs=None):
         self.ws, self.app, self.device, self.store, self.overlay, self.mode = ws, app, device, store, overlay, mode
-        self.policy = ws.policy()
+        self.policy = policy or ws.policy()
         from .dispatch import Dispatcher
         self.dispatcher = Dispatcher(device, store, self)
         from .sysdialog import load_dialogs
-        self.observer = Observer(device, app.bundle, self.policy, app.states, store, ws.layout_config(), display,
-                                 dialogs=load_dialogs(ws.root))
+        self.observer = Observer(device, app.bundle, self.policy, app.states, store,
+                                 ws.layout_config() if layout_cfg is None else layout_cfg, display,
+                                 dialogs=load_dialogs(ws.root) if dialogs is None else dialogs)
         self.params = None        # 用例参数（含密钥引用），由 runner 设置
         self.authorized = set()   # 本次运行由人显式授予的 gated/supervised 副作用
         self.supervisor = None    # 在场监护人（supervised 类授权的前提），记入证据

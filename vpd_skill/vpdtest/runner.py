@@ -6,7 +6,13 @@ from typing import Optional
 from . import __version__
 from . import layout as layout_mod
 from . import safety as safety_mod
-from .cases import content_hash, dependency_hash
+from .cases import (
+    content_hash,
+    dependency_hash,
+    require_review,
+    review_context,
+    review_status,
+)
 from .execute import Executor
 from .experience import ExperienceStore
 from .knowledge import KnowledgeStore
@@ -39,16 +45,20 @@ def run_facts(app, pre: dict, declared: dict) -> dict:
 
 def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] = None, device_spec: Optional[str] = None,
              overlay=None, env: Optional[dict] = None, run_id: Optional[str] = None, propose: bool = True,
-             authorize: Optional[list] = None, supervisor: Optional[str] = None) -> dict:
+             authorize: Optional[list] = None, supervisor: Optional[str] = None, require_asset_review: bool = False) -> dict:
     case = case or ws.load_case(case_id)
     app = ws.app(case["app"])
+    knowledge, policy = KnowledgeStore(ws.root), ws.policy()
+    context = review_context(ws, app)
+    asset_review = (require_review if require_asset_review else review_status)(ws, case, knowledge, app, policy, context)
     store = RunStore(ws.runs_dir, run_id, kind="run")
     spec = device_spec or ws.config.get("device")
     device = ws.device(spec, state_path=store.dir / "replay_state.json")
     xstore = ExperienceStore(ws.root, app.id)
     overlay = overlay or xstore.overlay()
-    ctx = RunContext(ws, app, device, store, overlay, mode="regression")
-    knowledge = KnowledgeStore(ws.root)  # 前置检查后再绑定本次运行事实（APP/版本/形态/声明的环境）
+    ctx = RunContext(ws, app, device, store, overlay, mode="regression", policy=policy,
+                     layout_cfg=context["layout"], dialogs=context["system_dialogs"].get("dialogs") or {})
+    # 使用审核检查的同一输入快照；前置检查后再绑定实测事实
     started = now_iso()
     # steps/title 供控制台进度面板显示总步数与标题；只记步骤 id 与动作名，不含目标/文字等内容
     store.event("run_start", case=case["id"], title=case.get("title"), device=device.spec,
@@ -75,7 +85,8 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     # 未命中/查询失败不阻塞，动作后的 unobservable 恢复会用完整诊断兜底。
     if pre.get("ok"):
         from .sysdialog import preflight_dialog_check
-        pre["system_dialog"] = preflight_dialog_check(ws, device, store, dispatcher=ctx.dispatcher)
+        pre["system_dialog"] = preflight_dialog_check(ws, device, store, dispatcher=ctx.dispatcher,
+                                                     dialogs=ctx.observer.dialogs)
 
     store.event("preflight", ok=pre["ok"], checks=pre["checks"])
     ctx.observer.display = pre.get("display")  # 复用前置检查读到的显示参数，不重复查询
@@ -175,7 +186,8 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
            "case": {"id": case["id"], "title": case.get("title"), "version": case.get("version"),
                     "status": case.get("status"), "hash": content_hash(case),
                     "deps": dependency_hash(case, app, knowledge), "sources": case.get("sources", [])},
-           "informal": case.get("status") != "regression",
+           "informal": case.get("status") != "regression" or (asset_review["required"] and not asset_review["valid"]),
+           "asset_review": {**asset_review, "use": "batch" if require_asset_review else "single"},
            "app": {"id": app.id, "bundle": app.bundle, "version": pre.get("app_version")},
            "device": pre.get("device") or device.info(), "device_spec": device.spec,
            "policy": {"version": ctx.policy.version, "hash": ctx.policy.hash}, "overlay": overlay.describe(),

@@ -33,6 +33,8 @@
    中断的顺序（`session <name>` 查看）；选择器的多匹配/不可见/部分可见/执行前失效都会给出诊断而不是盲点。
 3. **固化**：`case from-session` 从会话提炼候选用例：步骤用选择器（证据里保留解析出的节点、点击点与形态），
    每一步关联到原始事件与观测；排除动作必须写理由。补齐目的、前置、数据、独立判据、清理、`knowledge_used`。
+   晋级或批量使用前，`case review` 展示当前审核状态，由人审查后明确 `case approve --reviewer --basis`；
+   Agent 补字段、lint 通过、录入重放或手改 draft 均不代替人审。单条诊断仍可非正式取证。
 4. **新运行中验证**：`run` 候选用例得到判定（产品结论与工具/环境/知识限制分开）；`--record-replay` 记入重放。
    稳定复现产品失败的用例用 `--known-issue` 固化，不改预期。
 5. **沉淀可继承的知识**：真机上确认过的选择器可登记到 targets.json（附 run/obs）；某次看到的现象用
@@ -41,7 +43,8 @@
    需要证明执行器/判定逻辑时再搭合成回放世界（文案标「占位」）。这两步**都不证明产品行为**。
    `explore` 只在已声明状态上枚举可点元素，适合回归覆盖检查，不是目标驱动的探索。
 7. **准入与维护**：知识 `knowledge confirm`；经验走 candidate → validate → adopt，可 `rollback`；
-   用例走 exploration_record → candidate → replay_verified → regression。假设目标未校准前 `case lint` 阻止晋级；
+   用例走 exploration_record → candidate → replay_verified → regression，探索来源每级及批量入口均要求有效 asset_review。
+   审核不替代 Oracle confirm、成熟度或运行授权；修改绑定内容/依赖须重审。假设目标未校准前 `case lint` 阻止晋级；
    已被真机证伪的流程（如 `login_password`，C8）标 `falsified_on_device`，lint 会指出引用它的用例。
 
 ## 3. 与自进化 Skill 实践的对应
@@ -50,7 +53,7 @@
 |---|---|---|
 | [Voyager](https://arxiv.org/html/2305.16291) | 自动课程、可执行技能库（按描述向量检索）、环境反馈 + 执行错误 + 自我验证的迭代 | 采用"技能库 + 环境反馈"：流程/目标就是技能库，执行器把执行错误与后置条件结果回写证据。不采用"模型自评即成功"：自我验证只能是建议，通过/失败只来自确定性证据 + 已确认判据 |
 | [CoEvoSkills](https://arxiv.org/html/2604.01687) | 生成器与"代理验证器"分离，验证器看不到生成过程；通过后再用隐藏测试给不透明的成败信号 | 对应"候选经验不能自己验证自己"：`experience validate` 在来源用例之外的用例与世界上重放，与基线比较；覆盖不足保持 candidate |
-| [MUSE-Autoskill](https://arxiv.org/html/2605.27366v2) | 创建 → 评估 → 注册的门禁；每个技能附记忆文件记录失败模式；合并、剪枝；目录式渐进加载 | 门禁对应 lint/promote；失败模式记在目标/状态的 `note`、`review_note` 与 known_gaps；SKILL.md 精炼、references 按需读取 |
+| [MUSE-Autoskill](https://arxiv.org/html/2605.27366v2) | 创建 → 评估 → 注册的门禁；每个技能附记忆文件记录失败模式；合并、剪枝；目录式渐进加载 | 门禁对应 lint / asset approve / promote；失败模式记在目标/状态的 `note`、`review_note` 与 known_gaps；SKILL.md 精炼、references 按需读取 |
 | [Dynamic Agent Skills 综述](https://arxiv.org/html/2607.10113v1)（[阅读清单](https://github.com/yubol-bobo/Awesome-Dynamic-Agent-Skills)） | 八阶段生命周期（取证、提议、验证准入、组织存储、检索组合、维护修复、蒸馏迁移、治理溯源）；准入边界与 tentative/promoted/rolled back；"只增长不等于学习"，需要负向算子 | 取证/提议/准入/治理直接对应第 2 节；溯源用 `source` + `ledger.jsonl` + overlay 版本；负向算子是 reject/rollback 与"假设不校准不晋级"。按 APP 分目录存放，避免扁平库膨胀 |
 
 不采用的部分：权重级蒸馏（无训练环节）、无人值守的自动生成用例直接进回归、让模型改 policy。

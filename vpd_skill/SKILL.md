@@ -37,7 +37,10 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
    `--drop A4=理由` 排除，失败和效果未知的动作不能静默删掉：已下发后才报错/中断的步骤会保留并被 lint 标出，
    看 obs_after 确认实际效果后写 `effect_reviewed`（或写理由排除）。`--app` 必须与会话记录一致。补齐 purpose / preconditions / assertions
    （`oracle_refs` 必须独立于本会话）/ cleanup / `knowledge_used`（用了哪条知识、判断是否适用及理由、映射到哪一步），
-   然后 `case lint`。
+   然后 `case lint`。晋级任一级或进入 suite/经验验证批量前，提供完整用例及来源给人审查，执行 `case review`，
+   取得人明确确认后再 `case approve --reviewer <实际审核人> --basis <依据>`；不得自行填写 reviewer 批准自己生成的资产。
+   单条诊断 `run` 可以先取证，未有效审核的探索资产仍标 informal。审核不确认 Oracle、不提升成熟度、不授予动作授权；
+   内容或绑定依赖变化须重审，字段与范围见 [workflows](references/workflows.md#探索资产人工审核30)。
 6. **执行与判定**：`run <case> --device <spec> --authorize …`。结论只取执行器的 verdict；读 report 的
    "尚未验证的检查""清理""用到的知识与适用性"。退出码 2 或 `action_required` 表示需要人工接管，立即转告用户。
 7. **交接**：汇报用到的知识及理由、每一步对应的命令、证据位置（obs/截图）、结论、未覆盖的范围，

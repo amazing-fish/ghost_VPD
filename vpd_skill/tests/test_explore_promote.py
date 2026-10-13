@@ -38,6 +38,7 @@ def test_exploration_record_is_traceable_and_not_promotable_until_complete(ws):
     exp, case = _explored_case(ws)
     kn = KnowledgeStore(ws.root)
     assert case["status"] == "exploration_record"
+    assert case["origin"] == {"type": "exploration"}
     src = case["sources"][0]
     assert src["run"] == exp["run_id"]
     for o in src["obs"]:
@@ -57,6 +58,7 @@ def test_candidate_replay_and_regression_gates(ws):
                              "desc": "设置页可见退出登录", "oracle_refs": ["K-MOT-002"]}])
     case["steps"][1]["target"], case["steps"][2]["target"] = "tab_my", "settings_entry"
     write_json(ws.case_path("TC-EXP-001"), case)
+    C.approve(ws, "TC-EXP-001", kn, "pytest-human-reviewer", "isolated completed exploration fixture")
     assert C.promote(ws, "TC-EXP-001", "candidate", kn)["status"] == "candidate"
     with pytest.raises(PermissionError):
         C.promote(ws, "TC-EXP-001", "replay_verified", kn)  # 没有重放
@@ -91,5 +93,6 @@ def test_editing_case_invalidates_old_replays(ws):
     edited = ws.load_case("TC-EXP-001")
     edited["assertions"][0]["type"] = "target_absent"  # 修改断言 → 旧重放不再作数
     write_json(ws.case_path("TC-EXP-001"), edited)
+    C.approve(ws, "TC-EXP-001", kn, "pytest-human-reviewer", "isolated changed assertion fixture")
     with pytest.raises(PermissionError, match="重放不足"):
         C.promote(ws, "TC-EXP-001", "replay_verified", kn)
