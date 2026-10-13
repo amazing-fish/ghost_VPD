@@ -83,6 +83,27 @@ $env:VPD_SECRET_QIANKUN_PHONE = '<账号>'; $env:VPD_SECRET_QIANKUN_PASSWORD = '
 回归、探索、单步决策、探索转用例、经验晋级的完整步骤见 [references/workflows.md](references/workflows.md)
 与 [references/knowledge-rsi.md](references/knowledge-rsi.md)。
 
+## 人工 Console（Windows / PowerShell）
+
+```powershell
+.\vpdtest.ps1 console --device hdc:<serial>
+.\vpdtest.ps1 console --device hdc:<serial> --source snapshot
+.\vpdtest.ps1 console --device hdc:<serial> --view-only
+```
+
+打开启动时输出的本机 URL。HTTP 服务开始监听后，画面还需要等待首帧；首帧未就绪、
+画面不是 live 或帧龄超过 2 秒时，坐标和文字操作会明确拒绝，键盘返回／唤醒等恢复操作仍可使用。
+
+`--source auto`（默认）和 `stream` 使用 uitest 帧流，需要可选依赖 `hmdriver2==1.4.3`；
+缺少依赖、连续失败或持续静止时回退 `snapshot_display`。帧流只在画面变化时出帧：
+出过首帧后约 5 秒无新帧标记为 stalled，再持续约 10 秒便自动回退；短暂静止后恢复出帧会重新计时。
+计时依据是完整 JPEG 帧，协议文字和未完成的帧不会让旧画面保持可操作状态或延后回退。
+`/api/status` 的 `fallback_reason` 和该 Console 运行目录的 `console_source` 事件记录回退原因。
+回退后先等新的快照成为实时帧再操作；快照帧率依设备采集耗时而定。
+回退后保持快照模式，重新启动 Console 才会再次尝试高帧率帧流。
+
+Console 是人工控制入口，手动操作写入独立的 `console-*` 运行目录，不计为 Agent 自主用例或产品判据验证。
+
 ## 数据状态说明（重要）
 
 - 仓库和本机均**未找到既有的 VPD 知识库或文字用例**。`data/knowledge/items.json` 中 K-MOT-* 条目提取自原工程代码（附文件行号与提交号），状态均为 **unconfirmed**；`TC-MOTOR-HM-001.md` 是按原工程登录/登出路径整理的种子样例。因此在真机上运行这些用例，结论会是"待确认"而不是"通过"，这是预期行为。

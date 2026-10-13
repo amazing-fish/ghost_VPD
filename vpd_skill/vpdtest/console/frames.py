@@ -4,6 +4,11 @@
   - uitest Captures startCaptureScreen：约 11.8 fps，帧为 660×1424 JPEG（约 75~93KB）
   - snapshot_display -f x.jpeg + file recv：约 1.6 fps，帧为 1320×2848
   - 帧流运行期间 uitest dumpLayout 与点击正常；uitest screenCap 失败（执行器截图已回退 snapshot_display）
+2026-10-12 同机型复测：Captures 是变化驱动的——上述帧率只在画面内容变化期间成立；
+  静止画面（桌面/锁屏停留）不再出帧，5s 无新帧判 stalled，内容恢复变化后 ~0.2s 内重新出帧（变化期间 ~10fps）。
+  帧龄门禁会在 stalled 下拒绝一切坐标/文字操作，因此持续静止时帧流已不能支撑交互，
+  进入 stalled 后持续 stall_give_up_s 自动回退 snapshot_display 轮询；帧率依采集耗时，
+  获得新快照且通过帧龄与几何校验后恢复操作。
 帧流通过 hmdriver2 1.4.3（MIT）部署到设备的 uitest agent 与 8012 端口通信，属于该库的非公开接口，
 因此只在这里使用、失败时回退，不影响执行器。
 """
@@ -25,6 +30,10 @@ MAX_BUFFER = 8 * 1024 * 1024  # 帧流缓冲上限：超过说明数据不是预
 
 class SessionUnavailable(Exception):
     """请求尚未发出（会话不存在/正在建立）：调用方可以安全地改走 hdc。"""
+
+
+class StreamGiveUp(Exception):
+    """帧流已不适合继续支撑交互（连续失败或持续静止）：应改用 snapshot 轮询。调用方捕获后回退。"""
 
 
 def jpeg_size(data: bytes) -> Optional[tuple]:
@@ -170,14 +179,15 @@ class SnapshotSource:
 
 
 class UitestStreamSource:
-    """uitest Captures 帧流。连续失败 max_failures 次后调用 on_give_up（通常切换到 snapshot 回退）。"""
+    """uitest Captures 帧流。连续失败 max_failures 次，或出过帧后 stalled 持续 stall_give_up_s
+    （静止画面不再出帧、帧龄门禁会拒绝交互操作），都调用 on_give_up（通常切换到 snapshot 回退）。"""
 
     name = "uitest_stream"
 
     def __init__(self, serial: str, hub: FrameHub, on_give_up: Optional[Callable[[str], None]] = None,
-                 stall_s: float = 5.0, max_failures: int = 3):
+                 stall_s: float = 5.0, stall_give_up_s: float = 10.0, max_failures: int = 3):
         self.serial, self.hub, self.on_give_up = serial, hub, on_give_up
-        self.stall_s, self.max_failures = stall_s, max_failures
+        self.stall_s, self.stall_give_up_s, self.max_failures = stall_s, stall_give_up_s, max_failures
         self._stop = threading.Event()
         self._th: Optional[threading.Thread] = None
         self._client = None
@@ -246,34 +256,53 @@ class UitestStreamSource:
     def _pump(self) -> None:
         buf = bytearray()
         start_seq = self.hub.seq
+        last_frame_at = time.monotonic()
+        stalled = False
         self._sock.settimeout(self.stall_s)
         while not self._stop.is_set():
             try:
                 chunk = self._sock.recv(1 << 20)
             except socket.timeout:
-                if self.hub.seq == start_seq:
-                    # 连上了却从没出过帧（capture 不支持或启动即卡死）：当成一次失败的流尝试，
-                    # 交给 _loop 计数重试，连续失败后回退 snapshot，而不是永远卡在空白流上
-                    raise ConnectionError(f"{self.stall_s:.0f}s 内未收到任何帧，帧流未就绪")
-                # 已出过帧后再 stall（熄屏/锁屏画面静止）：保持连接，状态标为 stalled，不当成错误
-                self.hub.set_status("stalled", f"{self.stall_s:.0f}s 没有新帧（熄屏或画面静止）")
+                frames = []
+            else:
+                if not chunk:
+                    raise ConnectionError("帧流连接被设备端关闭")
+                buf += chunk
+                frames, buf = split_frames(buf)
+                for f in frames:
+                    self.hub.push(f)
+                if len(buf) > MAX_BUFFER:
+                    buf = bytearray()
+            now = time.monotonic()
+            if frames:
+                last_frame_at, stalled = now, False
                 continue
-            if not chunk:
-                raise ConnectionError("帧流连接被设备端关闭")
-            buf += chunk
-            frames, buf = split_frames(buf)
-            for f in frames:
-                self.hub.push(f)
-            if len(buf) > MAX_BUFFER:
-                buf = bytearray()
+            # 协议文字和部分 JPEG 都不能证明画面恢复；超时或收到数据后均检查完整帧年龄。
+            frame_gap = now - last_frame_at
+            if frame_gap < self.stall_s:
+                continue
+            if self.hub.seq == start_seq:
+                # 本次连接从没出帧：计失败并重试，持续失败交给 _loop 回退。
+                raise ConnectionError(f"{self.stall_s:.0f}s 内未收到任何帧，帧流未就绪")
+            if not stalled:
+                stalled = True
+                self.hub.set_status("stalled", f"{self.stall_s:.0f}s 没有新帧（熄屏或画面静止）")
+            stalled_for = frame_gap - self.stall_s
+            if stalled_for >= self.stall_give_up_s:
+                raise StreamGiveUp(f"出过帧后画面静止 {stalled_for:.0f}s 没有新帧"
+                                   f"（超过 {self.stall_give_up_s:.0f}s），帧流无法支撑交互")
 
     def _loop(self) -> None:
         failures = 0
+        give_up = None  # 持续静止时由 _pump 的 StreamGiveUp 带出的回退原因
         while not self._stop.is_set():
             seq0 = self.hub.seq
             try:
                 self._open()
                 self._pump()
+            except StreamGiveUp as e:
+                # 持续静止不是错误：不计失败、不重试，先正常收尾再交回退（重开一条流也救不了静止画面）
+                give_up = str(e)
             except Exception as e:  # 设备断开、agent 启动失败、hmdriver2 缺失等
                 # 只有这一轮确实收到过帧才算恢复健康；连上后立刻断开不清零，否则永远到不了回退
                 failures = (0 if self.hub.seq > seq0 else failures) + 1
@@ -282,6 +311,10 @@ class UitestStreamSource:
                 self._close()
             if self._stop.is_set():
                 break
+            if give_up:
+                if self.on_give_up:
+                    self.on_give_up(give_up)
+                return
             if failures >= self.max_failures:
                 if self.on_give_up:
                     self.on_give_up(self.hub.error or "帧流连续失败")
