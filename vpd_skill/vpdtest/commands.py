@@ -289,11 +289,21 @@ def _scrub_input(res: dict) -> dict:
 
 def diagnose(res: dict) -> Optional[dict]:
     """定位/复核失败时给 Agent 的诊断：多匹配的候选、不可见/被裁剪的数量、复核前后的节点。"""
+    if res.get("outcome") in ("passed", "passed_after_recovery", "passed_after_adaptation"):
+        return None
     last = (res.get("attempts") or [{}])[-1]
-    st = last.get("status")
+    st = res.get("final_status") or last.get("status")
     if st in (None, "ok"):
         return None
     out = {"status": st}
+    recovery = next((rec for rec in reversed(res.get("recoveries") or [])
+                     if rec.get("after_attempt") is not None and rec.get("after_attempt") == last.get("n")
+                     and res.get("final_obs")
+                     and (rec.get("post") or {}).get("status") == st
+                     and (rec.get("post") or {}).get("obs_id") == res.get("final_obs")), None)
+    if recovery is not None:
+        out.update(post=recovery["post"], obs_id=res["final_obs"],
+                   recovery={"action": recovery.get("action"), "after_attempt": recovery["after_attempt"]})
     loc = last.get("locate") or {}
     tries = loc.get("attempts") or []
     if st == "target_ambiguous":
@@ -322,6 +332,10 @@ def diagnose(res: dict) -> Optional[dict]:
         out["hint"] = "前台不是被测 APP：可能用户正在用手机，停止操作并报告，不要拉起 APP 抢前台"
     elif st == "policy_denied":
         out["policy"] = last.get("policy") or last.get("policy_context")
+    elif st == "postcondition_not_met":
+        if (last.get("post") or {}).get("status") == st:
+            out.setdefault("post", last["post"])
+        out["hint"] = "当前可靠观测未达到原业务后置：核对判据和当前现场，不以首次覆盖异常替代最终业务结论"
     elif st in ("state_indeterminate", "screen_locked"):
         gate = (last.get("locate") or {}).get("gate") or last
         out.update(state_check=gate.get("state_check"), foreground_check=gate.get("foreground_check"),

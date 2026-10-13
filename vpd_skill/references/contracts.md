@@ -138,6 +138,8 @@ clear 与 input 均有可靠成功回执、只在可靠观测下原业务后置�
 
 恢复以 `after_attempt` 绑定原尝试；仅属于最后一次尝试的可靠原步骤后置可用于最终 `outcome/attribution/final_status/final_obs`，旧恢复不能覆盖后续新错误或观测。原始异常继续保存在 `attempt.status` 和 `first_failure`。例如覆盖物消失后原业务后置未成立，最终为产品 `fail_candidate`，而不是恢复前的工具 `unobservable` 阻塞。
 
+Agent `diagnosis.status` 消费最终 `final_status`，并以匹配最后尝试和 `final_obs` 的恢复后置提供 `post/obs_id/recovery` 证据；不会引用旧恢复，成功恢复返回无失败诊断。可靠业务后置未达的诊断与产品 `fail_candidate` 一致，首次覆盖异常仅在历史失败记录中保留。
+
 步骤结果：`passed` / `passed_after_adaptation` / `passed_after_recovery` / `fail_candidate` / `blocked` / `not_run`。
 关键步骤未通过，后续步骤记为 `not_run`，清理步骤仍执行。
 
