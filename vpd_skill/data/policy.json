@@ -1,5 +1,5 @@
 {
-  "version": "policy-0.4",
+  "version": "policy-0.5",
   "note": "运行边界。Skill/经验/模型都不能修改本文件；变更需人工评审并单独提交。",
   "allowed_packages": [
     "app.huawei.hmos.motor",
@@ -80,10 +80,6 @@
   "allow_text_input": false,
   "max_actions_per_run": 60,
   "max_wait_s": 30,
-  "privacy": {
-    "screenshot_only_when_target_foreground": true,
-    "dump_layout_scoped_to_bundle": true
-  },
   "gated_side_effects": {
     "account_state": "登录/登出/切换账号：改变账号状态，只在本次运行 --authorize account_state 时允许，且目标须声明同一副作用",
     "vehicle_selection": "切换当前车辆：影响后续所有车辆相关页面",
@@ -112,6 +108,16 @@
   "safe_stop_text": "暂停|停止|结束|退出|取消|中止|终止|急停|返回",
   "safe_stop_note": "side_effect=safe_stop 的目标（暂停/退出泊车等）在任何授权下都可点击、不占动作预算：安全停止不应被门槛挡住。但点击点所在可点击容器里必须有停止类文字，且不能同时含有其他会触发运动/车控的文字。",
   "changelog": [
+    {
+      "version": "policy-0.5",
+      "date": "2026-10-13",
+      "changes": [
+        "按 Issue #32 用户裁决删除 privacy 配置，系统覆盖物和窗口查询未知不拦截取证",
+        "截图权限恒定采用 allowed_packages，旧 privacy=false 不再绕过 APP 白名单",
+        "副作用授权、监护、安全停止、动作预算和禁止规则保持原值"
+      ],
+      "reviewed_by": "amazing-fish（Issue #32 裁决；本轮批准按序实施）"
+    },
     {
       "version": "policy-0.4",
       "date": "2026-09-29",
