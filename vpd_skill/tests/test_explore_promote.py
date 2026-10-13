@@ -16,7 +16,7 @@ def test_explore_respects_policy_and_reports_honest_coverage(ws):
     exp = explore(ws, "motor_hm", "car_tab", BASE, budget=60, goal="账号与导航")
     assert exp["exit"]["reason"] == "frontier_exhausted"
     cov = exp["coverage"]
-    assert set(cov["visited_declared"]) == {"car_tab", "my_tab", "settings"}
+    assert set(cov["visited_declared"]) == {"car_tab", "my_tab", "settings", "fx_tab"}
     assert cov["unknown_states"] and "不代表 APP 的完整覆盖" in cov["disclaimer"]
     skipped = {s["label"] for s in exp["skipped"]}
     assert {"解锁", "空调", "泊车代驾", "退出登录", "注册/登录"} <= skipped

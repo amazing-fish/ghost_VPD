@@ -1,0 +1,238 @@
+{
+  "id": "TC-QK-217",
+  "version": 2,
+  "status": "draft",
+  "app": "qiankun_hm",
+  "title": "乾崑爱车页车辆信息显示断言",
+  "purpose": "人工核实F03停泊前提下检查车名、更新时间与停泊中文字；其它入口和信息完整性仅作建议，不证明默认车辆关系、实时刷新或数据正确性。",
+  "preconditions": [
+    "乾崑 APP 已登录（测试账号 151****3183，默认车辆 F03）",
+    "设备已解锁、亮屏",
+    "本候选限原作者声明的 APP 1.0.26.100 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准",
+    "新增任务/车辆/园区范围均须执行前人工核实；声明不是自动采集事实，实测事实与独立判据另核"
+  ],
+  "env_requirements": {
+    "account_state": "logged_in",
+    "app_version": "1.0.26.100",
+    "device_form": "bar",
+    "vehicle_name": "F03",
+    "vehicle_state": "parked"
+  },
+  "test_data": {},
+  "test_data_none": true,
+  "authorizations": [],
+  "steps": [
+    {
+      "id": "S1",
+      "action": "stop_app",
+      "desc": "冷启动前置"
+    },
+    {
+      "id": "S2",
+      "action": "launch",
+      "expect_state": "@in_app",
+      "timeout_s": 15,
+      "desc": "拉起乾崑 APP"
+    },
+    {
+      "id": "S3",
+      "action": "tap",
+      "target": "qk_tab_car",
+      "timeout_s": 10,
+      "critical": true,
+      "desc": "进「爱车」页"
+    },
+    {
+      "id": "S4",
+      "action": "wait",
+      "duration_s": 4,
+      "desc": "等待车辆数据加载（车辆资源包弹窗由执行器按登记自动关闭：下次再说）"
+    }
+  ],
+  "assertions": [
+    {
+      "id": "A1",
+      "at": "S4",
+      "type": "text_present",
+      "text": "F03",
+      "desc": "当前车辆名称显示",
+      "oracle_refs": [
+        "K-QK-017"
+      ]
+    },
+    {
+      "id": "A2",
+      "at": "S4",
+      "type": "text_present",
+      "text": "更新于",
+      "exact": false,
+      "desc": "显示更新时间；不据此宣称实时数据已拉取",
+      "oracle_refs": [
+        "K-QK-017"
+      ]
+    },
+    {
+      "id": "A3",
+      "at": "S4",
+      "type": "text_present_any",
+      "any": [
+        "车锁",
+        "车窗",
+        "空调",
+        "后备箱"
+      ],
+      "desc": "车控入口可见（只断言显示，禁止点击：vehicle_control supervised）；缺独立入口规则，仅记录建议",
+      "oracle_refs": [],
+      "advisory": true
+    },
+    {
+      "id": "A4",
+      "at": "S4",
+      "type": "visual_review",
+      "advisory": true,
+      "desc": "爱车页信息完整性与数据一致性（建议）",
+      "prompt": "检查截图：里程/电量/车内温度/车辆位置距离/提醒项数量与文案是否合理、有无明显数据缺失。只给建议，不作为缺陷结论"
+    },
+    {
+      "id": "A5",
+      "at": "S4",
+      "type": "text_present",
+      "text": "停泊中",
+      "exact": false,
+      "desc": "停泊中可见",
+      "oracle_refs": [
+        "K-QK-017"
+      ]
+    }
+  ],
+  "cleanup": [
+    {
+      "action": "stop_app",
+      "desc": "结束 APP（未做任何车控操作）"
+    }
+  ],
+  "knowledge_used": [
+    {
+      "id": "K-QK-017",
+      "use": "已声明F03停泊场景的车名/停泊中/更新时间展示；完整性刷新未验",
+      "applicability": "unconfirmed",
+      "rationale": "K-QK-017用于所列步骤；已声明F03停泊场景的车名/停泊中/更新时间展示；完整性刷新未验。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
+      "steps": [
+        "S3",
+        "S4"
+      ],
+      "reported_rationale": "test_goal 候选判据；session-wk-qk4/obs-0009 实测证据（F03：SUM 645km、54/38 电量、1.7km 停泊中、车门未锁等3项提醒、更新于 2026/10/13 11:23）",
+      "reported_use": "判据：爱车页车辆信息元素清单（车名/位置停泊中/提醒/更新时间/车控入口/数字钥匙）"
+    }
+  ],
+  "sources": [
+    {
+      "type": "user_instruction",
+      "ref": "用户周批量实测指令：账号与导航域-车辆与 VPD 入口显示（VPD 视角）"
+    },
+    {
+      "type": "device_observation",
+      "ref": "session-wk-qk4/obs-0009"
+    }
+  ],
+  "history": [
+    {
+      "ts": "2026-10-13T11:45:00+08:00",
+      "to": "draft",
+      "why": "周批量实测-账号与导航域：爱车页车辆信息显示（默认车辆上下文确认）"
+    },
+    {
+      "ts": "2026-10-13T13:24:59.060535+00:00",
+      "event": "offline_asset_refinement",
+      "why": "按当前主干治理修订定义；原始真机证据未核验，不构成资产人审或产品确认",
+      "source_head": "78d01a275c189708fd8b248de31caa91ddff0728"
+    }
+  ],
+  "origin": {
+    "type": "exploration",
+    "asset_pr": 36,
+    "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+    "review_reason": "导入的机器批次候选；尚无独立人工资产审核"
+  },
+  "asset_acceptance": {
+    "state": "pending",
+    "evidence": "reference_only",
+    "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+    "reported_scope": {
+      "app_version": "1.0.26.100",
+      "device_form": "bar"
+    },
+    "open_requirements": [
+      "原始run/obs与全部失败迭代的可携带证据",
+      "修订版本的显式资产人审与独立复跑",
+      "独立产品判据确认及适用范围",
+      "Cleanup后置核验；不能从定义推断verified",
+      "实时数据刷新与完整性仍需独立数据基线",
+      "入口可见和已知错误排除不证明完整地图/车位数据就绪；场景条件须人工核实",
+      "原目的中的完整性/业务关系仍未验；当前自动结论只限必需显示检查"
+    ]
+  },
+  "reported_definition": {
+    "title": "乾崑爱车页车辆信息显示断言",
+    "purpose": "登录态下进爱车页，验证当前车辆（F03）信息元素显示：车名、车辆位置（距离+停泊中）、提醒项、数据更新时间、车控入口（只断言显示，不点击）、数字钥匙状态。账号与导航域（VPD 视角）：确认默认车辆上下文供后续 VPD 用例使用。",
+    "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+    "assertions": [
+      {
+        "id": "A1",
+        "at": "S4",
+        "type": "text_present",
+        "text": "F03",
+        "desc": "当前车辆名称显示",
+        "oracle_refs": [
+          "K-QK-017"
+        ]
+      },
+      {
+        "id": "A2",
+        "at": "S4",
+        "type": "text_present_any",
+        "any": [
+          "停泊中",
+          "更新于"
+        ],
+        "desc": "车辆位置状态与数据更新时间可见（实时车辆数据已拉取）",
+        "oracle_refs": [
+          "K-QK-017"
+        ]
+      },
+      {
+        "id": "A3",
+        "at": "S4",
+        "type": "text_present_any",
+        "any": [
+          "车锁",
+          "车窗",
+          "空调",
+          "后备箱"
+        ],
+        "desc": "车控入口可见（只断言显示，禁止点击：vehicle_control supervised）",
+        "oracle_refs": [
+          "K-QK-017"
+        ]
+      },
+      {
+        "id": "A4",
+        "at": "S4",
+        "type": "visual_review",
+        "advisory": true,
+        "desc": "爱车页信息完整性与数据一致性（建议）",
+        "prompt": "检查截图：里程/电量/车内温度/车辆位置距离/提醒项数量与文案是否合理、有无明显数据缺失。只给建议，不作为缺陷结论"
+      }
+    ],
+    "preconditions": [
+      "乾崑 APP 已登录（测试账号 151****3183，默认车辆 F03）",
+      "设备已解锁、亮屏"
+    ],
+    "step_descriptions": {
+      "S1": "冷启动前置",
+      "S2": "拉起乾崑 APP",
+      "S3": "进「爱车」页",
+      "S4": "等待车辆数据加载（车辆资源包弹窗由执行器按登记自动关闭：下次再说）"
+    }
+  }
+}

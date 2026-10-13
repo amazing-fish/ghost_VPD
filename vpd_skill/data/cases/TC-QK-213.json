@@ -1,0 +1,201 @@
+{
+  "id": "TC-QK-213",
+  "version": 2,
+  "status": "draft",
+  "app": "qiankun_hm",
+  "title": "乾崑登录态检查：账号信息与车辆信息显示（VPD 链路前置）",
+  "purpose": "检查已登录前提下账户展示标签与我的车辆入口；积分及车辆数量只作建议，不验证账号服务端身份关系或所有字段正确性。",
+  "preconditions": [
+    "乾崑 APP 已登录（测试账号 151****3183，2026-10-13 已完成新设备验证）",
+    "设备已解锁、亮屏，无系统弹窗遮挡",
+    "本候选限原作者声明的 APP 1.0.26.100 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准"
+  ],
+  "env_requirements": {
+    "account_state": "logged_in",
+    "app_version": "1.0.26.100",
+    "device_form": "bar"
+  },
+  "test_data": {},
+  "test_data_none": true,
+  "authorizations": [],
+  "steps": [
+    {
+      "id": "S1",
+      "action": "stop_app",
+      "desc": "冷启动前置"
+    },
+    {
+      "id": "S2",
+      "action": "launch",
+      "expect_state": "@in_app",
+      "timeout_s": 15,
+      "desc": "拉起乾崑 APP（已登录，落主界面）"
+    },
+    {
+      "id": "S3",
+      "action": "tap",
+      "target": "qk_tab_my_prod",
+      "timeout_s": 10,
+      "critical": true,
+      "desc": "进「我的」页"
+    },
+    {
+      "id": "S4",
+      "action": "wait",
+      "duration_s": 3,
+      "desc": "等待账号信息加载"
+    }
+  ],
+  "assertions": [
+    {
+      "id": "A1",
+      "at": "S4",
+      "type": "text_absent",
+      "text": "登录/注册",
+      "desc": "已登录态「我的」页不再显示「登录/注册」入口",
+      "oracle_refs": [
+        "K-QK-011"
+      ]
+    },
+    {
+      "id": "A2",
+      "at": "S4",
+      "type": "text_present",
+      "text": "我的车辆",
+      "desc": "「我的车辆」入口可见（VPD 目标车辆入口）",
+      "oracle_refs": [
+        "K-QK-011"
+      ]
+    },
+    {
+      "id": "A3",
+      "at": "S4",
+      "type": "visual_review",
+      "advisory": true,
+      "desc": "账号信息区完整性（建议）",
+      "prompt": "检查截图：「我的」页账号区是否显示昵称与账号信息（测试账号黄子傲），车辆入口是否显示车辆数；有无异常提示；只给建议，不作为缺陷结论"
+    },
+    {
+      "id": "A4",
+      "at": "S4",
+      "type": "text_present_any",
+      "desc": "出现原作者报告的测试账户专有展示标签；主导航或我的车辆入口不足",
+      "oracle_refs": [
+        "K-QK-011"
+      ],
+      "any": [
+        "151****3183",
+        "黄子傲"
+      ]
+    }
+  ],
+  "cleanup": [
+    {
+      "action": "stop_app",
+      "desc": "结束 APP（不登出）"
+    }
+  ],
+  "knowledge_used": [
+    {
+      "id": "K-QK-011",
+      "use": "判据：登录态判定（无登录/注册入口+主界面可用）",
+      "applicability": "unconfirmed",
+      "rationale": "K-QK-011 仅按其声明范围用于 S4；判据：登录态判定（无登录/注册入口+主界面可用）。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
+      "steps": [
+        "S4"
+      ],
+      "reported_rationale": "test_goal 候选判据；2026-10-13 本机已完成登录（用户手动完成新设备短信验证）"
+    }
+  ],
+  "sources": [
+    {
+      "type": "user_instruction",
+      "ref": "用户 2026-10-13 指令：必须登录（登录已由用户手动完成短信验证）"
+    },
+    {
+      "type": "device_observation",
+      "ref": "session-wk-qk3 obs-0004（已登录我的页：黄子傲/749积分/我的车辆 F03等17辆车）"
+    }
+  ],
+  "history": [
+    {
+      "ts": "2026-10-13T11:03:00+08:00",
+      "to": "draft",
+      "why": "周批量实测-账号与导航域（VPD 视角）：登录态检查"
+    },
+    {
+      "ts": "2026-10-13T13:24:59.060535+00:00",
+      "event": "offline_asset_refinement",
+      "why": "按当前主干治理修订定义；原始真机证据未核验，不构成资产人审或产品确认",
+      "source_head": "78d01a275c189708fd8b248de31caa91ddff0728"
+    }
+  ],
+  "origin": {
+    "type": "exploration",
+    "asset_pr": 36,
+    "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+    "review_reason": "导入的机器批次候选；尚无独立人工资产审核"
+  },
+  "asset_acceptance": {
+    "state": "pending",
+    "evidence": "reference_only",
+    "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+    "reported_scope": {
+      "app_version": "1.0.26.100",
+      "device_form": "bar"
+    },
+    "open_requirements": [
+      "原始run/obs与全部失败迭代的可携带证据",
+      "修订版本的显式资产人审与独立复跑",
+      "独立产品判据确认及适用范围",
+      "Cleanup后置核验；不能从定义推断verified",
+      "测试账户展示标签与真实账号映射须人工核实，不能把显示名当身份认证",
+      "原目的中的完整性/业务关系仍未验；当前自动结论只限必需显示检查"
+    ]
+  },
+  "reported_definition": {
+    "title": "乾崑登录态检查：账号信息与车辆信息显示（VPD 链路前置）",
+    "purpose": "已登录态冷启动后进入「我的」页，验证账号信息（昵称/积分）与车辆信息（我的车辆入口+车辆数）正常显示，作为 VPD 业务链路的登录态前置检查。只读，不点击任何车控/账号操作。",
+    "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+    "assertions": [
+      {
+        "id": "A1",
+        "at": "S4",
+        "type": "text_absent",
+        "text": "登录/注册",
+        "desc": "已登录态「我的」页不再显示「登录/注册」入口",
+        "oracle_refs": [
+          "K-QK-011"
+        ]
+      },
+      {
+        "id": "A2",
+        "at": "S4",
+        "type": "text_present",
+        "text": "我的车辆",
+        "desc": "「我的车辆」入口可见（VPD 目标车辆入口）",
+        "oracle_refs": [
+          "K-QK-011"
+        ]
+      },
+      {
+        "id": "A3",
+        "at": "S4",
+        "type": "visual_review",
+        "advisory": true,
+        "desc": "账号信息区完整性（建议）",
+        "prompt": "检查截图：「我的」页账号区是否显示昵称与账号信息（测试账号黄子傲），车辆入口是否显示车辆数；有无异常提示；只给建议，不作为缺陷结论"
+      }
+    ],
+    "preconditions": [
+      "乾崑 APP 已登录（测试账号 151****3183，2026-10-13 已完成新设备验证）",
+      "设备已解锁、亮屏，无系统弹窗遮挡"
+    ],
+    "step_descriptions": {
+      "S1": "冷启动前置",
+      "S2": "拉起乾崑 APP（已登录，落主界面）",
+      "S3": "进「我的」页",
+      "S4": "等待账号信息加载"
+    }
+  }
+}

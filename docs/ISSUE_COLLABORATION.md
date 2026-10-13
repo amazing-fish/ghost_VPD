@@ -1,6 +1,6 @@
 # ghost_VPD · Issue 驱动协作规范 v1.0
 
-适用范围：**Issue / PR 协作、证据与授权要求适用于整个 ghost_VPD 仓库**；设备执行规则按实际工作树分域。2026-10-13 主干 `d7e7185` 已同时包含 Legacy 入口 `app/service/vpd/base.py::vpd_task_run()` 和 Skill 入口 `vpd_skill/vpdtest`（含统一 Dispatcher）；PR #2/#7/#8 已合入。两条设备执行链保持独立，不能假定 Legacy 自动获得 Skill 的授权、重检和运动看门狗能力。尚未合并的 PR #36 资产仍不属于主干能力。方向与成熟度快照见 [PROJECT_DIRECTION.md](PROJECT_DIRECTION.md)。
+适用范围：**Issue / PR 协作、证据与授权要求适用于整个 ghost_VPD 仓库**；设备执行规则按实际工作树分域。2026-10-13 主干 `0d20fe0` 已同时包含 Legacy 入口 `app/service/vpd/base.py::vpd_task_run()` 和 Skill 入口 `vpd_skill/vpdtest`（含统一 Dispatcher）；PR #2/#7/#8 已合入。两条设备执行链保持独立，不能假定 Legacy 自动获得 Skill 的授权、重检和运动看门狗能力。尚未合并的 PR #36 资产仍不属于主干能力。方向与成熟度快照见 [PROJECT_DIRECTION.md](PROJECT_DIRECTION.md)。
 
 核心约束：**Issue 定义任务契约，Agent 负责实现及取证，PR 承载可审查变更，人工负责授权与产品判据确认。**
 
@@ -98,3 +98,5 @@ Issue 标题建议：`[Task] ...`、`[Bug] ...`、`[Knowledge] ...`。优先级�
 - 表单 `required` 是输入提示/校验机制；仓库为私有时不应仅依赖 UI 校验，仍需按本规范人工/Agent 审查缺失字段。
 - `.github/ISSUE_TEMPLATE/config.yml` 默认禁用空白 Issue，是为了避免绕开核心信息；紧急情况使用“缺陷 / 异常”，安全问题先处理现场再补 Issue。
 - PR 模板在 `.github/PULL_REQUEST_TEMPLATE.md`，用于将任务目标、证据和遗留风险对齐。
+
+#34批次交接与缺证据口径见[BATCH_ASSET_ACCEPTANCE.md](BATCH_ASSET_ACCEPTANCE.md)。run_id/作者叙述不是可携带现场；只读静态验证不能声称Cleanup verified。

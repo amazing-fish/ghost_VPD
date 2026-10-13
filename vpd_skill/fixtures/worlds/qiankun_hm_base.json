@@ -1181,7 +1181,10 @@
                             "click": true,
                             "bind": "account",
                             "text_bound": "account",
-                            "text": ""
+                            "text": "",
+                             "attrs": {
+                              "hint": "请输入手机号"
+                             }
                            }
                           ]
                          }
@@ -1206,7 +1209,10 @@
                           ],
                           "click": true,
                           "bind": "password",
-                          "text": ""
+                          "text": "",
+                          "attrs": {
+                           "hint": "请输入密码"
+                          }
                          }
                         ]
                        },

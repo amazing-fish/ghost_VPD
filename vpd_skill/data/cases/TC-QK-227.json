@@ -1,0 +1,311 @@
+{
+  "id": "TC-QK-227",
+  "version": 2,
+  "status": "draft",
+  "app": "qiankun_hm",
+  "title": "乾崑搜索「我的位置」设为目的地发起算路（远距结果）",
+  "purpose": "搜索页点「我的位置」以当前位置为目的地直接发起算路，验证任务卡片显示 我的爱车→我的位置 及结果状态（当前测试场景手机距园区较远：F03 故障态文案+「车辆距离目的地较远」距离校验提示）。VPD 业务链路域：算路发起到结果，只到结果显示不控车（禁止点 开始/重试/靠边停车/步行路线）。",
+  "preconditions": [
+    "乾崑 APP 已登录（测试账号 151****3183，默认车辆 F03）",
+    "无进行中的算路任务（任务卡片页时搜索入口不可达）",
+    "设备联网、已解锁、亮屏；手机位置距 VPD 园区较远（办公位）",
+    "本候选限原作者声明的 APP 1.0.26.100 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准",
+    "新增任务/车辆/园区范围均须执行前人工核实；声明不是自动采集事实，实测事实与独立判据另核"
+  ],
+  "env_requirements": {
+    "account_state": "logged_in",
+    "network": "on",
+    "app_version": "1.0.26.100",
+    "device_form": "bar",
+    "vehicle_fault_state": "vpd_fault",
+    "vpd_task_state": "none",
+    "parking_area": "金桥出口加工区",
+    "vehicle_name": "F03",
+    "location_relation": "far_from_destination"
+  },
+  "test_data": {},
+  "test_data_none": true,
+  "authorizations": [
+    "vpd_entry",
+    "route_planning"
+  ],
+  "steps": [
+    {
+      "id": "S1",
+      "action": "stop_app",
+      "desc": "冷启动前置"
+    },
+    {
+      "id": "S2",
+      "action": "launch",
+      "expect_state": "@in_app",
+      "timeout_s": 15,
+      "desc": "拉起乾崑 APP"
+    },
+    {
+      "id": "S3",
+      "action": "tap",
+      "target": "qk_tab_car",
+      "timeout_s": 10,
+      "critical": true,
+      "desc": "进「爱车」页"
+    },
+    {
+      "id": "S4",
+      "action": "tap",
+      "target": "qk_ads",
+      "timeout_s": 15,
+      "critical": true,
+      "desc": "点 ADS 进 VPD 首页",
+      "expect_state": "qk_vpd_home"
+    },
+    {
+      "id": "S5",
+      "action": "tap",
+      "target": "qk_search_entry",
+      "timeout_s": 10,
+      "critical": true,
+      "desc": "点「搜索车位号设为目的地」进搜索页"
+    },
+    {
+      "id": "S6",
+      "action": "tap",
+      "target": "qk_my_location",
+      "timeout_s": 10,
+      "critical": true,
+      "desc": "点「我的位置」以当前位置为目的地发起算路"
+    },
+    {
+      "id": "S7",
+      "action": "monitor",
+      "duration_s": 120,
+      "interval_s": 5,
+      "until_text": "泊车代驾辅助暂不可用|VPD功能故障|系统功能启动失败",
+      "watch": {
+        "fault": "泊车代驾辅助暂不可用|VPD功能故障|系统功能启动失败"
+      },
+      "desc": "等待故障/不可用结果终态；未到终态不能用中间态代替"
+    }
+  ],
+  "assertions": [
+    {
+      "id": "A1",
+      "at": "S7",
+      "type": "text_present",
+      "text": "我的位置",
+      "exact": false,
+      "desc": "我的位置可见",
+      "oracle_refs": [
+        "K-QK-019"
+      ]
+    },
+    {
+      "id": "A2",
+      "at": "S7",
+      "type": "text_present_any",
+      "any": [
+        "泊车代驾辅助暂不可用",
+        "VPD功能故障",
+        "系统功能启动失败"
+      ],
+      "desc": "故障/不可用终态提示可见；规划中或开始文字不算结果",
+      "oracle_refs": [
+        "K-QK-USR-002",
+        "K-QK-019"
+      ]
+    },
+    {
+      "id": "A3",
+      "at": "S7",
+      "type": "text_present",
+      "text": "车辆距离目的地较远",
+      "exact": false,
+      "desc": "完整远距拒绝提示；普通距离读数不算",
+      "oracle_refs": [
+        "K-QK-019"
+      ]
+    },
+    {
+      "id": "A4",
+      "at": "S7",
+      "type": "visual_review",
+      "advisory": true,
+      "desc": "任务卡片完整性与「开始」按钮状态（建议）",
+      "prompt": "检查截图：任务卡片元素（我的爱车/我的位置/状态/距离提示/靠边停车/步行路线/开始按钮），「开始」在故障态+远距下应为不可用或明显受限。只给建议，不作为缺陷结论"
+    },
+    {
+      "id": "A_DISABLED",
+      "at": "S7",
+      "type": "target_enabled",
+      "target": "qk_start",
+      "expected": false,
+      "absent_is": "disabled",
+      "desc": "只读证明开始不可激活，不点击",
+      "oracle_refs": [
+        "K-QK-USR-002"
+      ]
+    },
+    {
+      "id": "A5",
+      "at": "S7",
+      "type": "text_present",
+      "text": "我的爱车",
+      "exact": false,
+      "desc": "我的爱车可见",
+      "oracle_refs": [
+        "K-QK-019"
+      ]
+    }
+  ],
+  "cleanup": [
+    {
+      "action": "back",
+      "desc": "返回（不点任何任务操作）"
+    },
+    {
+      "action": "stop_app",
+      "desc": "结束 APP"
+    }
+  ],
+  "knowledge_used": [
+    {
+      "id": "K-QK-019",
+      "use": "金桥地图中我的位置故障远距场景及模糊建议展示；不同有效行数量未验",
+      "applicability": "unconfirmed",
+      "rationale": "K-QK-019用于所列步骤；金桥地图中我的位置故障远距场景及模糊建议展示；不同有效行数量未验。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
+      "steps": [
+        "S6",
+        "S7"
+      ],
+      "reported_rationale": "test_goal 候选判据；session-wk-qk6/obs-0035 实测证据",
+      "reported_use": "判据：我的位置算路任务卡片 我的爱车→我的位置+故障态+车辆距离目的地较远"
+    },
+    {
+      "id": "K-QK-USR-002",
+      "use": "判据：车辆故障态算路结果不能激活（开始不可用）",
+      "applicability": "confirmed",
+      "rationale": "K-QK-USR-002 仅按其声明范围用于 S7；判据：车辆故障态算路结果不能激活（开始不可用）。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
+      "steps": [
+        "S7"
+      ],
+      "reported_rationale": "已确认知识；F03 实测故障态（泊车代驾辅助暂不可用）与之一致"
+    }
+  ],
+  "sources": [
+    {
+      "type": "user_instruction",
+      "ref": "用户周批量实测指令：发起算路白名单园区只到结果不控车、算路结果页断言（VPD 业务链路域）"
+    },
+    {
+      "type": "device_observation",
+      "ref": "session-wk-qk6/obs-0035"
+    }
+  ],
+  "history": [
+    {
+      "ts": "2026-10-13T12:36:00+08:00",
+      "to": "draft",
+      "why": "周批量实测-VPD 业务链路域：我的位置算路链路与远距结果提示"
+    },
+    {
+      "ts": "2026-10-13T13:24:59.060535+00:00",
+      "event": "offline_asset_refinement",
+      "why": "按当前主干治理修订定义；原始真机证据未核验，不构成资产人审或产品确认",
+      "source_head": "78d01a275c189708fd8b248de31caa91ddff0728"
+    }
+  ],
+  "origin": {
+    "type": "exploration",
+    "asset_pr": 36,
+    "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+    "review_reason": "导入的机器批次候选；尚无独立人工资产审核"
+  },
+  "asset_acceptance": {
+    "state": "pending",
+    "evidence": "reference_only",
+    "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+    "reported_scope": {
+      "app_version": "1.0.26.100",
+      "device_form": "bar"
+    },
+    "open_requirements": [
+      "原始run/obs与全部失败迭代的可携带证据",
+      "修订版本的显式资产人审与独立复跑",
+      "独立产品判据确认及适用范围",
+      "Cleanup后置核验；不能从定义推断verified",
+      "入口可见和已知错误排除不证明完整地图/车位数据就绪；场景条件须人工核实"
+    ]
+  },
+  "reported_definition": {
+    "title": "乾崑搜索「我的位置」设为目的地发起算路（远距结果）",
+    "purpose": "搜索页点「我的位置」以当前位置为目的地直接发起算路，验证任务卡片显示 我的爱车→我的位置 及结果状态（当前测试场景手机距园区较远：F03 故障态文案+「车辆距离目的地较远」距离校验提示）。VPD 业务链路域：算路发起到结果，只到结果显示不控车（禁止点 开始/重试/靠边停车/步行路线）。",
+    "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+    "assertions": [
+      {
+        "id": "A1",
+        "at": "S7",
+        "type": "text_present_any",
+        "any": [
+          "我的爱车",
+          "我的位置"
+        ],
+        "desc": "任务卡片显示我的爱车→我的位置目的地",
+        "oracle_refs": [
+          "K-QK-019"
+        ]
+      },
+      {
+        "id": "A2",
+        "at": "S7",
+        "type": "text_present_any",
+        "any": [
+          "泊车代驾辅助暂不可用",
+          "VPD功能故障",
+          "系统功能启动失败",
+          "路线规划中",
+          "正在启动"
+        ],
+        "desc": "算路结果状态可见（F03 为故障态：K-QK-USR-002 已确认故障态不能激活；若短暂为规划中/启动中属中间态）",
+        "oracle_refs": [
+          "K-QK-USR-002",
+          "K-QK-019"
+        ]
+      },
+      {
+        "id": "A3",
+        "at": "S7",
+        "type": "text_present_any",
+        "any": [
+          "车辆距离目的地较远",
+          "距离"
+        ],
+        "desc": "远距离目的地距离校验提示可见（手机距园区较远场景）",
+        "oracle_refs": [
+          "K-QK-019"
+        ]
+      },
+      {
+        "id": "A4",
+        "at": "S7",
+        "type": "visual_review",
+        "advisory": true,
+        "desc": "任务卡片完整性与「开始」按钮状态（建议）",
+        "prompt": "检查截图：任务卡片元素（我的爱车/我的位置/状态/距离提示/靠边停车/步行路线/开始按钮），「开始」在故障态+远距下应为不可用或明显受限。只给建议，不作为缺陷结论"
+      }
+    ],
+    "preconditions": [
+      "乾崑 APP 已登录（测试账号 151****3183，默认车辆 F03）",
+      "无进行中的算路任务（任务卡片页时搜索入口不可达）",
+      "设备联网、已解锁、亮屏；手机位置距 VPD 园区较远（办公位）"
+    ],
+    "step_descriptions": {
+      "S1": "冷启动前置",
+      "S2": "拉起乾崑 APP",
+      "S3": "进「爱车」页",
+      "S4": "点 ADS 进 VPD 首页",
+      "S5": "点「搜索车位号设为目的地」进搜索页",
+      "S6": "点「我的位置」以当前位置为目的地发起算路",
+      "S7": "等待算路与任务卡片"
+    }
+  }
+}

@@ -1,0 +1,232 @@
+{
+  "id": "TC-QK-221",
+  "version": 2,
+  "status": "draft",
+  "app": "qiankun_hm",
+  "title": "乾崑断网下进入 VPD：兜底介绍页与网络异常提示",
+  "purpose": "设备断网（WLAN 关闭、无 SIM）时进 ADS，验证 VPD 落功能兜底介绍页（泊车代驾辅助说明+遥控车控卡片说明）并显示网络异常提示，不加载地图首页。异常与边界域：断网提示。只读断言，不点任何车控卡片（遥控泊车辅助/遥控直行辅助为 vehicle_motion 类，禁止点击）。",
+  "preconditions": [
+    "乾崑 APP 已登录（测试账号 151****3183）",
+    "设备网络已断：执行者在 run 前经系统控制中心关闭 WLAN（uinput 控制中心 WLAN 磁贴，操作方法与验证留档 session-wk-qk5：ifconfig wlan0 无 inet addr + ping Network unreachable）",
+    "设备已解锁、亮屏",
+    "本候选限原作者声明的 APP 1.0.26.100 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准"
+  ],
+  "env_requirements": {
+    "account_state": "logged_in",
+    "network": "off",
+    "app_version": "1.0.26.100",
+    "device_form": "bar"
+  },
+  "test_data": {},
+  "test_data_none": true,
+  "authorizations": [
+    "vpd_entry"
+  ],
+  "steps": [
+    {
+      "id": "S1",
+      "action": "stop_app",
+      "desc": "冷启动前置"
+    },
+    {
+      "id": "S2",
+      "action": "launch",
+      "expect_state": "@in_app",
+      "timeout_s": 15,
+      "desc": "拉起乾崑 APP（离线冷启动）"
+    },
+    {
+      "id": "S3",
+      "action": "wait",
+      "duration_s": 5,
+      "desc": "等待离线冷启动完成（落爱车页-缓存数据，见 TC-QK-222）"
+    },
+    {
+      "id": "S4",
+      "action": "tap",
+      "target": "qk_ads",
+      "timeout_s": 15,
+      "critical": true,
+      "desc": "点 ADS 进 VPD（离线）"
+    },
+    {
+      "id": "S5",
+      "action": "wait",
+      "duration_s": 5,
+      "desc": "等待 VPD 页加载（兜底介绍页）"
+    }
+  ],
+  "assertions": [
+    {
+      "id": "A1",
+      "at": "S5",
+      "type": "text_present",
+      "text": "网络异常",
+      "exact": false,
+      "desc": "网络异常可见",
+      "oracle_refs": [
+        "K-QK-018"
+      ]
+    },
+    {
+      "id": "A2",
+      "at": "S5",
+      "type": "text_present",
+      "text": "泊车代驾辅助",
+      "exact": false,
+      "desc": "泊车代驾辅助可见",
+      "oracle_refs": [
+        "K-QK-018"
+      ]
+    },
+    {
+      "id": "A3",
+      "at": "S5",
+      "type": "text_absent",
+      "text": "搜索车位号设为目的地",
+      "desc": "离线不加载 VPD 地图首页（首页搜索入口不出现）",
+      "oracle_refs": [
+        "K-QK-018"
+      ]
+    },
+    {
+      "id": "A4",
+      "at": "S5",
+      "type": "visual_review",
+      "advisory": true,
+      "desc": "兜底页完整性与提示布局（建议）",
+      "prompt": "检查截图：兜底介绍页结构（泊车代驾辅助说明/遥控泊车辅助/遥控直行辅助卡片）与网络异常提示的位置和可读性。只给建议，不作为缺陷结论"
+    }
+  ],
+  "cleanup": [
+    {
+      "action": "stop_app",
+      "desc": "结束 APP（网络恢复由执行者外部操作后另行验证：TC-QK-223）"
+    }
+  ],
+  "knowledge_used": [
+    {
+      "id": "K-QK-018",
+      "use": "断网场景显示候选；缓存及网络转换未验",
+      "applicability": "unconfirmed",
+      "rationale": "K-QK-018用于所列步骤；断网场景显示候选；缓存及网络转换未验。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
+      "steps": [
+        "S4",
+        "S5"
+      ],
+      "reported_rationale": "test_goal 候选判据；session-wk-qk5/obs-0017 实测证据（泊车代驾辅助+网络异常，请稍候重试+遥控卡片说明；无搜索车位号设为目的地）",
+      "reported_use": "判据：断网进 VPD 落兜底介绍页+网络异常提示，不加载地图首页"
+    }
+  ],
+  "sources": [
+    {
+      "type": "user_instruction",
+      "ref": "用户周批量实测指令：断网弱网提示（异常与边界域）"
+    },
+    {
+      "type": "device_observation",
+      "ref": "session-wk-qk5/obs-0017、obs-0018（断网操作与验证方法见 K-QK-018 note）"
+    }
+  ],
+  "history": [
+    {
+      "ts": "2026-10-13T12:25:00+08:00",
+      "to": "draft",
+      "why": "周批量实测-异常与边界域：断网 VPD 兜底页与提示"
+    },
+    {
+      "ts": "2026-10-13T13:24:59.060535+00:00",
+      "event": "offline_asset_refinement",
+      "why": "按当前主干治理修订定义；原始真机证据未核验，不构成资产人审或产品确认",
+      "source_head": "78d01a275c189708fd8b248de31caa91ddff0728"
+    }
+  ],
+  "origin": {
+    "type": "exploration",
+    "asset_pr": 36,
+    "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+    "review_reason": "导入的机器批次候选；尚无独立人工资产审核"
+  },
+  "asset_acceptance": {
+    "state": "pending",
+    "evidence": "reference_only",
+    "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+    "reported_scope": {
+      "app_version": "1.0.26.100",
+      "device_form": "bar"
+    },
+    "open_requirements": [
+      "原始run/obs与全部失败迭代的可携带证据",
+      "修订版本的显式资产人审与独立复跑",
+      "独立产品判据确认及适用范围",
+      "Cleanup后置核验；不能从定义推断verified",
+      "断网前后基线、真实网络事实和外部恢复网络未验证；env声明不等于采集证据"
+    ]
+  },
+  "reported_definition": {
+    "title": "乾崑断网下进入 VPD：兜底介绍页与网络异常提示",
+    "purpose": "设备断网（WLAN 关闭、无 SIM）时进 ADS，验证 VPD 落功能兜底介绍页（泊车代驾辅助说明+遥控车控卡片说明）并显示网络异常提示，不加载地图首页。异常与边界域：断网提示。只读断言，不点任何车控卡片（遥控泊车辅助/遥控直行辅助为 vehicle_motion 类，禁止点击）。",
+    "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+    "assertions": [
+      {
+        "id": "A1",
+        "at": "S5",
+        "type": "text_present_any",
+        "any": [
+          "网络异常",
+          "请稍候重试",
+          "网络连接失败",
+          "加载失败"
+        ],
+        "desc": "网络异常提示可见",
+        "oracle_refs": [
+          "K-QK-018"
+        ]
+      },
+      {
+        "id": "A2",
+        "at": "S5",
+        "type": "text_present_any",
+        "any": [
+          "泊车代驾辅助",
+          "遥控泊车辅助",
+          "遥控直行辅助"
+        ],
+        "desc": "VPD 功能兜底介绍页可见（功能说明+车控卡片说明）",
+        "oracle_refs": [
+          "K-QK-018"
+        ]
+      },
+      {
+        "id": "A3",
+        "at": "S5",
+        "type": "text_absent",
+        "text": "搜索车位号设为目的地",
+        "desc": "离线不加载 VPD 地图首页（首页搜索入口不出现）",
+        "oracle_refs": [
+          "K-QK-018"
+        ]
+      },
+      {
+        "id": "A4",
+        "at": "S5",
+        "type": "visual_review",
+        "advisory": true,
+        "desc": "兜底页完整性与提示布局（建议）",
+        "prompt": "检查截图：兜底介绍页结构（泊车代驾辅助说明/遥控泊车辅助/遥控直行辅助卡片）与网络异常提示的位置和可读性。只给建议，不作为缺陷结论"
+      }
+    ],
+    "preconditions": [
+      "乾崑 APP 已登录（测试账号 151****3183）",
+      "设备网络已断：执行者在 run 前经系统控制中心关闭 WLAN（uinput 控制中心 WLAN 磁贴，操作方法与验证留档 session-wk-qk5：ifconfig wlan0 无 inet addr + ping Network unreachable）",
+      "设备已解锁、亮屏"
+    ],
+    "step_descriptions": {
+      "S1": "冷启动前置",
+      "S2": "拉起乾崑 APP（离线冷启动）",
+      "S3": "等待离线冷启动完成（落爱车页-缓存数据，见 TC-QK-222）",
+      "S4": "点 ADS 进 VPD（离线）",
+      "S5": "等待 VPD 页加载（兜底介绍页）"
+    }
+  }
+}
