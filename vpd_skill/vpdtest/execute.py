@@ -88,6 +88,7 @@ class Executor:
             if att["status"] == "ok" or n > max_retry:
                 break
             rec = self._recover(step, att, case_id)
+            rec["after_attempt"] = n
             recoveries.append(rec)
             self.ctx.store.event("recovery", step=step["id"], after_attempt=n,
                                  **{k: v for k, v in rec.items() if k in (
@@ -903,6 +904,7 @@ class Executor:
 
     def _after_recovery(self, step: dict, att: dict, rec: dict, case_id: str) -> dict:
         """修复覆盖物后只核验原后置；不把关闭弹窗当成原动作可重复的证明。"""
+        rec["after_attempt"] = att["n"]
         post = self._post(step, att["n"], case_id,
                           was_in_app=att.get("state_before") != "out_of_app", mark=att.get("motion_mark", 0))
         rec.update(post=post, status=post["status"], retry_original=self._repeat_allowed(step, att))
@@ -916,14 +918,17 @@ class Executor:
     # ---- 汇总 ----
     def _summarize(self, step: dict, attempts: list, recoveries: list) -> dict:
         last, last_rec = attempts[-1], (recoveries[-1] if recoveries else None)
+        if last_rec and last_rec.get("after_attempt") != last["n"]:
+            last_rec = None  # 旧恢复不能覆盖后来重试的错误或观测。
         rec_ok = bool(last_rec and last_rec.get("status") == "ok")
         ok = last["status"] == "ok" or rec_ok
+        final_post = (last_rec.get("post") or {}) if last_rec else {}
+        final_status = final_post.get("status") or last["status"]
         # 单次 act、cleanup 和耗尽预算的最后尝试同样需要交接，不能依赖进入恢复分支。
         if not ok and not self._repeat_allowed(step, last):
             last["action_required"] = True
-            effective_status = (last_rec.get("post") or {}).get("status") if last_rec else None
             last["effect_unknown"] = (bool(last.get("effect_unknown"))
-                                      or (effective_status or last["status"]) != "postcondition_not_met"
+                                      or final_status != "postcondition_not_met"
                                       or dispatch_effect_unknown(last))
         adapted = any((a.get("locate") or {}).get("adapted") for a in attempts)
         first_bad = next((a for a in attempts if a["status"] != "ok"), None)
@@ -947,9 +952,9 @@ class Executor:
             out["outcome"] = "passed_after_recovery" if first_bad else ("passed_after_adaptation" if adapted else "passed")
             out["final_obs"] = last_rec["post"]["obs_id"] if (rec_ok and last["status"] != "ok") else last.get("obs_after")
         else:
-            out["outcome"], out["attribution"], out["reason"] = classify(last)
-            out["final_obs"] = last.get("obs_after") or last.get("obs_before")
-            out["final_status"] = last["status"]
+            out["outcome"], out["attribution"], out["reason"] = classify({**last, "status": final_status})
+            out["final_obs"] = final_post.get("obs_id") or last.get("obs_after") or last.get("obs_before")
+            out["final_status"] = final_status
         if first_bad:
             out["first_failure"] = {"attempt": first_bad["n"], "status": first_bad["status"],
                                     "obs_before": first_bad.get("obs_before"), "obs_after": first_bad.get("obs_after"),
