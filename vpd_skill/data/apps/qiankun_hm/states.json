@@ -3,82 +3,171 @@
   "states": {
     "qk_car_tab": {
       "desc": "底部导航「爱车」选中",
-      "require_selected_text": ["爱车"],
+      "require_selected_text": [
+        "爱车"
+      ],
       "source": "app/config/mhero_config.py:261 car「爱车」；选中态判定沿用鸿蒙智行真机校准的规则（selected 在 TabBar 下的可点击容器上），乾崑未核对",
       "review": "pending"
     },
     "qk_discover_tab": {
       "desc": "底部导航「探索」选中（账号区在这一页）",
-      "require_selected_text": ["探索"],
+      "require_selected_text": [
+        "探索"
+      ],
       "source": "app/config/mhero_config.py:267 discover「探索」；app/service/vpd/vpd.py:2270-2272",
       "review": "pending"
     },
     "qk_vehicle_list": {
       "desc": "车辆列表（每行带「车架号 xxxxxx(后6位)」）",
-      "require_text_pattern": ["车架号 .{6}\\(后6位\\)"],
-      "effect_text": {"车架号": "vehicle_selection"},
+      "require_text_pattern": [
+        "车架号 .{6}\\(后6位\\)"
+      ],
+      "effect_text": {
+        "车架号": "vehicle_selection"
+      },
       "effect_note": "点列表行就会切换当前车辆，行内文字不含「切换车辆」，靠页面级规则归为 vehicle_selection",
       "source": "app/config/mhero_config.py:502 car_vin「车架号 %s(后6位)」",
       "review": "pending"
     },
     "qk_vpd_loading": {
       "desc": "进入 VPD 后的加载",
-      "require_text": ["正在加载..."],
+      "require_text": [
+        "正在加载..."
+      ],
       "source": "app/config/mhero_config.py:276 vpd_loading",
       "review": "pending"
     },
     "qk_vpd_home": {
       "desc": "VPD 首页（有搜索栏「搜索车位号设为目的地」，尚未算路）",
-      "require_text": ["搜索车位号设为目的地"],
-      "forbid_text": ["开始", "暂停", "继续"],
-      "forbid_text_pattern": ["路线规划中"],
+      "require_text": [
+        "搜索车位号设为目的地"
+      ],
+      "forbid_text": [
+        "开始",
+        "暂停",
+        "继续"
+      ],
+      "forbid_text_pattern": [
+        "路线规划中"
+      ],
       "source": "原工程用「默认车位」（app/config/mhero_config.py:279）；1.0.26.100 真机上它只出现在停车场数据加载失败的占位页（session-g1 obs-0001），加载完成的首页没有（session-g1 obs-0016、session-qk-maint obs-0030），两种页面都有搜索栏。见 K-QK-OBS-201",
       "review": "pending",
       "review_note": "2026-09-30 按真机两种首页改签名；加载失败页也命中本状态，失败提示由观测的 ui_alerts 单独报出。算路结果页是否仍有搜索栏未核对，靠 forbid_text「开始」区分"
     },
     "qk_route_planning": {
       "desc": "算路中",
-      "require_text_pattern": ["路线规划中"],
+      "require_text_pattern": [
+        "路线规划中"
+      ],
       "source": "app/config/mhero_config.py:291 start_loading「路线规划中，请稍后…」",
       "review": "pending"
     },
     "qk_route_result": {
       "desc": "算路结果（有「开始」按钮；有故障时按钮置灰并在左侧显示原因）",
-      "require_text": ["开始"],
-      "forbid_text": ["暂停", "继续"],
-      "forbid_text_pattern": ["路线规划中"],
-      "effect_text": {"^确定$": "vehicle_motion"},
+      "require_text": [
+        "开始"
+      ],
+      "forbid_text": [
+        "暂停",
+        "继续"
+      ],
+      "forbid_text_pattern": [
+        "路线规划中"
+      ],
+      "effect_text": {
+        "^确定$": "vehicle_motion"
+      },
       "effect_note": "点「开始」后弹出的「确定」才真正激活（vpd.py:874-913），在本页归为 vehicle_motion",
       "source": "app/config/mhero_config.py:309-320 start / start_enabled / confirm；vpd.py:803-821 judge_calculate_result",
       "review": "pending"
     },
     "qk_moving": {
       "desc": "激活后运动中（出现「暂停」）",
-      "require_text": ["暂停"],
-      "forbid_text": ["继续"],
+      "require_text": [
+        "暂停"
+      ],
+      "forbid_text": [
+        "继续"
+      ],
       "source": "app/service/vpd/vpd.py:890-908 确定后等待「暂停」出现即视为激活成功",
       "review": "pending"
     },
     "qk_paused": {
       "desc": "已暂停（「继续」「退出」）",
-      "require_text": ["继续", "退出"],
+      "require_text": [
+        "继续",
+        "退出"
+      ],
       "source": "app/config/mhero_config.py:326-329 quit / continue",
       "review": "pending",
       "review_note": "暂停后的页面构成是推测：原工程只定义了这两个按钮"
     },
     "qk_parked": {
       "desc": "任务完成（车已泊入车位 / 车已到达上车点）",
-      "require_any_text": ["车已泊入车位", "车已到达上车点"],
+      "require_any_text": [
+        "车已泊入车位",
+        "车已到达上车点"
+      ],
       "source": "app/config/mhero_config.py:413-416 parking_finish / summon_finish",
       "review": "pending"
+    },
+    "qk_sms_verify": {
+      "desc": "新设备登录短信验证码页",
+      "require_text": [
+        "身份验证",
+        "验证码已发至"
+      ],
+      "source": "2026-10-13 量产版 1.0.26.100 真机 run-20261013-104123-90c6 obs-0028",
+      "review": "pending",
+      "review_note": "仅 1.0.26.100 量产版验证；页面含验证码输入框（绝对路径见 qk_sms_code_input）与保险箱保存弹窗",
+      "calibration_claim": {
+        "reported_status": "calibrated_on_device",
+        "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+        "evidence": "reference_only",
+        "independent_check": "pending"
+      }
+    },
+    "qk_task_card": {
+      "desc": "VPD 算路任务卡片页（沿途找车位/车位目的地算路发起后）",
+      "require_text": [
+        "泊入沿途最近空车位"
+      ],
+      "source": "2026-10-13 量产版 1.0.26.100 真机 session-wk-qk3 obs-0023/0025",
+      "review": "pending",
+      "review_note": "仅 1.0.26.100 量产版验证；卡片含 开始/靠边停车/步行路线 与结果状态（可用/故障提示）",
+      "calibration_claim": {
+        "reported_status": "calibrated_on_device",
+        "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+        "evidence": "reference_only",
+        "independent_check": "pending"
+      }
+    },
+    "qk_spot_search": {
+      "desc": "VPD 车位搜索页（输入目的地或车位号）",
+      "require_text": [
+        "输入目的地或车位号"
+      ],
+      "source": "2026-10-13 量产版 1.0.26.100 真机 session-wk-qk4/obs-0046",
+      "review": "pending",
+      "review_note": "输入框 SearchField 绝对路径见 qk_spot_search_input；联想行 L1层-XXX 车位+路线",
+      "calibration_claim": {
+        "reported_status": "calibrated_on_device",
+        "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+        "evidence": "reference_only",
+        "independent_check": "pending"
+      }
     }
   },
   "interrupts": {
     "qk_vehicle_resource_dialog": {
       "desc": "车辆资源包下载提示（「请下载车辆资源包」/「请下载更新后的车辆资源包」+「下次再说」/「立即下载」/「立即更新」）",
       "class": "benign",
-      "require_text": ["下次再说"],
-      "require_text_pattern": ["^请下载(更新后的)?车辆资源包$"],
+      "require_text": [
+        "下次再说"
+      ],
+      "require_text_pattern": [
+        "^请下载(更新后的)?车辆资源包$"
+      ],
       "dismiss_text": "下次再说",
       "settle_s": 1.0,
       "source": "真机 2026-09-30 阔折叠 run-20260930-212714-de11 obs-0007：冷启动后盖在爱车页上；2026-10-01 run-20261001-015856-6691 obs-0011 出现「请下载更新后的车辆资源包」变体（按钮「立即更新」），旧签名没认出，S1 的 ADS 点击被蒙层吞掉",
@@ -88,7 +177,9 @@
     "qk_safe_code": {
       "desc": "安全码输入",
       "class": "blocking",
-      "require_text": ["请输入安全码"],
+      "require_text": [
+        "请输入安全码"
+      ],
       "source": "app/config/mhero_config.py:270 vpd_safe_code；#08 原流程不输入安全码（vpd.py 只对 #01/#06/#10 调用 set_safe_code）",
       "review": "reviewed",
       "review_note": "安全码属于 account_destructive，Skill 永远不输入；出现即阻塞，需测试人员手动处理后重跑"
@@ -96,7 +187,9 @@
     "qk_update_dialog": {
       "desc": "版本更新提示",
       "class": "blocking",
-      "require_text": ["更新"],
+      "require_text": [
+        "更新"
+      ],
       "source": "app/config/mhero_config.py:505 update_btn「更新」；原工程 _handle_common_popups 会点「更新」（vpd.py:2403-2412），本 Skill 的 policy 禁止升级被测 APP",
       "review": "pending",
       "review_note": "没有已知的「以后再说」类按钮，不自动关闭；页面上其他位置出现「更新」二字会误判，真机校准时收紧"
@@ -104,35 +197,94 @@
     "qk_app_error": {
       "desc": "应用异常/无响应提示",
       "class": "anomaly",
-      "require_any_text": ["应用无响应", "已停止运行", "程序异常"],
+      "require_any_text": [
+        "应用无响应",
+        "已停止运行",
+        "程序异常"
+      ],
       "source": "skill 通用规则；文本为推测",
       "review": "pending"
     }
   },
   "recipes": {
     "qk_car_tab": [
-      {"action": "stop_app"},
-      {"action": "launch", "expect_state": "@in_app", "timeout_s": 20},
-      {"action": "tap", "target": "qk_tab_car", "expect_state": "qk_car_tab", "timeout_s": 10}
+      {
+        "action": "stop_app"
+      },
+      {
+        "action": "launch",
+        "expect_state": "@in_app",
+        "timeout_s": 20
+      },
+      {
+        "action": "tap",
+        "target": "qk_tab_car",
+        "expect_state": "qk_car_tab",
+        "timeout_s": 10
+      }
     ],
     "qk_discover_tab": [
-      {"action": "stop_app"},
-      {"action": "launch", "expect_state": "@in_app", "timeout_s": 20},
-      {"action": "tap", "target": "qk_tab_discover", "expect_state": "qk_discover_tab", "timeout_s": 10}
+      {
+        "action": "stop_app"
+      },
+      {
+        "action": "launch",
+        "expect_state": "@in_app",
+        "timeout_s": 20
+      },
+      {
+        "action": "tap",
+        "target": "qk_tab_discover",
+        "expect_state": "qk_discover_tab",
+        "timeout_s": 10
+      }
     ],
     "qk_vpd_home": [
-      {"action": "stop_app"},
-      {"action": "launch", "expect_state": "@in_app", "timeout_s": 20},
-      {"action": "tap", "target": "qk_tab_car", "expect_state": "qk_car_tab", "timeout_s": 10},
-      {"action": "tap", "target": "qk_ads", "expect_state": "@in_app", "timeout_s": 10},
-      {"action": "monitor", "duration_s": 120, "interval_s": 3, "until_state": "qk_vpd_home",
-       "watch": {"loading": "正在加载", "safe_code": "请输入安全码"}, "screenshots": false,
-       "desc": "等待 VPD 首页（原工程最多等 120s：constant.py VPD_WAIT_MAP_TIME）"}
+      {
+        "action": "stop_app"
+      },
+      {
+        "action": "launch",
+        "expect_state": "@in_app",
+        "timeout_s": 20
+      },
+      {
+        "action": "tap",
+        "target": "qk_tab_car",
+        "expect_state": "qk_car_tab",
+        "timeout_s": 10
+      },
+      {
+        "action": "tap",
+        "target": "qk_ads",
+        "expect_state": "@in_app",
+        "timeout_s": 10
+      },
+      {
+        "action": "monitor",
+        "duration_s": 120,
+        "interval_s": 3,
+        "until_state": "qk_vpd_home",
+        "watch": {
+          "loading": "正在加载",
+          "safe_code": "请输入安全码"
+        },
+        "screenshots": false,
+        "desc": "等待 VPD 首页（原工程最多等 120s：constant.py VPD_WAIT_MAP_TIME）"
+      }
     ]
   },
   "dialog_policy": {
     "desc": "没登记的 Dialog：只要弹窗里有下面任一按钮文字（完全相等），执行层就点它关闭并记事件、留截图，事后把这类弹窗补登记为 interrupt。只收'拒绝/推迟'语义的按钮，不收「确认」「取消」「立即…」",
-    "safe_dismiss_text": ["下次再说", "以后再说", "暂不更新", "暂不下载", "我知道了", "知道了", "稍后再说"],
+    "safe_dismiss_text": [
+      "下次再说",
+      "以后再说",
+      "暂不更新",
+      "暂不下载",
+      "我知道了",
+      "知道了",
+      "稍后再说"
+    ],
     "review": "reviewed",
     "review_note": "2026-10-01 用户反馈弹窗处理太差：资源包弹窗换了文案就认不出。改为按结构（Dialog 节点）识别 + 通用推迟按钮兜底"
   }

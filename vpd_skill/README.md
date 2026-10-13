@@ -109,9 +109,9 @@ Console 是人工控制入口，手动操作写入独立的 `console-*` 运行�
 
 ## 数据状态说明（重要）
 
-- 2026-10-13 主干 `cbcb925` 快照：75 条知识（12 confirmed、62 unconfirmed、1 deprecated）；11 条用例（6 draft、5 exploration_record），正式回归 0。K-QK-001 已退役，采用的 K-AV-001 仍为 unconfirmed 且限定原 debug 范围。
+- 2026-10-13 主干 `0d20fe0` 快照：75 条知识（12 confirmed、62 unconfirmed、1 deprecated）；11 条用例（6 draft、5 exploration_record），正式回归 0。K-QK-001 已退役，采用的 K-AV-001 仍为 unconfirmed 且限定原 debug 范围。
 - 产品通过/失败要求每条 Oracle 明确 confirmed 且适用；入口选定、设备操作成功或框架 pytest 通过均不代替产品判据确认。人工 `knowledge confirm` 仍是独立治理动作。
-- PR #36 的拟新增资产未合入此快照，不能计为现有正式 VPD 覆盖。#32 原文取证与过时证据判定修复已随 PR #38 合入；策略误报 #35 已随 PR #39 合入。本变更为 #30 增加资产人审入口，仍待独立 PR 合入；下一阶段优先单个真实 VPD 闭环。详见 [方向与漂移审查](../docs/PROJECT_DIRECTION.md)。
+- PR #36 的拟新增资产未合入此快照，不能计为现有正式 VPD 覆盖。#32 原文取证与过时证据判定修复已随 PR #38 合入；策略误报 #35 已随 PR #39 合入。#30 资产人审已随 PR #40 合入。#34 本变更整理待审批次候选，原始证据与独立真机复跑仍待验收。详见 [方向与漂移审查](../docs/PROJECT_DIRECTION.md)。
 - `car_tab` / `my_tab` 的状态签名已在真机（3.0.3.200）上校准：选中态 `selected=true` 标在 `TabBar` 下可点击的 `Column` 容器上，而非文字节点，见 `states.json` 的 `source`。`settings` 签名与 `update_dialog` 中断仍是 `review: pending`，需在真机上核对后改为 `reviewed`。
 
 ## 屏幕形态
@@ -170,3 +170,5 @@ Console 是人工控制入口，手动操作写入独立的 `console-*` 运行�
   监视期间进程死亡检测都只在离线回放中验证，控车闭环在真机验证前不能宣称可用。
 - 现场选择器只覆盖有 UI 树的页面：地图等自绘区域（XComponent）、无树页面、纯视觉定位不在覆盖范围内。
 - 下发前复核每次多取一次 UI 树（真机约 1~3 s）。`act` 的动作预算按会话事件累计：进程在下发途中被杀、dispatch 事件没写下来的那次不计入。
+
+#34候选资产的修订范围、18/19结构lint（218规则缺失）、来源/校准/XP状态及尚未核验的真实证据见[批次验收对账](../docs/BATCH_ASSET_ACCEPTANCE.md)。导入候选不自动人审，不计正式产品覆盖。

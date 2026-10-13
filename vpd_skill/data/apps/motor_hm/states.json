@@ -22,6 +22,66 @@
       "source": "app/config/motor_config.py 选择器「我的」；选中态判定按 2026-09-29 真机校准：selected=true 在 TabBar > Column(clickable) 上（run-20260929-015629-e441 obs-0011）",
       "review": "calibrated_on_device"
     },
+    "fx_tab": {
+      "desc": "底部导航「发现」选中（未登录态冷启动默认页）",
+      "require_selected_text": [
+        "发现"
+      ],
+      "source": "2026-10-13 真机 session-wk-a2（Mate 80 62T0225C27006650 / 3.0.1.281 / 未登录）：launch 后默认落在发现页；选中态判定与 car_tab/my_tab 同机制（TabBar > Column）",
+      "review": "pending",
+      "review_note": "仅覆盖未登录态 3.0.1.281；car_tab 校准备注（冷启动默认爱车、三 tab）来自 3.0.3.200 已登录态，两者不冲突",
+      "calibration_claim": {
+        "reported_status": "calibrated_on_device",
+        "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+        "evidence": "reference_only",
+        "independent_check": "pending"
+      }
+    },
+    "jx_tab": {
+      "desc": "底部导航「精选」选中",
+      "require_selected_text": [
+        "精选"
+      ],
+      "source": "2026-10-13 真机 session-wk-a2 核对",
+      "review": "pending",
+      "review_note": "仅覆盖未登录态 3.0.1.281",
+      "calibration_claim": {
+        "reported_status": "calibrated_on_device",
+        "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+        "evidence": "reference_only",
+        "independent_check": "pending"
+      }
+    },
+    "gc_tab": {
+      "desc": "底部导航「购车」选中（未登录态；已登录态 3.0.3.200 为「爱车」）",
+      "require_selected_text": [
+        "购车"
+      ],
+      "source": "2026-10-13 真机 session-wk-a2 核对",
+      "review": "pending",
+      "review_note": "仅覆盖未登录态 3.0.1.281；爱车↔购车 tab 文案差异待产品澄清（关联 K-MOT-008）",
+      "calibration_claim": {
+        "reported_status": "calibrated_on_device",
+        "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+        "evidence": "reference_only",
+        "independent_check": "pending"
+      }
+    },
+    "fw_tab": {
+      "desc": "底部导航「服务」选中",
+      "require_selected_text": [
+        "服务"
+      ],
+      "source": "2026-10-13 真机 session-wk-a2 核对",
+      "review": "pending",
+      "review_note": "仅覆盖未登录态 3.0.1.281",
+      "calibration_claim": {
+        "reported_status": "calibrated_on_device",
+        "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+        "evidence": "reference_only",
+        "independent_check": "pending"
+      }
+    },
     "settings": {
       "desc": "设置页",
       "require_text": [
@@ -88,6 +148,70 @@
         "action": "tap",
         "target": "tab_my",
         "expect_state": "my_tab",
+        "timeout_s": 8
+      }
+    ],
+    "fx_tab": [
+      {
+        "action": "stop_app"
+      },
+      {
+        "action": "launch",
+        "expect_state": "@in_app",
+        "timeout_s": 15
+      },
+      {
+        "action": "tap",
+        "target": "tab_discover",
+        "expect_state": "fx_tab",
+        "timeout_s": 8
+      }
+    ],
+    "jx_tab": [
+      {
+        "action": "stop_app"
+      },
+      {
+        "action": "launch",
+        "expect_state": "@in_app",
+        "timeout_s": 15
+      },
+      {
+        "action": "tap",
+        "target": "tab_featured",
+        "expect_state": "jx_tab",
+        "timeout_s": 8
+      }
+    ],
+    "gc_tab": [
+      {
+        "action": "stop_app"
+      },
+      {
+        "action": "launch",
+        "expect_state": "@in_app",
+        "timeout_s": 15
+      },
+      {
+        "action": "tap",
+        "target": "tab_buy",
+        "expect_state": "gc_tab",
+        "timeout_s": 8
+      }
+    ],
+    "fw_tab": [
+      {
+        "action": "stop_app"
+      },
+      {
+        "action": "launch",
+        "expect_state": "@in_app",
+        "timeout_s": 15
+      },
+      {
+        "action": "tap",
+        "target": "tab_service",
+        "expect_state": "fw_tab",
         "timeout_s": 8
       }
     ],

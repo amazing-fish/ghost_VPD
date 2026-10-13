@@ -1,6 +1,50 @@
 {
   "note": "乾崑定位目标。status=unverified：xpath/文字原样取自原工程（按行号引用，commit 90545b9），未在本 Skill 真机运行中核对；status=hypothesis：原工程没有，来自用户描述或推测，真机校准前含这些目标的用例不能晋级。skill 追加的策略标注 source=skill。",
   "targets": {
+    "qk_tab_my_prod": {
+      "desc": "主界面顶部导航「我的」（量产版 1.0.26.100：社区/ADS/展厅/商城/我的）",
+      "side_effect": "navigation",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "我的",
+          "within": {
+            "type": "TabBar"
+          },
+          "source": "skill：2026-10-13 真机 session-wk-qk2（Mate 80 / 1.0.26.100 / 未登录）命中"
+        },
+        {
+          "kind": "text",
+          "value": "我的",
+          "source": "skill：后备（同名文字可能歧义，优先 TabBar 限定）"
+        }
+      ],
+      "status": "unverified"
+    },
+    "qk_login_register": {
+      "desc": "未登录态「我的」页的「登录/注册」入口",
+      "side_effect": "account_state",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "登录/注册",
+          "source": "skill：2026-10-13 真机 session-wk-qk2 obs-0006 实测（未登录「我的」页首行）"
+        }
+      ],
+      "status": "unverified"
+    },
+    "qk_verify_agree": {
+      "desc": "新设备登录身份验证弹窗「同意」按钮",
+      "side_effect": "account_state",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "同意",
+          "source": "skill：2026-10-13 量产版真机 run-20261013-103814-60b5 obs-0024（身份验证弹窗：取消/同意）"
+        }
+      ],
+      "status": "unverified"
+    },
     "qk_tab_car": {
       "desc": "底部导航「爱车」",
       "side_effect": "navigation",
@@ -111,10 +155,22 @@
       "strategies": [
         {
           "kind": "xpath",
+          "source": "skill：2026-10-13 量产版 1.0.26.100 真机校准（session-wk-qk1 obs-0009：TextInput hint=请输入手机号 bounds=[290,738][1224,850]）",
+          "value": "//*[@hint=\"请输入手机号\"]"
+        },
+        {
+          "kind": "xpath",
           "value": "//root[1]/Navigation[1]/NavigationContent[1]/NavDestination[1]/NavDestinationContent[1]/Navigation[1]/NavigationContent[1]/NavDestination[1]/NavDestinationContent[1]/Column[1]/Row[1]/Column[3]/TextInput[1]",
           "source": "app/config/mhero_config.py:478 MHERO_HARMONY_CONFIG.number_input"
         }
-      ]
+      ],
+      "status_note": "2026-10-13 量产版 1.0.26.100 真机：run-20261013-103454-9658 S6 input 通过（hint xpath 命中，账号注入成功显示 ***）",
+      "calibration_claim": {
+        "reported_status": "calibrated_on_device",
+        "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+        "evidence": "reference_only",
+        "independent_check": "pending"
+      }
     },
     "qk_manual_btn": {
       "desc": "「手动输入」（部分机型出现，需点一下再重输账号）",
@@ -139,10 +195,22 @@
       "strategies": [
         {
           "kind": "xpath",
+          "source": "skill：2026-10-13 量产版 1.0.26.100 真机校准（session-wk-qk1 obs-0009：TextInput hint=请输入密码 bounds=[56,906][1224,1046]）",
+          "value": "//*[@hint=\"请输入密码\"]"
+        },
+        {
+          "kind": "xpath",
           "value": "//root[1]/Navigation[1]/NavigationContent[1]/NavDestination[1]/NavDestinationContent[1]/Navigation[1]/NavigationContent[1]/NavDestination[1]/NavDestinationContent[1]/Column[1]/Column[2]/TextInput[1]",
           "source": "app/config/mhero_config.py:486 MHERO_HARMONY_CONFIG.pwd_input"
         }
-      ]
+      ],
+      "status_note": "2026-10-13 量产版 1.0.26.100 真机：run-20261013-103454-9658 S8 input 通过（密码注入成功显示 ***********，无保险箱劫持）",
+      "calibration_claim": {
+        "reported_status": "calibrated_on_device",
+        "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+        "evidence": "reference_only",
+        "independent_check": "pending"
+      }
     },
     "qk_agree": {
       "desc": "用户协议勾选（节点文字为 userProtocol）",
@@ -583,6 +651,180 @@
           "source": "skill：推测的取消收藏按钮文字（未经真机验证）"
         }
       ]
+    },
+    "qk_sms_code_input": {
+      "desc": "短信验证码输入框（身份验证页，无 hint，绝对路径按 2026-10-13 实测树校准）",
+      "side_effect": "account_state",
+      "allow_input": true,
+      "secret": true,
+      "status": "unverified",
+      "status_note": "2026-10-13 量产版 1.0.26.100 真机 run-20261013-104123-90c6 obs-0028：bounds=[56,795][640,935]",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//root/Navigation/NavigationContent/NavDestination/NavDestinationContent/Navigation/NavigationContent/NavDestination/NavDestinationContent/Column/Column/Row/Column/TextInput",
+          "source": "skill：2026-10-13 量产版 1.0.26.100 真机校准（obs-0028 层级路径；与登录表单输入框区别：不在 Scroll 子树下）"
+        }
+      ],
+      "calibration_claim": {
+        "reported_status": "calibrated_on_device",
+        "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+        "evidence": "reference_only",
+        "independent_check": "pending"
+      }
+    },
+    "qk_verify_login": {
+      "desc": "身份验证页「登录」按钮（与登录表单同名按钮区别：不在 Scroll 子树下）",
+      "side_effect": "account_state",
+      "status": "unverified",
+      "status_note": "2026-10-13 量产版真机 run-20261013-104123-90c6 obs-0028：bounds=[56,1173][1224,1313]",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//root/Navigation/NavigationContent/NavDestination/NavDestinationContent/Navigation/NavigationContent/NavDestination/NavDestinationContent/Column/Button[@text=\"登录\"]",
+          "source": "skill：2026-10-13 量产版 1.0.26.100 真机校准（obs-0028）"
+        }
+      ],
+      "calibration_claim": {
+        "reported_status": "calibrated_on_device",
+        "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+        "evidence": "reference_only",
+        "independent_check": "pending"
+      }
+    },
+    "qk_vault_later": {
+      "desc": "密码保险箱保存询问弹窗「下次再说」（拒绝保存，ModalPage 系统层）",
+      "side_effect": "user_data",
+      "status": "unverified",
+      "status_note": "2026-10-13 量产版真机 run-20261013-104123-90c6 obs-0028：bounds=[56,2538][1224,2678]；拒绝保存不改用户数据，声明 user_data 以走授权链",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "下次再说",
+          "source": "skill：2026-10-13 量产版真机校准（obs-0028 ModalPage 层唯一命中）"
+        }
+      ],
+      "calibration_claim": {
+        "reported_status": "calibrated_on_device",
+        "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+        "evidence": "reference_only",
+        "independent_check": "pending"
+      }
+    },
+    "qk_find_along": {
+      "desc": "VPD 首页「沿途找车位」入口（推荐车位区第二 tab，一键发起算路）",
+      "side_effect": "route_planning",
+      "status": "unverified",
+      "status_note": "2026-10-13 量产版 1.0.26.100 真机 session-wk-qk3 obs-0019 Row[56,1081][1224,1233]/obs-0023 命中并触发算路",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "沿途找车位",
+          "source": "skill：2026-10-13 量产版真机校准（session-wk-qk3）"
+        }
+      ],
+      "calibration_claim": {
+        "reported_status": "calibrated_on_device",
+        "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+        "evidence": "reference_only",
+        "independent_check": "pending"
+      }
+    },
+    "qk_spot_search_input": {
+      "desc": "VPD 搜索页输入框（输入目的地或车位号，SearchField）",
+      "side_effect": "route_planning",
+      "allow_input": true,
+      "status": "unverified",
+      "status_note": "2026-10-13 量产版 1.0.26.100 真机 session-wk-qk4 obs-0046：//root/RelativeContainer/Search/SearchField bounds=[308,164][986,304]；placeholder=输入目的地或车位号",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//root/RelativeContainer/Search/SearchField",
+          "source": "skill：2026-10-13 量产版真机校准（session-wk-qk4/obs-0046）"
+        }
+      ],
+      "calibration_claim": {
+        "reported_status": "calibrated_on_device",
+        "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+        "evidence": "reference_only",
+        "independent_check": "pending"
+      }
+    },
+    "qk_vehicle_switcher": {
+      "desc": "爱车页车辆名（F03）区，点开车辆列表抽屉",
+      "side_effect": "navigation",
+      "status": "unverified",
+      "status_note": "2026-10-13 量产版真机 session-wk-qk4/obs-0009→0013 命中并打开抽屉；注意列表打开后同名文字歧义，仅用于爱车页打开抽屉",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "F03",
+          "source": "skill：2026-10-13 量产版 1.0.26.100 真机校准（session-wk-qk4）"
+        }
+      ],
+      "calibration_claim": {
+        "reported_status": "calibrated_on_device",
+        "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+        "evidence": "reference_only",
+        "independent_check": "pending"
+      }
+    },
+    "qk_search_entry": {
+      "desc": "VPD 首页「搜索车位号设为目的地」入口",
+      "side_effect": "navigation",
+      "status": "unverified",
+      "status_note": "2026-10-13 量产版真机 session-wk-qk4/obs-0038→0046 命中并进入搜索页",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "搜索车位号设为目的地",
+          "source": "skill：2026-10-13 量产版真机校准（session-wk-qk4）"
+        }
+      ],
+      "calibration_claim": {
+        "reported_status": "calibrated_on_device",
+        "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+        "evidence": "reference_only",
+        "independent_check": "pending"
+      }
+    },
+    "qk_spot_route_btn": {
+      "desc": "车位搜索建议行的「路线」按钮（唯一建议行时唯一命中；输入精确车位号如 A43 保证唯一）",
+      "side_effect": "route_planning",
+      "status": "unverified",
+      "status_note": "2026-10-13 量产版真机 session-wk-qk4/obs-0075→0079 命中并发起算路（任务卡片 泊入车位）",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "路线",
+          "source": "skill：2026-10-13 量产版真机校准（session-wk-qk4）；多建议行时 text=路线 多匹配会被拒绝，用例须先输入精确车位号收敛到唯一行"
+        }
+      ],
+      "calibration_claim": {
+        "reported_status": "calibrated_on_device",
+        "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+        "evidence": "reference_only",
+        "independent_check": "pending"
+      }
+    },
+    "qk_my_location": {
+      "desc": "搜索页「我的位置」按钮（当前位置设为目的地发起算路）",
+      "side_effect": "route_planning",
+      "status": "unverified",
+      "status_note": "2026-10-13 量产版真机 session-wk-qk6/obs-0035 命中并发起算路（任务卡片 我的爱车→我的位置）",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "我的位置",
+          "source": "skill：2026-10-13 量产版真机校准（session-wk-qk6）；首页也有同名元素，仅搜索页上下文使用"
+        }
+      ],
+      "calibration_claim": {
+        "reported_status": "calibrated_on_device",
+        "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+        "evidence": "reference_only",
+        "independent_check": "pending"
+      }
     }
   }
 }

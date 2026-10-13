@@ -1,0 +1,32 @@
+{
+  "items": [
+    {
+      "id": "XP-20261013-101449-def5",
+      "kind": "locator_preference",
+      "change": {
+        "target": "tab_my",
+        "prefer_strategy_index": 1,
+        "strategy_kind": "text",
+        "layout_key": "sm/portrait"
+      },
+      "description": "目标 tab_my 的首选策略失败，第 1 号策略（text）成功（窗口形态 sm/portrait）",
+      "status": "candidate",
+      "requires_review": false,
+      "created": "2026-10-13T10:14:49.134+08:00",
+      "created_by": "auto:run",
+      "origin_case": "TC-MOTOR-HM-008",
+      "evidence": [
+        {
+          "run_id": "run-20261013-101418-a9f7",
+          "case": "TC-MOTOR-HM-008",
+          "step": "S2",
+          "attempt": 1,
+          "obs": "obs-0003",
+          "device": "hdc:62T0225C27006650"
+        }
+      ],
+      "validations": [],
+      "history": []
+    }
+  ]
+}

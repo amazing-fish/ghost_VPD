@@ -19,6 +19,11 @@ WORLDS = SKILL / "fixtures" / "worlds"
 def ws(tmp_path) -> Workspace:
     shutil.copytree(SKILL / "data", tmp_path / "data")
     shutil.copytree(SKILL / "fixtures", tmp_path / "fixtures")
+    # 单元夹具隔离作者运行产生的XP候选；生产items/ledger不变，真实候选加载另有测试。
+    for exp_dir in (tmp_path / "data" / "experience").iterdir():
+        if exp_dir.is_dir():
+            (exp_dir / "items.json").write_text('{"items": []}', encoding="utf-8")
+            (exp_dir / "ledger.jsonl").write_text("", encoding="utf-8")
     w = Workspace(str(tmp_path / "data"))
     w.config.pop("secrets", None)  # 测试不读本机 config.local.json 里的真实密钥
     w.config.pop("device", None)

@@ -5,26 +5,142 @@
       "desc": "导航「爱车」（窄屏在底部，宽屏可能在侧边）",
       "side_effect": "navigation",
       "strategies": [
-        {"kind": "xpath", "value": "//*[@text=\"爱车\"]", "source": "app/config/motor_config.py:315-317 MOTOR_HARMONY_CONFIG.car"},
-        {"kind": "text", "value": "爱车", "within": {"type": "TabBar"}, "source": "skill：限定在 TabBar 容器内（TabBar 类型按 2026-09-29 真机布局确认，与导航在底部还是侧边无关）"},
-        {"kind": "text", "value": "爱车", "region": [0, 0.85, 1, 1], "when": {"wide": false}, "source": "skill：窄屏底部区域后备策略（真机 TabBar 位于窗口 90%–100% 高度，与该区域一致；宽屏导航可能在侧边，故限定窄屏）"}
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"爱车\"]",
+          "source": "app/config/motor_config.py:315-317 MOTOR_HARMONY_CONFIG.car"
+        },
+        {
+          "kind": "text",
+          "value": "爱车",
+          "within": {
+            "type": "TabBar"
+          },
+          "source": "skill：限定在 TabBar 容器内（TabBar 类型按 2026-09-29 真机布局确认，与导航在底部还是侧边无关）"
+        },
+        {
+          "kind": "text",
+          "value": "爱车",
+          "region": [
+            0,
+            0.85,
+            1,
+            1
+          ],
+          "when": {
+            "wide": false
+          },
+          "source": "skill：窄屏底部区域后备策略（真机 TabBar 位于窗口 90%–100% 高度，与该区域一致；宽屏导航可能在侧边，故限定窄屏）"
+        }
       ]
     },
     "tab_my": {
       "desc": "导航「我的」（窄屏在底部，宽屏可能在侧边）",
       "side_effect": "navigation",
       "strategies": [
-        {"kind": "text", "value": "我的", "source": "app/config/motor_config.py:295-297 MOTOR_HARMONY_CONFIG.my（elements text=我的）"},
-        {"kind": "text", "value": "我的", "within": {"type": "TabBar"}, "source": "skill：限定在 TabBar 容器内（TabBar 类型按 2026-09-29 真机布局确认，与导航在底部还是侧边无关）"},
-        {"kind": "text", "value": "我的", "region": [0, 0.85, 1, 1], "when": {"wide": false}, "source": "skill：窄屏底部区域后备策略（真机 TabBar 位于窗口 90%–100% 高度，与该区域一致；宽屏导航可能在侧边，故限定窄屏）"}
+        {
+          "kind": "text",
+          "value": "我的",
+          "source": "app/config/motor_config.py:295-297 MOTOR_HARMONY_CONFIG.my（elements text=我的）"
+        },
+        {
+          "kind": "text",
+          "value": "我的",
+          "within": {
+            "type": "TabBar"
+          },
+          "source": "skill：限定在 TabBar 容器内（TabBar 类型按 2026-09-29 真机布局确认，与导航在底部还是侧边无关）"
+        },
+        {
+          "kind": "text",
+          "value": "我的",
+          "region": [
+            0,
+            0.85,
+            1,
+            1
+          ],
+          "when": {
+            "wide": false
+          },
+          "source": "skill：窄屏底部区域后备策略（真机 TabBar 位于窗口 90%–100% 高度，与该区域一致；宽屏导航可能在侧边，故限定窄屏）"
+        }
       ]
+    },
+    "tab_discover": {
+      "desc": "导航「发现」（未登录态首屏 tab）",
+      "side_effect": "navigation",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "发现",
+          "within": {
+            "type": "TabBar"
+          },
+          "source": "skill：2026-10-13 真机 session-wk-a2（Mate 80 62T0225C27006650 / 3.0.1.281 / 未登录）多次命中"
+        }
+      ],
+      "status": "unverified"
+    },
+    "tab_featured": {
+      "desc": "导航「精选」",
+      "side_effect": "navigation",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "精选",
+          "within": {
+            "type": "TabBar"
+          },
+          "source": "skill：2026-10-13 真机 session-wk-a2 命中"
+        }
+      ],
+      "status": "unverified"
+    },
+    "tab_buy": {
+      "desc": "导航「购车」（未登录态第三 tab；已登录态 3.0.3.200 上为「爱车」）",
+      "side_effect": "navigation",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "购车",
+          "within": {
+            "type": "TabBar"
+          },
+          "source": "skill：2026-10-13 真机 session-wk-a2 命中"
+        }
+      ],
+      "status": "unverified"
+    },
+    "tab_service": {
+      "desc": "导航「服务」",
+      "side_effect": "navigation",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "服务",
+          "within": {
+            "type": "TabBar"
+          },
+          "source": "skill：2026-10-13 真机 session-wk-a2 命中"
+        }
+      ],
+      "status": "unverified"
     },
     "settings_entry": {
       "desc": "「我的」页的「设置」入口",
       "side_effect": "navigation",
-      "scroll": {"direction": "up", "max": 2, "source": "app/service/vpd/vpd.py:2461-2465 登出前先上滑再点设置"},
+      "scroll": {
+        "direction": "up",
+        "max": 2,
+        "source": "app/service/vpd/vpd.py:2461-2465 登出前先上滑再点设置"
+      },
       "strategies": [
-        {"kind": "xpath", "value": "//*[@text=\"设置\"]", "source": "app/config/motor_config.py:522-524 MOTOR_HARMONY_CONFIG.settings"}
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"设置\"]",
+          "source": "app/config/motor_config.py:522-524 MOTOR_HARMONY_CONFIG.settings"
+        }
       ]
     },
     "logout_entry": {
@@ -33,14 +149,22 @@
       "forbid_tap": true,
       "forbid_reason": "退出登录会改变账号状态",
       "strategies": [
-        {"kind": "xpath", "value": "//*[@text=\"退出登录\"]", "source": "app/config/motor_config.py:525-527 MOTOR_HARMONY_CONFIG.logout"}
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"退出登录\"]",
+          "source": "app/config/motor_config.py:525-527 MOTOR_HARMONY_CONFIG.logout"
+        }
       ]
     },
     "update_later": {
       "desc": "更新弹窗「下次再说」",
       "side_effect": "dismiss_dialog",
       "strategies": [
-        {"kind": "xpath", "value": "//*[@text=\"下次再说\"]", "source": "app/config/motor_config.py:546-548 MOTOR_HARMONY_CONFIG.next_btn"}
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"下次再说\"]",
+          "source": "app/config/motor_config.py:546-548 MOTOR_HARMONY_CONFIG.next_btn"
+        }
       ]
     },
     "update_now": {
@@ -49,7 +173,11 @@
       "forbid_tap": true,
       "forbid_reason": "会升级被测 APP；原工程 AppLoginCar._handle_common_popups 会点击该按钮，这里显式禁止",
       "strategies": [
-        {"kind": "xpath", "value": "//*[@text=\"更新\"]", "source": "app/config/motor_config.py:511-513 MOTOR_HARMONY_CONFIG.update_btn"}
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"更新\"]",
+          "source": "app/config/motor_config.py:511-513 MOTOR_HARMONY_CONFIG.update_btn"
+        }
       ]
     }
   }

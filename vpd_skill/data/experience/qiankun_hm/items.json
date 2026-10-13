@@ -1,0 +1,64 @@
+{
+  "items": [
+    {
+      "id": "XP-20261013-111021-374c",
+      "kind": "wait_timeout",
+      "change": {
+        "key": "TC-QK-214:S3",
+        "timeout_s": 11.9
+      },
+      "description": "TC-QK-214:S3 的后置条件在超时窗口后段才出现",
+      "status": "candidate",
+      "requires_review": false,
+      "created": "2026-10-13T11:10:21.581+08:00",
+      "created_by": "auto:run",
+      "origin_case": "TC-QK-214",
+      "evidence": [
+        {
+          "run_id": "run-20261013-110734-ff26",
+          "case": "TC-QK-214",
+          "step": "S3",
+          "attempt": 1,
+          "obs": "obs-0006",
+          "device": "hdc:62T0225C27006650"
+        },
+        {
+          "run_id": "run-20261013-111654-9b26",
+          "case": "TC-QK-214",
+          "step": "S3",
+          "attempt": 1,
+          "obs": "obs-0006",
+          "device": "hdc:62T0225C27006650"
+        }
+      ],
+      "validations": [],
+      "history": []
+    },
+    {
+      "id": "XP-20261013-111232-e91e",
+      "kind": "wait_timeout",
+      "change": {
+        "key": "TC-QK-214:S3",
+        "timeout_s": 11.7
+      },
+      "description": "TC-QK-214:S3 的后置条件在超时窗口后段才出现",
+      "status": "candidate",
+      "requires_review": false,
+      "created": "2026-10-13T11:12:32.608+08:00",
+      "created_by": "auto:run",
+      "origin_case": "TC-QK-214",
+      "evidence": [
+        {
+          "run_id": "run-20261013-111134-3476",
+          "case": "TC-QK-214",
+          "step": "S3",
+          "attempt": 1,
+          "obs": "obs-0006",
+          "device": "hdc:62T0225C27006650"
+        }
+      ],
+      "validations": [],
+      "history": []
+    }
+  ]
+}
