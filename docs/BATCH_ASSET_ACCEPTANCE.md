@@ -35,6 +35,9 @@
   自动过期与“连接池陈旧”等旧解释保存在reported_definition，不写成确定产品要求或原因。
 - 新的标定声明放calibration_claim，独立核验pending；原hypothesis保持，新目标unverified/新状态pending。
   3项XP仍candidate、validations为空、没有active；测试只清临时XP副本，另有原件加载/去重测试。
+- Codex指出新增qk_task_card泛签名会与算路结果/规划/运动态重叠，导致ambiguous并丢失结果页的通用确定运动分类。
+  已撤销这个未被case/flow使用的执行签名，作者定义保留reported_state_claims；任务文案由断言检查，结果继续用既有qk_route_result。
+  此修复恢复已知结果页门槛，不宣称所有未知页或规划页的通用确定都自动关闭。
 - case.env_requirements中的build/形态/账号/网络/任务状态是人工前置声明，**不是设备实测证明**。
   Oracle适用性继续取实测facts优先；本数据包未新增执行前严格build筛选代码，不据env宣称自动确认现场。
 

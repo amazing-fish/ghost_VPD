@@ -127,21 +127,6 @@
         "independent_check": "pending"
       }
     },
-    "qk_task_card": {
-      "desc": "VPD 算路任务卡片页（沿途找车位/车位目的地算路发起后）",
-      "require_text": [
-        "泊入沿途最近空车位"
-      ],
-      "source": "2026-10-13 量产版 1.0.26.100 真机 session-wk-qk3 obs-0023/0025",
-      "review": "pending",
-      "review_note": "仅 1.0.26.100 量产版验证；卡片含 开始/靠边停车/步行路线 与结果状态（可用/故障提示）",
-      "calibration_claim": {
-        "reported_status": "calibrated_on_device",
-        "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
-        "evidence": "reference_only",
-        "independent_check": "pending"
-      }
-    },
     "qk_spot_search": {
       "desc": "VPD 车位搜索页（输入目的地或车位号）",
       "require_text": [
@@ -287,5 +272,26 @@
     ],
     "review": "reviewed",
     "review_note": "2026-10-01 用户反馈弹窗处理太差：资源包弹窗换了文案就认不出。改为按结构（Dialog 节点）识别 + 通用推迟按钮兜底"
+  },
+  "reported_state_claims": {
+    "qk_task_card": {
+      "definition": {
+        "desc": "VPD 算路任务卡片页（沿途找车位/车位目的地算路发起后）",
+        "require_text": [
+          "泊入沿途最近空车位"
+        ],
+        "source": "2026-10-13 量产版 1.0.26.100 真机 session-wk-qk3 obs-0023/0025",
+        "review": "pending",
+        "review_note": "仅 1.0.26.100 量产版验证；卡片含 开始/靠边停车/步行路线 与结果状态（可用/故障提示）",
+        "calibration_claim": {
+          "reported_status": "calibrated_on_device",
+          "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
+          "evidence": "reference_only",
+          "independent_check": "pending"
+        }
+      },
+      "disposition": "not_registered",
+      "why": "任务描述不是互斥阶段签名；原新增签名与planning/result/moving/paused重叠，未被case或flow引用。保留作者原文，不参与识别；沿途结果仍由既有qk_route_result及其^确定$运动分类约束。"
+    }
   }
 }

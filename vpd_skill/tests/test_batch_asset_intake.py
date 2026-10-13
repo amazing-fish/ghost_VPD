@@ -159,3 +159,35 @@ def test_real_xp_proposals_remain_candidates_and_deduplicate_in_temporary_store(
                    {"run_id": "fixture-duplicate", "case": {"id": evidence["case"]}, "device_spec": evidence["device"]},
                    {"step_id": evidence["step"]}, {"n": 1, "obs_before": "fixture-obs"})
         assert len(xs.items()) == len(raw["items"]) and xs.active()["items"] == []
+
+
+@pytest.mark.parametrize("texts,expected", [
+    (["泊入沿途最近空车位", "开始"], "qk_route_result"),
+    (["泊入沿途最近空车位", "开始", "VPD功能故障"], "qk_route_result"),
+    (["泊入沿途最近空车位", "开始", "路线规划中，请稍后…"], "qk_route_planning"),
+    (["泊入沿途最近空车位", "路线规划中，请稍后…"], "qk_route_planning"),
+    (["泊入沿途最近空车位", "开始", "暂停"], "qk_moving"),
+    (["泊入沿途最近空车位", "开始", "继续", "退出"], "qk_paused"),
+])
+def test_task_description_does_not_shadow_route_or_motion_states(ws, texts, expected):
+    app = ws.app("qiankun_hm")
+    page = app.states.identify(_tree(texts), app.bundle, True)
+    assert page["state"] == expected
+    assert page["active"] == [expected]
+    assert app.states.is_state(page, expected)
+
+
+@pytest.mark.parametrize("target", [None, {"side_effect": "navigation"}, {"side_effect": "route_planning"}])
+def test_task_result_generic_confirmation_keeps_vehicle_motion_gate(ws, target):
+    app = ws.app("qiankun_hm")
+    tree = UiTree({"attributes": {"type": "Column", "bounds": "[0,0][1000,1000]"}, "children": [
+        {"attributes": {"type": "Text", "text": "泊入沿途最近空车位", "bounds": "[20,20][900,60]"}},
+        {"attributes": {"type": "Button", "text": "开始", "bounds": "[20,100][200,150]", "clickable": "true"}},
+        {"attributes": {"type": "Button", "text": "确定", "bounds": "[20,200][200,250]", "clickable": "true"}},
+    ]})
+    page = app.states.identify(tree, app.bundle, True)
+    denied = ws.policy().check_tap(tree, (50, 225), "tree", target, app.states.deny_for_page(page),
+                                   {"vpd_entry", "route_planning"})
+    assert denied["allowed"] is False
+    assert denied["deny"]["class"] == "vehicle_motion"
+    assert denied["deny"]["supervised"] is True
