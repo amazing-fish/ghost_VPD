@@ -1,0 +1,47 @@
+{
+  "id": "TC-QK-218",
+  "version": 1,
+  "status": "draft",
+  "app": "qiankun_hm",
+  "title": "乾崑车辆列表（切换抽屉）显示断言",
+  "purpose": "爱车页点车辆名区打开车辆列表抽屉，验证列表结构：当前车辆（F03）、「被授权的车辆」分类与授权车辆行（含车架号后6位标识）。只读显示断言，不执行切换（切车点击当前被 policy「授权」文本模式误报拦截——工具缺陷待人工评审，见 K-QK-017 note）。账号与导航域（VPD 视角）：确认账号车辆上下文。",
+  "preconditions": [
+    "乾崑 APP 已登录（测试账号 151****3183，默认车辆 F03，另有若干被授权车辆）",
+    "设备已解锁、亮屏"
+  ],
+  "env_requirements": {"account_state": "logged_in"},
+  "test_data": {},
+  "test_data_none": true,
+  "authorizations": [],
+  "steps": [
+    {"id": "S1", "action": "stop_app", "desc": "冷启动前置"},
+    {"id": "S2", "action": "launch", "expect_state": "@in_app", "timeout_s": 15, "desc": "拉起乾崑 APP"},
+    {"id": "S3", "action": "tap", "target": "qk_tab_car", "timeout_s": 10, "critical": true, "desc": "进「爱车」页"},
+    {"id": "S4", "action": "tap", "target": "qk_vehicle_switcher", "timeout_s": 10, "critical": true, "desc": "点车辆名（F03）区打开车辆列表抽屉"},
+    {"id": "S5", "action": "wait", "duration_s": 3, "desc": "等待列表加载"}
+  ],
+  "assertions": [
+    {"id": "A1", "at": "S5", "type": "text_present", "text": "被授权的车辆",
+     "desc": "授权车辆分类标题显示", "oracle_refs": ["K-QK-017"]},
+    {"id": "A2", "at": "S5", "type": "text_present_any", "any": ["车架号", "F03"],
+     "desc": "列表行含车架号（后6位）标识与当前车辆行", "oracle_refs": ["K-QK-017"]},
+    {"id": "A3", "at": "S5", "type": "visual_review", "advisory": true,
+     "desc": "车辆列表完整性与当前车辆标识（建议）",
+     "prompt": "检查截图：列表行是否完整（车名/车架号后6位）、当前车辆 F03 是否有选中标识、有无滚动提示更多车辆。只给建议，不作为缺陷结论"}
+  ],
+  "cleanup": [
+    {"action": "back", "desc": "关闭车辆列表抽屉（不点任何车辆行，不切换）"},
+    {"action": "stop_app", "desc": "结束 APP"}
+  ],
+  "knowledge_used": [
+    {"id": "K-QK-017", "use": "判据：爱车页车辆名区点开车辆列表抽屉（F03+被授权的车辆，行含车架号后6位）", "applicability": "unconfirmed",
+     "rationale": "test_goal 候选判据；session-wk-qk4/obs-0013、obs-0016、obs-0025 实测证据（F03+暂无车牌号/S01112/S01023/启境GX7 S01147/S01395，标题「被授权的车辆」）；切车点击被 policy account_state 模式（授权二字面匹配节标题）误报拦截——工具缺陷已记录待人工评审", "steps": ["S4", "S5"]}
+  ],
+  "sources": [
+    {"type": "user_instruction", "ref": "用户周批量实测指令：账号与导航域-车辆与 VPD 入口显示（VPD 视角）"},
+    {"type": "device_observation", "ref": "session-wk-qk4/obs-0013、obs-0016、obs-0025"}
+  ],
+  "history": [
+    {"ts": "2026-10-13T11:45:00+08:00", "to": "draft", "why": "周批量实测-账号与导航域：车辆列表（切换抽屉）显示断言（只读，切车动作待 policy 误报修复后另行固化）"}
+  ]
+}

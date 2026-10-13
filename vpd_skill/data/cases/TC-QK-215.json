@@ -1,0 +1,49 @@
+{
+  "id": "TC-QK-215",
+  "version": 1,
+  "status": "draft",
+  "app": "qiankun_hm",
+  "title": "乾崑 VPD 首页进入与元素盘点",
+  "purpose": "从爱车页进 ADS（VPD），验证首页元素展示：搜索入口（搜索车位号设为目的地）、默认车位/推荐车位/沿途找车位入口、园区信息（白名单园区名+车位总数）。无活动任务时落 VPD 首页；有活动任务时直达任务卡片页（双分支断言，K-QK-015）。只读展示断言，不点任何算路/任务操作。",
+  "preconditions": [
+    "乾崑 APP 已登录（测试账号 151****3183）",
+    "设备已解锁、亮屏（灭屏会导致观测失败）"
+  ],
+  "env_requirements": {"account_state": "logged_in"},
+  "test_data": {},
+  "test_data_none": true,
+  "authorizations": ["vpd_entry"],
+  "steps": [
+    {"id": "S1", "action": "stop_app", "desc": "冷启动前置"},
+    {"id": "S2", "action": "launch", "expect_state": "@in_app", "timeout_s": 15, "desc": "拉起乾崑 APP"},
+    {"id": "S3", "action": "tap", "target": "qk_tab_car", "timeout_s": 10, "critical": true, "desc": "进「爱车」页"},
+    {"id": "S4", "action": "tap", "target": "qk_ads", "timeout_s": 15, "critical": true, "desc": "点 ADS 进 VPD（无任务=首页；有任务=直达任务卡片页）"},
+    {"id": "S5", "action": "wait", "duration_s": 5, "desc": "等待页面加载"}
+  ],
+  "assertions": [
+    {"id": "A1", "at": "S5", "type": "text_present_any", "any": ["搜索车位号设为目的地", "泊入沿途最近空车位", "泊入车位"],
+     "desc": "落 VPD 首页（无活动任务）或任务卡片页（有活动任务）", "oracle_refs": ["K-QK-013", "K-QK-014", "K-QK-015"]},
+    {"id": "A2", "at": "S5", "type": "text_present_any", "any": ["泊车代驾", "泊车代驾辅助暂不可用"],
+     "desc": "VPD 页面主题标识可见（首页标题或任务状态）", "oracle_refs": ["K-QK-013"]},
+    {"id": "A3", "at": "S5", "type": "visual_review", "advisory": true,
+     "desc": "VPD 首页/任务卡片完整性与布局（建议）",
+     "prompt": "检查截图：若为首页，搜索入口/默认车位/推荐车位/沿途找车位/园区名与车位总数是否完整展示；若为任务卡片，结构是否完整。只给建议，不作为缺陷结论"}
+  ],
+  "cleanup": [
+    {"action": "back", "desc": "退出 VPD 页（不点任何算路/任务操作）"},
+    {"action": "stop_app", "desc": "结束 APP"}
+  ],
+  "knowledge_used": [
+    {"id": "K-QK-013", "use": "判据：VPD 首页元素清单（无活动任务时）", "applicability": "unconfirmed",
+     "rationale": "test_goal 候选判据；session-wk-qk3/obs-0019-0021 与 session-wk-qk4/obs-0038（搜索车位号设为目的地/默认车位/推荐车位/沿途找车位/金桥出口加工区72+共742个）实测证据", "steps": ["S4", "S5"]},
+    {"id": "K-QK-015", "use": "判据：有活动任务时进 ADS 直达任务卡片页", "applicability": "unconfirmed",
+     "rationale": "test_goal 候选判据；run-20261013-111134-3476/obs-0012 实测证据，双分支断言设计依据", "steps": ["S4"]}
+  ],
+  "sources": [
+    {"type": "user_instruction", "ref": "用户周批量实测指令：进 VPD 首页、车位/路线列表（VPD 业务链路域）"},
+    {"type": "device_observation", "ref": "session-wk-qk3/obs-0019-0021；session-wk-qk4/obs-0038、obs-0042"}
+  ],
+  "history": [
+    {"ts": "2026-10-13T11:45:00+08:00", "to": "draft", "why": "周批量实测-VPD 业务链路域：VPD 首页进入与元素盘点（双分支幂等设计）"}
+  ]
+}

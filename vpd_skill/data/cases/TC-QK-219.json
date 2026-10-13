@@ -1,0 +1,58 @@
+{
+  "id": "TC-QK-219",
+  "version": 1,
+  "status": "draft",
+  "app": "qiankun_hm",
+  "title": "乾崑 VPD 车位搜索设为目的地并发起算路（白名单园区，只到结果不控车）",
+  "purpose": "VPD 首页「搜索车位号设为目的地」输入精确车位号（A43），验证唯一联想行（L1层-A43 车位）出现；点「路线」发起算路，验证任务卡片（我的爱车 L1层-A43 车位 泊入车位）与结果状态（F03 故障态：不可用提示；K-QK-USR-002 已确认故障态不能激活）。只到结果断言，不点开始/靠边停车/步行路线。算路会唤醒车辆（K-QK-006）。",
+  "preconditions": [
+    "乾崑 APP 已登录（测试账号 151****3183，默认车辆 F03 在白名单园区：金桥出口加工区72）",
+    "无未取消的 VPD 算路任务（有活动任务时进 ADS 直达任务卡片页，搜索入口不可见；任务约 10 分钟自动过期）",
+    "设备已解锁、亮屏"
+  ],
+  "env_requirements": {"account_state": "logged_in"},
+  "test_data": {},
+  "test_data_none": true,
+  "authorizations": ["vpd_entry", "route_planning"],
+  "steps": [
+    {"id": "S1", "action": "stop_app", "desc": "冷启动前置"},
+    {"id": "S2", "action": "launch", "expect_state": "@in_app", "timeout_s": 15, "desc": "拉起乾崑 APP"},
+    {"id": "S3", "action": "tap", "target": "qk_tab_car", "timeout_s": 10, "critical": true, "desc": "进「爱车」页"},
+    {"id": "S4", "action": "tap", "target": "qk_ads", "timeout_s": 15, "critical": true, "desc": "点 ADS 进 VPD 首页"},
+    {"id": "S5", "action": "tap", "target": "qk_search_entry", "timeout_s": 10, "critical": true, "desc": "点「搜索车位号设为目的地」进搜索页"},
+    {"id": "S6", "action": "input", "target": "qk_spot_search_input", "text": "A43", "timeout_s": 10, "critical": true, "desc": "输入精确车位号 A43（tap+输入须在同一 action 内首触完成：任何先行的聚焦 tap 都会弹出输入法 SelectOverlay 覆盖层挡住后续 tap——run-20261013-115922-31ef S6 实证；不用 clear：新起页面字段为空，且未聚焦字段上 clear 同样触发覆盖层——cb4d/66e7 实证；模糊词会出多行联想导致「路线」按钮多匹配被拒）"},
+    {"id": "S7", "action": "wait", "duration_s": 3, "desc": "等待联想列表"},
+    {"id": "S8", "action": "tap", "target": "qk_spot_route_btn", "timeout_s": 10, "critical": true, "desc": "点唯一建议行「路线」发起算路（会唤醒车辆）"},
+    {"id": "S9", "action": "wait", "duration_s": 10, "desc": "等待算路与任务卡片"}
+  ],
+  "assertions": [
+    {"id": "A1", "at": "S7", "type": "text_present_any", "any": ["L1层-A43 车位", "A43 车位"],
+     "desc": "精确车位号联想行出现（子串匹配行文本）", "oracle_refs": ["K-QK-016"]},
+    {"id": "A2", "at": "S7", "type": "target_present", "target": "qk_spot_route_btn",
+     "desc": "建议行「路线」按钮存在（唯一建议行时唯一命中）", "oracle_refs": ["K-QK-016"]},
+    {"id": "A3", "at": "S9", "type": "text_present_any", "any": ["泊入车位", "L1层-A43 车位"],
+     "desc": "算路发起后任务卡片显示指定车位任务（规划中显示 我的爱车 L1层-A43 车位；落定态含 泊入车位——run-20261013-120454-31a5 obs-0018/0020 与 session-wk-qk4/obs-0079 两态措辞差异）", "oracle_refs": ["K-QK-016"]},
+    {"id": "A4", "at": "S9", "type": "text_present_any", "any": ["泊车代驾辅助暂不可用", "VPD功能故障", "系统功能启动失败", "路线规划中", "正在启动"],
+     "desc": "算路结果状态可见（F03 为故障态：K-QK-USR-002 已确认故障态不能激活；若状态短暂为规划中/启动中属中间态）", "oracle_refs": ["K-QK-USR-002", "K-QK-016"]},
+    {"id": "A5", "at": "S9", "type": "visual_review", "advisory": true,
+     "desc": "任务卡片完整性与「开始」按钮状态（建议）",
+     "prompt": "检查截图：任务卡片（我的爱车 L1层-A43 车位 泊入车位）是否完整、结果状态提示与「开始」按钮可点性是否符合故障态预期（不可激活）。只给建议，不作为缺陷结论"}
+  ],
+  "cleanup": [
+    {"action": "back", "desc": "退出结果页（不点开始/重试/靠边停车/步行路线等任何任务操作）"},
+    {"action": "stop_app", "desc": "结束 APP（任务留待 TC-QK-216 类用例复用）"}
+  ],
+  "knowledge_used": [
+    {"id": "K-QK-016", "use": "判据：车位搜索联想格式（L1层-XXX 车位+路线按钮）与点路线发起算路出任务卡片（泊入车位）", "applicability": "unconfirmed",
+     "rationale": "test_goal 候选判据；session-wk-qk4/obs-0063-0075（联想：0/A/1 多行、A43 唯一行）→obs-0079（任务卡片 我的爱车 L1层-A43 车位 泊入车位+故障态）实测证据", "steps": ["S5", "S6", "S8", "S9"]},
+    {"id": "K-QK-USR-002", "use": "判据：车辆故障态算路结果不能激活（开始不可用）", "applicability": "confirmed",
+     "rationale": "已确认知识；F03 实测故障态（泊车代驾辅助暂不可用/VPD功能故障）与之一致", "steps": ["S9"]}
+  ],
+  "sources": [
+    {"type": "user_instruction", "ref": "用户周批量实测指令：车位/路线列表、发起算路白名单园区只到结果不控车、算路结果页断言（VPD 业务链路域）"},
+    {"type": "device_observation", "ref": "session-wk-qk4/obs-0046、obs-0063-0075、obs-0079"}
+  ],
+  "history": [
+    {"ts": "2026-10-13T11:45:00+08:00", "to": "draft", "why": "周批量实测-VPD 业务链路域：车位搜索设为目的地+发起算路+结果断言（搜索链路独立于沿途找车位链路）"}
+  ]
+}

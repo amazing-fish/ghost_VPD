@@ -129,6 +129,15 @@
       "source": "2026-10-13 量产版 1.0.26.100 真机 session-wk-qk3 obs-0023/0025",
       "review": "calibrated_on_device",
       "review_note": "仅 1.0.26.100 量产版验证；卡片含 开始/靠边停车/步行路线 与结果状态（可用/故障提示）"
+    },
+    "qk_spot_search": {
+      "desc": "VPD 车位搜索页（输入目的地或车位号）",
+      "require_text": [
+        "输入目的地或车位号"
+      ],
+      "source": "2026-10-13 量产版 1.0.26.100 真机 session-wk-qk4/obs-0046",
+      "review": "calibrated_on_device",
+      "review_note": "输入框 SearchField 绝对路径见 qk_spot_search_input；联想行 L1层-XXX 车位+路线"
     }
   },
   "interrupts": {

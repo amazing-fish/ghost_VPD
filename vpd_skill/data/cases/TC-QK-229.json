@@ -1,0 +1,45 @@
+{
+  "id": "TC-QK-229",
+  "version": 1,
+  "status": "draft",
+  "app": "qiankun_hm",
+  "title": "乾崑冷启动系统弹窗（车辆资源包）自动处置与爱车页可达",
+  "purpose": "冷启动拉起乾崑 APP 时偶发「请下载车辆资源包」弹窗，验证执行器中断层自动处置（benign 弹窗动作前自动关闭）后爱车页可达、车辆数据正常显示，导航不被弹窗卡死。异常与边界域：系统/应用弹窗自动处置。只读断言。",
+  "preconditions": [
+    "乾崑 APP 已登录（测试账号 151****3183，默认车辆 F03）",
+    "设备联网、已解锁、亮屏"
+  ],
+  "env_requirements": {"account_state": "logged_in", "network": "on"},
+  "test_data": {},
+  "test_data_none": true,
+  "authorizations": [],
+  "steps": [
+    {"id": "S1", "action": "stop_app", "desc": "冷启动前置"},
+    {"id": "S2", "action": "launch", "expect_state": "@in_app", "timeout_s": 15, "desc": "拉起乾崑 APP（冷启动偶发车辆资源包弹窗）"},
+    {"id": "S3", "action": "tap", "target": "qk_tab_car", "timeout_s": 15, "critical": true, "desc": "进「爱车」页（若弹窗出现，执行器中断层动作前自动关闭 benign 弹窗后重试）"},
+    {"id": "S4", "action": "wait", "duration_s": 3, "desc": "等待爱车页数据渲染"}
+  ],
+  "assertions": [
+    {"id": "A1", "at": "S4", "type": "text_present", "text": "F03",
+     "desc": "弹窗处置（或未出现）后爱车页可达、车辆数据显示", "oracle_refs": ["K-QK-017"]},
+    {"id": "A2", "at": "S4", "type": "text_present_any", "any": ["更新于", "停泊中", "车辆位置"],
+     "desc": "爱车页车辆数据正常渲染", "oracle_refs": ["K-QK-017"]},
+    {"id": "A3", "at": "S4", "type": "visual_review", "advisory": true,
+     "desc": "弹窗处置留痕与页面完整性（建议）",
+     "prompt": "检查截图与 run 留痕：冷启动是否出现车辆资源包弹窗、执行器是否自动处置（run.json interrupts 记录）、爱车页是否完整。只给建议，不作为缺陷结论"}
+  ],
+  "cleanup": [
+    {"action": "stop_app", "desc": "结束 APP"}
+  ],
+  "knowledge_used": [
+    {"id": "K-QK-017", "use": "判据：爱车页车辆信息元素清单", "applicability": "unconfirmed",
+     "rationale": "test_goal 候选判据；session-wk-qk4 实测（A1/A2 断言依据）；车辆资源包弹窗为 benign 中断（states.json qk_vehicle_resource_dialog，执行层动作前自动关闭）", "steps": ["S3", "S4"]}
+  ],
+  "sources": [
+    {"type": "user_instruction", "ref": "用户周批量实测指令：系统弹窗自动处置（异常与边界域）"},
+    {"type": "device_observation", "ref": "session-wk-qk5/obs-0005（冷启动弹窗出现）；多个 run 的 S3 tap 经弹窗自动处置后通过"}
+  ],
+  "history": [
+    {"ts": "2026-10-13T12:46:00+08:00", "to": "draft", "why": "周批量实测-异常与边界域：冷启动弹窗自动处置与导航可达"}
+  ]
+}

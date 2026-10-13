@@ -690,6 +690,72 @@
           "source": "skill：2026-10-13 量产版真机校准（session-wk-qk3）"
         }
       ]
+    },
+    "qk_spot_search_input": {
+      "desc": "VPD 搜索页输入框（输入目的地或车位号，SearchField）",
+      "side_effect": "route_planning",
+      "allow_input": true,
+      "status": "calibrated_on_device",
+      "status_note": "2026-10-13 量产版 1.0.26.100 真机 session-wk-qk4 obs-0046：//root/RelativeContainer/Search/SearchField bounds=[308,164][986,304]；placeholder=输入目的地或车位号",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//root/RelativeContainer/Search/SearchField",
+          "source": "skill：2026-10-13 量产版真机校准（session-wk-qk4/obs-0046）"
+        }
+      ]
+    },
+    "qk_vehicle_switcher": {
+      "desc": "爱车页车辆名（F03）区，点开车辆列表抽屉",
+      "side_effect": "navigation",
+      "status": "calibrated_on_device",
+      "status_note": "2026-10-13 量产版真机 session-wk-qk4/obs-0009→0013 命中并打开抽屉；注意列表打开后同名文字歧义，仅用于爱车页打开抽屉",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "F03",
+          "source": "skill：2026-10-13 量产版 1.0.26.100 真机校准（session-wk-qk4）"
+        }
+      ]
+    },
+    "qk_search_entry": {
+      "desc": "VPD 首页「搜索车位号设为目的地」入口",
+      "side_effect": "navigation",
+      "status": "calibrated_on_device",
+      "status_note": "2026-10-13 量产版真机 session-wk-qk4/obs-0038→0046 命中并进入搜索页",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "搜索车位号设为目的地",
+          "source": "skill：2026-10-13 量产版真机校准（session-wk-qk4）"
+        }
+      ]
+    },
+    "qk_spot_route_btn": {
+      "desc": "车位搜索建议行的「路线」按钮（唯一建议行时唯一命中；输入精确车位号如 A43 保证唯一）",
+      "side_effect": "route_planning",
+      "status": "calibrated_on_device",
+      "status_note": "2026-10-13 量产版真机 session-wk-qk4/obs-0075→0079 命中并发起算路（任务卡片 泊入车位）",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "路线",
+          "source": "skill：2026-10-13 量产版真机校准（session-wk-qk4）；多建议行时 text=路线 多匹配会被拒绝，用例须先输入精确车位号收敛到唯一行"
+        }
+      ]
+    },
+    "qk_my_location": {
+      "desc": "搜索页「我的位置」按钮（当前位置设为目的地发起算路）",
+      "side_effect": "route_planning",
+      "status": "calibrated_on_device",
+      "status_note": "2026-10-13 量产版真机 session-wk-qk6/obs-0035 命中并发起算路（任务卡片 我的爱车→我的位置）",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "我的位置",
+          "source": "skill：2026-10-13 量产版真机校准（session-wk-qk6）；首页也有同名元素，仅搜索页上下文使用"
+        }
+      ]
     }
   }
 }

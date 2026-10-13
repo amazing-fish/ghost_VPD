@@ -2021,6 +2021,164 @@
       ]
     },
     {
+      "id": "K-QK-016",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.vpd.spot_search_and_route",
+      "statement": "VPD 首页「搜索车位号设为目的地」进入搜索页；输入车位号（如 A43）出现唯一联想行「L1层-A43 车位」带「路线」按钮；点「路线」发起算路，出现任务卡片（我的爱车 L1层-A43 车位 泊入车位）与结果状态（车辆可用态或故障提示）。",
+      "expected": {
+        "suggestion_format": "L1层-XXX 车位",
+        "route_btn": "路线",
+        "task_card": "泊入车位"
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100"
+      },
+      "source": {
+        "type": "test_goal",
+        "ref": "周批量实测现场观测 session-wk-qk4/obs-0046→0075（搜索联想）→0079（算路任务卡片）"
+      },
+      "note": "搜索词为模糊子串（0/A/1 均出多行联想；精确车位号收敛到唯一行）。算路会唤醒车辆（K-QK-006）；只到结果不控车。",
+      "status": "unconfirmed",
+      "created": "2026-10-13T11:41:24.009+08:00",
+      "history": [
+        {
+          "ts": "2026-10-13T11:41:24.009+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-017",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.car_page.vehicle_info_elements",
+      "statement": "爱车页显示当前车辆信息：车名（F03）、里程（SUM/km 分项）、电量百分比、车内温度、车辆位置（距离+停泊中）、提醒项（车门未锁等N项提醒）、数据更新时间、车控入口（车锁/车窗/闪灯鸣笛/授权驾驶/后备箱/空调）、数字钥匙状态、下载车辆资源入口。",
+      "expected": {
+        "car_page_texts": [
+          "停泊中",
+          "更新于"
+        ]
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100"
+      },
+      "source": {
+        "type": "test_goal",
+        "ref": "周批量实测现场观测 session-wk-qk4/obs-0009（F03：54/38 电量、SUM 645km、1.7km 停泊中、车门未锁等3项提醒、更新于 2026/10/13 11:23）"
+      },
+      "note": "车控入口仅断言显示，禁止点击（vehicle_control supervised）；车辆名区点开车辆列表抽屉（F03+被授权的车辆若干辆，行含「车架号 XXXXXX(后6位)」）。切车点击被 policy「授权」正则误报拦截（被授权的车辆节标题命中 account_state 模式）——工具缺陷待人工评审 policy 修订。",
+      "status": "unconfirmed",
+      "created": "2026-10-13T11:41:24.181+08:00",
+      "history": [
+        {
+          "ts": "2026-10-13T11:41:24.181+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-018",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.vpd.offline_behavior",
+      "statement": "设备断网（无 SIM，WLAN 关闭）时：①爱车页显示缓存车辆数据（车名/位置/更新时间戳为断网前时刻）；②进 ADS 落 VPD 功能兜底介绍页（泊车代驾辅助说明+遥控泊车辅助/遥控直行辅助卡片说明）并显示「网络异常，请稍候重试」提示，不加载地图首页；③网络恢复后当前页不自动刷新，退出重进后 VPD 首页正常加载（园区名+车位总数联网刷新）。",
+      "expected": {
+        "offline_vp_entry": [
+          "网络异常，请稍候重试",
+          "泊车代驾辅助"
+        ],
+        "cached_car_page": [
+          "更新于"
+        ],
+        "recover_needs_reentry": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100"
+      },
+      "source": {
+        "type": "test_goal",
+        "ref": "周批量实测现场观测 session-wk-qk5/obs-0014（缓存爱车）、obs-0017（兜底页+网络异常）、obs-0018（恢复不刷新）、obs-0028（重进恢复加载，车位总数 742→315 联网刷新）"
+      },
+      "note": "断网操作方法（无 root 无 cmd 通道）：uinput 下滑控制中心（-T -g 1100 40 1100 1400 500 2000）后点 WLAN 磁贴（transition_togglewifi_ui_extension [696,490][864,658]，uinput -T -c 780 574），ifconfig wlan0 无 inet 验证。恢复后从兜底页 back 会退出 APP。",
+      "status": "unconfirmed",
+      "created": "2026-10-13T12:21:48.077+08:00",
+      "history": [
+        {
+          "ts": "2026-10-13T12:21:48.077+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-019",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.vpd.my_location_route",
+      "statement": "搜索页点「我的位置」以当前位置为目的地直接发起算路（无联想列表），结果任务卡片显示「我的爱车」「我的位置」；当前测试场景下结果显示 F03 故障态文案（泊车代驾辅助暂不可用）且出现距离校验提示「车辆距离目的地较远」（手机位置距园区较远所致）。另：模糊词（0/A/1 等）搜索出多行联想（L1层-Axx 车位），各行带路线按钮，不收敛唯一建议行。",
+      "expected": {
+        "task_card": [
+          "我的爱车",
+          "我的位置"
+        ],
+        "rejection_texts": [
+          "泊车代驾辅助暂不可用",
+          "车辆距离目的地较远"
+        ],
+        "fuzzy_suggestions": [
+          "L1层-A"
+        ]
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100"
+      },
+      "source": {
+        "type": "test_goal",
+        "ref": "周批量实测现场观测 session-wk-qk6/obs-0035（我的位置算路结果）；session-wk-qk4/obs-0063-0071（模糊词多行联想）"
+      },
+      "note": "「车辆距离目的地较远」为新观测文案，不在 K-QK-USR-002 故障态文案清单内，属距离校验提示非 VPD 故障；待产品确认语义。",
+      "status": "unconfirmed",
+      "created": "2026-10-13T12:36:28.042+08:00",
+      "history": [
+        {
+          "ts": "2026-10-13T12:36:28.042+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-020",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.vpd.task_expiry",
+      "statement": "VPD 算路任务创建后约 10 分钟未激活会自动过期：过期后再进 ADS 落 VPD 首页（不再显示任务卡片），入口行为回落无任务态。",
+      "expected": {
+        "expiry_s": "约600",
+        "after_expiry_ads_entry": "home"
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100"
+      },
+      "source": {
+        "type": "test_goal",
+        "ref": "周批量实测现场观测：session 214 期间 11:07 创建任务、11:16 重进已回落首页；TC-QK-219 期间 12:04 任务 12:15 重进同样回落首页"
+      },
+      "note": "过期时长为约数（10±1 分钟），未取消的任务在过期前跨冷重启仍恢复（K-QK-015）。",
+      "status": "unconfirmed",
+      "created": "2026-10-13T12:45:17.352+08:00",
+      "history": [
+        {
+          "ts": "2026-10-13T12:45:17.352+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
       "id": "K-QK-OBS-201",
       "kind": "observation",
       "subject": "qiankun_hm.vpd.home_parking_data_loading",

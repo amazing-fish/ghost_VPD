@@ -1,0 +1,45 @@
+{
+  "id": "TC-QK-222",
+  "version": 1,
+  "status": "draft",
+  "app": "qiankun_hm",
+  "title": "乾崑断网下爱车页缓存车辆数据显示",
+  "purpose": "设备断网时 APP 冷启动，验证爱车页显示缓存车辆数据（车名 F03、车辆位置、更新时间戳为断网前时刻），不白屏不崩溃。异常与边界域：断网下的数据兜底。只读断言，不点任何车控入口。",
+  "preconditions": [
+    "乾崑 APP 已登录（测试账号 151****3183，默认车辆 F03）",
+    "设备网络已断：执行者在 run 前经系统控制中心关闭 WLAN（方法与验证留档 session-wk-qk5；断网前爱车页刚成功拉取过车辆数据：更新时间戳为断网前时刻）",
+    "设备已解锁、亮屏"
+  ],
+  "env_requirements": {"account_state": "logged_in", "network": "off"},
+  "test_data": {},
+  "test_data_none": true,
+  "authorizations": [],
+  "steps": [
+    {"id": "S1", "action": "stop_app", "desc": "冷启动前置"},
+    {"id": "S2", "action": "launch", "expect_state": "@in_app", "timeout_s": 15, "desc": "拉起乾崑 APP（离线冷启动）"},
+    {"id": "S3", "action": "wait", "duration_s": 6, "desc": "等待离线冷启动完成（缓存数据渲染）"}
+  ],
+  "assertions": [
+    {"id": "A1", "at": "S3", "type": "text_present", "text": "F03",
+     "desc": "缓存车名显示（不白屏）", "oracle_refs": ["K-QK-018"]},
+    {"id": "A2", "at": "S3", "type": "text_present_any", "any": ["更新于", "停泊中", "数字钥匙"],
+     "desc": "缓存车辆数据可见（位置/更新时间戳）", "oracle_refs": ["K-QK-018"]},
+    {"id": "A3", "at": "S3", "type": "visual_review", "advisory": true,
+     "desc": "缓存数据完整性与时间戳时效（建议）",
+     "prompt": "检查截图：爱车页缓存数据是否完整（里程/电量/位置/提醒），更新时间是否为断网前时刻（非当前时间），有无异常空态/报错。只给建议，不作为缺陷结论"}
+  ],
+  "cleanup": [
+    {"action": "stop_app", "desc": "结束 APP（网络恢复由执行者外部操作后另行验证：TC-QK-223）"}
+  ],
+  "knowledge_used": [
+    {"id": "K-QK-018", "use": "判据：断网爱车页显示缓存车辆数据（更新时间戳为断网前时刻）", "applicability": "unconfirmed",
+     "rationale": "test_goal 候选判据；session-wk-qk5/obs-0014 实测证据（F03/SUM 535km/更新于 2026/10/13 12:10——断网前时刻）", "steps": ["S2", "S3"]}
+  ],
+  "sources": [
+    {"type": "user_instruction", "ref": "用户周批量实测指令：断网弱网提示（异常与边界域）"},
+    {"type": "device_observation", "ref": "session-wk-qk5/obs-0014"}
+  ],
+  "history": [
+    {"ts": "2026-10-13T12:25:00+08:00", "to": "draft", "why": "周批量实测-异常与边界域：断网爱车页缓存数据兜底"}
+  ]
+}

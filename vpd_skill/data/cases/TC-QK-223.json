@@ -1,0 +1,52 @@
+{
+  "id": "TC-QK-223",
+  "version": 1,
+  "status": "draft",
+  "app": "qiankun_hm",
+  "title": "乾崑网络恢复后重进 VPD 恢复加载",
+  "purpose": "断网后恢复 WLAN，验证重新进入 VPD 后首页正常加载（园区名+车位总数联网刷新、搜索入口可见），无网络异常提示。异常与边界域：加载失败后的恢复路径。实测发现：网络恢复后当前页不自动刷新（session-wk-qk5/obs-0018），需重进触发。",
+  "preconditions": [
+    "乾崑 APP 已登录（测试账号 151****3183）",
+    "设备网络已恢复：执行者在 run 前经系统控制中心重新开启 WLAN（方法与验证留档 session-wk-qk5：ifconfig wlan0 inet addr 恢复）",
+    "设备已解锁、亮屏"
+  ],
+  "env_requirements": {"account_state": "logged_in", "network": "on"},
+  "test_data": {},
+  "test_data_none": true,
+  "authorizations": ["vpd_entry"],
+  "steps": [
+    {"id": "S1", "action": "stop_app", "desc": "冷启动前置"},
+    {"id": "S2", "action": "launch", "expect_state": "@in_app", "timeout_s": 15, "desc": "拉起乾崑 APP"},
+    {"id": "S3", "action": "tap", "target": "qk_tab_car", "timeout_s": 10, "critical": true, "desc": "进「爱车」页"},
+    {"id": "S4", "action": "tap", "target": "qk_ads", "timeout_s": 15, "critical": true, "desc": "点 ADS 进 VPD（联网重载）"},
+    {"id": "S5", "action": "wait", "duration_s": 6, "desc": "等待 VPD 首页加载"}
+  ],
+  "assertions": [
+    {"id": "A1", "at": "S5", "type": "text_present_any", "any": ["搜索车位号设为目的地", "泊入"],
+     "desc": "VPD 首页正常加载（或任务卡片，双分支）", "oracle_refs": ["K-QK-018", "K-QK-013"]},
+    {"id": "A2", "at": "S5", "type": "text_present_any", "any": ["金桥出口加工区", "共"],
+     "desc": "园区/车位数据联网拉取显示", "oracle_refs": ["K-QK-013"]},
+    {"id": "A3", "at": "S5", "type": "text_absent", "text": "网络异常，请稍候重试",
+     "desc": "恢复后无网络异常提示", "oracle_refs": ["K-QK-018"]},
+    {"id": "A4", "at": "S5", "type": "visual_review", "advisory": true,
+     "desc": "首页完整性与数据刷新（建议）",
+     "prompt": "检查截图：VPD 首页地图/园区名/车位总数/搜索入口/推荐车位是否完整加载，车位总数与断网前对比是否联网刷新。只给建议，不作为缺陷结论"}
+  ],
+  "cleanup": [
+    {"action": "back", "desc": "退出 VPD 页（不点任何算路/任务操作）"},
+    {"action": "stop_app", "desc": "结束 APP"}
+  ],
+  "knowledge_used": [
+    {"id": "K-QK-018", "use": "判据：网络恢复后需重进触发加载，重进后 VPD 首页正常（车位总数联网刷新）", "applicability": "unconfirmed",
+     "rationale": "test_goal 候选判据；session-wk-qk5/obs-0018（恢复不自动刷新）、obs-0028（重进后首页正常：金桥出口加工区72+共315个，断网前 742 联网刷新）实测证据", "steps": ["S4", "S5"]},
+    {"id": "K-QK-013", "use": "判据：VPD 首页元素清单", "applicability": "unconfirmed",
+     "rationale": "test_goal 候选判据；session-wk-qk4/obs-0038 实测证据（A2 园区/车位总数断言依据）", "steps": ["S5"]}
+  ],
+  "sources": [
+    {"type": "user_instruction", "ref": "用户周批量实测指令：加载失败路径/异常恢复（异常与边界域）"},
+    {"type": "device_observation", "ref": "session-wk-qk5/obs-0018、obs-0028"}
+  ],
+  "history": [
+    {"ts": "2026-10-13T12:25:00+08:00", "to": "draft", "why": "周批量实测-异常与边界域：断网恢复后重进 VPD 恢复加载（含「不自动刷新」真实发现）"}
+  ]
+}

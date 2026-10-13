@@ -1,0 +1,49 @@
+{
+  "id": "TC-QK-226",
+  "version": 1,
+  "status": "draft",
+  "app": "qiankun_hm",
+  "title": "乾崑车位搜索模糊词多行联想",
+  "purpose": "搜索页输入模糊词（0），验证出多行车位联想（L1层-Axx 车位）而非唯一收敛行——与精确车位号（TC-QK-219）收敛唯一建议行对照。VPD 业务链路域：搜索联想行为。只到联想显示，不点路线不发起算路。",
+  "preconditions": [
+    "乾崑 APP 已登录（测试账号 151****3183）",
+    "无进行中的算路任务（任务卡片页时搜索入口不可达）",
+    "设备联网、已解锁、亮屏"
+  ],
+  "env_requirements": {"account_state": "logged_in", "network": "on"},
+  "test_data": {},
+  "test_data_none": true,
+  "authorizations": ["vpd_entry", "route_planning"],
+  "steps": [
+    {"id": "S1", "action": "stop_app", "desc": "冷启动前置"},
+    {"id": "S2", "action": "launch", "expect_state": "@in_app", "timeout_s": 15, "desc": "拉起乾崑 APP"},
+    {"id": "S3", "action": "tap", "target": "qk_tab_car", "timeout_s": 10, "critical": true, "desc": "进「爱车」页"},
+    {"id": "S4", "action": "tap", "target": "qk_ads", "timeout_s": 15, "critical": true, "desc": "点 ADS 进 VPD 首页"},
+    {"id": "S5", "action": "tap", "target": "qk_search_entry", "timeout_s": 10, "critical": true, "desc": "点「搜索车位号设为目的地」进搜索页"},
+    {"id": "S6", "action": "input", "target": "qk_spot_search_input", "text": "0", "timeout_s": 10, "critical": true, "desc": "输入模糊词 0（tap+输入须在同一 action 内首触完成：先行聚焦 tap 会弹输入法覆盖层挡住后续 tap——TC-QK-219 cb4d/66e7/31ef 三次实证；不用 clear：新起页面字段为空）"},
+    {"id": "S7", "action": "wait", "duration_s": 3, "desc": "等待联想列表"}
+  ],
+  "assertions": [
+    {"id": "A1", "at": "S7", "type": "text_present_any", "any": ["L1层-A", "L1层-B", "L1层-C"],
+     "desc": "模糊词出多行车位联想（L1层-Axx 车位等）", "oracle_refs": ["K-QK-019"]},
+    {"id": "A2", "at": "S7", "type": "visual_review", "advisory": true,
+     "desc": "联想列表多行完整性与精确词收敛对照（建议）",
+     "prompt": "检查截图：联想列表是否多行（对照 TC-QK-219 精确车位号 A43 收敛唯一行），各行是否带路线按钮，行文案是否含车位号。只给建议，不作为缺陷结论"}
+  ],
+  "cleanup": [
+    {"action": "back", "desc": "收起键盘/返回（不点任何路线）"},
+    {"action": "back", "desc": "返回 VPD 首页"},
+    {"action": "stop_app", "desc": "结束 APP"}
+  ],
+  "knowledge_used": [
+    {"id": "K-QK-019", "use": "判据：模糊词出多行联想（L1层-Axx），不收敛唯一建议行", "applicability": "unconfirmed",
+     "rationale": "test_goal 候选判据；session-wk-qk4/obs-0063-0071 实测证据（0/A/1 → L1层-A10/A43 等多行）", "steps": ["S6", "S7"]}
+  ],
+  "sources": [
+    {"type": "user_instruction", "ref": "用户周批量实测指令：车位/路线列表（VPD 业务链路域）"},
+    {"type": "device_observation", "ref": "session-wk-qk4/obs-0063-0071"}
+  ],
+  "history": [
+    {"ts": "2026-10-13T12:36:00+08:00", "to": "draft", "why": "周批量实测-VPD 业务链路域：模糊词联想与精确词收敛对照"}
+  ]
+}
