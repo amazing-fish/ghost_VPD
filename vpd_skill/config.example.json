@@ -1,6 +1,5 @@
 {
-  "_note": "复制为 config.local.json 后按本机修改（config.local.json 已在 .gitignore 中）。命令行 --device 会覆盖这里的 device。 unlock_secrets 按设备映射 PIN 的 secret 键名；不默认使用 LOCK_PIN。",
-  "device": "replay:motor_hm_base.json",
+  "_note": "复制为 config.local.json 后按本机修改（config.local.json 已在 .gitignore 中）。可加 \"device\": \"hdc:<serial>\" 作为默认设备，命令行 --device 优先；本示例不设默认设备，没传 --device 时命令报错而不是静默跑回放。 unlock_secrets 按设备映射 PIN 的 secret 键名；不默认使用 LOCK_PIN。",
   "app": "motor_hm",
   "unlock_secrets": {
     "hdc:<serial>": "LOCK_PIN_TEST"

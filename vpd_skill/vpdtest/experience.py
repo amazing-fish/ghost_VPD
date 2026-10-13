@@ -13,8 +13,7 @@ from typing import Callable, Optional
 
 from .util import append_jsonl, new_id, now_iso, read_json, read_jsonl, write_json
 
-AUTO_ADOPTABLE = {"locator_preference", "wait_timeout"}
-REVIEW_REQUIRED = {"interrupt_rule", "state_signature", "skill_note"}
+AUTO_ADOPTABLE = {"locator_preference", "wait_timeout"}  # 其余类型（interrupt_rule、state_signature…）adopt 须 --reviewer
 FORBIDDEN = {"assertion_change", "step_removal", "policy_change"}
 
 

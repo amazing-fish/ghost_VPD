@@ -1,6 +1,7 @@
 """命令行入口：python -m vpdtest <command> ...  输出一律为 JSON（stdout）。
 
-退出码：0 命令完成（无论用例结论）；1 使用了 --fail-on 且结论命中；3 工具/参数错误。
+退出码：0 命令完成（无论用例结论）；1 使用了 --fail-on 且结论命中；2 需要现场人工接管（action_required）；
+3 工具/参数错误（含命令行用法错误 UsageError）。
 """
 from __future__ import annotations
 
@@ -14,8 +15,23 @@ from .util import dumps
 from .workspace import Workspace
 
 
+class _Parser(argparse.ArgumentParser):
+    """用法错误也输出 JSON 并退出 3：退出码 2 只留给"需要人工接管"，拼错参数不能被当成接管请求。"""
+
+    def error(self, message):
+        print(json.dumps({"error": "UsageError", "message": message, "usage": self.format_usage().strip()},
+                         ensure_ascii=False))
+        sys.exit(3)
+
+
+def _kv(s: str) -> str:
+    if not s.partition("=")[0].strip() or "=" not in s:
+        raise argparse.ArgumentTypeError(f"需要 key=value，收到 {s!r}")
+    return s
+
+
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="vpdtest", description="VPD 手机 APP 智能测试执行器（Skill v0.1）")
+    p = _Parser(prog="vpdtest", description="VPD 手机 APP 智能测试执行器（Skill v0.1）")
     p.add_argument("--workspace", help="数据目录（默认 vpd_skill/data，或环境变量 VPD_WORKSPACE）")
     sub = p.add_subparsers(dest="cmd", required=True)
 
@@ -72,7 +88,7 @@ def build_parser() -> argparse.ArgumentParser:
     r = sub.add_parser("run", help="回归执行一条用例")
     r.add_argument("case")
     r.add_argument("--device")
-    r.add_argument("--env", action="append", help="声明环境事实 key=value，如 account_state=logged_out")
+    r.add_argument("--env", action="append", type=_kv, help="声明环境事实 key=value，如 account_state=logged_out")
     r.add_argument("--trial", help="试用一条经验候选（不采纳）")
     r.add_argument("--record-replay", action="store_true", help="把结果记入用例的 replays（晋级依据）")
     r.add_argument("--authorize", nargs="*", default=[],
@@ -138,7 +154,7 @@ def build_parser() -> argparse.ArgumentParser:
     x.add_argument("--app-version")
     x.add_argument("--device-form", choices=["bar", "foldable"])
     x.add_argument("--device", help="从设备只读取得 APP 版本与屏幕形态（需同时给 --app）")
-    x.add_argument("--env", action="append", help="其他事实 key=value，如 account_state=logged_in")
+    x.add_argument("--env", action="append", type=_kv, help="其他事实 key=value，如 account_state=logged_in")
     x.add_argument("--limit", type=int, default=8, help="每类最多返回条数")
     ksub.add_parser("list")
     x = ksub.add_parser("show")
@@ -162,19 +178,23 @@ def build_parser() -> argparse.ArgumentParser:
     xp = sub.add_parser("experience", help="经验候选：验证 / 采纳 / 回滚")
     xp.add_argument("--app", default="motor_hm")
     xsub = xp.add_subparsers(dest="x_cmd", required=True)
-    xsub.add_parser("list")
-    xsub.add_parser("ledger")
+    xs = [xsub.add_parser("list"), xsub.add_parser("ledger")]
     x = xsub.add_parser("validate")
     x.add_argument("id")
     x.add_argument("--suite")
     x.add_argument("--cases", nargs="*")
     x.add_argument("--device", action="append", required=True)
+    xs.append(x)
     x = xsub.add_parser("adopt")
     x.add_argument("id")
     x.add_argument("--reviewer")
+    xs.append(x)
     x = xsub.add_parser("rollback")
     x.add_argument("--to-version", type=int, required=True)
     x.add_argument("--reason", required=True)
+    xs.append(x)
+    for x in xs:  # 写在子命令之后也生效；SUPPRESS 保证不写时不覆盖父命令上的 --app
+        x.add_argument("--app", default=argparse.SUPPRESS, help="同 experience --app")
 
     cn = sub.add_parser("console", help="本机控制台：NEXT 投屏、手动操作与运行进度（只监听 127.0.0.1）")
     cn.add_argument("--device", help="hdc:<serial>；省略且未配置设备时只显示运行进度")
@@ -211,7 +231,10 @@ def main(argv=None) -> int:
             pass
     args = build_parser().parse_args(argv)
     try:
-        out = HANDLERS[args.cmd](Workspace(args.workspace), args)
+        ws = Workspace(args.workspace)
+        if getattr(args, "authorize", None):
+            ws.policy().check_grants(args.authorize)
+        out = HANDLERS[args.cmd](ws, args)
     except (ValueError, PermissionError, FileNotFoundError, FileExistsError) as e:
         print(json.dumps({"error": type(e).__name__, "message": str(e)}, ensure_ascii=False))
         return 3

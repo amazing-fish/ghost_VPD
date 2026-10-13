@@ -42,7 +42,7 @@ Write-Host '[3/5] Local config...'
 $local = Join-Path $root 'config.local.json'
 if (-not (Test-Path $local)) {
     Copy-Item (Join-Path $root 'config.example.json') $local
-    Write-Host "      Created $local (edit 'device' to hdc:<serial> for a real device)"
+    Write-Host "      Created $local (no default device: pass --device, or add `"device`": `"hdc:<serial>`")"
 } else { Write-Host "      Keeping existing $local" }
 
 Write-Host '[4/5] Checking hdc...'

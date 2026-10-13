@@ -347,7 +347,9 @@ def _run_brief(run: dict) -> dict:
             "not_verified": [x["id"] for x in v.get("not_verified") or []], "known_issue": v.get("known_issue"),
             "attribution": v["attribution"], "recovered": v["recovered"], "adapted": v["adapted"],
             "first_anomaly": v["first_anomaly"] and {k: v["first_anomaly"].get(k) for k in ("step", "attempt", "status")},
-            "findings": [{k: f.get(k) for k in ("result", "step", "id", "reason", "attribution")} for f in v["findings"]],
+            # detail 是阻塞条件的结构化清单（env_requirement/preflight）：Agent 按它补参数，不必解析 reason 原文
+            "findings": [{k: f.get(k) for k in ("result", "step", "id", "reason", "attribution")}
+                         | ({"detail": f["detail"]} if f.get("detail") else {}) for f in v["findings"]],
             "experience_candidates": run["experience_candidates"], "validation_level": run["validation_level"],
             "report": str(Path(run["dir"]) / "report.md"),
             "informal": run.get("informal", run["case"].get("status") != "regression"),

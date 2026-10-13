@@ -13,14 +13,13 @@ from pathlib import Path
 from typing import Optional
 
 from .knowledge import ACTIVE, item_status
-from .safety import untreed_strategies
+from .safety import TREE_KINDS, untreed_strategies
 from .util import now_iso, read_json, sha256_file, sha256_obj, write_json
 
 REQUIRED = ("purpose", "preconditions", "test_data", "steps", "assertions", "cleanup", "sources")
 CONTENT_KEYS = ("app", "preconditions", "env_requirements", "test_data", "steps", "assertions", "cleanup")
 # 只在声明时计入，避免改变既有用例的内容哈希。授权与安全停止决定实际会产生哪些物理副作用，改了就要重新重放
 OPTIONAL_CONTENT_KEYS = ("layout_requirements", "authorizations", "safety")
-TREE_KINDS = ("text", "id", "xpath")
 # Issue #14：obs 编号属于单次运行（重放后编号会变）。裸引用会让判定证据链指向不存在的观测
 # （真机上出现过：rationale 引 obs-0010/0012，而本 run 实际是 obs-0007/0008）。
 # 但「run 目录名/会话名 + obs 编号」是可解析引用：锚点目录确实留存了该观测时证据链可追溯，允许。
