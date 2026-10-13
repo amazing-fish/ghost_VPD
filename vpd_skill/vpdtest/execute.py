@@ -819,7 +819,8 @@ class Executor:
             #（system_dialogs.json）时用原子能力关掉再重试；锁屏/未知覆盖物不属于允许的恢复范围。
             # 2026-10-08 真机：USB 连接方式弹窗以此路径两次阻塞 S1 后补的能力。
             from .sysdialog import resolve_screen_cover
-            res = resolve_screen_cover(ctx.ws, ctx.device, ctx.store, dispatcher=ctx.dispatcher)
+            res = resolve_screen_cover(ctx.ws, ctx.device, ctx.store, dispatcher=ctx.dispatcher,
+                                       dialogs=ctx.observer.dialogs)
             if res["status"] == "dismissed":
                 return {"action": "dismiss_system_dialog", "performed": True, "dialog": res["diagnosis"]["matched"],
                         "reason": f"关闭已评审的良性系统弹窗 {res['diagnosis']['matched']}，重试本步",

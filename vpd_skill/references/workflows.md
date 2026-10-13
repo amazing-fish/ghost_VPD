@@ -44,6 +44,7 @@
 .\vpdtest.ps1 case from-session --session g1 --new-id TC-QK-201 --app qiankun_hm --goal "<目标原文>" --drop A4=与目标无关的试探
 # 补齐 purpose / preconditions / assertions（独立 oracle_refs）/ cleanup / knowledge_used 后：
 .\vpdtest.ps1 case lint TC-QK-201
+# 单条 run 可先作非正式取证；晋级或放入任何批量入口前，按下方“探索资产人工审核”操作。
 .\vpdtest.ps1 run TC-QK-201 --device $D --env account_state=logged_in --env favorite_spot_slot=available --env vehicle_in_vpd_map=yes --authorize vpd_entry user_data --record-replay
 ```
 
@@ -72,12 +73,49 @@
 ```powershell
 .\vpdtest.ps1 case from-exploration --run explore-XXXX --transitions T3 T5 --new-id TC-EXP-001
 .\vpdtest.ps1 case lint TC-EXP-001                         # 列出缺失的目的/判据/清理等
-# 编辑 data/cases/TC-EXP-001.json 补齐后：
+# 编辑 data/cases/TC-EXP-001.json 补齐，并由人审查后：
+.\vpdtest.ps1 case review TC-EXP-001
+.\vpdtest.ps1 case approve TC-EXP-001 --reviewer "<实际审核人>" --basis "<已核对的目标、来源、步骤、判据和清理依据>"
 .\vpdtest.ps1 case promote TC-EXP-001 --to candidate
 .\vpdtest.ps1 run TC-EXP-001 --device $D --record-replay   # 新运行中重放；至少两次通过
 .\vpdtest.ps1 case promote TC-EXP-001 --to replay_verified
 .\vpdtest.ps1 case promote TC-EXP-001 --to regression --reviewer <评审人>
 ```
+
+## 探索资产人工审核（#30）
+
+`from-exploration` / `from-session` 只生成探索资产，不授予晋级或批量准入。补齐字段、lint 通过、
+已有 `sources.type=reviewer` 或 `case promote --reviewer` 都不代替本次资产审核。Agent 必须向人提供
+完整用例及来源证据，由人明确确认后才执行 `case approve`；不得自行填审核人来批准自己生成的资产。
+
+```powershell
+.\vpdtest.ps1 case lint TC-EXP-001
+.\vpdtest.ps1 case review TC-EXP-001   # 只读：required / valid / state / origin_signals / current / record
+# 人已核对完整用例、原始来源、排除理由、独立判据、清理与所绑定执行配置之后：
+.\vpdtest.ps1 case approve TC-EXP-001 --reviewer "<实际审核人>" --basis "<确认依据或可追溯评审链接>"
+```
+
+| 路径 | 检查位置与结果 |
+| --- | --- |
+| 探索/会话固化 | 持久 `origin.type`；保持原 sources、步骤来源、历史，不自动审核 |
+| `case promote` 任一级 | 写文件前要求探索来源资产具有当前有效审核，其他成熟度门槛继续检查 |
+| `suite`（字符串/对象成员、多设备） | 创建设备及集合记录前预检全部成员；每条 run 再加载并复检 |
+| `experience validate --suite/--cases` | baseline/trial 开始前预检全部成员；每个回调都复检，不改经验算法 |
+| 单条 `run` / `--record-replay` | 可保留非正式诊断；未有效审核的探索资产即使写成 regression 也仍标 informal |
+| 人工文字/repo_code/reviewer 来源 draft | 保留现有路径；发现探索 origin/sources/步骤/历史则仍要求审核 |
+
+审核记录在 `asset_review`，另追加 history：schema、reviewer、带时区时间 ts、非空 basis，以及 case ID、
+内容/依赖/审阅语义/policy/执行引擎/上下文指纹。修改目的、来源、knowledge_used、步骤、断言、
+目标定义、判据陈述或执行配置后，旧审核失效，须重新审查。正常晋级、追加重放与历史，以及有效知识
+unconfirmed → confirmed 不使审核失效；产品知识退役仍使依赖失效。
+
+执行引擎指纹保守覆盖全部 `vpdtest/**/*.py`；上下文含 APP 元数据、布局、系统弹窗和该 APP 全部模板。
+因此即使无关引擎代码或模板修改，也可能要求重审。调用开始时检查版本；policy、布局和弹窗使用
+本次检查的配置快照。源码及模板仅核对入口内容，运行期间应保持不变，未提供文件系统锁或代码热更新保障。
+允许的经验 overlay 仍按既有验证规则调整定位/等待，不写入资产审批版本，也不能更改判据或 policy。
+
+这是本地审计记录，reviewer 是声明身份，不能认证操作者或防止恶意改写文件。审核不提升成熟度、
+不 confirm Oracle、不替代本次 `--authorize/--supervisor`，也不构成真机或产品通过证据。
 
 ## 把已有文字用例接进来
 

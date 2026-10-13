@@ -222,6 +222,7 @@ def test_point_tap_is_converted_only_when_a_unique_selector_exists(ws, tmp_path)
         "--session", "p1", "--device", dev)
     from vpdtest.session import from_session
     case = from_session(ws.runs_dir / "session-p1", "TC-P-1", ws.app("motor_hm"), None, [])
+    assert case["origin"] == {"type": "session"}
     tap = case["steps"][-1]
     assert tap["target"]["strategies"] == [{"kind": "text", "value": "唯一入口", "derived_from_point": True}]
     assert tap["point_basis"] and "point" not in tap

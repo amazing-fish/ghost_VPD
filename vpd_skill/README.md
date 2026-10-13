@@ -80,6 +80,9 @@ $env:VPD_SECRET_QIANKUN_PHONE = '<账号>'; $env:VPD_SECRET_QIANKUN_PASSWORD = '
 每次运行输出到 `runs/<run_id>/`：`report.md`、`run.json`、`events.jsonl`、`obs/<id>/{observation.json, tree.json, screen.png}`。
 按 #32 裁决，UI 树、事件、运行汇总与截图保留采集原文，不脱敏，也不因系统覆盖物或窗口查询失败停止取证。截图仍受 APP 白名单约束，业务树仍要求属于本次目标 APP 且观测新鲜；空业务树另留整屏诊断证据。`runs/` 已 gitignore。用例中的账号/密码继续写成 `{"secret": "NAME"}`，由环境变量 `VPD_SECRET_NAME` 或 `config.local.json` 的 `secrets` 提供；生成资产保持外置参数引用。
 
+探索/会话资产须经 `case review` 与人明确确认后的 `case approve --reviewer --basis` 才能晋级或批量使用；
+单条未审核诊断仍标 informal。审核不 confirm 产品要求、不授予设备动作，也不自动提升成熟度。
+
 回归、探索、单步决策、探索转用例、经验晋级的完整步骤见 [references/workflows.md](references/workflows.md)
 与 [references/knowledge-rsi.md](references/knowledge-rsi.md)。
 
@@ -106,9 +109,9 @@ Console 是人工控制入口，手动操作写入独立的 `console-*` 运行�
 
 ## 数据状态说明（重要）
 
-- 2026-10-13 主干 `4a41e5c` 快照：75 条知识（12 confirmed、62 unconfirmed、1 deprecated）；11 条用例（6 draft、5 exploration_record），正式回归 0。K-QK-001 已退役，采用的 K-AV-001 仍为 unconfirmed 且限定原 debug 范围。
+- 2026-10-13 主干 `cbcb925` 快照：75 条知识（12 confirmed、62 unconfirmed、1 deprecated）；11 条用例（6 draft、5 exploration_record），正式回归 0。K-QK-001 已退役，采用的 K-AV-001 仍为 unconfirmed 且限定原 debug 范围。
 - 产品通过/失败要求每条 Oracle 明确 confirmed 且适用；入口选定、设备操作成功或框架 pytest 通过均不代替产品判据确认。人工 `knowledge confirm` 仍是独立治理动作。
-- PR #36 的拟新增资产未合入此快照，不能计为现有正式 VPD 覆盖。#32 原文取证与过时证据判定修复已随 PR #38 合入；下一阶段优先策略误报修复、资产人审入口和单个真实 VPD 闭环。详见 [方向与漂移审查](../docs/PROJECT_DIRECTION.md)。
+- PR #36 的拟新增资产未合入此快照，不能计为现有正式 VPD 覆盖。#32 原文取证与过时证据判定修复已随 PR #38 合入；策略误报 #35 已随 PR #39 合入。本变更为 #30 增加资产人审入口，仍待独立 PR 合入；下一阶段优先单个真实 VPD 闭环。详见 [方向与漂移审查](../docs/PROJECT_DIRECTION.md)。
 - `car_tab` / `my_tab` 的状态签名已在真机（3.0.3.200）上校准：选中态 `selected=true` 标在 `TabBar` 下可点击的 `Column` 容器上，而非文字节点，见 `states.json` 的 `source`。`settings` 签名与 `update_dialog` 中断仍是 `review: pending`，需在真机上核对后改为 `reviewed`。
 
 ## 屏幕形态
@@ -131,7 +134,7 @@ Console 是人工控制入口，手动操作写入独立的 `console-*` 运行�
 | 满足预期判通过 / 违反预期判失败 / 锁屏与环境事实不足判阻塞 / 判据未确认或缺失判待确认 / 崩溃判失败 / 空树上的"不存在"断言不可判定 | 离线回放 + pytest | 通过 |
 | 工具恢复不擦除首次异常；未评审弹窗不自动关闭；从不点击「更新」 | 离线回放 + pytest | 通过 |
 | 定位漂移 → 经验候选 → 跨 3 用例 × 2 世界验证 → 采纳 → 回滚 | 离线回放 + pytest | 通过 |
-| 探索（禁止文本跳过、覆盖声明）→ 探索记录 → 补齐 → 两次新运行重放 → replay_verified；无真机重放拒绝晋级正式回归 | 离线回放 + pytest | 通过 |
+| 探索（禁止文本跳过、覆盖声明）→ 探索记录 → 补齐并人工 approve → 两次新运行重放 → replay_verified；无真机重放拒绝晋级正式回归 | 离线回放 + pytest | 通过 |
 | 无 UI 树页面走模板定位；模板多处匹配拒绝点击；无树时拒绝盲点坐标 | 离线回放 + pytest | 通过 |
 | 真机执行完整用例 TC-MOTOR-HM-001（爱车 → 我的 → 上滑找到设置 → 返回） | 真机 `run` | 首次运行 S1 失败，定位为选中态签名写错（属性在容器上），校准后重跑 4 步全部执行成功，8 次动作约 39 s；结论为"待确认"，因为判据 K-MOT-* 未确认 |
 | 真机探索 | — | 未运行：设置页含开关类控件，已加 `deny_node_types` 拒绝点击，但尚未在真机上验证 |

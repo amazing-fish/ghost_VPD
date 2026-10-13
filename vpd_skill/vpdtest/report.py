@@ -39,7 +39,13 @@ def render_run(run: dict) -> str:
         out.append(f"> 已知缺陷用例（{_esc(ki.get('ref'))}）：{ki['note']}；预期失败特征 `{ki.get('expected_signature')}`，"
                    f"本次 `{v.get('failure_signature')}`\n")
     if run.get("informal"):
-        out.append(f"> 用例状态为 `{c.get('status')}`，不是正式回归用例，本结论仅供参考。\n")
+        out.append(f"> 本次为非正式运行（用例状态 `{c.get('status')}` 或探索资产审核未有效），本结论仅供参考。\n")
+    review = run.get("asset_review")
+    if review:
+        record = review.get("record") or {}
+        out.append(f"> 资产审核：`{review['state']}`；使用入口 `{review['use']}`；"
+                   f"审核人 {_esc(record.get('reviewer'))}，时间 {_esc(record.get('ts'))}，"
+                   f"依据 {_esc(record.get('basis'))}。审核不代替产品判据确认或本次动作授权。\n")
     if v.get("recovered") or v.get("adapted"):
         out.append("> 本次执行包含" + "、".join(x for x, f in (("执行恢复", v.get("recovered")), ("定位适配", v.get("adapted"))) if f)
                    + "，首次异常与处理过程见下文，未改变任何断言。\n")

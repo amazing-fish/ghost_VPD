@@ -1,19 +1,20 @@
 """用例生命周期：exploration_record → candidate → replay_verified → regression。
 
-- 探索路径转候选时必须补齐：目的、前置条件、测试数据、步骤、独立判定依据、清理、来源证据。
+- 探索来源晋级和批量运行前须有效人工审核；转候选还须补齐目的、前置、数据、步骤、判据、清理、来源。
 - 判定依据必须是独立的知识条目；不能用"探索时看到了什么"来证明"应该是什么"。
-- replay_verified 需要当前内容版本（content_hash）下至少 2 次来自不同运行的通过重放；
+- replay_verified 需要当前内容和依赖版本下至少 2 次不同运行的确定、一致重放（失败须登记缺陷）；
   regression 还需评审人、全部判据已确认，默认要求至少 1 次真机重放。
 """
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 from .knowledge import ACTIVE, item_status
 from .safety import untreed_strategies
-from .util import now_iso, read_json, sha256_obj, write_json
+from .util import now_iso, read_json, sha256_file, sha256_obj, write_json
 
 REQUIRED = ("purpose", "preconditions", "test_data", "steps", "assertions", "cleanup", "sources")
 CONTENT_KEYS = ("app", "preconditions", "env_requirements", "test_data", "steps", "assertions", "cleanup")
@@ -83,6 +84,117 @@ def dependency_hash(case: dict, app, knowledge) -> str:
             facts[kid]["inactive"] = True
     return sha256_obj({"steps": steps, "targets": targets, "states": app.states.states,
                        "interrupts": app.states.interrupts, "oracles": facts})[:12]
+
+
+# 审核覆盖审阅语义；成熟度/运行记录不使正常晋级或新重放自失效。
+REVIEW_METADATA = {"status", "history", "replays", "product_status", "asset_review"}
+EXPLORATION_ORIGINS = {"session", "exploration"}
+
+
+def exploration_signals(case: dict) -> list:
+    signals = []
+    if case.get("status") == "exploration_record":
+        signals.append("status:exploration_record")
+    origin = case.get("origin")
+    if isinstance(origin, dict) and isinstance(origin.get("type"), str) and origin["type"] in EXPLORATION_ORIGINS:
+        signals.append("origin:" + origin["type"])
+    for source in case.get("sources") or []:
+        if isinstance(source, dict) and isinstance(source.get("type"), str) and source["type"] in EXPLORATION_ORIGINS:
+            signals.append("source:" + source["type"])
+    for entry in case.get("history") or []:
+        if isinstance(entry, dict) and "exploration_record" in (entry.get("from"), entry.get("to")):
+            signals.append("history:exploration_record")
+
+    def visit(value):
+        if isinstance(value, dict):
+            for key in ("from_session", "from_transition"):
+                if key in value:
+                    signals.append("step:" + key)
+            for child in value.values():
+                visit(child)
+        elif isinstance(value, list):
+            for child in value:
+                visit(child)
+    visit([case.get("steps"), case.get("cleanup"), (case.get("safety") or {}).get("safe_stop")])
+    return sorted(set(signals))
+
+
+def review_context(ws, app) -> dict:
+    """检查和执行共用配置快照；模板只绑定文件指纹，运行期间须保持源码/模板不变。"""
+    templates_dir = app.dir / "templates"
+    templates = {str(p.relative_to(app.dir)): sha256_file(p) for p in sorted(templates_dir.rglob("*")) if p.is_file()}
+    return {"app": app.meta, "layout": ws.layout_config(),
+            "system_dialogs": read_json(ws.root / "system_dialogs.json", {}), "templates": templates}
+
+
+def _review_binding(ws, case: dict, app, knowledge, policy, context=None) -> dict:
+    engine_dir = Path(__file__).parent
+    engine = {str(p.relative_to(engine_dir)): sha256_file(p) for p in sorted(engine_dir.rglob("*.py"))}
+    context = review_context(ws, app) if context is None else context
+    return {"case_id": case["id"], "content_hash": content_hash(case),
+            "dependency_hash": dependency_hash(case, app, knowledge),
+            "review_hash": sha256_obj({k: v for k, v in case.items() if k not in REVIEW_METADATA}),
+            "policy_hash": policy.hash, "engine_hash": sha256_obj(engine), "context_hash": sha256_obj(context)}
+
+
+def review_status(ws, case: dict, knowledge=None, app=None, policy=None, context=None) -> dict:
+    from .knowledge import KnowledgeStore
+    app = app or ws.app(case["app"])
+    knowledge = knowledge or KnowledgeStore(ws.root)
+    policy = policy or ws.policy()
+    signals = exploration_signals(case)
+    binding = _review_binding(ws, case, app, knowledge, policy, context)
+    record = case.get("asset_review")
+    complete = isinstance(record, dict) and type(record.get("schema")) is int and record["schema"] == 1 and all(
+        isinstance(record.get(k), str) and record[k].strip() for k in ("reviewer", "basis", "ts"))
+    if complete:
+        try:
+            complete = datetime.fromisoformat(record["ts"]).utcoffset() is not None
+        except ValueError:
+            complete = False
+    valid = bool(complete and record.get("binding") == binding)
+    state = "approved" if valid else ("stale" if complete else ("pending" if signals else "not_required"))
+    return {"required": bool(signals), "valid": valid, "state": state, "origin_signals": signals,
+            "current": binding, "record": record if isinstance(record, dict) else None}
+
+
+def require_review(ws, case: dict, knowledge=None, app=None, policy=None, context=None) -> dict:
+    if case.get("status", "draft") not in {*NEXT, "regression"}:
+        raise PermissionError(f"用例 {case.get('id')} 状态无效，不能晋级或批量执行")
+    info = review_status(ws, case, knowledge, app, policy, context)
+    if info["required"] and not info["valid"]:
+        why = "审核失效：内容、审阅语义或执行依赖已变" if info["state"] == "stale" else "尚无有效人工审核"
+        raise PermissionError(f"用例 {case['id']} 来自探索/会话，{why}；请由人审查后执行 case approve "
+                              f"{case['id']} --reviewer <人> --basis <依据>。审核不代替 Oracle 确认或动作授权")
+    return info
+
+
+def approve(ws, case_id: str, knowledge, reviewer: str, basis: str) -> dict:
+    if not isinstance(reviewer, str) or not reviewer.strip() or not isinstance(basis, str) or not basis.strip():
+        raise ValueError("资产审核须提供非空 --reviewer 与 --basis")
+    case = ws.load_case(case_id)
+    app, policy = ws.app(case["app"]), ws.policy()
+    issues = lint(case, app, knowledge, policy, runs_dir=ws.runs_dir)
+    if issues:
+        raise PermissionError(f"用例不完整，不能审核为可复用资产：{issues}")
+    signals = exploration_signals(case)
+    origin = case.get("origin")
+    if signals and not (isinstance(origin, dict) and isinstance(origin.get("type"), str)
+                        and origin["type"] in EXPLORATION_ORIGINS):
+        session_origin = "source:session" in signals or "step:from_session" in signals
+        case["origin"] = {"type": "session" if session_origin else "exploration", "inferred_from": signals}
+    binding = _review_binding(ws, case, app, knowledge, policy)
+    record = {"schema": 1, "reviewer": reviewer.strip(), "basis": basis.strip(), "ts": now_iso(), "binding": binding}
+    case["asset_review"] = record
+    case["history"] = case.get("history", []) + [{"event": "asset_review", **record}]
+    write_json(ws.case_path(case_id), case)
+    return case
+
+
+def preflight_batch(ws, case_ids: list) -> list:
+    from .knowledge import KnowledgeStore
+    knowledge, policy = KnowledgeStore(ws.root), ws.policy()
+    return [require_review(ws, ws.load_case(cid), knowledge, policy=policy) for cid in case_ids]
 
 
 def iter_case_steps(case: dict, app):
@@ -302,6 +414,7 @@ def from_exploration(exp: dict, transitions: list, case_id: str, app_id: str) ->
             st["expect_state_unresolved"] = t["to"]
         steps.append(st)
     return {"id": case_id, "version": 1, "status": "exploration_record", "app": app_id,
+            "origin": {"type": "exploration"},
             "title": f"[探索生成] {' → '.join([chain[0]['from']] + [t['to'] for t in chain])}",
             "purpose": "", "preconditions": [f"APP 处于 {chain[0]['from']}"], "env_requirements": {},
             "test_data": {}, "steps": steps, "assertions": [], "cleanup": [],
@@ -369,11 +482,13 @@ def replay_basis(case: dict, deps: Optional[str] = None) -> dict:
 
 def promote(ws, case_id: str, to: str, knowledge, reviewer: Optional[str] = None, allow_offline: bool = False,
             known_issue: Optional[str] = None) -> dict:
-    case, app = ws.load_case(case_id), ws.app(ws.load_case(case_id)["app"])
+    case = ws.load_case(case_id)
+    app, policy = ws.app(case["app"]), ws.policy()
+    require_review(ws, case, knowledge, app=app, policy=policy)
     cur = case.get("status", "draft")
     if NEXT.get(cur) != to:
         raise PermissionError(f"不能从 {cur} 晋级到 {to}（允许：{cur} → {NEXT.get(cur)}）")
-    issues = lint(case, app, knowledge, ws.policy(), runs_dir=ws.runs_dir)
+    issues = lint(case, app, knowledge, policy, runs_dir=ws.runs_dir)
     if issues:
         raise PermissionError(f"用例不完整，不能晋级：{issues}")
     h = content_hash(case)

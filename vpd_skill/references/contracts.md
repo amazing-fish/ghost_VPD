@@ -1,4 +1,4 @@
-# 三个贯穿契约
+# 执行与资产契约
 
 所有字段都落在 `runs/<run_id>/` 下：`run.json`（汇总）、`events.jsonl`（追加写的原始事件）、
 `obs/<obs_id>/`（每次观测独占创建：`observation.json`、`tree.json`、`screen.png`）、`report.md`。
@@ -155,7 +155,25 @@ agent 模式的 `--point` 记录提出时的窗口尺寸（`point_window`）；�
 `verdict.failure_signature` 是失败项的稳定特征，用于判断已知缺陷是否按同一方式复现（`known_issue.reproduced`）。
 步骤出现崩溃或异常中断时用通用不变量 `K-GEN-001` 判定，不依赖该步骤业务判据是否已确认。
 
-## 4. 会话（`runs/session-<name>/`）与会话生成的用例
+## 4. 探索资产审核与运行准入（#30）
+
+生成资产新增 `origin.type=session/exploration`；旧资产按 status、sources、history 与主步骤/cleanup/safe_stop
+的 from_session/from_transition 联合识别。仅手改 status 或已有 reviewer 来源不解除审核要求。
+`case approve` 为旧探索资产补持久 origin；不会自动审核现有资产。
+
+- 用例 `asset_review`：schema=1、非空 reviewer/basis、带时区 ISO ts、binding。
+- binding：case_id、原 content_hash/dependency_hash、review_hash、policy_hash、engine_hash、context_hash。
+  review_hash 排除 status/history/replays/product_status/asset_review，其他字段均绑定；原重放指纹算法保持。
+- `run.json.asset_review`：required、valid、state（approved/stale/pending/not_required）、origin_signals、
+  current、record、use（single/batch）。这是执行前快照，历史运行不按未来配置重算；CLI 与报告展示审核状态。
+- `require_review`：探索来源未有效审核、或批量用例状态不在合法生命周期中时，以 PermissionError 拒绝。
+  suite/经验验证先预检全部成员，每次 run 在 RunStore/device/preflight 前再复检；其他授权与判定门槛保持。
+- `informal`：status 不为 regression，或探索来源无有效审核。单条诊断可以运行，不能从 lint 或重放推出人审完成。
+
+policy、layout 与 dialogs 使用本次运行准入检查时捕获的配置，Observer、preflight 弹窗关闭与恢复诊断共用该弹窗表。
+引擎源码与模板按调用入口指纹核对，运行中外部修改尚无文件锁保障。reviewer 为本地声明身份，不是认证或签名。
+
+## 5. 会话（`runs/session-<name>/`）与会话生成的用例
 
 - `events.jsonl`：`session_facts`（版本/形态/验证级别，只记一次）、`agent_observe`、`act_request`（先于执行写入）、
   `act_rejected` / `act_error` / `act_result`（`outcome`、`dispatched`、`effect_unknown`、前后观测），以及执行器内部事件

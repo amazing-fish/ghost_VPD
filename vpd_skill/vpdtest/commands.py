@@ -349,12 +349,16 @@ def _run_brief(run: dict) -> dict:
             "first_anomaly": v["first_anomaly"] and {k: v["first_anomaly"].get(k) for k in ("step", "attempt", "status")},
             "findings": [{k: f.get(k) for k in ("result", "step", "id", "reason", "attribution")} for f in v["findings"]],
             "experience_candidates": run["experience_candidates"], "validation_level": run["validation_level"],
-            "report": str(Path(run["dir"]) / "report.md")}
+            "report": str(Path(run["dir"]) / "report.md"),
+            "informal": run.get("informal", run["case"].get("status") != "regression"),
+            "asset_review": run.get("asset_review")}
 
 
 def cmd_suite(ws: Workspace, a) -> dict:
     suite = ws.load_suite(a.suite)
     devices = a.device or [None]
+    case_ids = [e["id"] if isinstance(e, dict) else e for e in suite["cases"]]
+    case_mod.preflight_batch(ws, case_ids)  # 全成员先过闸，不能前几条已执行后才拒绝
     # 用例集进度写在自己的 events.jsonl（runs/suite-*），每条用例仍是独立的 run-* 目录
     sstore = RunStore(ws.runs_dir, kind="suite")
     sstore.event("suite_start", suite=a.suite, total=len(suite["cases"]) * len(devices),
@@ -367,7 +371,7 @@ def cmd_suite(ws: Workspace, a) -> dict:
             sstore.event("case_start", case=cid, device=dev, index=len(rows) + 1)
             # 授权与 run 同一语义：run_case 只授予用例自己申请的部分，监护人缺失时该用例阻塞
             row = _run_brief(run_case(ws, cid, device_spec=dev, env=env, authorize=a.authorize,
-                                      supervisor=a.supervisor))
+                                      supervisor=a.supervisor, require_asset_review=True))
             sstore.event("case_done", case=cid, device=dev, run_id=row["run_id"], verdict=row["verdict"])
             rows.append(row)
     sstore.event("suite_end", verdicts=[r["verdict"] for r in rows])
@@ -383,10 +387,17 @@ def cmd_explore(ws: Workspace, a) -> dict:
 
 def cmd_case(ws: Workspace, a) -> dict:
     kn = KnowledgeStore(ws.root)
+    if a.case_cmd == "review":
+        case = ws.load_case(a.case)
+        return {"case": a.case, "status": case.get("status"), "asset_review": case_mod.review_status(ws, case, kn)}
+    if a.case_cmd == "approve":
+        case = case_mod.approve(ws, a.case, kn, a.reviewer, a.basis)
+        return {"case": a.case, "status": case.get("status"), "asset_review": case_mod.review_status(ws, case, kn)}
     if a.case_cmd == "lint":
         case = ws.load_case(a.case)
         return {"case": a.case, "status": case.get("status"), "hash": case_mod.content_hash(case),
-                "issues": case_mod.lint(case, ws.app(case["app"]), kn, ws.policy(), runs_dir=ws.runs_dir)}
+                "issues": case_mod.lint(case, ws.app(case["app"]), kn, ws.policy(), runs_dir=ws.runs_dir),
+                "asset_review": case_mod.review_status(ws, case, kn)}
     if a.case_cmd == "from-exploration":
         exp = case_mod.load_exploration(ws, a.run)
         case = case_mod.from_exploration(exp, a.transitions, a.new_id, exp["app"])
@@ -464,8 +475,10 @@ def cmd_experience(ws: Workspace, a) -> dict:
     if a.x_cmd == "validate":
         cases = a.cases or [c if isinstance(c, str) else c["id"] for c in ws.load_suite(a.suite)["cases"]]
 
+        case_mod.preflight_batch(ws, cases)
+
         def one(cid, dev, overlay):
-            return run_case(ws, cid, device_spec=dev, overlay=overlay, propose=False)
+            return run_case(ws, cid, device_spec=dev, overlay=overlay, propose=False, require_asset_review=True)
         return xs.validate(a.id, cases, a.device, one)
     if a.x_cmd == "adopt":
         return xs.adopt(a.id, a.reviewer)

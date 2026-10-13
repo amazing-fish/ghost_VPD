@@ -176,13 +176,13 @@ def resolve_screen_cover(ws, device, store, dispatcher=None, dialogs=None) -> di
     return res
 
 
-def preflight_dialog_check(ws, device, store, dispatcher=None) -> dict:
+def preflight_dialog_check(ws, device, store, dispatcher=None, dialogs=None) -> dict:
     """preflight 快查：窗口表里出现已登记弹窗的窗口名才做整屏诊断并关闭。
     未命中/查询失败不阻塞（preflight 全绿≠屏幕没被盖住），动作后的 unobservable 恢复会兜底。"""
     windows = device.shown_windows() if hasattr(device, "shown_windows") else None
     if windows is None:
         return {"status": "skipped", "reason": "窗口查询失败，交给动作后的恢复诊断兜底", "windows": None}
-    dialogs = load_dialogs(ws)
+    dialogs = load_dialogs(ws) if dialogs is None else dialogs
     # 真机窗口名带递增后缀（SCBSysDialogDefault2 / SCBScreenLock12…）：按登记名前缀匹配
     hits = [did for did, spec in dialogs.items()
             if spec.get("window_names")

@@ -36,14 +36,19 @@ skill_policy / model_inference / observation。
 
 | 晋级 | 条件 |
 |---|---|
-| exploration_record / draft → candidate | lint 无问题 |
-| candidate → replay_verified | 当前内容版本（`content_hash`）下 ≥2 次不同运行的**通过**重放（`run --record-replay`）；判据未确认时重放只会是待确认，因此不会晋级 |
-| replay_verified → regression | 评审人 + 全部判据 confirmed + 至少 1 次真机通过重放（仅离线时须显式 `--allow-offline`） |
+| exploration_record / draft → candidate | lint 无问题；有探索/会话来源时另需当前有效 asset_review |
+| candidate → replay_verified | 有探索/会话来源时另需当前有效 asset_review；当前内容与依赖版本下 ≥2 次不同运行的确定、一致重放（`run --record-replay`）；稳定失败须 `--known-issue`，待确认/阻塞不计入 |
+| replay_verified → regression | 有探索/会话来源时另需当前有效 asset_review；终态评审人 + 全部判据 confirmed 且适用 + 至少 1 次计入的真机重放（仅离线时须显式 `--allow-offline`）；known_failure 保持失败，不改预期 |
 
 修改步骤/断言/前置/清理会改变 `content_hash`，旧重放不再计数。
 外部判据退役或状态无效会改变 `dependency_hash`，旧重放不再支撑晋级；
 有效条目的 unconfirmed → confirmed 及历史追加不改变该指纹。仅修改 `knowledge_used`
-中的历史说明不改变用例内容/依赖指纹，是否需要重放应按实际可执行内容和依赖判断。
+中的历史说明不改变既有重放内容/依赖指纹，但会改变资产审核指纹，探索资产须重审。
+
+`case review` 只读，`case approve --reviewer <人> --basis <依据>` 记录资产人审，操作步骤与版本范围见
+[workflows.md](workflows.md#探索资产人工审核30)。人工确认不会自动晋级、确认知识或授予设备动作；
+原有 regression 终态 reviewer、判据适用性、真机或显式 allow_offline 门槛保持。suite 与经验验证都要求
+探索资产先有效审核；单条 run 可非正式取证，重放记录本身不构成人工确认。
 
 ## 经验候选（RSI v0.1 的范围）
 
