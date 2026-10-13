@@ -122,7 +122,7 @@ def trail(session_dir: Path, expect: Optional[dict] = None) -> dict:
     step_records, dropped_steps = read_jsonl_recoverable(session_dir / "steps.jsonl")
     records = {r["seq"]: r for r in step_records}
     items, open_req, cur = [], {}, None
-    identity, secret_typed, used, actions = None, False, False, 0
+    identity, used, actions = None, False, 0
     counted = set()  # 已有下发事件计入预算的请求
     for e in events:
         ev = e.get("event")
@@ -142,8 +142,6 @@ def trail(session_dir: Path, expect: Optional[dict] = None) -> dict:
             items.append(open_req[cur])
         elif ev in SENT_EVENTS and cur in open_req and _sent(e):
             open_req[cur]["dispatched"] = True
-        elif ev == "secret_typed":
-            secret_typed = True
         elif ev in ("act_rejected", "act_error"):
             it = open_req.pop(e["seq"], None)
             if it is not None:
@@ -171,7 +169,7 @@ def trail(session_dir: Path, expect: Optional[dict] = None) -> dict:
             actions += 1
         it.update(kind="incomplete", effect_unknown=True,
                   reason="有请求没有结果（进程中断/超时）：现场可能已经发生变化")
-    tr = {"session": session_dir.name, "items": items, "identity": identity, "secret_typed": secret_typed,
+    tr = {"session": session_dir.name, "items": items, "identity": identity,
           "actions": actions}
     dropped = {k: v for k, v in (("events", dropped_events), ("steps", dropped_steps)) if v is not None}
     if dropped:

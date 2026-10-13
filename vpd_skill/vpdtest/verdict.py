@@ -17,10 +17,16 @@ PASSED = ("passed", "passed_after_adaptation", "passed_after_recovery")
 GENERIC_CRASH = "K-GEN-001"
 
 
+def _stale(obs) -> bool:
+    return not obs or obs.get("fresh") is False or (obs.get("tree") or {}).get("status") == "stale"
+
+
 def _check(a: dict, obs: dict, tree: UiTree, app) -> tuple:
     """返回 (holds: bool|None, evidence: dict)。None 表示证据不足。"""
     t = a["type"]
     ev = {"obs": obs["obs_id"], "tree": obs.get("tree", {}).get("path"), "screenshot": obs.get("screenshot", {}).get("path")}
+    if _stale(obs):
+        return None, {**ev, "reason": "观测已过时，原始树仅作现场证据，不能用于产品判定"}
     if t == "state_is":
         st = obs["page"]["state"]
         ev.update(observed_state=st, active=obs["page"].get("active"))
@@ -92,23 +98,37 @@ def _seen(a: dict, step: dict, load: Callable) -> tuple:
     import re
     mons = _monitors(step)
     expected = a.get("expected", True)
-    if a["type"] == "state_seen":
-        states = [s for m in mons for s in m["states"]] or [load(step["final_obs"])[0]["page"]["state"]]
-        holds = any(s == a["state"] or a["state"] in s.split("+") for s in states)
-        return holds == expected, {"states": states, "expected_state": a["state"], "seen": holds}
-    rx = re.compile(a["pattern"])
-    samples = []
-    for m in mons:
-        samples += [{"t": e["t"], "obs": e["obs"], "text": x} for e in m["timeline"] for x in e.get("new_texts", [])
-                    if rx.search(x)]
-    if not mons:
+    entries, gaps = [], []
+    if mons:
+        for m in mons:
+            for e in m["timeline"]:
+                obs, _ = load(e["obs"])
+                if _stale(obs):
+                    gaps.append(e["obs"])
+                else:
+                    entries.append(e)
+    else:
         obs, _ = load(step["final_obs"])
-        if obs is None:
-            return None, {"reason": "没有监视记录也没有终态观测"}
-        samples = [{"t": None, "obs": obs["obs_id"], "text": x} for x in obs.get("texts", []) if rx.search(x)]
-    seen = len({s["obs"] for s in samples}) >= int(a.get("min_count", 1))
-    return seen == expected, {"pattern": a["pattern"], "seen": seen, "matches": samples[:10],
-                              "windows": len(mons), "source": "monitor_timeline" if mons else "final_obs"}
+        if _stale(obs):
+            return None, {"reason": "终态观测缺失或已过时，不能判断出现或未出现"}
+        entries = [{"t": None, "obs": obs["obs_id"], "state": obs["page"]["state"],
+                    "new_texts": obs.get("texts", [])}]
+    if a["type"] == "state_seen":
+        states = [e["state"] for e in entries]
+        seen = any(st == a["state"] or a["state"] in st.split("+") for st in states)
+        ev = {"states": states, "expected_state": a["state"], "seen": seen}
+    else:
+        rx = re.compile(a["pattern"])
+        samples = [{"t": e["t"], "obs": e["obs"], "text": x} for e in entries for x in e.get("new_texts", [])
+                   if rx.search(x)]
+        seen = len({s["obs"] for s in samples}) >= int(a.get("min_count", 1))
+        ev = {"pattern": a["pattern"], "seen": seen, "matches": samples[:10],
+              "windows": len(mons), "source": "monitor_timeline" if mons else "final_obs"}
+    if gaps:
+        ev["stale_samples"] = gaps
+        if not seen:
+            return None, {**ev, "reason": "监视窗口含过时观测，不能把未观测到当作未出现"}
+    return seen == expected, ev
 
 
 def evaluate_assertion(a: dict, steps: dict, load: Callable, knowledge, app) -> dict:

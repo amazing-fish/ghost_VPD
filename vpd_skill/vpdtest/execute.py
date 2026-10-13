@@ -276,10 +276,6 @@ class Executor:
                 if not self._inline_input_ok(tid, target, loc, obs, tree, att):
                     return att
                 att["resolved"] = _resolved(loc, obs)
-            if is_ref or (ctx.params and ctx.params.contains_secret([text])):
-                # inputText 经系统剪贴板：之后输入法的剪贴板栏会显示原文，本会话里输入法在场时不再截图
-                ctx.observer.secret_typed = True
-                ctx.store.event("secret_typed", step=step["id"], note="剪贴板可能留有密钥原文：结束后请人工清空剪贴板")
             res = self._send_target("input_text", loc, obs, tree, target, tid, step, att, text)
             if att.get("status"):
                 return att
@@ -823,9 +819,7 @@ class Executor:
             #（system_dialogs.json）时用原子能力关掉再重试；锁屏/未知覆盖物不属于允许的恢复范围。
             # 2026-10-08 真机：USB 连接方式弹窗以此路径两次阻塞 S1 后补的能力。
             from .sysdialog import resolve_screen_cover
-            res = resolve_screen_cover(ctx.ws, ctx.device, ctx.store, dispatcher=ctx.dispatcher,
-                                       observer=ctx.observer,
-                                       redact=ctx.observer.params.redact if getattr(ctx.observer, "params", None) is not None else None)
+            res = resolve_screen_cover(ctx.ws, ctx.device, ctx.store, dispatcher=ctx.dispatcher)
             if res["status"] == "dismissed":
                 return {"action": "dismiss_system_dialog", "performed": True, "dialog": res["diagnosis"]["matched"],
                         "reason": f"关闭已评审的良性系统弹窗 {res['diagnosis']['matched']}，重试本步",

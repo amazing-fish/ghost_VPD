@@ -1,7 +1,7 @@
-"""用例参数、密钥脱敏与 gated 授权。密钥值只来自环境变量，不能出现在任何落盘文件里。"""
+"""外置参数引用、生成资产输入分类与 gated 授权。现场证据按原文保留。"""
 import json
 
-from vpdtest.params import MASK, Params
+from vpdtest.params import Params
 from vpdtest.policy import Policy
 from vpdtest.tree import UiTree
 from vpdtest.util import read_json
@@ -15,13 +15,13 @@ def _tree(text, extra=None):
     return UiTree({"attributes": {"type": "root", "bounds": "[0,0][100,100]"}, "children": kids + (extra or [])})
 
 
-def test_secret_comes_from_env_and_is_redacted(monkeypatch):
+def test_secret_comes_from_env_with_reference_and_classification(monkeypatch):
     monkeypatch.setenv("VPD_SECRET_DEMO_PW", SECRET)
     p = Params({"pw": {"secret": "DEMO_PW"}, "name": {"template": "VPD测试-{run}"}, "tail": "7885"}, {}, "run-x-ab12")
     assert p.vars["name"] == "VPD测试-ab12" and p.public()["pw"] == "<secret:pw>"
     assert p.is_secret_ref("${var:pw}") and not p.is_secret_ref("${var:tail}")
     assert p.subst("末位${var:tail}") == "末位7885"
-    assert p.redact({"t": [f"x{SECRET}y"]}) == {"t": [f"x{MASK}y"]}
+    assert p.is_sensitive(f"x{SECRET}y") and not hasattr(p, "redact")
     missing = Params({"pw": {"secret": "NOT_SET_ANYWHERE"}}, {}, "run-x-1")
     assert missing.missing == ["NOT_SET_ANYWHERE"] and "pw" not in missing.vars
 

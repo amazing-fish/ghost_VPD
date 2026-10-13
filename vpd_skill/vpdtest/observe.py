@@ -15,11 +15,6 @@ from .util import append_jsonl, new_id, now_iso, sha256_file, write_json
 
 # 页面内失败提示：真机上见过「停车场信息加载失败，」「请重试」。只做提示，不参与判定
 ANOMALY_TEXT = re.compile(r"失败|异常|出错|错误|解析|请重试|重新加载|网络不给力|超时|无法连接|服务繁忙")
-# 盖在被测 APP 上、会带出个人内容的系统窗口（窗口名前缀；hidumper 把名称截到 20 个字符）。
-# 2026-09-30 真机：聊天通知横幅盖住乾崑搜索栏，按 bundle 取的树里被遮部分消失，截图带出了消息内容
-PRIVATE_WINDOWS = ("SCBBannerNotificatio", "SCBScreenLock", "SCBDropdownPanel", "SCBNegativeScreen", "SCBGlobalSearch")
-# uitest inputText 经系统剪贴板输入，输入法的「来自剪贴板」栏会显示最近一次输入的原文
-KEYBOARD_WINDOWS = ("softKeyboard", "SCBKeyboardPanel")
 
 
 class RunStore:
@@ -30,11 +25,10 @@ class RunStore:
         self.events_path = self.dir / "events.jsonl"
         existing = [p.name for p in (self.dir / "obs").iterdir()] if (self.dir / "obs").exists() else []
         self._obs_seq = len(existing)
-        self.redactor = None  # 运行带密钥参数时由 runner 设置
 
     def event(self, kind: str, **data) -> None:
         rec = {"ts": now_iso(), "event": kind, **data}
-        append_jsonl(self.events_path, self.redactor(rec) if self.redactor else rec)
+        append_jsonl(self.events_path, rec)
 
     def next_obs_dir(self) -> tuple:
         self._obs_seq += 1
@@ -57,20 +51,7 @@ class Observer:
         self.last_window = None
         self.last_layout_key = None
         self.layouts_seen: dict = {}    # layout key -> 首次出现的 obs_id
-        self.params = None              # 用于脱敏；由 runner 设置
-        self.secret_typed = False       # 本次运行/会话输入过密钥：之后输入法显示时不截图（剪贴板栏会显示原文）
         self.dialogs = dialogs or {}    # 已登记的系统弹窗注册表（system_dialogs.json）
-        self._dialog_diag = None        # 当前覆盖存续期间的整屏诊断缓存；覆盖消失或弹窗被关闭后失效
-
-    def private_windows(self) -> Optional[list]:
-        """正在显示的、会带出个人内容的系统窗口；设备不支持窗口查询 → []，查询失败 → None。"""
-        if not hasattr(self.device, "shown_windows"):
-            return []
-        shown = self.device.shown_windows()
-        if shown is None:
-            return None
-        names = PRIVATE_WINDOWS + (KEYBOARD_WINDOWS if self.secret_typed else ())
-        return [w for w in shown if w.startswith(names)]
 
     def _display_for(self, tree: Optional[UiTree]) -> Optional[dict]:
         win = tree.window_rect() if (tree is not None and tree.status == "ok") else None
@@ -83,44 +64,17 @@ class Observer:
         return self.display
 
     def _shot_ok(self, pkg) -> bool:
-        """截图门禁：白名单只说明哪些 APP 能测，截图还要求前台就是本次的被测 APP（白名单里的另一个 APP 也不截）。"""
-        return self.policy.screenshot_allowed(pkg) and (
-            pkg == self.bundle or not self.policy.privacy.get("screenshot_only_when_target_foreground", True))
+        """截图只受被测 APP 白名单约束；系统覆盖物与输入内容不拦截取证。"""
+        return self.policy.screenshot_allowed(pkg)
 
-    def invalidate_dialog_diag(self) -> None:
-        """系统弹窗被能力关闭或覆盖消失后调用：下一次空树观测重新做整屏诊断。"""
-        self._dialog_diag = None
-
-    def _cover_evidence(self, oid: str, d) -> dict:
-        """前台报为被测 APP 但按 bundle 取的树为空：查窗口表与整屏树，确认覆盖物并留证据。
-        - 隐私类系统窗口在显示 → 不取整屏树（整屏树同样可能带通知内容），private=True；
-        - 窗口查询失败 → private=None（不能确认就按有隐私风险处理）；
-        - 无隐私窗口在显示 → 取整屏树并与已登记系统弹窗（system_dialogs.json）比对；
-          同一覆盖存续期间缓存诊断，弹窗被能力关闭后由 invalidate_dialog_diag 清除。
-        """
-        over = self.private_windows()
-        out = {"private_windows": over, "private": bool(over) if over is not None else None}
-        if over is not None and not over:
-            if self._dialog_diag is None:
-                from .sysdialog import diagnose_cover
-                self._dialog_diag = diagnose_cover(self.device, self.store, d / "cover", self.dialogs,
-                                                   redact=self.params.redact if self.params is not None else None)
-                if self._dialog_diag.get("matched"):
-                    self.store.event("system_dialog", obs_id=oid, dialog=self._dialog_diag["matched"],
-                                     windows=self._dialog_diag.get("windows"))
-            out.update({k: v for k, v in self._dialog_diag.items()})
-        return out
+    def _cover_evidence(self, d) -> dict:
+        """每次空树观测采集当前整屏诊断，避免复用已变化的覆盖物证据。"""
+        from .sysdialog import diagnose_cover
+        return diagnose_cover(self.device, self.store, d / "cover", self.dialogs)
 
     def _capture_screenshot(self, obs: dict, d) -> None:
         r = self.device.screenshot(d / "screen.png")
-        # 截图要约 1 秒：期间可能弹出横幅，也可能切到别的 APP（private_windows 只认系统弹层，
-        # 认不出普通应用）。截完再查前台和系统窗口，任一不能确认就删掉
-        late = self.private_windows() if r.ok else []
-        if r.ok and late != [] and (d / "screen.png").exists():
-            (d / "screen.png").unlink()
-            obs["screenshot"] = {"status": "withheld", "reason": "截图期间出现系统弹层或无法确认，已删除截图"}
-            obs["system_overlays"] = late
-        elif r.ok and (d / "screen.png").exists():
+        if r.ok and (d / "screen.png").exists():
             obs["screenshot"] = {"status": "ok", "path": self.store.rel(d / "screen.png"),
                                  "sha256": sha256_file(d / "screen.png")[:16]}
             if r.data.get("fallback_from"):  # screenCap 投屏期间失败，回退 snapshot_display 得到的截图
@@ -141,70 +95,33 @@ class Observer:
         if fg == self.bundle:
             r = self.device.dump_tree(self.bundle, d / "tree.json")
             if r.ok:
-                # 输入过的账号/密码可能以明文出现在布局树里：最终路径只写打码后的内容。
-                # 真机适配器不再把原文写到这里（拉取走系统临时目录），回放适配器写的是合成数据，
-                # 这里统一重写一遍保证落盘的永远是脱敏产物。
                 raw = r.data.get("tree")
-                if self.params is not None:
-                    red = self.params.redact(raw)
-                    if red != raw:
-                        obs["redacted"] = True
-                        raw = red
                 write_json(d / "tree.json", raw)
                 r.data["tree"] = raw
                 tree = UiTree(raw)
                 obs["tree"] = {"status": tree.status, "path": self.store.rel(d / "tree.json"), "nodes": len(tree.nodes)}
             else:
-                # 解析失败/拉取失败：运行目录里没有 tree.json（也不该有——可能是没打码的原文）
+                # 解析失败/拉取失败：记录设备的实际采集错误
                 obs["tree"] = {"status": "unavailable" if r.error_class == "tree_unavailable" else "error",
                                "error_class": r.error_class, "error": r.error}
         else:
             obs["tree"] = {"status": "not_collected", "reason": "目标 APP 不在前台，不采集其他 APP 的布局"}
-        if self._dialog_diag is not None and (obs.get("tree") or {}).get("status") != "empty":
-            self._dialog_diag = None  # 覆盖消失（页面已可观测/APP 已退前台），整屏诊断缓存失效
+        if fg == self.bundle and (obs.get("tree") or {}).get("status") == "empty":
+            cover = self._cover_evidence(d)
+            obs["screen_cover"] = {k: v for k, v in cover.items() if not k.startswith("_")}
+            if cover.get("matched"):
+                self.store.event("system_dialog", obs_id=oid, dialog=cover["matched"],
+                                 windows=cover.get("windows"))
 
         foreground_before_shot = fg
         if not screenshot:
             obs["screenshot"] = {"status": "skipped"}
-        elif obs.get("redacted"):
-            # 截图无法可靠打码：页面上出现了账号/密码明文时不截图
-            obs["screenshot"] = {"status": "withheld", "reason": "页面含已输入的敏感值，隐私策略不截图"}
         elif not self._shot_ok(fg):
-            obs["screenshot"] = {"status": "withheld", "reason": f"前台为 {fg}，隐私策略不截图"}
-        elif fg == self.bundle and (obs.get("tree") or {}).get("status") == "empty":
-            # 真机：锁屏（带通知内容）或系统弹窗盖在 APP 上时，aa dump 仍报 APP 在前台，按 bundle 取的树只有空根。
-            # 2026-09-30 的旧策略在此一律不截图（按锁屏猜）；2026-10-08 起改为先查窗口表取证：
-            # 确认没有隐私类系统窗口在显示就截屏留证——屏幕被盖住时更需要留下"盖住的是什么"的证据；
-            # 隐私窗口在显示或查询失败时才不截图。
-            cover = self._cover_evidence(oid, d)
-            obs["screen_cover"] = {k: v for k, v in cover.items() if not k.startswith("_")}
-            if cover["private"]:
-                obs["screenshot"] = {"status": "withheld",
-                                     "reason": f"隐私类系统窗口 {cover['private_windows']} 正在显示（锁屏/通知），隐私策略不截图"}
-                obs["system_overlays"] = cover["private_windows"]
-            elif cover["private"] is None:
-                obs["screenshot"] = {"status": "withheld",
-                                     "reason": "覆盖窗口查询失败，无法排除隐私内容（锁屏/通知），隐私策略不截图"}
-            elif not self._shot_ok(self.device.foreground()):
-                obs["screenshot"] = {"status": "withheld", "reason": "取整屏树后前台已变化，隐私策略不截图"}
-            else:
-                self._capture_screenshot(obs, d)
+            obs["screenshot"] = {"status": "withheld", "reason": f"前台 {fg} 不在截图 APP 白名单中"}
         elif not self._shot_ok(foreground_before_shot := self.device.foreground()):
-            # 取布局树要几秒：期间 APP 可能崩溃、退后台或被别的应用（包括白名单里的另一个被测 APP）覆盖。
-            # 截图前再确认一次，必须仍是本次的被测 APP
-            obs["screenshot"] = {"status": "withheld", "reason": f"取树后前台已变为 {foreground_before_shot}，隐私策略不截图"}
-        elif (over := self.private_windows()) is None or over:
-            # 通知横幅/下拉栏/锁屏盖在 APP 上时 aa dump 仍报 APP 在前台，按 bundle 取的树也不含这些窗口
-            obs["screenshot"] = {"status": "withheld", "reason": "窗口查询失败，无法确认没有系统弹层，隐私策略不截图"
-                                 if over is None else f"系统窗口 {over} 正在显示（通知/锁屏/输入法剪贴板），隐私策略不截图"}
-            obs["system_overlays"] = over
+            obs["screenshot"] = {"status": "withheld", "reason": f"截图前前台 {foreground_before_shot} 不在 APP 白名单中"}
         else:
             self._capture_screenshot(obs, d)
-        if "system_overlays" in obs:  # 查询失败（None）也记：报告里写"查询失败"
-            self.store.event("system_overlay", obs_id=oid, windows=obs["system_overlays"])
-        if "screen_cover" in obs and obs["screen_cover"].get("matched"):
-            self.store.event("system_dialog", obs_id=oid, dialog=obs["screen_cover"]["matched"],
-                             windows=obs["screen_cover"].get("windows"))
 
         display = self._display_for(tree)
         # 所有设备采集（含显示参数）结束后复查；不能只删除截图而沿用旧树。
@@ -223,9 +140,9 @@ class Observer:
                 obs["foreground_error"] = fg_err
             else:
                 obs.pop("foreground_error", None)
-            if (d / "screen.png").exists():
+            if not self._shot_ok(fg_after) and (d / "screen.png").exists():
                 (d / "screen.png").unlink()
-                obs["screenshot"] = {"status": "withheld", "reason": f"观测期间前台变为 {fg_after}，已删除截图"}
+                obs["screenshot"] = {"status": "withheld", "reason": f"观测末查前台 {fg_after} 不在 APP 白名单中，已删除截图"}
             self.store.event("observation_stale", obs_id=oid, foreground_before=obs["foreground_before"],
                              foreground_before_shot=foreground_before_shot, foreground_after=fg_after,
                              reason=reason)

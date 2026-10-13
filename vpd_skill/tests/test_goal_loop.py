@@ -168,13 +168,13 @@ def test_session_to_candidate_keeps_failure_trail(ws, tmp_path):
 
 
 def _input_world(tmp_path):
-    # text_bound：输入后布局树里显示输入值（真机输入框也是这样），用来检查落盘前脱敏
+    # text_bound：输入后布局树显示输入值，用来检查原文取证
     box = {"t": "TextInput", "b": [40, 800, 1280, 920], "click": True, "bind": "name", "text_bound": "name"}
     return _lab_world(tmp_path, "inp", {"home": {"root": {"t": "Column", "b": [0, 0, 1320, 2848], "children": [
         {"t": "Text", "text": "名称", "b": [40, 700, 600, 780]}, box]}}})
 
 
-def test_session_never_writes_rejected_or_secret_input_text(ws, tmp_path, monkeypatch):
+def test_session_keeps_raw_evidence_but_externalizes_generated_secret_input(ws, tmp_path, monkeypatch):
     dev = _input_world(tmp_path)
     _start(ws, dev, "i1")
     monkeypatch.setenv("VPD_SECRET_FAKE_PW", "Fake#Pass9")
@@ -185,10 +185,11 @@ def test_session_never_writes_rejected_or_secret_input_text(ws, tmp_path, monkey
     assert ok["input_value_recorded"] is True
     sdir = ws.runs_dir / "session-i1"
     disk = "".join(p.read_text("utf-8") for p in sdir.rglob("*") if p.suffix in (".json", ".jsonl"))
-    assert "Fake#Pass9" not in disk and "测试名A" in disk
-    # 输入后布局树里出现了密钥值：落盘前替换为 ***，该观测不截图
-    red = [read_json(p) for p in (sdir / "obs").glob("*/observation.json") if read_json(p).get("redacted")]
-    assert red and all(o["screenshot"]["status"] == "withheld" for o in red)
+    assert "Fake#Pass9" in disk and "测试名A" in disk
+    observed = [read_json(p) for p in (sdir / "obs").glob("*/observation.json")]
+    raw = [o for o in observed if "Fake#Pass9" in str(o.get("texts"))]
+    assert raw and all(o["screenshot"]["status"] == "ok" for o in raw)
+    assert not any("redacted" in o for o in observed)
     case = __import__("vpdtest.session", fromlist=["from_session"]).from_session(
         sdir, "TC-I-1", ws.app("motor_hm"), None, ["A1=启动", "A2=被拒的试探"])
     assert case["test_data"]["input_3"] == {"missing_from_session": True, "length": 10}
@@ -196,17 +197,13 @@ def test_session_never_writes_rejected_or_secret_input_text(ws, tmp_path, monkey
     assert any(i["field"] == "test_data.input_3" for i in C.lint(case, ws.app("motor_hm"), KnowledgeStore(ws.root)))
 
 
-def test_partial_secret_is_redacted():
-    # 真机上见过：密码的前一段落进了另一个输入框。只按全值替换会把这段明文写进 tree.json
+def test_partial_secret_is_classified_only_for_generated_case_data(monkeypatch):
     from vpdtest.params import Params
-    import os
-    os.environ["VPD_SECRET_T_PW"] = "Abc123456xyz"
-    try:
-        p = Params({"pw": {"secret": "T_PW"}}, None, "run-x")
-        assert p.redact("框里是 Abc12345 后面") == "框里是 *** 后面"
-        assert p.contains_secret(["456xyz"]) and not p.contains_secret(["Abc12"])
-    finally:
-        del os.environ["VPD_SECRET_T_PW"]
+    monkeypatch.setenv("VPD_SECRET_T_PW", "Abc123456xyz")
+    p = Params({"pw": {"secret": "T_PW"}}, None, "run-x")
+    assert p.is_sensitive("框里是 Abc12345 后面")
+    assert p.is_sensitive("456xyz") and not p.is_sensitive("Abc12")
+    assert not hasattr(p, "redact")
 
 
 def test_declared_env_cannot_override_measured_facts(ws):
@@ -515,48 +512,43 @@ def _set_windows(ws, session, windows):
     write_json(st, s)
 
 
-def test_notification_banner_withholds_screenshot(ws, tmp_path):
-    # 真机：聊天通知横幅盖住 APP 顶部，aa dump 仍报 APP 在前台，按 bundle 取的树不含横幅——截图会带出消息内容
+def test_notification_banner_and_unknown_windows_keep_screenshot(ws, tmp_path):
     dev = _lab_world(tmp_path)
     _start(ws, dev, "bn1")
-    _set_windows(ws, "bn1", ["SCBBannerNotificatio", "app0"])
-    out = cli(ws, "observe", "--app", "motor_hm", "--session", "bn1", "--device", dev)
-    o = out["observation"]
-    assert o["screenshot"]["status"] == "withheld" and o["system_overlays"] == ["SCBBannerNotificatio"]
-    assert not (ws.runs_dir / "session-bn1" / "obs" / o["obs_id"] / "screen.png").exists()
-    assert o["tree"]["status"] == "ok"  # 树照样取：Agent 还能按树判断
-    _set_windows(ws, "bn1", None)  # 查询失败：无法确认，也不截图
-    o = cli(ws, "observe", "--app", "motor_hm", "--session", "bn1", "--device", dev)["observation"]
-    assert o["screenshot"]["status"] == "withheld" and "查询失败" in o["screenshot"]["reason"]
-    _set_windows(ws, "bn1", ["app0"])
-    o = cli(ws, "observe", "--app", "motor_hm", "--session", "bn1", "--device", dev)["observation"]
-    assert o["screenshot"]["status"] == "ok"
+    for windows in (["SCBBannerNotificatio", "app0"], None, ["app0"]):
+        _set_windows(ws, "bn1", windows)
+        o = cli(ws, "observe", "--app", "motor_hm", "--session", "bn1", "--device", dev)["observation"]
+        assert o["tree"]["status"] == "ok" and o["screenshot"]["status"] == "ok"
+        assert (ws.runs_dir / "session-bn1" / o["screenshot"]["path"]).is_file()
 
 
-def test_banner_during_capture_deletes_screenshot(ws, tmp_path, monkeypatch):
+def test_banner_during_capture_keeps_screenshot(ws, tmp_path, monkeypatch):
     from vpdtest.devices.replay import ReplayDevice
     dev = _lab_world(tmp_path)
     _start(ws, dev, "bn2")
-    calls = iter([["app0"], ["SCBBannerNotificatio", "app0"]])  # 截图前没有，截完出现
-    monkeypatch.setattr(ReplayDevice, "shown_windows", lambda self: next(calls))
+    real = ReplayDevice.screenshot
+
+    def shot_then_banner(self, path):
+        r = real(self, path)
+        self.state["windows"] = ["SCBBannerNotificatio", "app0"]
+        return r
+    monkeypatch.setattr(ReplayDevice, "screenshot", shot_then_banner)
     o = cli(ws, "observe", "--app", "motor_hm", "--session", "bn2", "--device", dev)["observation"]
-    assert o["screenshot"]["status"] == "withheld" and "已删除" in o["screenshot"]["reason"]
-    assert not (ws.runs_dir / "session-bn2" / "obs" / o["obs_id"] / "screen.png").exists()
+    assert o["screenshot"]["status"] == "ok"
+    assert (ws.runs_dir / "session-bn2" / o["screenshot"]["path"]).is_file()
 
 
-def test_secret_input_hides_keyboard_screenshots_for_rest_of_session(ws, tmp_path):
-    # uitest inputText 经剪贴板：输入法「来自剪贴板」栏会显示刚输入的原文
+def test_old_secret_input_event_does_not_gate_keyboard_screenshots(ws, tmp_path):
     dev = _input_world(tmp_path)
     _start(ws, dev, "kb1")
     _set_windows(ws, "kb1", ["softKeyboard1", "app0"])
-    o = cli(ws, "observe", "--app", "motor_hm", "--session", "kb1", "--device", dev)["observation"]
-    assert o["screenshot"]["status"] == "ok"  # 没输入过密钥：输入法在场也照常截图
-    ws.config["secrets"] = {"PW": "Kx9-secret-value"}
     ev = ws.runs_dir / "session-kb1" / "events.jsonl"
-    append_jsonl(ev, {"ts": "t", "event": "secret_typed", "step": "A9"})  # 前一条 act 输入过密钥
+    append_jsonl(ev, {"ts": "t", "event": "secret_typed", "step": "A9"})  # 旧会话兼容
     o = cli(ws, "observe", "--app", "motor_hm", "--session", "kb1", "--device", dev)["observation"]
-    assert o["screenshot"]["status"] == "withheld" and o["system_overlays"] == ["softKeyboard1"]
-    assert "Kx9-secret-value" not in ev.read_text(encoding="utf-8")
+    assert o["screenshot"]["status"] == "ok" and o["fresh"]
+    assert (ws.runs_dir / "session-kb1" / o["screenshot"]["path"]).is_file()
+    from vpdtest.session import trail
+    assert "secret_typed" not in trail(ws.runs_dir / "session-kb1")
 
 
 def _pad(extra=(), original_text=False):
@@ -849,7 +841,7 @@ def test_scroll_search_does_not_swipe_when_lock_state_unknown(ws, tmp_path):
 
 # ---- R5/R6 ----
 
-def test_screenshot_withheld_when_foreground_switches_to_other_allowed_app(ws, tmp_path, monkeypatch):
+def test_screenshot_kept_but_tree_stale_when_switching_to_other_allowed_app(ws, tmp_path, monkeypatch):
     from vpdtest.devices.replay import ReplayDevice
     dev = _lab_world(tmp_path)
     _start(ws, dev, "fg2")
@@ -861,8 +853,9 @@ def test_screenshot_withheld_when_foreground_switches_to_other_allowed_app(ws, t
         return orig(self) if len(calls) == 1 else "com.yinwang.qiankunapp.hm"
     monkeypatch.setattr(ReplayDevice, "foreground", fg)
     obs = cli(ws, "observe", "--app", "motor_hm", "--session", "fg2", "--device", dev)["observation"]
-    assert obs["screenshot"]["status"] == "withheld" and obs["foreground_after"] == "com.yinwang.qiankunapp.hm"
-    assert not (ws.runs_dir / "session-fg2" / "obs" / obs["obs_id"] / "screen.png").exists()
+    assert obs["screenshot"]["status"] == "ok" and obs["foreground_after"] == "com.yinwang.qiankunapp.hm"
+    assert obs["fresh"] is False and obs["tree"]["status"] == "stale"
+    assert (ws.runs_dir / "session-fg2" / obs["screenshot"]["path"]).is_file()
 
 
 def test_act_surfaces_action_required_at_top_level_for_exit_code(ws, tmp_path):
@@ -875,7 +868,7 @@ def test_act_surfaces_action_required_at_top_level_for_exit_code(ws, tmp_path):
     assert "action_required" not in cli(ws, "act", "back", "--app", "motor_hm", "--session", "ar1", "--device", dev)
 
 
-def test_input_containing_a_secret_is_not_recorded(ws, tmp_path, monkeypatch):
+def test_external_secret_input_keeps_evidence_but_is_not_embedded_in_generated_case(ws, tmp_path, monkeypatch):
     dev = _input_world(tmp_path)
     _start(ws, dev, "i2")
     monkeypatch.setenv("VPD_SECRET_FAKE_PW", "Fake#Pass9")
@@ -885,7 +878,7 @@ def test_input_containing_a_secret_is_not_recorded(ws, tmp_path, monkeypatch):
     assert cli(ws, *base, "--text", "xFake#Pa")["input_value_recorded"] is False         # 包含 ≥6 位片段
     assert cli(ws, *base, "--text", "测试名B")["input_value_recorded"] is True
     disk = "".join(p.read_text("utf-8") for p in (ws.runs_dir / "session-i2").rglob("*") if p.suffix in (".json", ".jsonl"))
-    assert "Fake#Pa" not in disk and "测试名B" in disk
+    assert "Fake#Pa" in disk and "测试名B" in disk
 
 
 def test_unlock_guard_is_written_before_pin_and_blocks_concurrent_or_crashed_runs(ws, tmp_path, monkeypatch):
@@ -926,8 +919,8 @@ def test_unlock_swipe_scales_with_display_and_stops_without_size(monkeypatch):
     assert out["status"] == "indeterminate" and "unlock_swipe" not in f.ops and "tap" not in f.ops
 
 
-def test_secret_outside_text_is_redacted_in_steps(ws, tmp_path, monkeypatch):
-    # 密钥出现在 --select / --expect-text 里：steps.jsonl 整条记录都要脱敏，不只 --text
+def test_non_input_fields_keep_original_evidence_in_steps(ws, tmp_path, monkeypatch):
+    # 选择器和预期文字按原文记录，不再执行运行级动态替换
     dev = _lab_world(tmp_path)
     _start(ws, dev, "rd1")
     monkeypatch.setenv("VPD_SECRET_ACCT", "Acct-7h3x-9921")
@@ -937,10 +930,10 @@ def test_secret_outside_text_is_redacted_in_steps(ws, tmp_path, monkeypatch):
         "--app", "motor_hm", "--session", "rd1", "--device", dev)
     sdir = ws.runs_dir / "session-rd1"
     disk = "".join(p.read_text("utf-8") for p in sdir.rglob("*") if p.suffix in (".json", ".jsonl"))
-    assert "Acct-7h3x" not in disk and "7h3x-9921" not in disk
+    assert "Acct-7h3x-9921" in disk and "详情Acct-7h3x" in disk
 
 
-def test_env_and_config_values_of_same_secret_are_both_redacted(ws, tmp_path, monkeypatch):
+def test_env_and_config_values_do_not_rewrite_evidence(ws, tmp_path, monkeypatch):
     dev = _lab_world(tmp_path)
     _start(ws, dev, "rd2")
     monkeypatch.setenv("VPD_SECRET_PW", "EnvPass-4411")
@@ -949,11 +942,11 @@ def test_env_and_config_values_of_same_secret_are_both_redacted(ws, tmp_path, mo
         cli(ws, "act", "tap", "--select", f"text={v}", "--app", "motor_hm", "--session", "rd2", "--device", dev)
     disk = "".join(p.read_text("utf-8") for p in (ws.runs_dir / "session-rd2").rglob("*")
                    if p.suffix in (".json", ".jsonl"))
-    assert "EnvPass-4411" not in disk and "CfgPass-8822" not in disk
+    assert "EnvPass-4411" in disk and "CfgPass-8822" in disk
 
 
 def test_app_switch_during_capture_deletes_screenshot(ws, tmp_path, monkeypatch):
-    # 截图期间别的普通应用到前台：private_windows 认不出，必须再查前台
+    # 截图期间未在白名单中的应用到前台：末查保持 APP 边界
     from vpdtest.devices.replay import ReplayDevice
     dev = _lab_world(tmp_path)
     _start(ws, dev, "bn3")

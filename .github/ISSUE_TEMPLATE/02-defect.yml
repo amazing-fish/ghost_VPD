@@ -31,7 +31,7 @@ body:
     id: context
     attributes:
       label: 复现环境
-      description: "尽量包含代码版本、APP build、系统/设备形态、真机或模拟、相关 Issue/PR；设备标识脱敏。"
+      description: "尽量包含代码版本、APP build、系统/设备形态、真机或模拟、相关 Issue/PR；run_id / obs_id 与代码版本可追溯。"
       placeholder: |
         commit / branch:
         APP / build:
@@ -84,5 +84,5 @@ body:
     attributes:
       label: 安全确认
       options:
-        - label: "提交内容已脱敏；没有将 Issue 当成真机动作授权，未确认安全停止不自动重试。"
+        - label: "原始证据可追溯；没有将 Issue 当成真机动作授权，未确认安全停止不自动重试。"
           required: true

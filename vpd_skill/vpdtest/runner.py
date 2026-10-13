@@ -75,8 +75,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     # 未命中/查询失败不阻塞，动作后的 unobservable 恢复会用完整诊断兜底。
     if pre.get("ok"):
         from .sysdialog import preflight_dialog_check
-        pre["system_dialog"] = preflight_dialog_check(ws, device, store, dispatcher=ctx.dispatcher,
-                                                      observer=ctx.observer)
+        pre["system_dialog"] = preflight_dialog_check(ws, device, store, dispatcher=ctx.dispatcher)
 
     store.event("preflight", ok=pre["ok"], checks=pre["checks"])
     ctx.observer.display = pre.get("display")  # 复用前置检查读到的显示参数，不重复查询
@@ -91,8 +90,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     knowledge.bind(run_facts(app, pre, facts))
     # 参数与密钥：密钥只从环境变量/本地配置读取；缺失时判环境阻塞，不向输入框写空值
     params = Params(case.get("test_data"), ws.config.get("secrets"), store.run_id)
-    ctx.params = ctx.observer.params = params
-    store.redactor = params.redact  # 事件里的设备输出/错误信息也可能带出输入值：写 events.jsonl 前同样脱敏
+    ctx.params = params
     unmet = [{"key": f"secret.{n}", "required": f"环境变量 VPD_SECRET_{n}", "actual": "未设置"} for n in params.missing]
     # 授权：用例只能申请 gated/supervised 类副作用，必须由本次运行显式授予（--authorize），硬禁止类无法授予；
     # supervised 类（车辆运动/车控）还要有在场监护人，vehicle_motion 还要有安全停止声明
@@ -152,7 +150,9 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     def load(obs_id: str):
         d = store.dir / "obs" / obs_id
         tp = d / "tree.json"
-        return read_json(d / "observation.json"), (UiTree(read_json(tp)) if tp.exists() else None)
+        obs = read_json(d / "observation.json")
+        usable = obs.get("fresh") is not False and (obs.get("tree") or {}).get("status") != "stale"
+        return obs, (UiTree(read_json(tp)) if usable and tp.exists() else None)
 
     by_id = {s["step_id"]: s for s in steps}
     assertions = [evaluate_assertion(a, by_id, load, knowledge, app) for a in case.get("assertions", [])]
@@ -199,17 +199,12 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
         if o.get("ui_alerts"):
             alerts.append({"obs": o["obs_id"], "ts": o["ts"], "texts": o["ui_alerts"]["texts"]})
     run["ui_alerts"] = alerts
-    # 截图被系统弹层挡下的观测、输入过密钥（剪贴板残留）：都列进报告，由人收尾
-    run["system_overlays"] = [{"obs": e["obs_id"], "ts": e["ts"], "windows": e["windows"]}
-                              for e in read_jsonl(store.events_path) if e.get("event") == "system_overlay"]
     # 系统弹窗能力的每次介入（preflight 快查关闭/恢复关闭）都列进报告，含诊断证据位置
     run["system_dialogs"] = [{"ts": e["ts"], "status": e.get("status"), "reason": e.get("reason"),
                               "dialog": (e.get("diagnosis") or {}).get("matched"),
                               "screen_tree": (e.get("diagnosis") or {}).get("screen_tree")}
                              for e in read_jsonl(store.events_path)
                              if e.get("event") == "capability_result" and e.get("capability") == "system_dialog"]
-    run["clipboard_may_hold_secret"] = ctx.observer.secret_typed
-    run = params.redact(run)
     run["experience_candidates"] = [c["id"] for c in xstore.propose_from_run(run)] if propose else []
     write_json(store.dir / "run.json", run)
     (store.dir / "report.md").write_text(render_run(run), encoding="utf-8")

@@ -293,8 +293,8 @@ class HdcDevice:
 
     def dump_tree(self, bundle: str, local_path) -> DeviceResult:
         """拉取布局树并解析。原树先落到系统临时目录（运行目录之外），解析成功也只把结果放在
-        DeviceResult.data 里返回，不写 local_path：最终路径由调用方打码后再落盘。
-        解析失败/中途被杀时，运行目录里不会出现未打码的树（临时目录在 finally 里清理）。"""
+        DeviceResult.data 里返回，不写 local_path：最终路径由调用方按原文落盘。
+        解析失败时返回真实错误；临时目录在 finally 里清理。"""
         remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.json"
         local = Path(local_path)
         r = self._shell("uitest", "dumpLayout", "-b", bundle, "-p", remote, op="dump_tree", timeout=30)
@@ -317,7 +317,7 @@ class HdcDevice:
         """非 bundle 作用域的整屏布局树（同锁屏键盘的 lock_dump 采集方式）。
         只用于系统弹层诊断：前台报为被测 APP 但按 bundle 取的树只有空根时，
         用它确认盖在屏幕上的到底是什么窗口。树文件落在观测目录里作证据，
-        与 bundle 树一样经过运行级脱敏后才写盘。"""
+        与 bundle 树一样保留采集原文，由调用方写盘。"""
         remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.json"
         local = Path(local_path)
         r = self._shell("uitest", "dumpLayout", "-p", remote, op="screen_dump", timeout=30)
