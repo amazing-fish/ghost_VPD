@@ -1,0 +1,67 @@
+{
+  "note": "USB 重插后「USB 连接方式」系统弹窗盖住被测 APP 的回放世界（2026-10-08 真机两次 S1 阻塞场景：aa dump 报 APP 在前台、按 bundle 取树只有空根、preflight 全绿）。弹窗结构按真机现象模拟；真实弹窗文字/窗口名以真机 sysdiag 取证为准（runs/sysdiag-*），登记进 data/system_dialogs.json。",
+  "extends": "motor_hm_base.json",
+  "initial": {
+    "system_dialog": "usb_dialog"
+  },
+  "patch_screens": {
+    "usb_dialog": {
+      "kind": "system_dialog",
+      "window_name": "UsbModeDialog",
+      "root": {
+        "t": "Dialog",
+        "b": [160, 1100, 1160, 1800],
+        "children": [
+          {
+            "t": "Text",
+            "text": "USB连接方式",
+            "b": [220, 1160, 1100, 1240]
+          },
+          {
+            "t": "Text",
+            "text": "为设备选择USB连接方式",
+            "b": [220, 1280, 1100, 1340]
+          },
+          {
+            "t": "Button",
+            "b": [220, 1420, 640, 1560],
+            "click": true,
+            "dismiss_system_dialog": true,
+            "children": [
+              {
+                "t": "Text",
+                "text": "仅充电",
+                "b": [300, 1450, 560, 1530]
+              }
+            ]
+          },
+          {
+            "t": "Button",
+            "b": [680, 1420, 1100, 1560],
+            "click": true,
+            "children": [
+              {
+                "t": "Text",
+                "text": "传输文件",
+                "b": [760, 1450, 1020, 1530]
+              }
+            ]
+          },
+          {
+            "t": "Button",
+            "b": [220, 1620, 1100, 1740],
+            "click": true,
+            "dismiss_system_dialog": true,
+            "children": [
+              {
+                "t": "Text",
+                "text": "取消",
+                "b": [560, 1650, 700, 1710]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

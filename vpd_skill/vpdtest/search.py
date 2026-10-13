@@ -33,6 +33,12 @@ def item_role(it: dict) -> tuple:
     if kind == "observation":
         return "observation", None
     if src == "observation":
+        # Issue #9：与判定端（knowledge.oracle_status）保持一致的 Oracle 资格——观察来源的规则
+        # 一经确认（confirm 对观察来源强制要求依据）即具备判据资格，search 端不能永久把它按
+        # 现场观察排除；两端不一致会让 Agent 在检索时看不到、判定时却有效的判据（或反之）。
+        # 来源事实仍如实标注，证据链可回溯。
+        if it.get("status") == "confirmed":
+            return "requirement", "来源是现场观察，已凭依据确认；作判据时证据链可回溯到观察记录"
         return "observation", f"标为 {kind}，但来源是现场观察：确认（需依据）前不能当作产品要求"
     if kind in ("requirement", "product_rule", "ui_copy", "generic_invariant"):
         return "requirement", None

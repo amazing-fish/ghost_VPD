@@ -9,13 +9,15 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
+import tempfile
 import time
 import uuid
 from pathlib import Path
 from typing import Optional
 
-from . import DeviceResult
+from . import LAUNCHER, DeviceResult
 
 KEYS = {"back": "Back", "home": "Home", "move_end": "2082", "delete": "2055"}
 _FAIL_MARKERS = ("[fail]", "error:", "error code:")
@@ -51,6 +53,17 @@ def parse_foreground(dump: str) -> Optional[str]:
         elif s.startswith("Mission ID"):
             bundle = None
     return None
+
+
+def foreground_from_evidence(aa_dump: str, windows: Optional[list]) -> Optional[str]:
+    """前台判定：aa dump 的 #FOREGROUND 任务为准；OpenHarmony 6.x（Mate 80 6.1.1.120 实测）
+    桌面前台时任务列表里没有 #FOREGROUND——用窗口表兜底：正在显示的窗口全部属于 SCB*
+    （sceneboard：桌面/壁纸/状态栏/导航条）时判为桌面前台（LAUNCHER）。
+    窗口表里有非 SCB 窗口却对不上任何 FOREGROUND 任务、或窗口表查不到 → None（不猜）。"""
+    fg = parse_foreground(aa_dump)
+    if fg is None and windows and all(w.startswith("SCB") for w in windows):
+        return LAUNCHER
+    return fg
 
 
 def parse_kv(dump: str, key: str) -> Optional[str]:
@@ -263,7 +276,9 @@ class HdcDevice:
         """查询失败时返回 None 并在 last_query_error 记录原因，避免把"查不到"当成"不在 APP 内"。"""
         r = self._shell("aa", "dump", "-l", op="aa_dump")
         self.last_query_error = None if r.ok else (r.error_class or "command_failed")
-        return parse_foreground(r.raw) if r.ok else None
+        if not r.ok:
+            return None
+        return foreground_from_evidence(r.raw, self.shown_windows())
 
     def process_alive(self, bundle: str) -> Optional[bool]:
         r = self._shell("pidof", bundle, op="pidof")
@@ -277,19 +292,45 @@ class HdcDevice:
         return r
 
     def dump_tree(self, bundle: str, local_path) -> DeviceResult:
+        """拉取布局树并解析。原树先落到系统临时目录（运行目录之外），解析成功也只把结果放在
+        DeviceResult.data 里返回，不写 local_path：最终路径由调用方打码后再落盘。
+        解析失败/中途被杀时，运行目录里不会出现未打码的树（临时目录在 finally 里清理）。"""
         remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.json"
         local = Path(local_path)
         r = self._shell("uitest", "dumpLayout", "-b", bundle, "-p", remote, op="dump_tree", timeout=30)
         if not r.ok:
             return r
-        p = self._pull(remote, local, "dump_tree_pull")
+        tmp_dir = Path(tempfile.mkdtemp(prefix="vpd_tree_"))
+        try:
+            p = self._pull(remote, tmp_dir / "tree.json", "dump_tree_pull")
+            if not p.ok:
+                return p
+            try:
+                r.data["tree"] = json.loads((tmp_dir / "tree.json").read_text(encoding="utf-8"))
+            except (ValueError, OSError) as e:
+                r.ok, r.error_class, r.error = False, "tree_parse_error", str(e)
+            return r
+        finally:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    def dump_screen(self, local_path) -> DeviceResult:
+        """非 bundle 作用域的整屏布局树（同锁屏键盘的 lock_dump 采集方式）。
+        只用于系统弹层诊断：前台报为被测 APP 但按 bundle 取的树只有空根时，
+        用它确认盖在屏幕上的到底是什么窗口。树文件落在观测目录里作证据，
+        与 bundle 树一样经过运行级脱敏后才写盘。"""
+        remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.json"
+        local = Path(local_path)
+        r = self._shell("uitest", "dumpLayout", "-p", remote, op="screen_dump", timeout=30)
+        if not r.ok:
+            return r
+        p = self._pull(remote, local, "screen_dump_pull")
         if not p.ok:
             return p
         try:
-            r.data["tree"] = json.loads(local.read_text(encoding="utf-8"))
+            p.data["tree"] = json.loads(local.read_text(encoding="utf-8"))
         except (ValueError, OSError) as e:
-            r.ok, r.error_class, r.error = False, "tree_parse_error", str(e)
-        return r
+            p.ok, p.error_class, p.error = False, "tree_parse_error", str(e)
+        return p
 
     def screenshot(self, local_path) -> DeviceResult:
         remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.png"

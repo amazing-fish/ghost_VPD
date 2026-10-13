@@ -937,7 +937,7 @@
       "id": "state:qk_car_tab",
       "use": "状态签名：S26 离开地图后的后置条件",
       "applicability": "unknown",
-      "rationale": "review=pending；会话 A26 在本机命中 qk_car_tab（obs-0076）",
+      "rationale": "review=pending；会话 A26 真机命中 qk_car_tab 状态签名（原观测编号引用因来源会话 run 目录已不在本机留存、无法解析证据链，按用户裁决移除该引用；判定语义不变）",
       "steps": [
         "S26"
       ]

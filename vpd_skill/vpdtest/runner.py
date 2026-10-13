@@ -70,6 +70,14 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
         pre["unlock"] = unlocked
         store.event("preflight_before_unlock", checks=before_checks)
 
+    # 系统弹窗检查：锁屏/前台/安装检查看不见盖在屏幕上的系统弹窗（2026-10-08 真机：USB 连接方式弹窗
+    # preflight 全绿却两次阻塞 S1）。先按窗口名快查已登记弹窗，命中才做整屏诊断并用原子能力关闭；
+    # 未命中/查询失败不阻塞，动作后的 unobservable 恢复会用完整诊断兜底。
+    if pre.get("ok"):
+        from .sysdialog import preflight_dialog_check
+        pre["system_dialog"] = preflight_dialog_check(ws, device, store, dispatcher=ctx.dispatcher,
+                                                      observer=ctx.observer)
+
     store.event("preflight", ok=pre["ok"], checks=pre["checks"])
     ctx.observer.display = pre.get("display")  # 复用前置检查读到的显示参数，不重复查询
     facts = {**device.env_facts(), **(env or {})}
@@ -194,6 +202,12 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     # 截图被系统弹层挡下的观测、输入过密钥（剪贴板残留）：都列进报告，由人收尾
     run["system_overlays"] = [{"obs": e["obs_id"], "ts": e["ts"], "windows": e["windows"]}
                               for e in read_jsonl(store.events_path) if e.get("event") == "system_overlay"]
+    # 系统弹窗能力的每次介入（preflight 快查关闭/恢复关闭）都列进报告，含诊断证据位置
+    run["system_dialogs"] = [{"ts": e["ts"], "status": e.get("status"), "reason": e.get("reason"),
+                              "dialog": (e.get("diagnosis") or {}).get("matched"),
+                              "screen_tree": (e.get("diagnosis") or {}).get("screen_tree")}
+                             for e in read_jsonl(store.events_path)
+                             if e.get("event") == "capability_result" and e.get("capability") == "system_dialog"]
     run["clipboard_may_hold_secret"] = ctx.observer.secret_typed
     run = params.redact(run)
     run["experience_candidates"] = [c["id"] for c in xstore.propose_from_run(run)] if propose else []

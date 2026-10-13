@@ -1,0 +1,19 @@
+{
+  "dialogs": {
+    "usb_mode": {
+      "desc": "USB 连接方式选择弹窗（系统弹窗，插 USB 后出现，可盖住被测 APP、桌面或锁屏；2026-10-08 曾两次阻塞真机回归 S1）",
+      "class": "benign",
+      "window_names": ["SCBSysDialogDefault"],
+      "match": {
+        "require_any_text": ["USB 连接方式", "USB连接方式"]
+      },
+      "dismiss": {
+        "prefer_text": ["仅充电"],
+        "forbid_text": ["传输文件", "传输图片", "确定"]
+      },
+      "review": "reviewed",
+      "review_basis": "用户 2026-10-09 现场指示：该弹窗点「仅充电」关闭即可，不影响 hdc 调试通道，无锁屏隐私问题。forbid 依据：「传输文件/传输图片」改变 USB 数据模式、「确定」确认的是未知的当前选中项，均不自动点。真实弹窗证据：runs/sysdiag-20261009-111950-c8d6（整屏树+截图，标题「USB 连接方式」，选项 传输文件/传输图片/仅充电，按钮 确定，无 取消）",
+      "registered": "2026-10-09T11:25:00+08:00"
+    }
+  }
+}

@@ -290,11 +290,44 @@ def test_console_auth_boundaries(served):
     assert req(box, "POST", "/api/input", headers={"X-VPD-Token": tk, "Content-Type": "text/plain"},
                body=tap)[0].status == 415
     assert not box["dev"].calls
+    # HTTP 已监听不代表快照线程已发布首帧；合法坐标操作必须等真实帧就绪。
+    seq, frame = box["con"].hub.wait(0, timeout=5)
+    assert seq > 0 and frame is not None, "控制台首帧未就绪"
     ok_h = {**json_h, "X-VPD-Token": tk, "Origin": f"http://127.0.0.1:{box['port']}"}
     r, body = req(box, "POST", "/api/input", headers=ok_h, body=tap)
     assert r.status == 200 and json.loads(body)["ok"] and box["dev"].calls == [("tap", 330, 1424)]
     events = (box["store"].dir / "events.jsonl").read_text(encoding="utf-8")
     assert tk not in events and "console_input" in events   # token 不进日志
+
+
+def test_console_input_waits_for_first_frame(tmp_path):
+    """延迟首帧：启动线程不等于画面就绪；坐标/文字拒发，首帧到达后可操作。"""
+    dev = FakeDevice()
+    snapshot_started, release_frame = threading.Event(), threading.Event()
+    snapshot = dev.snapshot
+
+    def delayed_snapshot(local_path, fmt="jpeg"):
+        snapshot_started.set()
+        assert release_frame.wait(5), "测试未释放首帧"
+        return snapshot(local_path, fmt)
+
+    dev.snapshot = delayed_snapshot
+    con = Console(dev, RunStore(tmp_path / "runs", kind="console"), tmp_path / "runs").start()
+    try:
+        assert snapshot_started.wait(5)
+        assert con.hub.latest() == (0, None)
+        for cmd in ({"op": "tap", "x": 0.25, "y": 0.5}, {"op": "text", "text": "hello"}):
+            result = con.input(cmd)
+            assert not result["ok"] and result["error_class"] == "frame_stale"
+        assert not dev.calls
+        release_frame.set()
+        seq, frame = con.hub.wait(0, timeout=5)
+        assert seq > 0 and frame is not None
+        assert con.input({"op": "tap", "x": 0.25, "y": 0.5})["ok"]
+        assert dev.calls == [("tap", 330, 1424)]
+    finally:
+        release_frame.set()
+        con.close()
 
 
 def test_console_frames_stream_view_only_and_keep_awake(served):
@@ -440,34 +473,42 @@ def test_stream_failure_count_resets_only_after_frames():
 
 
 class _TimeoutSock:
-    """假 socket：第一次 recv 可选地回一帧真 JPEG，之后 recv 永远超时（连上帧流却不再出帧）。"""
-    def __init__(self, first_frame=False):
-        self.first_frame, self.recvs = first_frame, 0
+    """假 socket：首帧可选；每次超时将假时钟推进 settimeout 秒，模拟真实等待。"""
+    def __init__(self, first_frame, clock):
+        self.first_frame, self.clock, self.recvs = first_frame, clock, 0
 
-    def settimeout(self, s): pass
+    def settimeout(self, s): self.timeout = s
 
     def recv(self, n):
         self.recvs += 1
         if self.first_frame and self.recvs == 1:
             return fake_jpeg()              # 让 _pump 自己 split+push，hub.seq 归 1
+        self.clock["t"] += self.timeout
         raise socket.timeout()
 
     def close(self): pass
 
 
-def test_pump_gives_up_when_stream_connects_but_never_frames():
+def _timeout_sock(monkeypatch, first_frame):
+    import vpdtest.console.frames as frames_mod
+    clock = {"t": 0.0}
+    monkeypatch.setattr(frames_mod.time, "monotonic", lambda: clock["t"])
+    return _TimeoutSock(first_frame, clock)
+
+
+def test_pump_gives_up_when_stream_connects_but_never_frames(monkeypatch):
     hub = FrameHub()
     src = UitestStreamSource("S", hub)
-    src._sock = _TimeoutSock(first_frame=False)
+    src._sock = _timeout_sock(monkeypatch, first_frame=False)
     with pytest.raises(ConnectionError):      # 首帧前反复超时 → 当成失败，交给 _loop 回退 snapshot
         src._pump()
     assert hub.seq == 0
 
 
-def test_pump_tolerates_stall_after_frames_without_giving_up():
+def test_pump_tolerates_stall_after_frames_without_giving_up(monkeypatch):
     hub = FrameHub()
     src = UitestStreamSource("S", hub)
-    src._sock = _TimeoutSock(first_frame=True)
+    src._sock = _timeout_sock(monkeypatch, first_frame=True)
     orig, stalled = hub.set_status, threading.Event()
 
     def spy(status, error=None):
@@ -492,6 +533,8 @@ class _ScriptSock:
     def recv(self, n):
         self.clock["t"] += self.step
         act = self.script.pop(0)
+        if isinstance(act, bytes):
+            return act
         if act == "frame":
             return fake_jpeg()
         if act == "eof":
@@ -524,18 +567,98 @@ def test_pump_stall_timer_resets_when_data_resumes(monkeypatch):
     assert hub.seq == 3 and hub.status == "live"  # 每次 stall 后都能恢复出帧并转回 live
 
 
-def test_stream_falls_back_when_stall_persists():
+@pytest.mark.parametrize("first_frame", [False, True])
+def test_pump_nonframe_traffic_does_not_reset_frame_deadline(monkeypatch, first_frame):
+    """持续收字节却不出完整帧，也必须按首帧/持续停摆期限失败或回退。"""
+    import vpdtest.console.frames as frames_mod
+    hub, clock = FrameHub(), {"t": 0.0}
+    monkeypatch.setattr(frames_mod.time, "monotonic", lambda: clock["t"])
+    src = UitestStreamSource("S", hub, stall_s=5.0, stall_give_up_s=10.0)
+    traffic = [b'{"status":"connected"}\n', fake_jpeg()[:10], b"partial-data"]
+    src._sock = _ScriptSock((["frame"] if first_frame else []) + traffic, clock, step=5.0)
+    with pytest.raises(StreamGiveUp if first_frame else ConnectionError):
+        src._pump()
+    assert hub.seq == int(first_frame)
+    assert clock["t"] == (20.0 if first_frame else 5.0)
+
+
+def test_pump_complete_frame_after_partial_data_resets_deadline(monkeypatch):
+    import vpdtest.console.frames as frames_mod
+    hub, clock = FrameHub(), {"t": 0.0}
+    monkeypatch.setattr(frames_mod.time, "monotonic", lambda: clock["t"])
+    src = UitestStreamSource("S", hub, stall_s=5.0, stall_give_up_s=10.0)
+    frame = fake_jpeg()
+    src._sock = _ScriptSock(["frame", frame[:10], frame[10:], "timeout", "frame", "eof"], clock, step=5.0)
+    with pytest.raises(ConnectionError):
+        src._pump()
+    assert hub.seq == 3 and hub.status == "live"
+
+
+def test_console_fallback_waits_for_snapshot_before_restoring_input(tmp_path):
+    dev = FakeDevice()
+    con = Console(dev, RunStore(tmp_path / "runs", kind="console"), tmp_path / "runs").start()
+    snapshot_started, release_frame = threading.Event(), threading.Event()
+    snapshot = dev.snapshot
+
+    def delayed_snapshot(local_path, fmt="jpeg"):
+        snapshot_started.set()
+        assert release_frame.wait(5), "测试未释放回退快照"
+        return snapshot(local_path, fmt)
+
+    try:
+        seq, frame = con.hub.wait(0, timeout=5)
+        assert seq > 0 and frame is not None
+        con.src.stop()
+        con.hub.source = "uitest_stream"
+        con.hub.push(fake_jpeg())  # 保留半分辨率流的旧画面，不能当作新快照使用。
+        con.hub.set_status("stalled", "画面静止")
+        before_seq = con.hub.seq
+        fast = con.fast = con.control.fast = FakeSession()
+        dev.snapshot = delayed_snapshot
+        con._fallback("出过帧后画面静止，帧流无法支撑交互")
+        assert snapshot_started.wait(5)
+        assert con.fast is None and con.control.fast is None
+        assert con.hub.source == "snapshot_display" and con.hub.frame_source == "uitest_stream"
+        for cmd in ({"op": "tap", "x": 0.25, "y": 0.5}, {"op": "text", "text": "hello"}):
+            assert con.input(cmd)["error_class"] == "frame_stale"
+        assert not dev.calls and not fast.calls
+
+        release_frame.set()
+        seq, frame = con.hub.wait(before_seq, timeout=5)
+        assert seq > before_seq and frame is not None
+        assert con.hub.frame_source == "snapshot_display"
+        for cmd in ({"op": "tap", "x": 0.25, "y": 0.5},
+                    {"op": "long_press", "x": 0.25, "y": 0.5},
+                    {"op": "swipe", "x1": 0.5, "y1": 0.8, "x2": 0.5, "y2": 0.2},
+                    {"op": "text", "text": "hello"}):
+            result = con.input(cmd)
+            assert result["ok"] and result["via"] == "hdc"
+        assert dev.calls[:2] == [("tap", 330, 1424), ("long_press", 330, 1424)]
+        assert dev.calls[2][:5] == ("swipe", 660, 2278, 660, 569)
+        assert dev.calls[3] == ("type_focused", "hello") and not fast.calls
+        events = (con.store.dir / "events.jsonl").read_text(encoding="utf-8")
+        assert '"source": "snapshot_display"' in events and "帧流无法支撑交互" in events
+    finally:
+        release_frame.set()
+        con.close()
+    assert not con.src._th.is_alive() and list((con.store.dir / "tmp").iterdir()) == []
+
+
+def test_stream_falls_back_when_stall_persists(monkeypatch):
     hub, gave_up = FrameHub(), threading.Event()
     reasons = []
     src = UitestStreamSource("S", hub, on_give_up=lambda why: (reasons.append(why), gave_up.set()),
                              stall_s=5.0, stall_give_up_s=0.0)
     src.retry_s, opened = 0.01, []
     src._open = lambda: opened.append(1)
-    src._sock = _TimeoutSock(first_frame=True)          # 出过一帧后永久超时
+    src._sock = _timeout_sock(monkeypatch, first_frame=True)  # 出过一帧后永久超时
     src._close = lambda: None
     src.start()
-    assert gave_up.wait(3) and len(opened) == 1         # 持续静止直接回退，不重开流重试
-    src._th.join(1)
+    try:
+        assert gave_up.wait(3) and len(opened) == 1     # 持续静止直接回退，不重开流重试
+    finally:
+        src._stop.set()
+        src._th.join(1)
     assert not src._th.is_alive()
     assert hub.seq == 1 and "静止" in reasons[0]
 

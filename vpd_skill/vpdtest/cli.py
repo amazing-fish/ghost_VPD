@@ -28,6 +28,12 @@ def build_parser() -> argparse.ArgumentParser:
     u.add_argument("--lock-secret",
                    help="用哪个 secrets 键的 PIN（只传键名，如 LOCK_PIN_TEST；不接受 PIN 本身）")
 
+    g = sub.add_parser("sysdiag", help="只读整屏诊断：窗口表 + 整屏树 + 无隐私窗口时截图 + 系统弹窗登记比对")
+    g.add_argument("--app", default="motor_hm")
+    g.add_argument("--device")
+    g.add_argument("--dismiss", action="store_true",
+                   help="命中已登记且已评审的良性系统弹窗时，用原子能力关闭（默认只诊断不动作）")
+
     o = sub.add_parser("observe", help="采集一次观测（Agent 单步探索用）")
     o.add_argument("--app", default="motor_hm")
     o.add_argument("--device")
@@ -188,7 +194,7 @@ def build_parser() -> argparse.ArgumentParser:
 HANDLERS = {"doctor": c.cmd_doctor, "observe": c.cmd_observe, "act": c.cmd_act, "run": c.cmd_run,
             "suite": c.cmd_suite, "explore": c.cmd_explore, "case": c.cmd_case, "knowledge": c.cmd_knowledge,
             "experience": c.cmd_experience, "template-crop": c.cmd_template_crop, "session": c.cmd_session,
-            "unlock": c.cmd_unlock, "console": c.cmd_console}
+            "unlock": c.cmd_unlock, "sysdiag": c.cmd_sysdiag, "console": c.cmd_console}
 
 
 def main(argv=None) -> int:

@@ -10,6 +10,10 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Optional
 
+# 系统桌面包名（平台常量）：dispatch 前置检查、replay 初始/停止态、execute 停止恢复判定共用；
+# 定义在设备层，dispatch 与 replay 都从这里取，避免字面重复。
+LAUNCHER = "com.ohos.sceneboard"
+
 
 @dataclass
 class DeviceResult:

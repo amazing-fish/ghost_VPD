@@ -21,10 +21,13 @@ from pathlib import Path
 from typing import Optional
 
 from .tree import UiTree
-from .util import now_iso, read_json, read_jsonl
+from .util import now_iso, read_json, read_jsonl, read_jsonl_recoverable
 
 SELECT_RE = re.compile(r"^(text~|text|id|xpath)=(.+)$", re.S)
-REPLAYABLE = ("tap", "input", "back", "home", "swipe", "launch", "resume", "stop_app", "wait", "monitor")
+# 结构性导航容器：App 的"壳"，跨构建稳定且容易撞文案（页面标题、新页面控件与 TabBar 的 tab 同名是
+# 真机跨版本重放实际发生过的阻塞）。固化时只要点在壳里就主动带上 within 限定；其余容器不主动限定，
+# 避免把普通页面布局（Column/Row/List）固进用例造成跨形态脆弱。
+CHROME_TYPES = ("TabBar",)
 
 
 def parse_select(spec: str, within: Optional[str] = None, side_effect: str = "navigation",
@@ -92,6 +95,9 @@ class SessionMismatch(PermissionError):
 
 # 这些事件表示"已经向设备发出了手势/按键"：动作是否执行以它们为准，不看最后是结果还是报错
 SENT_EVENTS = ("dispatch", "clear_text", "scroll_search")
+# 不向设备下发手势/按键的请求：monitor 只采样观测、wait 只计时。这类请求被中断时
+# 不会有物理动作在途，恢复预算时不按"已下发"保守计入（手势类仍保守计入）。
+GESTURELESS_ACTIONS = ("monitor", "wait")
 IDENTITY_KEYS = ("app", "device", "validation_level")
 
 
@@ -109,9 +115,12 @@ def trail(session_dir: Path, expect: Optional[dict] = None) -> dict:
     - expect 给出时逐项与会话身份比较，不一致抛 SessionMismatch；会话里已有动作/观测却没有身份也拒绝。
     - 每个请求是否已下发，以请求与结束事件之间的 dispatch/clear_text/scroll_search 为准（act 是单进程、
       顺序执行，中间的事件都属于这个请求）。下发后才报错的 act_error 是"效果未知"，不是被拒。
+    - 进程被杀时 events/steps 的末行可能写了一半：丢弃截断的末行并在结果里留证（truncated_tail），
+      会话仍可恢复；中间行损坏不是截断，仍然报错。
     """
-    events = read_jsonl(session_dir / "events.jsonl")
-    records = {r["seq"]: r for r in read_jsonl(session_dir / "steps.jsonl")}
+    events, dropped_events = read_jsonl_recoverable(session_dir / "events.jsonl")
+    step_records, dropped_steps = read_jsonl_recoverable(session_dir / "steps.jsonl")
+    records = {r["seq"]: r for r in step_records}
     items, open_req, cur = [], {}, None
     identity, secret_typed, used, actions = None, False, False, 0
     counted = set()  # 已有下发事件计入预算的请求
@@ -155,14 +164,20 @@ def trail(session_dir: Path, expect: Optional[dict] = None) -> dict:
                 identity = e.get("identity") or ({k: f.get(k) for k in IDENTITY_KEYS} if f else None)
             items.append({"kind": "facts", "facts": e.get("facts"), "ts": e["ts"], "identity": e.get("identity")})
     for it in open_req.values():
-        # 进程在下发途中被杀时 dispatch 事件可能来不及写：没有结果的请求一律按效果未知处理，
-        # 预算上也按已下发保守计入（命令可能已到设备）；已有下发事件的请求不重复加
-        if it["seq"] not in counted:
+        # 进程在下发途中被杀时 dispatch 事件可能来不及写：没有结果的请求一律按效果未知处理；
+        # 手势类请求在预算上按已下发保守计入（命令可能已到设备），monitor/wait 不下发手势，
+        # 被中断也不会有动作在途，不计入；已有下发事件的请求不重复加
+        if it["seq"] not in counted and (it.get("request") or {}).get("action") not in GESTURELESS_ACTIONS:
             actions += 1
         it.update(kind="incomplete", effect_unknown=True,
                   reason="有请求没有结果（进程中断/超时）：现场可能已经发生变化")
     tr = {"session": session_dir.name, "items": items, "identity": identity, "secret_typed": secret_typed,
           "actions": actions}
+    dropped = {k: v for k, v in (("events", dropped_events), ("steps", dropped_steps)) if v is not None}
+    if dropped:
+        # 末行截断已丢弃：留证（哪份文件、截断内容前缀）。被丢弃的行可能是某请求的结束事件，
+        # 该请求会以 incomplete 出现并按保守口径计入预算，不会低估。
+        tr["truncated_tail"] = dropped
     if expect:
         if identity is None:
             if used:
@@ -221,6 +236,64 @@ def _derive_select(session_dir: Path, obs_id: Optional[str], point) -> Optional[
             return {"kind": "text", "value": text, "derived_from_point": True}, hits[0].brief()
     if holder.id and len(tree.find_id(holder.id)) == 1:
         return {"kind": "id", "value": holder.id, "derived_from_point": True}, holder.brief()
+    return None
+
+
+def _auto_within(session_dir: Path, obs_id: Optional[str], strategy: Optional[dict],
+                 point: Optional[list]) -> Optional[dict]:
+    """固化时自动推导容器限定（Issue #13）。两个触发条件，都要有会话证据、都只做结构性限定：
+
+    - 响应式：选择器在会话观测树上多匹配（"text=我的" 同时命中标题与 TabBar 的 tab）→ 按实际
+      下发的点击点找出被点节点，沿祖先链找能把其余匹配全部排除的最小容器。
+    - 主动式：点在结构性导航容器（TabBar 等"壳"）里 → 即使当前唯一也带上限定。真机跨版本重放
+      出过这种阻塞：3.0.3 会话里「我的」唯一可点，新构建的页面加了同名标题，重放 target_ambiguous，
+      需要人工补 within={type: TabBar}。壳是跨构建稳定的，主动限定不引入布局脆弱性。
+
+    两条规则共用闸门：推导出的 within 必须在该树上把匹配收窄回唯一（含其他同类容器实例），
+    否则维持原状，把歧义留给 lint 和评审，绝不猜。不落像素坐标。"""
+    from .layout import resolve_scope
+    from .locate import _nodes_for
+    from .tree import in_box
+    if not obs_id or not isinstance(strategy, dict) or not point:
+        return None
+    if strategy.get("within") or strategy.get("region") or strategy.get("kind") not in ("text", "id"):
+        return None
+    tp = session_dir / "obs" / obs_id / "tree.json"
+    if not tp.exists():
+        return None
+    tree = UiTree(read_json(tp))
+    if tree.status != "ok":
+        return None
+    try:
+        nodes = [n for n in _nodes_for(strategy, tree) if n.visible]
+    except Exception:
+        return None
+    if not nodes:
+        return None
+    tapped = (next((n for n in nodes if n.bounds and in_box([int(point[0]), int(point[1])], n.bounds)), None)
+              if len(nodes) > 1 else nodes[0])
+    if tapped is None:
+        return None
+
+    def unique_in(within: dict) -> bool:
+        scope = resolve_scope(within, tree, None)
+        return scope is not None and sum(1 for n in nodes if tree.in_scope(n, scope)) == 1
+
+    others = [n for n in nodes if n.idx != tapped.idx]
+    # 首选结构性导航容器（跨构建稳定的"壳"，unique_in 会校验它确实罩得住歧义）
+    for ai in tree._ancestor_idx(tapped):
+        anc = tree.nodes[ai]
+        if anc.type in CHROME_TYPES and unique_in({"type": anc.type}):
+            return {"type": anc.type}
+    if others:  # 没有壳可用：就近找能把其余匹配全部排除的最小消歧容器
+        for ai in tree._ancestor_idx(tapped):
+            anc = tree.nodes[ai]
+            if not anc.type:
+                continue
+            if any(o.idx == ai or ai in tree._ancestor_idx(o) for o in others):
+                continue  # 该容器罩住了其他匹配：限定不住
+            if unique_in({"type": anc.type}):
+                return {"type": anc.type}
     return None
 
 
@@ -348,6 +421,15 @@ def _to_case_step(it: dict, req: dict, session_dir: Path, test_data: dict, facts
                                   "device_form": facts.get("device_form"),
                                   "validation_level": facts.get("validation_level")}
             step["revalidate"] = True
+            # Issue #13：按会话证据自动推导结构性容器限定——多匹配时消歧（响应式），
+            # 点在导航壳里时主动限定（跨构建防撞文案）；推导不出就保持原状，由 lint 与评审兜底
+            auto_w = _auto_within(session_dir, resolved.get("obs") or it.get("obs_before"),
+                                  (target.get("strategies") or [None])[0], resolved.get("point"))
+            if auto_w:
+                target["strategies"][0]["within"] = auto_w
+                step["from_session"]["auto_within"] = {
+                    "within": auto_w,
+                    "why": "选择器在会话树上多匹配，按实际下发的点击节点推导容器消歧（结构性限定，非坐标）"}
         step["target"] = target
         if action == "input":
             name = f"input_{seq}"

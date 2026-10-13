@@ -7,7 +7,8 @@
 2026-10-12 同机型复测：Captures 是变化驱动的——上述帧率只在画面内容变化期间成立；
   静止画面（桌面/锁屏停留）不再出帧，5s 无新帧判 stalled，内容恢复变化后 ~0.2s 内重新出帧（变化期间 ~10fps）。
   帧龄门禁会在 stalled 下拒绝一切坐标/文字操作，因此持续静止时帧流已不能支撑交互，
-  stall_give_up_s 后自动回退 snapshot_display 轮询（每秒一帧、恒新鲜，操作始终放行）。
+  进入 stalled 后持续 stall_give_up_s 自动回退 snapshot_display 轮询；帧率依采集耗时，
+  获得新快照且通过帧龄与几何校验后恢复操作。
 帧流通过 hmdriver2 1.4.3（MIT）部署到设备的 uitest agent 与 8012 端口通信，属于该库的非公开接口，
 因此只在这里使用、失败时回退，不影响执行器。
 """
@@ -178,7 +179,7 @@ class SnapshotSource:
 
 
 class UitestStreamSource:
-    """uitest Captures 帧流。连续失败 max_failures 次，或出过帧后持续静止 stall_give_up_s
+    """uitest Captures 帧流。连续失败 max_failures 次，或出过帧后 stalled 持续 stall_give_up_s
     （静止画面不再出帧、帧龄门禁会拒绝交互操作），都调用 on_give_up（通常切换到 snapshot 回退）。"""
 
     name = "uitest_stream"
@@ -255,35 +256,41 @@ class UitestStreamSource:
     def _pump(self) -> None:
         buf = bytearray()
         start_seq = self.hub.seq
-        stalled_since = None  # 首次进入 stall 的时刻；收到任何数据即清零重新计时
+        last_frame_at = time.monotonic()
+        stalled = False
         self._sock.settimeout(self.stall_s)
         while not self._stop.is_set():
             try:
                 chunk = self._sock.recv(1 << 20)
             except socket.timeout:
-                if self.hub.seq == start_seq:
-                    # 连上了却从没出过帧（capture 不支持或启动即卡死）：当成一次失败的流尝试，
-                    # 交给 _loop 计数重试，连续失败后回退 snapshot，而不是永远卡在空白流上
-                    raise ConnectionError(f"{self.stall_s:.0f}s 内未收到任何帧，帧流未就绪")
-                now = time.monotonic()
-                if stalled_since is None:  # 首次进入 stall（熄屏/锁屏/画面静止）：保持连接、只标状态
-                    stalled_since = now
-                    self.hub.set_status("stalled", f"{self.stall_s:.0f}s 没有新帧（熄屏或画面静止）")
-                if now - stalled_since >= self.stall_give_up_s:
-                    # 持续静止：Captures 是变化驱动的，静止画面不会出新帧（2026-10-12 真机实测），
-                    # 帧龄门禁在此期间拒绝一切坐标/文字操作，等下去也不会自愈——改用 snapshot 轮询
-                    raise StreamGiveUp(f"出过帧后画面静止 {now - stalled_since:.0f}s 没有新帧"
-                                       f"（超过 {self.stall_give_up_s:.0f}s），帧流无法支撑交互")
+                frames = []
+            else:
+                if not chunk:
+                    raise ConnectionError("帧流连接被设备端关闭")
+                buf += chunk
+                frames, buf = split_frames(buf)
+                for f in frames:
+                    self.hub.push(f)
+                if len(buf) > MAX_BUFFER:
+                    buf = bytearray()
+            now = time.monotonic()
+            if frames:
+                last_frame_at, stalled = now, False
                 continue
-            if not chunk:
-                raise ConnectionError("帧流连接被设备端关闭")
-            stalled_since = None  # 收到数据（哪怕还不成帧）即视为流恢复活跃，stall 计时清零
-            buf += chunk
-            frames, buf = split_frames(buf)
-            for f in frames:
-                self.hub.push(f)
-            if len(buf) > MAX_BUFFER:
-                buf = bytearray()
+            # 协议文字和部分 JPEG 都不能证明画面恢复；超时或收到数据后均检查完整帧年龄。
+            frame_gap = now - last_frame_at
+            if frame_gap < self.stall_s:
+                continue
+            if self.hub.seq == start_seq:
+                # 本次连接从没出帧：计失败并重试，持续失败交给 _loop 回退。
+                raise ConnectionError(f"{self.stall_s:.0f}s 内未收到任何帧，帧流未就绪")
+            if not stalled:
+                stalled = True
+                self.hub.set_status("stalled", f"{self.stall_s:.0f}s 没有新帧（熄屏或画面静止）")
+            stalled_for = frame_gap - self.stall_s
+            if stalled_for >= self.stall_give_up_s:
+                raise StreamGiveUp(f"出过帧后画面静止 {stalled_for:.0f}s 没有新帧"
+                                   f"（超过 {self.stall_give_up_s:.0f}s），帧流无法支撑交互")
 
     def _loop(self) -> None:
         failures = 0

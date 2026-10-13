@@ -63,6 +63,47 @@ def read_jsonl(path) -> list:
         return [json.loads(line) for line in f if line.strip()]
 
 
+def read_jsonl_recoverable(path) -> tuple:
+    """读取 JSONL，只容忍**末行在写入途中被截断**（进程被杀）：丢弃末行并返回 (records, dropped)。
+    dropped 为 None 表示没有截断，否则是 {"tail": "<被丢弃内容的取证前缀>"}，由调用方留证。
+
+    截断的两种形态都按截断处理：
+    - 末行 JSON 写了一半且没有行终止符（最后一行不以换行结束）；
+    - 末尾多字节 UTF-8 字符写了一半（事件文案是中文，ensure_ascii=False 落盘）——按字节读、
+      只解码合法前缀，坏字节并入截断留证。
+    末行虽然带了换行终止但 JSON 仍然非法 → 不是截断而是损坏，照常抛 json.JSONDecodeError；
+    中间行损坏同样抛——不静默吞掉非截断的数据损坏。"""
+    p = Path(path)
+    if not p.exists():
+        return [], None
+    data = p.read_bytes()
+    utf8_tail = b""
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as e:
+        rest = data[e.start:]
+        if b"\n" in rest:  # 坏字节后面还有完整行：中间损坏，不是末尾截断
+            raise
+        text, utf8_tail = data[:e.start].decode("utf-8"), rest
+    lines = text.splitlines()
+    terminated = text.endswith("\n") or not text  # 空文件视为完整
+    out, dropped = [], None
+    for i, line in enumerate(lines):
+        if not line.strip():
+            continue
+        try:
+            out.append(json.loads(line))
+        except ValueError:
+            if i == len(lines) - 1 and not terminated:
+                dropped = {"tail": (line[:104] + (f"<utf8:{len(utf8_tail)}B>" if utf8_tail else "") + "…")[:120]}
+            else:
+                raise
+    if utf8_tail and dropped is None:
+        # 解码层面截掉了坏字节（通常连同它所在的半行）：同样留证
+        dropped = {"tail": f"<utf8 截断 {len(utf8_tail)}B>"}
+    return out, dropped
+
+
 def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
