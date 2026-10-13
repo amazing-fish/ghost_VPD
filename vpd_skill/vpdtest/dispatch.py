@@ -211,6 +211,22 @@ def auxiliary_dispatches(att):
             (att.get("recovery_dispatches") or []) if "sent" in item]
 
 
+def dispatch_effect_unknown(att):
+    """物理执行未知与业务后置未达分开；完整clear+input的可靠回执不属于部分执行。"""
+    if any(item["sent"] is not False and (item["sent"] is not True or item.get("ok") is not True
+                                          or item.get("verified") is False)
+           for item in auxiliary_dispatches(att)):
+        return True
+    dispatch = att.get("dispatch") or {}
+    if dispatch and dispatch.get("sent") is not False and (
+            dispatch.get("sent") is not True or dispatch.get("executor_ok") is not True):
+        return True
+    clear = att.get("clear") or {}
+    return bool(clear and clear.get("sent") is not False and not (
+        clear.get("sent") is True and clear.get("ok") is True and dispatch.get("op") == "input_text"
+        and dispatch.get("sent") is True and dispatch.get("executor_ok") is True))
+
+
 def clear_text(device, x, y, count, dispatcher, preconditions, att=None):
     """每个按键都经过关口；中途拒绝仍保留已经下发的事实。"""
     sent = False

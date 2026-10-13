@@ -134,6 +134,8 @@ agent 模式的 `--point` 记录提出时的窗口尺寸（`point_window`）；�
 
 恢复手势在 `attempt.recovery_dispatches[]` 保留原始 `sent`、`ok` 及 `verified`；`verified=false` 且可能下发时，记录未知效果和人工交接并停止原动作重放。系统弹窗能力的 `dismiss.sent` 同样保留三态，不将未知压成 false。已确认良性关闭后，若原业务后置仍未成立，重新按原步骤的幂等与副作用规则判断剩余重试资格。
 
+clear 与 input 均有可靠成功回执、只在可靠观测下原业务后置未成立时，保留产品失败和禁止重放，但不标记 `effect_unknown`；未完成序列或缺可靠下发/回执仍标记未知效果。执行器与会话共用同一物理证据判定。
+
 步骤结果：`passed` / `passed_after_adaptation` / `passed_after_recovery` / `fail_candidate` / `blocked` / `not_run`。
 关键步骤未通过，后续步骤记为 `not_run`，清理步骤仍执行。
 

@@ -12,7 +12,7 @@ from typing import Optional
 
 from .devices import DeviceResult
 from .devices import LAUNCHER
-from .dispatch import auxiliary_dispatches
+from .dispatch import auxiliary_dispatches, dispatch_effect_unknown
 from .layout import key as layout_key
 from .layout import resolve_scope
 from .locate import resolve
@@ -829,7 +829,8 @@ class Executor:
                        "observation_failed", "device_error", "unobservable", "postcondition_not_met"}
         if st in recoverable - {"interrupted", "unobservable"} and not self._repeat_allowed(step, att):
             # 已下发后的异常不是未执行；维持原状态/首次失败，交接现场而不重复原动作。
-            att["effect_unknown"] = st != "postcondition_not_met" or bool(att.get("clear"))
+            att["effect_unknown"] = (bool(att.get("effect_unknown")) or st != "postcondition_not_met"
+                                     or dispatch_effect_unknown(att))
             att["action_required"] = True
             return {"action": "none", "performed": False, "action_required": True,
                     "effect_unknown": att["effect_unknown"],
@@ -906,8 +907,9 @@ class Executor:
                           was_in_app=att.get("state_before") != "out_of_app", mark=att.get("motion_mark", 0))
         rec.update(post=post, status=post["status"], retry_original=self._repeat_allowed(step, att))
         if post["status"] != "ok" and rec["retry_original"] is False:
-            att.update(effect_unknown=True, action_required=True)
-            rec.update(effect_unknown=True, action_required=True)
+            att.update(effect_unknown=bool(att.get("effect_unknown")) or post["status"] != "postcondition_not_met"
+                       or dispatch_effect_unknown(att), action_required=True)
+            rec.update(effect_unknown=att["effect_unknown"], action_required=True)
             rec["reason"] += "；原步骤已下发或部分执行，不重放，需人工核对现场"
         return rec
 
@@ -919,7 +921,10 @@ class Executor:
         # 单次 act、cleanup 和耗尽预算的最后尝试同样需要交接，不能依赖进入恢复分支。
         if not ok and not self._repeat_allowed(step, last):
             last["action_required"] = True
-            last["effect_unknown"] = last["status"] != "postcondition_not_met" or bool(last.get("clear"))
+            effective_status = (last_rec.get("post") or {}).get("status") if last_rec else None
+            last["effect_unknown"] = (bool(last.get("effect_unknown"))
+                                      or (effective_status or last["status"]) != "postcondition_not_met"
+                                      or dispatch_effect_unknown(last))
         adapted = any((a.get("locate") or {}).get("adapted") for a in attempts)
         first_bad = next((a for a in attempts if a["status"] != "ok"), None)
         out = {"step_id": step["id"], "action": step["action"], "critical": bool(step.get("critical", True)),

@@ -20,7 +20,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
 
-from .dispatch import auxiliary_dispatches
+from .dispatch import auxiliary_dispatches, dispatch_effect_unknown
 from .tree import UiTree
 from .util import now_iso, read_json, read_jsonl, read_jsonl_recoverable
 
@@ -207,15 +207,7 @@ def summarize(tr: dict) -> dict:
 
 def effect_unknown(result: dict) -> bool:
     """命令已发出但执行器没有确认成功（超时/报错）：现场可能已经变化，不能当作"什么都没发生"。"""
-    return any(a.get("effect_unknown") or
-               any(item["sent"] is not False and (item["sent"] is not True or item.get("ok") is not True
-                                                or item.get("verified") is False)
-                   for item in auxiliary_dispatches(a)) or
-               (a.get("dispatch") is not None and a["dispatch"].get("sent") is not False and (
-                   a["dispatch"].get("sent") is not True or a["dispatch"].get("executor_ok") is not True)) or
-               (a.get("clear") is not None and a["clear"].get("sent") is not False and not (
-                   a["clear"].get("ok") is True and (a.get("dispatch") or {}).get("op") == "input_text" and
-                   (a.get("dispatch") or {}).get("executor_ok") is True))
+    return any(a.get("effect_unknown") or dispatch_effect_unknown(a)
                for a in result.get("attempts", []))
 
 
