@@ -19,6 +19,12 @@ WORLDS = SKILL / "fixtures" / "worlds"
 def ws(tmp_path) -> Workspace:
     shutil.copytree(SKILL / "data", tmp_path / "data")
     shutil.copytree(SKILL / "fixtures", tmp_path / "fixtures")
+    # 测试隔离：清空经验存储。真机回填的 XP 候选（items/ledger）是运行时捕获状态，
+    # 研究候选创建/验证/晋级生命周期的测试需要干净起点；仓库 data/ 原件不受影响（这里只清临时副本）。
+    for exp_dir in (tmp_path / "data" / "experience").iterdir():
+        if exp_dir.is_dir():
+            (exp_dir / "items.json").write_text('{"items": []}', encoding="utf-8")
+            (exp_dir / "ledger.jsonl").write_text("", encoding="utf-8")
     w = Workspace(str(tmp_path / "data"))
     w.config.pop("secrets", None)  # 测试不读本机 config.local.json 里的真实密钥
     w.config.pop("device", None)

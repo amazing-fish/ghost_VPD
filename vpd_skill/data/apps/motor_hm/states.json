@@ -119,6 +119,26 @@
         "timeout_s": 8
       }
     ],
+    "fx_tab": [
+      {"action": "stop_app"},
+      {"action": "launch", "expect_state": "@in_app", "timeout_s": 15},
+      {"action": "tap", "target": "tab_discover", "expect_state": "fx_tab", "timeout_s": 8}
+    ],
+    "jx_tab": [
+      {"action": "stop_app"},
+      {"action": "launch", "expect_state": "@in_app", "timeout_s": 15},
+      {"action": "tap", "target": "tab_featured", "expect_state": "jx_tab", "timeout_s": 8}
+    ],
+    "gc_tab": [
+      {"action": "stop_app"},
+      {"action": "launch", "expect_state": "@in_app", "timeout_s": 15},
+      {"action": "tap", "target": "tab_buy", "expect_state": "gc_tab", "timeout_s": 8}
+    ],
+    "fw_tab": [
+      {"action": "stop_app"},
+      {"action": "launch", "expect_state": "@in_app", "timeout_s": 15},
+      {"action": "tap", "target": "tab_service", "expect_state": "fw_tab", "timeout_s": 8}
+    ],
     "settings": [
       {
         "action": "stop_app"
