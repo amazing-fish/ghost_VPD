@@ -25,7 +25,7 @@ body:
     attributes:
       label: 涉及的知识 ID / subject
       description: "新建条目可以填暂定 ID；多个条目请用逗号分隔。"
-      placeholder: "K-AV-001, K-QK-001 / qiankun_hm.vpd.entry_success"
+      placeholder: "K-OLD-001, K-NEW-001 / app.feature.expected"
     validations:
       required: true
   - type: textarea

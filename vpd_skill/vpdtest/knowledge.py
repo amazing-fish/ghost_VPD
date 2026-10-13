@@ -7,6 +7,7 @@
 - applies_to 参与判据适用性：本次运行的事实（APP、版本、屏幕形态、账号状态……）缺失或无法比较时是
   applicability_unknown，明确不符时是 out_of_scope，两者都不能支撑通过/失败。
 - operation（怎样操作）与 observation（某次实际发生了什么）两类条目不是判据，引用它们只能得到待确认。
+- 状态仅允许 unconfirmed / confirmed / deprecated；未知状态不能支撑判定，废弃条目不能由 confirm 复活。
 """
 from __future__ import annotations
 
@@ -23,14 +24,22 @@ NOT_ORACLE_KINDS = {"operation", "observation"}
 SOURCE_TYPES = {"requirement_doc", "text_case", "repo_code", "reviewer", "skill_policy", "model_inference", "observation",
                 "test_goal"}
 ACTIVE = {"unconfirmed", "confirmed"}
+STATUSES = ACTIVE | {"deprecated"}
 # 按严重程度排序：前面的状态出现就决定整体判据状态
-ORACLE_ORDER = ("missing", "conflicted", "out_of_scope", "applicability_unknown", "not_oracle", "unconfirmed")
+ORACLE_ORDER = ("missing", "invalid", "conflicted", "out_of_scope", "applicability_unknown", "not_oracle", "unconfirmed")
 ORACLE_REASON = {"missing": "引用的知识不存在或已废弃", "conflicted": "引用的知识存在冲突",
+                 "invalid": "引用的知识状态无效（须为 unconfirmed / confirmed / deprecated）",
                  "out_of_scope": "引用的知识适用范围与本次运行不符",
                  "applicability_unknown": "无法确认引用的知识适用于本次运行（版本/形态等事实未知或不可比较）",
                  "not_oracle": "引用的是操作经验或现场观察，不是产品要求",
                  "unconfirmed": "引用的知识尚未确认"}
 _VERSION = re.compile(r"^\d+(\.\d+)+$")
+
+
+def item_status(item: dict) -> str:
+    """保留无效条目用于溯源，但其未知、缺失或非字符串状态一律不可作为有效知识。"""
+    status = item.get("status")
+    return status if isinstance(status, str) and status in STATUSES else "invalid"
 
 
 def _base_version(v) -> Optional[str]:
@@ -118,7 +127,7 @@ class KnowledgeStore:
         给出 facts 时只比较不排除本次运行的条目（out_of_scope 的那条对本次运行不存在）。"""
         groups = {}
         for it in self.items():
-            if it["status"] in ACTIVE and it.get("subject") and \
+            if item_status(it) in ACTIVE and it.get("subject") and \
                     (facts is None or applicability(it, facts)["status"] != "out_of_scope"):
                 groups.setdefault(it["subject"], []).append(it)
         out = {}
@@ -138,9 +147,13 @@ class KnowledgeStore:
         snap, statuses = [], set()
         for r in refs:
             it = self.get(r)
-            if it is None or it["status"] == "deprecated":
+            if it is None or item_status(it) == "deprecated":
                 snap.append({"id": r, "status": "missing" if it is None else "deprecated"})
                 statuses.add("missing")
+                continue
+            if item_status(it) == "invalid":
+                snap.append({"id": r, "status": "invalid", "stored_status": it.get("status")})
+                statuses.add("invalid")
                 continue
             app = applicability(it, facts)
             if r in conflicted:
@@ -159,7 +172,9 @@ class KnowledgeStore:
         for st in ORACLE_ORDER:
             if st in statuses:
                 return {"status": st, "items": snap, "reason": ORACLE_REASON[st]}
-        return {"status": "confirmed", "items": snap}
+        if statuses == {"confirmed"}:
+            return {"status": "confirmed", "items": snap}
+        return {"status": "invalid", "items": snap, "reason": ORACLE_REASON["invalid"]}
 
     def add(self, item: dict) -> dict:
         for k in ("id", "kind", "statement", "source"):
@@ -181,6 +196,8 @@ class KnowledgeStore:
             raise ValueError(f"没有知识 {kid}")
         if not reviewer:
             raise PermissionError("确认知识必须提供评审人")
+        if item_status(it) not in ACTIVE:
+            raise PermissionError(f"知识 {kid} 的状态 {it.get('status')!r} 已废弃或无效，不能用 confirm 重新激活")
         if it["source"]["type"] in ("model_inference", "observation") and not basis:
             raise PermissionError("模型推断或单次观察来源的知识，确认时必须提供依据（--basis）")
         it["history"].append({"ts": now_iso(), "from": it["status"], "to": "confirmed", "by": reviewer, "basis": basis})
@@ -197,7 +214,7 @@ class KnowledgeStore:
         版本）不能整条废弃——重叠之外的范围没被本次裁决覆盖，废了就是误杀。先拆分/调整
         该条的 applies_to 再裁决。"""
         items = self.items()
-        group = [i for i in items if i.get("subject") == subject and i["status"] in ACTIVE]
+        group = [i for i in items if i.get("subject") == subject and item_status(i) in ACTIVE]
         if keep not in [i["id"] for i in group]:
             raise ValueError(f"{keep} 不在 subject={subject} 的有效条目中")
         kept = next(i for i in group if i["id"] == keep)

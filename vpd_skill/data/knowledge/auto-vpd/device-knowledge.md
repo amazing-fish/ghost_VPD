@@ -5,9 +5,10 @@
 > （阔折叠）内部 debug 版（phone_fc78649）上取得；本 PR 的 repo_code 来源条目基于公网
 > release 版模型——**build 差异本身是需要裁决的信息**。
 
-## C1 修正｜VPD 入口（K-QK-001 / qk_ads target）
+## C1 修正｜VPD 入口（K-AV-001 / qk_ads target）
 现行 debug 版「ADS」是**底部一级 tab**（折叠外屏 y≈1743），点击直达 VPD，~13s 就绪；
-非「爱车页 ADS 按钮」。→ 已入库 K-AV-001（与 K-QK-001 构成冲突，待 resolve）。
+非「爱车页 ADS 按钮」。→ 已入库 K-AV-001；2026-10-13 用户裁决（[#33](https://github.com/amazing-fish/ghost_VPD/issues/33)）
+采用本条，旧 K-QK-001 已 deprecated。K-AV-001 仍 unconfirmed，保留内部 debug 范围，不代表公网版已确认。
 
 ## C2 部分确认｜开始按钮可用规则（K-QK-002）
 就绪观测成立（「开始」出现=可激活态）；opacity=1.0 判定规则未验证（禁止激活铁律下
@@ -92,7 +93,7 @@ auto-vpd 实锤事故：AppGallery 静默升级公网版致 VPD 入口整体消�
 ## 结论
 
 本 PR 乾崑切片的架构（三契约/分级 policy/判据分离/RSI）无需改动即可承载以上全部知识；
-需要 owner 动作：① `knowledge resolve` 裁决 K-AV-001 vs K-QK-001（build 差异）；
-② 评审确认 K-AV-002~030（observation 来源需 --basis，ref 已附 run 证据）；③ 决定
-states/targets 的 calibrated_on_device 翻转（本文档 C1-C13 即依据）；④ 考虑吸收
+入口基准选择已按 #33 记录，K-QK-001 已退役；K-AV-001 的产品确认及其他 build 的独立判据仍需 owner 核对。
+其余 owner 动作：评审确认 K-AV-002~030（observation 来源需 --basis，ref 已附 run 证据）；决定
+states/targets 的 calibrated_on_device 翻转（本文档 C1-C13 即依据）；考虑吸收
 「领先资产」1-3（hittest_verified 证据类型 / vision 策略 / 终态保持用例类型）。

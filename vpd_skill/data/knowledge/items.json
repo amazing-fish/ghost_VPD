@@ -17,7 +17,7 @@
         "type": "observation",
         "ref": "auto-vpd runs/case1_20260928_184150 及 case3/case4 E2E PASS（2026-09-29）"
       },
-      "note": "与 K-QK-001（repo_code：爱车页点 ADS 按钮）构成冲突，请裁决；注意 build 差异——K-QK-001 源自公网版代码，本条为内部 debug 版真机。",
+      "note": "2026-10-13 用户裁决（#33）采用本条为入口基准，K-QK-001 已废弃；本条仍为 unconfirmed，保持内部 debug 版 phone_fc78649 的原适用范围，不代表公网版已验证或已确认。",
       "status": "unconfirmed",
       "created": "2026-09-29T15:20:00+08:00",
       "history": [
@@ -25,6 +25,17 @@
           "ts": "2026-09-29T15:20:00+08:00",
           "to": "unconfirmed",
           "why": "auto-vpd 真机校准导入（2026-09-29，PR：知识库上传）"
+        },
+        {
+          "ts": "2026-10-13T17:14:46+08:00",
+          "event": "baseline_selected",
+          "by": "amazing-fish",
+          "basis": "https://github.com/amazing-fish/ghost_VPD/issues/33",
+          "retired": [
+            "K-QK-001"
+          ],
+          "why": "采用本条为入口基准；仅记录选择，不确认产品判据、不改变适用范围。",
+          "implemented_by": "Codex"
         }
       ]
     },
@@ -1558,15 +1569,25 @@
         "ref": "app/config/mhero_config.py:264, 276, 279; app/service/vpd/vpd.py:571-656",
         "commit": "90545b9"
       },
-      "status": "unconfirmed",
+      "status": "deprecated",
       "history": [
         {
           "ts": "2026-09-29T09:30:00+08:00",
           "to": "unconfirmed",
           "why": "为乾崑样例用例整理；待用户/评审确认"
+        },
+        {
+          "ts": "2026-10-13T17:14:46+08:00",
+          "from": "unconfirmed",
+          "to": "deprecated",
+          "by": "amazing-fish",
+          "basis": "https://github.com/amazing-fish/ghost_VPD/issues/33",
+          "why": "2026-10-13 用户裁决淘汰此旧入口判据，采用 K-AV-001；不将内部 debug 范围扩张到公网版。",
+          "implemented_by": "Codex"
         }
       ],
-      "note": "原工程用它判断进入 VPD 成功（判断条件较弱：vpd.py:643-656 里「暂停不存在」也算成功）。"
+      "note": "原工程用它判断进入 VPD 成功（判断条件较弱：vpd.py:643-656 里「暂停不存在」也算成功）。 2026-10-13 用户裁决（#33）淘汰本条，保留原文与来源用于历史溯源；K-AV-001 为选定基准但仍未确认，其适用范围未扩大。",
+      "superseded_by": "K-AV-001"
     },
     {
       "id": "K-QK-002",
