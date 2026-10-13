@@ -135,13 +135,15 @@ agent 模式的 `--point` 记录提出时的窗口尺寸（`point_window`）；�
 | 断言结果 | 条件 |
 |---|---|
 | `pass` / `fail` | 证据确定 + 判据全部 confirmed 且适用于本次运行 |
-| `pending` | 证据确定，但判据 unconfirmed / conflicted / missing / out_of_scope / applicability_unknown / not_oracle；或属主观检查 |
+| `pending` | 证据确定，但判据 unconfirmed / conflicted / missing / invalid / out_of_scope / applicability_unknown / not_oracle；或属主观检查 |
 | `undeterminable` | 证据不足（无 UI 树时判断"有/无"、定位多匹配等）；文字断言只认可见矩形非空的节点（被列表裁掉的不算） |
 | `not_run` | 关联步骤未成功（列入 `verdict.not_verified`）；引用的步骤不存在 → 该断言单独判阻塞 |
 
 判据适用性：`knowledge_snapshot[].applicability` 把条目 `applies_to` 与 `run.json.facts`（APP、实测版本、屏幕形态、
 `--env` 声明）逐项比较。事实缺失或版本描述不可比较（如"内部debug版 phone_fc78649"）→ `applicability_unknown`；
 不相等 → `out_of_scope`。`operation` / `observation` 类条目不是判据（`not_oracle`）。
+知识条目状态只允许 `unconfirmed` / `confirmed` / `deprecated`；未知、缺失或非字符串状态派生为
+判据 `invalid`，废弃条目的判据为 `missing`。`superseded_by` 只记录历史替代关系，不是可写入的知识状态。
 
 用例结论优先级：前置检查/环境要求不满足 → **阻塞（环境）**；未确认的安全停止 → **阻塞（环境）** 且
 `action_required`、`alerts[]` 非空（CLI 退出码 2），产品失败仍在 findings 与 `product_failed`；有失败（产品）→ **失败**；
