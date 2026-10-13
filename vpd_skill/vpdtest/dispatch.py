@@ -207,7 +207,8 @@ class Dispatcher:
 def auxiliary_dispatches(att):
     """定位滚动与弹窗处置也是物理动作；缺失的父dispatch不代表这些子动作未发。"""
     return [item for item in ((att.get("locate") or {}).get("scroll") or []) +
-            (att.get("dismissed") or []) + ((att.get("post") or {}).get("dismissed") or []) if "sent" in item]
+            (att.get("dismissed") or []) + ((att.get("post") or {}).get("dismissed") or []) +
+            (att.get("recovery_dispatches") or []) if "sent" in item]
 
 
 def clear_text(device, x, y, count, dispatcher, preconditions, att=None):

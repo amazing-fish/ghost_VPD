@@ -797,7 +797,8 @@ class Executor:
         clear 与 input 是同一步；后一次未下发不能抹掉先前的清空。
         back/随机点选的旧幂等声明只用于已观察到后置未成立，不能用于丢回执后的盲重发。
         """
-        if any(item["sent"] is not False and (item["sent"] is not True or item.get("ok") is not True)
+        if any(item["sent"] is not False and (item["sent"] is not True or item.get("ok") is not True
+                                              or item.get("verified") is False)
                for item in auxiliary_dispatches(att)):
             return False
         clear = att.get("clear")
@@ -849,7 +850,12 @@ class Executor:
             rec = {"action": "dismiss_interrupt", "performed": "dispatch" in r, "interrupt": ints[0]["id"],
                    "reason": "关闭已评审的良性中断后重新判定原步骤后置条件", "attempt": r,
                    "post": r.get("post"), "status": r["status"]}
-            return self._after_recovery(step, att, rec, case_id) if r["status"] == "ok" else {
+            completed = r["status"] in ("ok", "postcondition_not_met")
+            dispatches = list(auxiliary_dispatches(r))
+            if r.get("dispatch"):
+                dispatches.append({**r["dispatch"], "ok": r["dispatch"].get("executor_ok")})
+            self._retain_recovery_dispatches(att, rec, dispatches, verified=completed)
+            return self._after_recovery(step, att, rec, case_id) if completed else {
                 **rec, "retry_original": False}
         if st in ("target_unresolved", "target_partially_visible", "target_stale"):
             time.sleep(min(1.0, ctx.device.poll_interval))
@@ -867,16 +873,32 @@ class Executor:
             from .sysdialog import resolve_screen_cover
             res = resolve_screen_cover(ctx.ws, ctx.device, ctx.store, dispatcher=ctx.dispatcher,
                                        dialogs=ctx.observer.dialogs)
+            rec = {"action": "dismiss_system_dialog" if "dismiss" in res else "none",
+                   "performed": "dismiss" in res and res["dismiss"].get("sent") is not False,
+                   "dialog": res["diagnosis"]["matched"], "capability": res,
+                   "reason": f"unobservable：整屏覆盖诊断 {res['status']}（{res['reason']}）",
+                   "retry_original": False}
+            self._retain_recovery_dispatches(att, rec, [res["dismiss"]] if "dismiss" in res else [],
+                                             verified=res["status"] == "dismissed")
             if res["status"] == "dismissed":
-                return self._after_recovery(step, att, {
-                    "action": "dismiss_system_dialog", "performed": True, "dialog": res["diagnosis"]["matched"],
-                    "reason": f"关闭已评审的良性系统弹窗 {res['diagnosis']['matched']}，重新判定原步骤后置条件",
-                    "capability": {k: res[k] for k in ("status", "reason") if k in res}}, case_id)
-            return {"action": "none", "performed": False,
-                    "reason": f"unobservable：整屏覆盖诊断 {res['status']}（{res['reason']}），不属于允许的恢复范围"}
+                rec["reason"] = f"关闭已评审的良性系统弹窗 {res['diagnosis']['matched']}，重新判定原步骤后置条件"
+                return self._after_recovery(step, att, rec, case_id)
+            return rec
         if st == "postcondition_not_met" and step.get("idempotent") is True:
             return {"action": "redispatch", "performed": True, "reason": "步骤声明为幂等，允许重发一次"}
         return {"action": "none", "performed": False, "reason": f"{st} 不属于允许的恢复范围"}
+
+    def _retain_recovery_dispatches(self, att: dict, rec: dict, dispatches: list, *, verified: bool):
+        """恢复手势属于同一步；原步骤没有dispatch也不能丢掉恢复的未知效果。"""
+        records = [{**item, "verified": verified} for item in dispatches if "sent" in item]
+        if not records:
+            return
+        att.setdefault("recovery_dispatches", []).extend(records)
+        if any(item["sent"] is not False and (item["sent"] is not True or item.get("ok") is not True
+                                              or not verified) for item in records):
+            att.update(effect_unknown=True, action_required=True)
+            rec.update(effect_unknown=True, action_required=True, retry_original=False)
+            rec["reason"] += "；恢复动作已下发或发送事实不明确，关闭效果未确认，需人工核对现场"
 
     def _after_recovery(self, step: dict, att: dict, rec: dict, case_id: str) -> dict:
         """修复覆盖物后只核验原后置；不把关闭弹窗当成原动作可重复的证明。"""

@@ -132,6 +132,8 @@ agent 模式的 `--point` 记录提出时的窗口尺寸（`point_window`）；�
 
 单次 act、最后一次尝试、flow/recipe 子步骤与 cleanup 同样保留部分执行/未知效果的人工交接信号。`run` 的 verdict/report 将原子步骤交接列入 `step_recovery` alerts；安全停止警告优先。`anomaly`、未评审中断仍不自动恢复，未知车辆运动发送事实保守挂看门狗。
 
+恢复手势在 `attempt.recovery_dispatches[]` 保留原始 `sent`、`ok` 及 `verified`；`verified=false` 且可能下发时，记录未知效果和人工交接并停止原动作重放。系统弹窗能力的 `dismiss.sent` 同样保留三态，不将未知压成 false。已确认良性关闭后，若原业务后置仍未成立，重新按原步骤的幂等与副作用规则判断剩余重试资格。
+
 步骤结果：`passed` / `passed_after_adaptation` / `passed_after_recovery` / `fail_candidate` / `blocked` / `not_run`。
 关键步骤未通过，后续步骤记为 `not_run`，清理步骤仍执行。
 

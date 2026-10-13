@@ -208,7 +208,8 @@ def summarize(tr: dict) -> dict:
 def effect_unknown(result: dict) -> bool:
     """命令已发出但执行器没有确认成功（超时/报错）：现场可能已经变化，不能当作"什么都没发生"。"""
     return any(a.get("effect_unknown") or
-               any(item["sent"] is not False and (item["sent"] is not True or item.get("ok") is not True)
+               any(item["sent"] is not False and (item["sent"] is not True or item.get("ok") is not True
+                                                or item.get("verified") is False)
                    for item in auxiliary_dispatches(a)) or
                (a.get("dispatch") is not None and a["dispatch"].get("sent") is not False and (
                    a["dispatch"].get("sent") is not True or a["dispatch"].get("executor_ok") is not True)) or
