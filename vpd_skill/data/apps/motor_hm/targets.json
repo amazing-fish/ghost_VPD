@@ -19,6 +19,34 @@
         {"kind": "text", "value": "我的", "region": [0, 0.85, 1, 1], "when": {"wide": false}, "source": "skill：窄屏底部区域后备策略（真机 TabBar 位于窗口 90%–100% 高度，与该区域一致；宽屏导航可能在侧边，故限定窄屏）"}
       ]
     },
+    "tab_discover": {
+      "desc": "导航「发现」（未登录态首屏 tab）",
+      "side_effect": "navigation",
+      "strategies": [
+        {"kind": "text", "value": "发现", "within": {"type": "TabBar"}, "source": "skill：2026-10-13 真机 session-wk-a2（Mate 80 62T0225C27006650 / 3.0.1.281 / 未登录）多次命中"}
+      ]
+    },
+    "tab_featured": {
+      "desc": "导航「精选」",
+      "side_effect": "navigation",
+      "strategies": [
+        {"kind": "text", "value": "精选", "within": {"type": "TabBar"}, "source": "skill：2026-10-13 真机 session-wk-a2 命中"}
+      ]
+    },
+    "tab_buy": {
+      "desc": "导航「购车」（未登录态第三 tab；已登录态 3.0.3.200 上为「爱车」）",
+      "side_effect": "navigation",
+      "strategies": [
+        {"kind": "text", "value": "购车", "within": {"type": "TabBar"}, "source": "skill：2026-10-13 真机 session-wk-a2 命中"}
+      ]
+    },
+    "tab_service": {
+      "desc": "导航「服务」",
+      "side_effect": "navigation",
+      "strategies": [
+        {"kind": "text", "value": "服务", "within": {"type": "TabBar"}, "source": "skill：2026-10-13 真机 session-wk-a2 命中"}
+      ]
+    },
     "settings_entry": {
       "desc": "「我的」页的「设置」入口",
       "side_effect": "navigation",

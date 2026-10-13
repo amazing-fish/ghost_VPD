@@ -1,0 +1,158 @@
+{
+  "id": "TC-MOTOR-HM-006",
+  "version": 1,
+  "status": "exploration_record",
+  "app": "motor_hm",
+  "title": "[会话生成] 登录态检查：启动鸿蒙智行 APP，进入「我的」页，检查当前账号登录态显示（未登录态：注册/登录入口 + 我的车辆未绑定占位）",
+  "goal": "登录态检查：启动鸿蒙智行 APP，进入「我的」页，检查当前账号登录态显示（未登录态：注册/登录入口 + 我的车辆未绑定占位）",
+  "purpose": "验证鸿蒙智行 APP 未登录状态下「我的」页的登录态显示：存在「注册/登录」入口、「我的车辆」区域显示未绑定占位。只读检查，不点击登录入口，不改变账号状态。",
+  "preconditions": [
+    "鸿蒙智行 APP 已安装（本机 3.0.1.281）",
+    "APP 当前为未登录状态（不要求特定账号）",
+    "设备已解锁、亮屏，无系统弹窗遮挡"
+  ],
+  "env_requirements": {},
+  "test_data": {},
+  "test_data_none": true,
+  "authorizations": [],
+  "steps": [
+    {
+      "id": "S1",
+      "action": "launch",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-wk1",
+        "seq": 1,
+        "step": "A1",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0001",
+        "obs_after": "obs-0002"
+      }
+    },
+    {
+      "id": "S2",
+      "action": "tap",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-wk1",
+        "seq": 2,
+        "step": "A2",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0004",
+        "obs_after": "obs-0006"
+      },
+      "revalidate": true,
+      "target": {
+        "label": "select:text=我的",
+        "strategies": [
+          {
+            "kind": "text",
+            "value": "我的",
+            "within": {
+              "type": "TabBar"
+            }
+          }
+        ],
+        "side_effect": "navigation",
+        "origin": "agent_select",
+        "observed": {
+          "session": "session-wk1",
+          "seq": 2,
+          "obs": "obs-0005",
+          "outcome": "passed",
+          "node": {
+            "idx": 168,
+            "type": "Text",
+            "text": "我的",
+            "id": "",
+            "bounds": [
+              1117,
+              2654,
+              1188,
+              2703
+            ],
+            "clickable": false,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": "3.0.1.281",
+          "device_form": "bar",
+          "validation_level": "real_device"
+        }
+      }
+    }
+  ],
+  "assertions": [
+    {"id": "A1", "at": "S2", "type": "text_present", "text": "注册/登录",
+     "desc": "未登录时「我的」页显示「注册/登录」入口", "oracle_refs": ["K-MOT-007"]},
+    {"id": "A2", "at": "S2", "type": "text_present", "text": "暂未绑定车辆",
+     "desc": "「我的车辆」区域显示未绑定占位文案", "oracle_refs": ["K-MOT-007"]}
+  ],
+  "cleanup": [
+    {"action": "stop_app", "desc": "结束 APP，不改变账号状态"}
+  ],
+  "knowledge_used": [
+    {"id": "K-MOT-007", "use": "判据：未登录态「我的」页显示注册/登录入口与未绑定占位", "applicability": "unconfirmed",
+     "rationale": "test_goal 来源候选判据，未经产品确认；applies_to 为本机 3.0.1.281，与实测一致", "steps": ["S2"]}
+  ],
+  "sources": [
+    {
+      "type": "session",
+      "run": "session-wk1",
+      "validation_level": "real_device",
+      "facts": {
+        "app": "motor_hm",
+        "bundle": "app.huawei.hmos.motor",
+        "device": "hdc:62T0225C27006650",
+        "validation_level": "real_device",
+        "app_version": "3.0.1.281",
+        "device_form": "bar"
+      },
+      "included": [
+        1,
+        2
+      ],
+      "excluded": [
+        {
+          "seq": 3,
+          "step": "A3",
+          "action": "home",
+          "outcome": "passed",
+          "reason": "为切换乾崑APP做的回桌面环境动作，与登录态检查目标无关",
+          "effect_unknown": false,
+          "obs": [
+            "obs-0008",
+            "obs-0009"
+          ]
+        }
+      ],
+      "rejected": [],
+      "incomplete": [],
+      "effect_unknown": [],
+      "obs": [
+        "obs-0001",
+        "obs-0002",
+        "obs-0004",
+        "obs-0006"
+      ],
+      "trail": "runs/session-wk1/events.jsonl"
+    }
+  ],
+  "history": [
+    {
+      "ts": "2026-10-13T10:03:57.650+08:00",
+      "to": "exploration_record",
+      "why": "由会话生成：待补齐目的、判据（独立来源）、清理与 knowledge_used"
+    }
+  ]
+}

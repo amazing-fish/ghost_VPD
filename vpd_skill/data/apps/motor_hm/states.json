@@ -22,6 +22,34 @@
       "source": "app/config/motor_config.py 选择器「我的」；选中态判定按 2026-09-29 真机校准：selected=true 在 TabBar > Column(clickable) 上（run-20260929-015629-e441 obs-0011）",
       "review": "calibrated_on_device"
     },
+    "fx_tab": {
+      "desc": "底部导航「发现」选中（未登录态冷启动默认页）",
+      "require_selected_text": ["发现"],
+      "source": "2026-10-13 真机 session-wk-a2（Mate 80 62T0225C27006650 / 3.0.1.281 / 未登录）：launch 后默认落在发现页；选中态判定与 car_tab/my_tab 同机制（TabBar > Column）",
+      "review": "calibrated_on_device",
+      "review_note": "仅覆盖未登录态 3.0.1.281；car_tab 校准备注（冷启动默认爱车、三 tab）来自 3.0.3.200 已登录态，两者不冲突"
+    },
+    "jx_tab": {
+      "desc": "底部导航「精选」选中",
+      "require_selected_text": ["精选"],
+      "source": "2026-10-13 真机 session-wk-a2 核对",
+      "review": "calibrated_on_device",
+      "review_note": "仅覆盖未登录态 3.0.1.281"
+    },
+    "gc_tab": {
+      "desc": "底部导航「购车」选中（未登录态；已登录态 3.0.3.200 为「爱车」）",
+      "require_selected_text": ["购车"],
+      "source": "2026-10-13 真机 session-wk-a2 核对",
+      "review": "calibrated_on_device",
+      "review_note": "仅覆盖未登录态 3.0.1.281；爱车↔购车 tab 文案差异待产品澄清（关联 K-MOT-008）"
+    },
+    "fw_tab": {
+      "desc": "底部导航「服务」选中",
+      "require_selected_text": ["服务"],
+      "source": "2026-10-13 真机 session-wk-a2 核对",
+      "review": "calibrated_on_device",
+      "review_note": "仅覆盖未登录态 3.0.1.281"
+    },
     "settings": {
       "desc": "设置页",
       "require_text": [

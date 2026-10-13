@@ -1,0 +1,52 @@
+{
+  "id": "TC-QK-212",
+  "version": 1,
+  "status": "draft",
+  "app": "qiankun_hm",
+  "title": "乾崑短信验证码输入与新设备登录完成（VPD 链路前置 Phase2）",
+  "purpose": "在 TC-QK-211（Phase1）到达的短信验证码页上：拒绝密码保险箱保存询问（下次再说）、输入短信验证码（secret 注入）、点登录，验证新设备身份验证通过并进入主界面。完成后本设备成为可信设备，后续登录不再触发短信验证。",
+  "preconditions": [
+    "APP 停在新设备短信验证码页（qk_sms_verify 状态，TC-QK-211 Phase1 结束时保持）",
+    "VPD_SECRET_QIANKUN_SMS_CODE 已在 config.local.json secrets 落盘（QIANKUN_SMS_CODE：Phase1 运行后收到的最新一条验证码，有效期约 5-10 分钟）",
+    "验证码未过期、未被消费",
+    "设备已解锁、亮屏"
+  ],
+  "env_requirements": {"account_state": "logged_out"},
+  "test_data": {
+    "sms_code": {"secret": "QIANKUN_SMS_CODE"}
+  },
+  "authorizations": ["account_state", "user_data"],
+  "steps": [
+    {"id": "S1", "action": "tap", "target": "qk_vault_later", "skip_if_absent": "^下次再说$", "timeout_s": 8, "desc": "密码保险箱保存询问选「下次再说」（拒绝保存；弹窗为 ModalPage 系统层）"},
+    {"id": "S2", "action": "input", "target": "qk_sms_code_input", "text": "${var:sms_code}", "retry": 1, "critical": true, "desc": "输入短信验证码（secret 注入）"},
+    {"id": "S3", "action": "tap", "target": "qk_verify_login", "timeout_s": 10, "critical": true, "desc": "点身份验证页「登录」提交验证码"},
+    {"id": "S4", "action": "wait", "duration_s": 10, "desc": "等待验证与服务端确认（可能有人脸/后续引导页）"}
+  ],
+  "assertions": [
+    {"id": "A1", "at": "S4", "type": "text_absent", "text": "验证码已发至",
+     "desc": "验证通过后离开验证码页", "oracle_refs": ["K-QK-012", "K-QK-011"]},
+    {"id": "A2", "at": "S4", "type": "text_present_any", "any": ["爱车", "社区", "ADS", "展厅", "商城", "我的"],
+     "desc": "进入主界面，主导航可见（登录完成）", "oracle_refs": ["K-QK-011"]},
+    {"id": "A3", "at": "S4", "type": "visual_review", "advisory": true,
+     "desc": "登录完成后首屏完整性（建议）",
+     "prompt": "检查截图：登录完成后首屏是否正常渲染、有无异常提示或遗留弹窗；只给建议，不作为缺陷结论"}
+  ],
+  "cleanup": [
+    {"action": "stop_app", "desc": "结束 APP（登录态已持久化，不登出）"}
+  ],
+  "knowledge_used": [
+    {"id": "K-QK-012", "use": "判据：新设备短信验证页结构与验证通过预期", "applicability": "unconfirmed",
+     "rationale": "test_goal 候选判据；页面结构有 run-20261013-104123-90c6 obs-0028 实测证据，验证通过预期未经产品确认", "steps": ["S1", "S2", "S4"]},
+    {"id": "K-QK-011", "use": "判据：登录完成判定（进入主界面导航可见）", "applicability": "unconfirmed",
+     "rationale": "test_goal 候选判据", "steps": ["S4"]},
+    {"id": "K-AV-002", "use": "操作经验：密码保险箱在量产版表现为保存询问弹窗（非 debug 版输入劫持）", "applicability": "out_of_scope",
+     "rationale": "debug 版校准；量产版实测差异已记入 K-QK-012 note；本用例拒绝保存以保持手动输入路径稳定", "steps": ["S1"]}
+  ],
+  "sources": [
+    {"type": "user_instruction", "ref": "用户 2026-10-13 指令：必须登录（验证码由用户提供，经 secret 注入）"},
+    {"type": "device_observation", "ref": "run-20261013-104123-90c6 obs-0028（验证码页结构）/ obs-0024（身份验证弹窗）"}
+  ],
+  "history": [
+    {"ts": "2026-10-13T10:51:00+08:00", "to": "draft", "why": "周批量实测-账号域：两段式登录 Phase2（验证码输入+登录完成）；判据 K-QK-011/012 unconfirmed"}
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "id": "TC-QK-211",
+  "version": 1,
+  "status": "draft",
+  "app": "qiankun_hm",
+  "title": "乾崑测试账号密码登录至短信验证码页（VPD 链路前置 Phase1）",
+  "purpose": "用测试账号（151****3183）通过密码登录乾崑 APP，走完：密码表单填写→登录→新设备身份验证同意→到达短信验证码页。验证码输入与登录完成在 TC-QK-212（Phase2）。本用例结束时不停止 APP（保持验证码页供 Phase2 续走）。",
+  "preconditions": [
+    "乾崑 APP 已安装（本机 1.0.26.100）",
+    "APP 当前未登录（--env account_state=logged_out）",
+    "VPD_SECRET_QIANKUN_PHONE / VPD_SECRET_QIANKUN_PASSWORD 已在 config.local.json secrets 落盘（QIANKUN_PHONE/QIANKUN_PASSWORD）",
+    "设备已解锁、亮屏，无系统弹窗遮挡"
+  ],
+  "env_requirements": {"account_state": "logged_out"},
+  "test_data": {
+    "account": {"secret": "QIANKUN_PHONE"},
+    "password": {"secret": "QIANKUN_PASSWORD"}
+  },
+  "authorizations": ["account_state"],
+  "steps": [
+    {"id": "S1", "action": "stop_app", "desc": "冷启动前置"},
+    {"id": "S2", "action": "launch", "expect_state": "@in_app", "timeout_s": 15, "desc": "拉起乾崑 APP（未登录冷启动落主界面浏览态：社区/ADS/展厅/商城/我的）"},
+    {"id": "S3", "action": "tap", "target": "qk_tab_my_prod", "timeout_s": 10, "critical": true, "desc": "进「我的」"},
+    {"id": "S4", "action": "tap", "target": "qk_login_register", "timeout_s": 10, "critical": true, "desc": "点「登录/注册」进入登录页"},
+    {"id": "S5", "action": "tap", "target": "qk_pwd_login", "skip_if_absent": "^密码登录$", "timeout_s": 10, "critical": true, "desc": "选择「密码登录」（已停在密码表单时跳过）"},
+    {"id": "S6", "action": "input", "target": "qk_number_input", "text": "${var:account}", "retry": 1, "critical": true, "desc": "输入账号（secret 注入，hint xpath 量产版已校准）"},
+    {"id": "S7", "action": "tap", "target": "qk_manual_btn", "skip_if_absent": "^手动输入$", "desc": "出现「手动输入」时点一下（不重输）"},
+    {"id": "S8", "action": "input", "target": "qk_pwd_input", "text": "${var:password}", "retry": 1, "critical": true, "desc": "输入密码（secret 注入）"},
+    {"id": "S9", "action": "back", "desc": "收起安全键盘（密码填充后键盘占下半屏，协议勾选被挤出可视区；K-AV-003 量产版表现：键盘为系统窗口不出现在 app 树中）"},
+    {"id": "S10", "action": "tap", "target": "qk_agree", "desc": "勾选用户协议"},
+    {"id": "S11", "action": "tap", "target": "qk_login_btn", "timeout_s": 15, "critical": true, "desc": "点击登录"},
+    {"id": "S12", "action": "wait", "duration_s": 8, "desc": "等待登录结果（新设备会弹身份验证确认）"},
+    {"id": "S13", "action": "tap", "target": "qk_verify_agree", "skip_if_absent": "^同意$", "timeout_s": 10, "critical": true, "desc": "新设备身份验证弹窗点「同意」（登录安全门，account_state 授权范围内）"},
+    {"id": "S14", "action": "wait", "duration_s": 6, "desc": "等待验证方式页面（短信/人脸等）"}
+  ],
+  "assertions": [
+    {"id": "A1", "at": "S14", "type": "text_present", "text": "身份验证",
+     "desc": "到达新设备身份验证短信验证码页", "oracle_refs": ["K-QK-012"]},
+    {"id": "A2", "at": "S14", "type": "text_present_any", "any": ["验证码已发至", "151****3183"],
+     "desc": "验证码发送至测试账号手机号", "oracle_refs": ["K-QK-012"]},
+    {"id": "A3", "at": "S14", "type": "visual_review", "advisory": true,
+     "desc": "登录后首屏完整性（建议）",
+     "prompt": "检查截图：登录后首屏是否正常渲染、有无加载失败/异常提示；只给建议，不作为缺陷结论"}
+  ],
+  "cleanup": [
+    {"action": "wait", "duration_s": 0, "desc": "无清理：保持 APP 停在验证码页，供 TC-QK-212（Phase2）续走"}
+  ],
+  "knowledge_used": [
+    {"id": "K-QK-011", "use": "判据：登录成功判定（离开登录页+主界面导航可见）", "applicability": "unconfirmed",
+     "rationale": "test_goal 候选判据；applies_to 1.0.26.100 与本机一致", "steps": ["S9"]},
+    {"id": "K-AV-002", "use": "操作经验：debug 版密码框被系统密码保险箱劫持", "applicability": "out_of_scope",
+     "rationale": "debug 版 phone_fc78649 校准；本机量产版 1.0.26.100 实测无劫持（run-20261013-103454-9658 S6/S8 输入成功，字段正确显示脱敏星号）", "steps": ["S6", "S8"]},
+    {"id": "K-AV-003", "use": "操作经验：密码填充后安全键盘遮挡，需先收起再点协议区", "applicability": "applies",
+     "rationale": "量产版实测复现：密码填充后 app 窗口压缩至 y≤1544，协议 Checkbox 挤出可视区（run-20261013-103454-9658 S9 not_found）；处置＝back 收起键盘", "steps": ["S9"]},
+    {"id": "K-QK-USR-001", "use": "环境事实：测试账号 151****3183 下有问界 M5（末位 7885）", "applicability": "confirmed",
+     "rationale": "已确认知识；登录后 VPD 链路用例的目标车辆", "steps": []}
+  ],
+  "sources": [
+    {"type": "user_instruction", "ref": "用户 2026-10-13 指令：用例仅含 VPD 内容、必须登录（账号已落盘 config secrets）"},
+    {"type": "repo_flow", "ref": "data/apps/qiankun_hm/flows.json login_password（12 步，status=falsified_on_device@debug版；本用例取其输入/登录子序列并在量产版重新校准）"}
+  ],
+  "history": [
+    {"ts": "2026-10-13T10:21:00+08:00", "to": "draft", "why": "周批量实测-账号与导航域（VPD 视角）：登录态检查；判据 K-QK-011 unconfirmed，选择器量产版未校准"}
+  ]
+}

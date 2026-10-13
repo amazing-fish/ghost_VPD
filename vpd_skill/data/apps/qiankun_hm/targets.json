@@ -1,6 +1,47 @@
 {
   "note": "乾崑定位目标。status=unverified：xpath/文字原样取自原工程（按行号引用，commit 90545b9），未在本 Skill 真机运行中核对；status=hypothesis：原工程没有，来自用户描述或推测，真机校准前含这些目标的用例不能晋级。skill 追加的策略标注 source=skill。",
   "targets": {
+    "qk_tab_my_prod": {
+      "desc": "主界面顶部导航「我的」（量产版 1.0.26.100：社区/ADS/展厅/商城/我的）",
+      "side_effect": "navigation",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "我的",
+          "within": {
+            "type": "TabBar"
+          },
+          "source": "skill：2026-10-13 真机 session-wk-qk2（Mate 80 / 1.0.26.100 / 未登录）命中"
+        },
+        {
+          "kind": "text",
+          "value": "我的",
+          "source": "skill：后备（同名文字可能歧义，优先 TabBar 限定）"
+        }
+      ]
+    },
+    "qk_login_register": {
+      "desc": "未登录态「我的」页的「登录/注册」入口",
+      "side_effect": "account_state",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "登录/注册",
+          "source": "skill：2026-10-13 真机 session-wk-qk2 obs-0006 实测（未登录「我的」页首行）"
+        }
+      ]
+    },
+    "qk_verify_agree": {
+      "desc": "新设备登录身份验证弹窗「同意」按钮",
+      "side_effect": "account_state",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "同意",
+          "source": "skill：2026-10-13 量产版真机 run-20261013-103814-60b5 obs-0024（身份验证弹窗：取消/同意）"
+        }
+      ]
+    },
     "qk_tab_car": {
       "desc": "底部导航「爱车」",
       "side_effect": "navigation",
@@ -104,17 +145,23 @@
     "qk_number_input": {
       "desc": "账号（手机号）输入框",
       "side_effect": "account_state",
-      "status": "unverified",
+      "status": "calibrated_on_device",
       "allow_input": true,
       "secret": true,
       "source_flow": "app/service/vpd/vpd.py:2318-2320",
       "strategies": [
         {
           "kind": "xpath",
+          "source": "skill：2026-10-13 量产版 1.0.26.100 真机校准（session-wk-qk1 obs-0009：TextInput hint=请输入手机号 bounds=[290,738][1224,850]）",
+          "value": "//*[@hint=\"请输入手机号\"]"
+        },
+        {
+          "kind": "xpath",
           "value": "//root[1]/Navigation[1]/NavigationContent[1]/NavDestination[1]/NavDestinationContent[1]/Navigation[1]/NavigationContent[1]/NavDestination[1]/NavDestinationContent[1]/Column[1]/Row[1]/Column[3]/TextInput[1]",
           "source": "app/config/mhero_config.py:478 MHERO_HARMONY_CONFIG.number_input"
         }
-      ]
+      ],
+      "status_note": "2026-10-13 量产版 1.0.26.100 真机：run-20261013-103454-9658 S6 input 通过（hint xpath 命中，账号注入成功显示 ***）"
     },
     "qk_manual_btn": {
       "desc": "「手动输入」（部分机型出现，需点一下再重输账号）",
@@ -132,17 +179,23 @@
     "qk_pwd_input": {
       "desc": "密码输入框",
       "side_effect": "account_state",
-      "status": "unverified",
+      "status": "calibrated_on_device",
       "allow_input": true,
       "secret": true,
       "source_flow": "app/service/vpd/vpd.py:2330-2334",
       "strategies": [
         {
           "kind": "xpath",
+          "source": "skill：2026-10-13 量产版 1.0.26.100 真机校准（session-wk-qk1 obs-0009：TextInput hint=请输入密码 bounds=[56,906][1224,1046]）",
+          "value": "//*[@hint=\"请输入密码\"]"
+        },
+        {
+          "kind": "xpath",
           "value": "//root[1]/Navigation[1]/NavigationContent[1]/NavDestination[1]/NavDestinationContent[1]/Navigation[1]/NavigationContent[1]/NavDestination[1]/NavDestinationContent[1]/Column[1]/Column[2]/TextInput[1]",
           "source": "app/config/mhero_config.py:486 MHERO_HARMONY_CONFIG.pwd_input"
         }
-      ]
+      ],
+      "status_note": "2026-10-13 量产版 1.0.26.100 真机：run-20261013-103454-9658 S8 input 通过（密码注入成功显示 ***********，无保险箱劫持）"
     },
     "qk_agree": {
       "desc": "用户协议勾选（节点文字为 userProtocol）",
@@ -581,6 +634,60 @@
           "kind": "text",
           "value": "取消收藏",
           "source": "skill：推测的取消收藏按钮文字（未经真机验证）"
+        }
+      ]
+    },
+    "qk_sms_code_input": {
+      "desc": "短信验证码输入框（身份验证页，无 hint，绝对路径按 2026-10-13 实测树校准）",
+      "side_effect": "account_state",
+      "allow_input": true,
+      "secret": true,
+      "status": "calibrated_on_device",
+      "status_note": "2026-10-13 量产版 1.0.26.100 真机 run-20261013-104123-90c6 obs-0028：bounds=[56,795][640,935]",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//root/Navigation/NavigationContent/NavDestination/NavDestinationContent/Navigation/NavigationContent/NavDestination/NavDestinationContent/Column/Column/Row/Column/TextInput",
+          "source": "skill：2026-10-13 量产版 1.0.26.100 真机校准（obs-0028 层级路径；与登录表单输入框区别：不在 Scroll 子树下）"
+        }
+      ]
+    },
+    "qk_verify_login": {
+      "desc": "身份验证页「登录」按钮（与登录表单同名按钮区别：不在 Scroll 子树下）",
+      "side_effect": "account_state",
+      "status": "calibrated_on_device",
+      "status_note": "2026-10-13 量产版真机 run-20261013-104123-90c6 obs-0028：bounds=[56,1173][1224,1313]",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//root/Navigation/NavigationContent/NavDestination/NavDestinationContent/Navigation/NavigationContent/NavDestination/NavDestinationContent/Column/Button[@text=\"登录\"]",
+          "source": "skill：2026-10-13 量产版 1.0.26.100 真机校准（obs-0028）"
+        }
+      ]
+    },
+    "qk_vault_later": {
+      "desc": "密码保险箱保存询问弹窗「下次再说」（拒绝保存，ModalPage 系统层）",
+      "side_effect": "user_data",
+      "status": "calibrated_on_device",
+      "status_note": "2026-10-13 量产版真机 run-20261013-104123-90c6 obs-0028：bounds=[56,2538][1224,2678]；拒绝保存不改用户数据，声明 user_data 以走授权链",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "下次再说",
+          "source": "skill：2026-10-13 量产版真机校准（obs-0028 ModalPage 层唯一命中）"
+        }
+      ]
+    },
+    "qk_find_along": {
+      "desc": "VPD 首页「沿途找车位」入口（推荐车位区第二 tab，一键发起算路）",
+      "side_effect": "route_planning",
+      "status": "calibrated_on_device",
+      "status_note": "2026-10-13 量产版 1.0.26.100 真机 session-wk-qk3 obs-0019 Row[56,1081][1224,1233]/obs-0023 命中并触发算路",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "沿途找车位",
+          "source": "skill：2026-10-13 量产版真机校准（session-wk-qk3）"
         }
       ]
     }

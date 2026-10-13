@@ -1,0 +1,52 @@
+{
+  "id": "TC-QK-216",
+  "version": 1,
+  "status": "draft",
+  "app": "qiankun_hm",
+  "title": "乾崑 VPD 算路任务状态卡片与跨重启恢复",
+  "purpose": "在有进行中（含故障/失败态）VPD 算路任务时，冷重启 APP 后再进入 ADS，验证任务状态卡片恢复显示：任务描述（我的爱车 泊入沿途最近空车位）、状态提示（不可用/失败/重试）与操作入口（靠边停车/步行路线，不点击）。只读展示断言，不点任何任务操作（开始/重试/退出）。前置：由 TC-QK-214 或现场会话发起过沿途找车位任务且任务未取消。",
+  "preconditions": [
+    "乾崑 APP 已登录（测试账号 151****3183）",
+    "存在未取消的 VPD 算路任务（沿 TC-QK-214 发起，F03 故障/启动失败态）",
+    "设备已解锁、亮屏（灭屏会导致观测失败：run-20261013-110734-ff26 obs-0030 实测空观测）"
+  ],
+  "env_requirements": {"account_state": "logged_in"},
+  "test_data": {},
+  "test_data_none": true,
+  "authorizations": ["vpd_entry"],
+  "steps": [
+    {"id": "S1", "action": "stop_app", "desc": "冷重启前置（验证任务跨重启恢复）"},
+    {"id": "S2", "action": "launch", "expect_state": "@in_app", "timeout_s": 15, "desc": "拉起乾崑 APP"},
+    {"id": "S3", "action": "tap", "target": "qk_tab_car", "timeout_s": 10, "critical": true, "desc": "进「爱车」页"},
+    {"id": "S4", "action": "tap", "target": "qk_ads", "timeout_s": 15, "critical": true, "desc": "点 ADS（有活动任务时预期直达任务卡片页）"},
+    {"id": "S5", "action": "wait", "duration_s": 5, "desc": "等待任务卡片加载"}
+  ],
+  "assertions": [
+    {"id": "A1", "at": "S5", "type": "text_present", "text": "泊入沿途最近空车位",
+     "desc": "任务卡片恢复显示任务描述", "oracle_refs": ["K-QK-015"]},
+    {"id": "A2", "at": "S5", "type": "text_present_any", "any": ["泊车代驾辅助暂不可用", "VPD功能故障", "系统功能启动失败", "重试", "开始"],
+     "desc": "任务状态提示可见（故障/失败态含重试入口；K-QK-USR-002 已确认：故障态不能激活）", "oracle_refs": ["K-QK-USR-002", "K-QK-015"]},
+    {"id": "A3", "at": "S5", "type": "text_present_any", "any": ["靠边停车", "步行路线"],
+     "desc": "任务卡片辅助入口可见（只断言显示，不点击）", "oracle_refs": ["K-QK-015"]},
+    {"id": "A4", "at": "S5", "type": "visual_review", "advisory": true,
+     "desc": "任务卡片完整性与按钮状态（建议）",
+     "prompt": "检查截图：任务卡片是否完整恢复，状态提示与重试/开始按钮的可点性是否符合故障态预期（不可激活）；只给建议，不作为缺陷结论"}
+  ],
+  "cleanup": [
+    {"action": "back", "desc": "退出任务页（不点开始/重试/退出任务等任何任务操作）"},
+    {"action": "stop_app", "desc": "结束 APP（任务留待后续用例复用）"}
+  ],
+  "knowledge_used": [
+    {"id": "K-QK-015", "use": "判据：有活动任务时进 ADS 直达任务卡片页，任务跨 APP 冷重启恢复", "applicability": "unconfirmed",
+     "rationale": "test_goal 候选判据；run-20261013-111134-3476/obs-0012（重启后进 ADS 直达卡片页）与 session-wk-qk3/obs-0023-0025（卡片结构）实测证据", "steps": ["S4", "S5"]},
+    {"id": "K-QK-USR-002", "use": "判据：车辆故障态任务不能激活（开始不可用）", "applicability": "confirmed",
+     "rationale": "已确认知识；F03 实测故障/启动失败态（泊车代驾辅助暂不可用/系统功能启动失败请重试）", "steps": ["S5"]}
+  ],
+  "sources": [
+    {"type": "user_instruction", "ref": "用户周批量实测指令：任务状态卡片、后台返回状态恢复（VPD 业务链路域）"},
+    {"type": "device_observation", "ref": "run-20261013-111134-3476/obs-0012、obs-0015；session-wk-qk3/obs-0023-0025"}
+  ],
+  "history": [
+    {"ts": "2026-10-13T11:20:00+08:00", "to": "draft", "why": "周批量实测-VPD 业务链路域：任务状态卡片+跨重启恢复（后台返回域 B5/B6 合并场景）"}
+  ]
+}

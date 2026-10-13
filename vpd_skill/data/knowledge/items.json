@@ -1434,6 +1434,102 @@
       ]
     },
     {
+      "id": "K-MOT-007",
+      "kind": "product_rule",
+      "subject": "motor_hm.my.logged_out_display",
+      "statement": "未登录状态下，「我的」页应显示「注册/登录」入口，且「我的车辆」区域显示未绑定占位（如「暂未绑定车辆」），不显示已登录用户昵称/头像信息。",
+      "expected": {
+        "login_entry_text": "注册/登录",
+        "vehicle_placeholder_text": "暂未绑定车辆"
+      },
+      "applies_to": {
+        "app": "motor_hm",
+        "app_version": "3.0.1.281"
+      },
+      "source": {
+        "type": "test_goal",
+        "ref": "2026-10-13 周批量实测目标原文（账号与导航域-登录态检查）：检查鸿蒙智行 APP 当前登录态显示"
+      },
+      "note": "期望来自测试目标本身，未经产品需求独立确认。2026-10-13 真机（Mate 80 62T0225C27006650 / 3.0.1.281 / 未登录）实测行为与描述一致（session-wk1 obs-0007：注册/登录 按钮存在、我的车辆显示 暂未绑定车辆），现场观察不能替代判据确认，需产品侧确认。",
+      "status": "unconfirmed",
+      "created": "2026-10-13T10:03:30.155+08:00",
+      "history": [
+        {
+          "ts": "2026-10-13T10:03:30.155+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-MOT-008",
+      "kind": "product_rule",
+      "subject": "motor_hm.tabs.traversal_logged_out",
+      "statement": "未登录状态下，底部导航应包含「发现/精选/购车/服务/我的」五个 tab；依次点击各 tab 后对应 tab 呈选中态、页面内容切换，全程无异常提示（ui_alerts 为空）。",
+      "expected": {
+        "tabs": [
+          "发现",
+          "精选",
+          "购车",
+          "服务",
+          "我的"
+        ],
+        "selected_after_tap": true,
+        "ui_alerts_empty": true
+      },
+      "applies_to": {
+        "app": "motor_hm",
+        "app_version": "3.0.1.281"
+      },
+      "source": {
+        "type": "test_goal",
+        "ref": "2026-10-13 周批量实测目标原文（账号与导航域-底部 tab 遍历）：遍历底部 tab 并验证选中态切换"
+      },
+      "note": "期望来自测试目标本身，未经产品需求独立确认。与 K-MOT-001（3.0.3.200 已登录态 发现/精选/爱车/服务/我的）存在两处待产品澄清差异：①本机 3.0.1.281 未登录态第三 tab 为「购车」而非「爱车」（疑似登录后才出现爱车）；②tab 全集枚举口径（关联 issue #17 K-MOT-001 措辞待评审项）。2026-10-13 真机实测行为与描述一致（session-wk1 obs-0003/obs-0007），现场观察不能替代判据确认。",
+      "status": "unconfirmed",
+      "created": "2026-10-13T10:03:30.315+08:00",
+      "history": [
+        {
+          "ts": "2026-10-13T10:03:30.315+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-MOT-009",
+      "kind": "product_rule",
+      "subject": "motor_hm.my.readonly_entries",
+      "statement": "「我的」页应提供一批只读/低风险功能入口（至少包含「浏览记录」「我的积分」「我的活动」），上滑后可见；入口仅盘点可见性，不进入、不修改数据。",
+      "expected": {
+        "entries_any_of": [
+          "浏览记录",
+          "我的积分",
+          "我的活动",
+          "邀请好友",
+          "我的家充桩"
+        ]
+      },
+      "applies_to": {
+        "app": "motor_hm",
+        "app_version": "3.0.1.281"
+      },
+      "source": {
+        "type": "test_goal",
+        "ref": "2026-10-13 周批量实测目标原文（账号与导航域-我的页只读入口）：盘点我的页只读入口"
+      },
+      "note": "期望来自测试目标本身，未经产品需求独立确认。2026-10-13 真机实测（session-wk1 obs-0007）可见 浏览记录/邀请好友/我的积分/我的家充桩/我的活动 入口，与描述一致；现场观察不能替代判据确认。另注：obs-0007 中「我的订单」按钮因命中受控文本「精选/充电/购车等」（按钮子文本含 充电）被 policy 标记为需 vehicle_control 授权，属 policy 文本误匹配候选（工具侧观察，非产品问题）。",
+      "status": "unconfirmed",
+      "created": "2026-10-13T10:03:30.475+08:00",
+      "history": [
+        {
+          "ts": "2026-10-13T10:03:30.475+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
       "id": "K-MOT-OBS-202",
       "kind": "observation",
       "subject": "motor_hm.car_tab.hopal00_content_inventory",
@@ -1771,6 +1867,158 @@
       "confirmed_by": "co-creator",
       "confirmed_at": "2026-10-01T17:27:03.872+08:00",
       "confirm_basis": "co-creator 2026-10-01 09:23 UTC 逐条确认（thread_mupbsttht20qv72p msg 0001790846614655-000175-8cc3febb）"
+    },
+    {
+      "id": "K-QK-011",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.login.pwd_login_success",
+      "statement": "使用测试账号密码登录成功后，APP 应离开登录页（「密码登录」入口不再出现），进入主界面并可见主导航（如「爱车」）。",
+      "expected": {
+        "left_login_page": true,
+        "main_nav_any": [
+          "爱车",
+          "探索",
+          "我的"
+        ]
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100"
+      },
+      "source": {
+        "type": "test_goal",
+        "ref": "用户 2026-10-13 周批量实测指令：用例必须登录（账号 15168533183，凭据落盘 config secrets）"
+      },
+      "note": "期望来自测试目标，未经产品需求独立确认。登录后行为以真机实测为准（量产版 1.0.26.100 未验证过保险箱行为，见 K-AV-002 debug 版校准）。现场观察不能替代判据确认。",
+      "status": "unconfirmed",
+      "created": "2026-10-13T10:22:00.383+08:00",
+      "history": [
+        {
+          "ts": "2026-10-13T10:22:00.383+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-012",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.login.new_device_sms_verify",
+      "statement": "新设备首次密码登录：点登录后弹「身份验证」确认弹窗（取消/同意），同意后进入短信验证码页（验证码已发至 +86 151****3183，60s 重发倒计时），并弹「是否保存账号和密码」密码保险箱询问（保存密码/下次再说）。",
+      "expected": {
+        "verify_page_texts": [
+          "身份验证",
+          "验证码已发至"
+        ],
+        "vault_save_prompt": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100"
+      },
+      "source": {
+        "type": "test_goal",
+        "ref": "周批量实测现场观测 run-20261013-103814-60b5 obs-0024、run-20261013-104123-90c6 obs-0028（观测事实本身有证据，判据期望未经产品确认）"
+      },
+      "note": "验证码为一次性短信，发送至测试账号 SIM（不在测试机上）；验证码页不跨 stop_app 恢复（relaunch 回主界面）。选择器校准见 targets qk_verify_agree/qk_sms_code_input/qk_verify_login/qk_vault_later。",
+      "status": "unconfirmed",
+      "created": "2026-10-13T10:49:05.858+08:00",
+      "history": [
+        {
+          "ts": "2026-10-13T10:49:05.858+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-013",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.vpd.home_elements",
+      "statement": "登录后从爱车页点「ADS」进入泊车代驾（VPD）首页，加载完成后显示：园区名（如金桥出口加工区72）、「泊车代驾」与车位总数、「搜索车位号设为目的地」、「我的位置/常去地点/附近充电站」入口、「默认车位/默认上车点」（未设置时显示点击去设置占位）、「推荐车位（推荐/沿途找车位）」、停泊位置地图（L1层/俯视）。",
+      "expected": {
+        "home_texts": [
+          "泊车代驾",
+          "默认车位",
+          "搜索车位号设为目的地"
+        ]
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100"
+      },
+      "source": {
+        "type": "test_goal",
+        "ref": "周批量实测现场观测 session-wk-qk3 obs-0013/0016/0019（元素清单有证据，判据期望未经产品确认）"
+      },
+      "note": "首页含车控卡片（遥控泊车辅助/遥控直行辅助）——测试中禁止点击（vehicle_control supervised）。",
+      "status": "unconfirmed",
+      "created": "2026-10-13T11:02:10.785+08:00",
+      "history": [
+        {
+          "ts": "2026-10-13T11:02:10.785+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-014",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.vpd.find_along_planning",
+      "statement": "VPD 首页点「沿途找车位」一键发起算路（目的地=沿途最近空车位），出现任务卡片「我的爱车 泊入沿途最近空车位」与「开始」按钮；算路过程会唤醒/上电车辆（系统功能启动中%），规划完成后显示结果状态（可用或故障提示）。",
+      "expected": {
+        "task_card": "泊入沿途最近空车位",
+        "may_wake_vehicle": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100"
+      },
+      "source": {
+        "type": "test_goal",
+        "ref": "周批量实测现场观测 session-wk-qk3 obs-0023（路线规划中/系统功能启动中5%）→obs-0024/0025（泊车代驾辅助暂不可用/VPD功能故障）；关联 K-QK-006（算路唤醒车辆）"
+      },
+      "note": "测试边界：只到发起+结果显示，不点「开始」（vehicle_motion/control supervised）。F03 实测为 VPD 功能故障态，与 K-QK-USR-002 一致。",
+      "status": "unconfirmed",
+      "created": "2026-10-13T11:02:10.936+08:00",
+      "history": [
+        {
+          "ts": "2026-10-13T11:02:10.936+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-015",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.vpd.task_card_restore",
+      "statement": "存在未取消的 VPD 算路任务时：进入 ADS 直达任务卡片页（不落 VPD 首页），任务卡片跨 APP 冷重启（stop_app+relaunch）后恢复显示：任务描述（我的爱车 泊入沿途最近空车位）、状态提示（可用/不可用/失败+重试）与辅助入口（靠边停车/步行路线）。",
+      "expected": {
+        "task_card_texts": [
+          "泊入沿途最近空车位"
+        ],
+        "restore_after_restart": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100"
+      },
+      "source": {
+        "type": "test_goal",
+        "ref": "周批量实测现场观测 run-20261013-111134-3476/obs-0012（重启后直达卡片页）、obs-0015（卡片状态）；session-wk-qk3/obs-0023-0025"
+      },
+      "note": "与 K-QK-001/K-QK-013 关系：有活动任务时进 ADS 不显示首页元素（默认车位等），首页判据仅在无活动任务时适用。",
+      "status": "unconfirmed",
+      "created": "2026-10-13T11:15:01.139+08:00",
+      "history": [
+        {
+          "ts": "2026-10-13T11:15:01.139+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
     },
     {
       "id": "K-QK-OBS-201",

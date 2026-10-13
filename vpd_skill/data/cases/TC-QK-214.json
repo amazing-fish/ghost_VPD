@@ -1,0 +1,61 @@
+{
+  "id": "TC-QK-214",
+  "version": 1,
+  "status": "draft",
+  "app": "qiankun_hm",
+  "title": "乾崑 VPD 沿途找车位发起算路（只到结果不控车）",
+  "purpose": "登录态从爱车页进 ADS（泊车代驾）首页，点「沿途找车位」一键发起算路（白名单园区金桥出口加工区），观察算路过程（可能唤醒车辆）与结果状态，只到发起+结果显示，绝不点「开始」（不控车）。",
+  "preconditions": [
+    "乾崑 APP 已登录（测试账号 151****3183）",
+    "账号默认车辆 F03 位于白名单园区（金桥出口加工区72）且为 VPD 功能故障态（K-QK-USR-002 适用场景）",
+    "设备已解锁、亮屏、联网"
+  ],
+  "env_requirements": {"account_state": "logged_in"},
+  "test_data": {},
+  "test_data_none": true,
+  "authorizations": ["vpd_entry", "route_planning"],
+  "steps": [
+    {"id": "S1", "action": "stop_app", "desc": "冷启动前置"},
+    {"id": "S2", "action": "launch", "expect_state": "@in_app", "timeout_s": 15, "desc": "拉起乾崑 APP"},
+    {"id": "S3", "action": "tap", "target": "qk_tab_car", "timeout_s": 10, "critical": true, "desc": "进「爱车」页"},
+    {"id": "S4", "action": "tap", "target": "qk_ads", "timeout_s": 15, "critical": true, "desc": "点 ADS 进入泊车代驾首页"},
+    {"id": "S5", "action": "wait", "duration_s": 3, "desc": "等待 VPD 首页加载"},
+    {"id": "S6", "action": "tap", "target": "qk_find_along", "skip_if_absent": "^沿途找车位$", "timeout_s": 10, "critical": true, "desc": "点「沿途找车位」发起算路（目的地=沿途最近空车位）；已有活动任务时进 ADS 直达任务卡片页、本步骤跳过（幂等，K-QK-015）"},
+    {"id": "S7", "action": "monitor", "duration_s": 120, "interval_s": 5, "until_state": "qk_task_card",
+     "watch": {"fault": "泊车代驾辅助暂不可用|VPD功能故障|路径规划失败|路线规划失败|无可达路径|规划失败|异常退出|网络异常"},
+     "stop_on": ["fault"], "desc": "等待算路结果（可能唤醒车辆：系统功能启动中%）"}
+  ],
+  "assertions": [
+    {"id": "A1", "at": "S5", "type": "text_present_any", "any": ["默认车位", "泊入沿途最近空车位"],
+     "desc": "点 ADS 后落 VPD 首页（无活动任务：显示默认车位等首页元素）或活动任务卡片页（有活动任务：直达任务卡片，run-20261013-111134-3476 实测）", "oracle_refs": ["K-QK-013", "K-QK-014"]},
+    {"id": "A2", "at": "S7", "type": "text_present", "text": "泊入沿途最近空车位",
+     "desc": "出现沿途找车位任务卡片", "oracle_refs": ["K-QK-014"]},
+    {"id": "A3", "at": "S7", "type": "text_present_any", "any": ["VPD功能故障", "泊车代驾辅助暂不可用", "路线规划中", "开始"],
+     "desc": "算路结果状态可见：本机 F03 为 VPD 功能故障态，预期显示故障/不可用提示且「开始」不可激活（K-QK-USR-002 已确认判据）", "oracle_refs": ["K-QK-USR-002", "K-QK-014"]},
+    {"id": "A4", "at": "S7", "type": "visual_review", "advisory": true,
+     "desc": "算路结果页完整性与「开始」按钮状态（建议）",
+     "prompt": "检查截图：任务卡片与结果状态是否清晰完整，「开始」按钮是否呈不可用态（灰显/置灰文案），有无异常残留提示；只给建议，不作为缺陷结论"}
+  ],
+  "cleanup": [
+    {"action": "back", "desc": "退出算路任务页（不点开始/暂停/退出任务等任何任务操作）"},
+    {"action": "stop_app", "desc": "结束 APP"}
+  ],
+  "knowledge_used": [
+    {"id": "K-QK-013", "use": "判据：VPD 首页元素（无活动任务时）", "applicability": "unconfirmed",
+     "rationale": "test_goal 候选判据；2026-10-13 真机 session-wk-qk3/obs-0013 观测成立；有活动任务时进 ADS 直达任务卡片页（run-20261013-111134-3476/obs-0012 实测）", "steps": ["S5"]},
+    {"id": "K-QK-USR-002", "use": "判据：车辆有故障时算路后不能激活（故障提示+开始不可用）", "applicability": "confirmed",
+     "rationale": "已确认知识；F03 实测 VPD功能故障（session-wk-qk3/obs-0025），本用例预期与之一致", "steps": ["S7"]},
+    {"id": "K-QK-014", "use": "判据：沿途找车位任务卡片与算路过程表现", "applicability": "unconfirmed",
+     "rationale": "test_goal 候选判据；session-wk-qk3/obs-0023、obs-0025 实测证据", "steps": ["S7"]},
+    {"id": "K-QK-006", "use": "风险注记：算路可能唤醒车辆", "applicability": "unconfirmed",
+     "rationale": "实测观测到系统功能启动中5%（session-wk-qk3/obs-0023）；只到结果显示，不控车", "steps": ["S6", "S7"]}
+  ],
+  "sources": [
+    {"type": "user_instruction", "ref": "用户周批量实测指令：算路白名单园区只到发起+结果显示，不控车"},
+    {"type": "device_observation", "ref": "session-wk-qk3 obs-0013→0025（VPD 首页→沿途找车位→算路→VPD功能故障全链路）"},
+    {"type": "repo_flow", "ref": "flows.json plan_default_spot（monitor 结构复用，目的地改为沿途找车位）"}
+  ],
+  "history": [
+    {"ts": "2026-10-13T11:04:00+08:00", "to": "draft", "why": "周批量实测-VPD 业务链路域：发起算路（只到结果）+首页断言；F03 故障态与 K-QK-USR-002 一致"}
+  ]
+}

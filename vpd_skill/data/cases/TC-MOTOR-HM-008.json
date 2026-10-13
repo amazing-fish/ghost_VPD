@@ -1,0 +1,115 @@
+{
+  "id": "TC-MOTOR-HM-008",
+  "version": 1,
+  "status": "exploration_record",
+  "app": "motor_hm",
+  "title": "[会话生成] 我的页只读入口盘点：进入「我的」页并上滑，盘点只读/低风险功能入口（浏览记录/我的积分/我的活动/邀请好友/我的家充桩/设置 等）的可见性，不进入、不修改数据",
+  "goal": "我的页只读入口盘点：进入「我的」页并上滑，盘点只读/低风险功能入口（浏览记录/我的积分/我的活动/邀请好友/我的家充桩/设置 等）的可见性，不进入、不修改数据",
+  "purpose": "盘点未登录态「我的」页的只读/低风险功能入口可见性（浏览记录/邀请好友/我的积分/我的家充桩/我的活动/设置等），只验证入口存在与可发现性，不进入二级页、不修改数据。",
+  "preconditions": [
+    "APP 处于 my_tab（会话首次观察）"
+  ],
+  "env_requirements": {},
+  "test_data": {},
+  "test_data_none": true,
+  "authorizations": [],
+  "steps": [
+    {
+      "id": "S1",
+      "action": "launch",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-wk-a3",
+        "seq": 1,
+        "step": "A1",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0001",
+        "obs_after": "obs-0002"
+      }
+    },
+    {
+      "id": "S2",
+      "action": "tap",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-wk-a3",
+        "seq": 2,
+        "step": "A2",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0003",
+        "obs_after": "obs-0004"
+      },
+      "expect_state": "my_tab",
+      "target": "tab_my"
+    },
+    {
+      "id": "S3",
+      "action": "swipe",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-wk-a3",
+        "seq": 3,
+        "step": "A3",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0005",
+        "obs_after": "obs-0006"
+      },
+      "direction": "up"
+    }
+  ],
+  "assertions": [{"id":"A1","at":"S3","type":"text_present_any","any":["浏览记录","邀请好友","我的积分","我的家充桩","我的活动"],"desc":"上滑后至少可见一批只读/低风险入口之一","oracle_refs":["K-MOT-009"]},{"id":"A2","at":"S3","type":"text_present","text":"设置","desc":"上滑后「设置」入口可见","oracle_refs":["K-MOT-002"]},{"id":"A3","at":"S3","type":"visual_review","advisory":true,"desc":"我的页入口分区与命名一致性（建议）","prompt":"检查截图：入口分组是否清晰、命名是否一致（如「我的家充桩」与「车主权益」等），有无明显排版问题；只给建议，不作为缺陷结论"}],
+  "cleanup": [{"action":"back","desc":"回到默认页"},{"action":"stop_app","desc":"结束 APP"}],
+  "knowledge_used": [{"id":"K-MOT-009","use":"判据：我的页只读入口清单","applicability":"unconfirmed","rationale":"test_goal 候选判据；3.0.1.281 未登录态实测可见","steps":["S3"]},{"id":"K-MOT-002","use":"对照判据：已登录态 3.0.3.200 上滑后设置入口","applicability":"out_of_scope","rationale":"版本与登录态均不符本机，仅作对照参考","steps":["S3"]}],
+  "sources": [
+    {
+      "type": "session",
+      "run": "session-wk-a3",
+      "validation_level": "real_device",
+      "facts": {
+        "app": "motor_hm",
+        "bundle": "app.huawei.hmos.motor",
+        "device": "hdc:62T0225C27006650",
+        "validation_level": "real_device",
+        "app_version": "3.0.1.281",
+        "device_form": "bar"
+      },
+      "included": [
+        1,
+        2,
+        3
+      ],
+      "excluded": [],
+      "rejected": [],
+      "incomplete": [],
+      "effect_unknown": [],
+      "obs": [
+        "obs-0001",
+        "obs-0002",
+        "obs-0003",
+        "obs-0004",
+        "obs-0005",
+        "obs-0006"
+      ],
+      "trail": "runs/session-wk-a3/events.jsonl"
+    }
+  ],
+  "history": [
+    {
+      "ts": "2026-10-13T10:13:59.747+08:00",
+      "to": "exploration_record",
+      "why": "由会话生成：待补齐目的、判据（独立来源）、清理与 knowledge_used"
+    }
+  ]
+}

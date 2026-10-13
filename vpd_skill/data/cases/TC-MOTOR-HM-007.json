@@ -1,0 +1,375 @@
+{
+  "id": "TC-MOTOR-HM-007",
+  "version": 1,
+  "status": "exploration_record",
+  "app": "motor_hm",
+  "title": "[会话生成] 底部 tab 遍历：启动鸿蒙智行 APP，依次点击底部导航 发现/精选/购车/服务/我的 五个 tab，验证每个 tab 可达且点击后呈选中态",
+  "goal": "底部 tab 遍历：启动鸿蒙智行 APP，依次点击底部导航 发现/精选/购车/服务/我的 五个 tab，验证每个 tab 可达且点击后呈选中态",
+  "purpose": "验证未登录态鸿蒙智行 APP 底部导航五个 tab（发现/精选/购车/服务/我的）均可点击到达且点击后呈选中态、页面内容切换无异常。",
+  "preconditions": ["鸿蒙智行 APP 已安装（本机 3.0.1.281）","APP 未登录","设备已解锁、亮屏，无系统弹窗遮挡"],
+  "env_requirements": {},
+  "test_data": {},
+  "test_data_none": true,
+  "authorizations": [],
+  "steps": [
+    {
+      "id": "S1",
+      "action": "launch",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-wk-a2",
+        "seq": 1,
+        "step": "A1",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0001",
+        "obs_after": "obs-0002"
+      }
+    },
+    {
+      "id": "S2",
+      "action": "tap",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-wk-a2",
+        "seq": 2,
+        "step": "A2",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0003",
+        "obs_after": "obs-0005"
+      },
+      "revalidate": true,
+      "target": {
+        "label": "select:text=精选",
+        "strategies": [
+          {
+            "kind": "text",
+            "value": "精选",
+            "within": {
+              "type": "TabBar"
+            }
+          }
+        ],
+        "side_effect": "navigation",
+        "origin": "agent_select",
+        "observed": {
+          "session": "session-wk-a2",
+          "seq": 2,
+          "obs": "obs-0004",
+          "outcome": "passed",
+          "node": {
+            "idx": 153,
+            "type": "Text",
+            "text": "精选",
+            "id": "",
+            "bounds": [
+              349,
+              2654,
+              420,
+              2703
+            ],
+            "clickable": false,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": "3.0.1.281",
+          "device_form": "bar",
+          "validation_level": "real_device"
+        }
+      }
+    },
+    {
+      "id": "S3",
+      "action": "tap",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-wk-a2",
+        "seq": 3,
+        "step": "A3",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0006",
+        "obs_after": "obs-0008"
+      },
+      "revalidate": true,
+      "target": {
+        "label": "select:text=购车",
+        "strategies": [
+          {
+            "kind": "text",
+            "value": "购车",
+            "within": {
+              "type": "TabBar"
+            }
+          }
+        ],
+        "side_effect": "navigation",
+        "origin": "agent_select",
+        "observed": {
+          "session": "session-wk-a2",
+          "seq": 3,
+          "obs": "obs-0007",
+          "outcome": "passed",
+          "node": {
+            "idx": 54,
+            "type": "Text",
+            "text": "购车",
+            "id": "",
+            "bounds": [
+              605,
+              2654,
+              676,
+              2703
+            ],
+            "clickable": false,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": "3.0.1.281",
+          "device_form": "bar",
+          "validation_level": "real_device"
+        }
+      }
+    },
+    {
+      "id": "S4",
+      "action": "tap",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-wk-a2",
+        "seq": 4,
+        "step": "A4",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0009",
+        "obs_after": "obs-0011"
+      },
+      "revalidate": true,
+      "target": {
+        "label": "select:text=服务",
+        "strategies": [
+          {
+            "kind": "text",
+            "value": "服务",
+            "within": {
+              "type": "TabBar"
+            }
+          }
+        ],
+        "side_effect": "navigation",
+        "origin": "agent_select",
+        "observed": {
+          "session": "session-wk-a2",
+          "seq": 4,
+          "obs": "obs-0010",
+          "outcome": "passed",
+          "node": {
+            "idx": 81,
+            "type": "Text",
+            "text": "服务",
+            "id": "",
+            "bounds": [
+              861,
+              2654,
+              932,
+              2703
+            ],
+            "clickable": false,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": "3.0.1.281",
+          "device_form": "bar",
+          "validation_level": "real_device"
+        }
+      }
+    },
+    {
+      "id": "S5",
+      "action": "tap",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-wk-a2",
+        "seq": 5,
+        "step": "A5",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0012",
+        "obs_after": "obs-0014"
+      },
+      "revalidate": true,
+      "target": {
+        "label": "select:text=我的",
+        "strategies": [
+          {
+            "kind": "text",
+            "value": "我的",
+            "within": {
+              "type": "TabBar"
+            }
+          }
+        ],
+        "side_effect": "navigation",
+        "origin": "agent_select",
+        "observed": {
+          "session": "session-wk-a2",
+          "seq": 5,
+          "obs": "obs-0013",
+          "outcome": "passed",
+          "node": {
+            "idx": 92,
+            "type": "Text",
+            "text": "我的",
+            "id": "",
+            "bounds": [
+              1117,
+              2654,
+              1188,
+              2703
+            ],
+            "clickable": false,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": "3.0.1.281",
+          "device_form": "bar",
+          "validation_level": "real_device"
+        }
+      }
+    },
+    {
+      "id": "S6",
+      "action": "tap",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-wk-a2",
+        "seq": 6,
+        "step": "A6",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0015",
+        "obs_after": "obs-0017"
+      },
+      "revalidate": true,
+      "target": {
+        "label": "select:text=发现",
+        "strategies": [
+          {
+            "kind": "text",
+            "value": "发现",
+            "within": {
+              "type": "TabBar"
+            }
+          }
+        ],
+        "side_effect": "navigation",
+        "origin": "agent_select",
+        "observed": {
+          "session": "session-wk-a2",
+          "seq": 6,
+          "obs": "obs-0016",
+          "outcome": "passed",
+          "node": {
+            "idx": 133,
+            "type": "Text",
+            "text": "发现",
+            "id": "",
+            "bounds": [
+              93,
+              2654,
+              164,
+              2703
+            ],
+            "clickable": false,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": "3.0.1.281",
+          "device_form": "bar",
+          "validation_level": "real_device"
+        }
+      }
+    }
+  ],
+  "assertions": [{"id":"A1","at":"S1","type":"state_is","state":"fx_tab","desc":"冷启动默认落在「发现」页","oracle_refs":["K-MOT-008"]},{"id":"A2","at":"S2","type":"node_selected","target":"tab_featured","desc":"点击「精选」后呈选中态","oracle_refs":["K-MOT-008"]},{"id":"A3","at":"S3","type":"node_selected","target":"tab_buy","desc":"点击「购车」后呈选中态","oracle_refs":["K-MOT-008"]},{"id":"A4","at":"S4","type":"node_selected","target":"tab_service","desc":"点击「服务」后呈选中态","oracle_refs":["K-MOT-008"]},{"id":"A5","at":"S5","type":"state_is","state":"my_tab","desc":"点击「我的」后进入我的页（已校准状态签名）","oracle_refs":["K-MOT-008","K-MOT-001"]},{"id":"A6","at":"S6","type":"node_selected","target":"tab_discover","desc":"再点回「发现」后呈选中态","oracle_refs":["K-MOT-008"]}],
+  "cleanup": [{"action":"stop_app","desc":"结束 APP"}],
+  "knowledge_used": [{"id":"K-MOT-008","use":"判据：未登录态五 tab 枚举与选中态切换","applicability":"unconfirmed","rationale":"test_goal 候选判据，未产品确认；applies_to 3.0.1.281 与本机一致；K-MOT-001（已确认）适用于 3.0.3.200 已登录态，本机不直接适用，仅作对照","steps":["S1","S2","S3","S4","S5","S6"]}],
+  "sources": [
+    {
+      "type": "session",
+      "run": "session-wk-a2",
+      "validation_level": "real_device",
+      "facts": {
+        "app": "motor_hm",
+        "bundle": "app.huawei.hmos.motor",
+        "device": "hdc:62T0225C27006650",
+        "validation_level": "real_device",
+        "app_version": "3.0.1.281",
+        "device_form": "bar"
+      },
+      "included": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "excluded": [],
+      "rejected": [],
+      "incomplete": [],
+      "effect_unknown": [],
+      "obs": [
+        "obs-0001",
+        "obs-0002",
+        "obs-0003",
+        "obs-0005",
+        "obs-0006",
+        "obs-0008",
+        "obs-0009",
+        "obs-0011",
+        "obs-0012",
+        "obs-0014",
+        "obs-0015",
+        "obs-0017"
+      ],
+      "trail": "runs/session-wk-a2/events.jsonl"
+    }
+  ],
+  "history": [
+    {
+      "ts": "2026-10-13T10:08:00.726+08:00",
+      "to": "exploration_record",
+      "why": "由会话生成：待补齐目的、判据（独立来源）、清理与 knowledge_used"
+    }
+  ]
+}
