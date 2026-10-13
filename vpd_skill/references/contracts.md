@@ -130,7 +130,7 @@ agent 模式的 `--point` 记录提出时的窗口尺寸（`point_window`）；�
 
 良性中断/已登记系统弹窗的原子处置继续可执行，随后重新核验原步骤完整后置条件。后置满足可恢复通过；不满足且原动作不可重放则停止原步骤，不以关闭弹窗代替原业务后置。首次异常、恢复动作与复核证据分别保留。
 
-单次 act、最后一次尝试、flow/recipe 子步骤与 cleanup 同样保留部分执行/未知效果的人工交接信号。`run` 的 verdict/report 将原子步骤交接列入 `step_recovery` alerts；安全停止警告优先。`anomaly`、未评审中断仍不自动恢复，未知车辆运动发送事实保守挂看门狗。
+单次 act、最后一次尝试、flow/recipe 子步骤与 cleanup 同样保留部分执行/未知效果的人工交接信号。最终失败存在未知物理效果时，即使该动作本可安全幂等重试，也因重试已结束而保留 `effect_unknown/action_required`，不能让重试资格掩盖交接。`run` 的 verdict/report 将原子步骤交接列入 `step_recovery` alerts；安全停止警告优先。`anomaly`、未评审中断仍不自动恢复，未知车辆运动发送事实保守挂看门狗。
 
 恢复手势在 `attempt.recovery_dispatches[]` 保留原始 `sent`、`ok` 及 `verified`；`verified=false` 且可能下发时，记录未知效果和人工交接并停止原动作重放。系统弹窗能力的 `dismiss.sent` 同样保留三态，不将未知压成 false。已确认良性关闭后，若原业务后置仍未成立，重新按原步骤的幂等与副作用规则判断剩余重试资格。
 

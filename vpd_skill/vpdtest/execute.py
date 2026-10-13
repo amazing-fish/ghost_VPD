@@ -925,7 +925,7 @@ class Executor:
         final_post = (last_rec.get("post") or {}) if last_rec else {}
         final_status = final_post.get("status") or last["status"]
         # 单次 act、cleanup 和耗尽预算的最后尝试同样需要交接，不能依赖进入恢复分支。
-        if not ok and not self._repeat_allowed(step, last):
+        if not ok and (not self._repeat_allowed(step, last) or dispatch_effect_unknown(last)):
             last["action_required"] = True
             last["effect_unknown"] = (bool(last.get("effect_unknown"))
                                       or final_status != "postcondition_not_met"
