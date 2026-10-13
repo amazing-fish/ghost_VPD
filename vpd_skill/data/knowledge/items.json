@@ -2154,10 +2154,11 @@
       "id": "K-QK-020",
       "kind": "product_rule",
       "subject": "qiankun_hm.vpd.task_expiry",
-      "statement": "VPD 算路任务创建后约 10 分钟未激活会自动过期：过期后再进 ADS 落 VPD 首页（不再显示任务卡片），入口行为回落无任务态。",
+      "statement": "VPD 算路任务创建后未激活会自动过期，过期后再进 ADS 落 VPD 首页（不再显示任务卡片）；但过期时长可变（约 9~12+ 分钟，非固定 10 分钟）：TC-QK-228 v3（run-20261013-131314-61e2）任务创建后 11.5 分钟仍未过期，跨冷重启后任务卡片完整恢复。未取消的任务在过期前跨冷重启均恢复（K-QK-015 两次独立验证）。",
       "expected": {
-        "expiry_s": "约600",
-        "after_expiry_ads_entry": "home"
+        "expiry_s": "约540~720+（可变，非固定600）",
+        "after_expiry_ads_entry": "home",
+        "before_expiry_ads_entry": "task_card_restore"
       },
       "applies_to": {
         "app": "qiankun_hm",
@@ -2165,14 +2166,47 @@
       },
       "source": {
         "type": "test_goal",
-        "ref": "周批量实测现场观测：session 214 期间 11:07 创建任务、11:16 重进已回落首页；TC-QK-219 期间 12:04 任务 12:15 重进同样回落首页"
+        "ref": "周批量实测现场观测：session 214 期间 11:07 创建任务、11:16 重进已回落首页（约9分钟过期）；TC-QK-219 期间 12:04 任务 12:15 重进同样回落首页（约11分钟）；TC-QK-228 v3 run-20261013-131314-61e2 任务 13:15 创建、13:26（11.5 分钟）跨重启后任务卡片仍完整恢复未过期"
       },
-      "note": "过期时长为约数（10±1 分钟），未取消的任务在过期前跨冷重启仍恢复（K-QK-015）。",
+      "note": "过期时长可变（9~12+ 分钟），可能与会话/车辆状态相关而非固定定时器——待产品定性；未过期任务跨冷重启恢复已两次独立验证（K-QK-015）。",
       "status": "unconfirmed",
       "created": "2026-10-13T12:45:17.352+08:00",
       "history": [
         {
           "ts": "2026-10-13T12:45:17.352+08:00",
+          "to": "unconfirmed",
+          "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-021",
+      "kind": "product_rule",
+      "subject": "qiankun_hm.vpd.recovery_and_hang",
+      "statement": "两类恢复相关行为：①网络切换（WLAN 断开后恢复）后不重启 APP 会持续显示「网络异常，请检查网络设置」（公网可达但 APP 后端连不上，连接池陈旧），重启 APP 后恢复；②VPD 任务过期后短时间内（数分钟内）进 ADS 首页加载挂起（「正在加载...」+功能兜底卡片，长时间不落首页），重启 APP 后二次进入正常加载首页。",
+      "expected": {
+        "stale_conn_after_net_switch": [
+          "网络异常，请检查网络设置"
+        ],
+        "post_expiry_entry_hang": [
+          "正在加载"
+        ],
+        "recover_via_app_restart": true
+      },
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100"
+      },
+      "source": {
+        "type": "test_goal",
+        "ref": "周批量实测现场观测：①session-wk-qk6/obs-0010（12:13 切网后 网络异常请检查网络设置，公网 ping 正常）→obs-0018（12:33 重启后首页正常）；②session-wk-qk6/obs-0009（12:14 过期任务后进 ADS 挂起）+run-20261013-125241-b6fd/obs-0010-0012（12:53 过期任务后进 ADS 挂起 正在加载+兜底卡片）"
+      },
+      "note": "②与 K-QK-018③（重进恢复加载）不矛盾：重进在多数情况下恢复，但任务过期后短时间窗内重进仍挂起，须重启 APP。是否合预期（产品缺陷候选）待产品定性。",
+      "status": "unconfirmed",
+      "created": "2026-10-13T12:56:14.928+08:00",
+      "history": [
+        {
+          "ts": "2026-10-13T12:56:14.928+08:00",
           "to": "unconfirmed",
           "why": "新增"
         }
