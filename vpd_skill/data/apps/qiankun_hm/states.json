@@ -38,7 +38,7 @@
       "review": "pending"
     },
     "qk_vpd_home": {
-      "desc": "VPD 首页（有搜索栏「搜索车位号设为目的地」，尚未算路）",
+      "desc": "VPD首页入口（有搜索栏，尚未算路，且无已知停车场数据加载失败提示；不证明完整地图就绪）",
       "require_text": [
         "搜索车位号设为目的地"
       ],
@@ -48,11 +48,29 @@
         "继续"
       ],
       "forbid_text_pattern": [
-        "路线规划中"
+        "路线规划中",
+        "停车场信息加载失败"
       ],
       "source": "原工程用「默认车位」（app/config/mhero_config.py:279）；1.0.26.100 真机上它只出现在停车场数据加载失败的占位页（session-g1 obs-0001），加载完成的首页没有（session-g1 obs-0016、session-qk-maint obs-0030），两种页面都有搜索栏。见 K-QK-OBS-201",
       "review": "pending",
-      "review_note": "2026-09-30 按真机两种首页改签名；加载失败页也命中本状态，失败提示由观测的 ui_alerts 单独报出。算路结果页是否仍有搜索栏未核对，靠 forbid_text「开始」区分"
+      "review_note": "搜索栏同时可能出现在失败占位，故排除停车场信息加载失败；仅识别入口并拒绝已知失败，不推导完整地图数据就绪。原作者旧签名说明保留reported_definition，独立真机核验仍pending。",
+      "reported_definition": {
+        "desc": "VPD 首页（有搜索栏「搜索车位号设为目的地」，尚未算路）",
+        "require_text": [
+          "搜索车位号设为目的地"
+        ],
+        "forbid_text": [
+          "开始",
+          "暂停",
+          "继续"
+        ],
+        "forbid_text_pattern": [
+          "路线规划中"
+        ],
+        "source": "原工程用「默认车位」（app/config/mhero_config.py:279）；1.0.26.100 真机上它只出现在停车场数据加载失败的占位页（session-g1 obs-0001），加载完成的首页没有（session-g1 obs-0016、session-qk-maint obs-0030），两种页面都有搜索栏。见 K-QK-OBS-201",
+        "review": "pending",
+        "review_note": "2026-09-30 按真机两种首页改签名；加载失败页也命中本状态，失败提示由观测的 ui_alerts 单独报出。算路结果页是否仍有搜索栏未核对，靠 forbid_text「开始」区分"
+      }
     },
     "qk_route_planning": {
       "desc": "算路中",

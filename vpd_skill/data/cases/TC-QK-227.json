@@ -9,7 +9,8 @@
     "乾崑 APP 已登录（测试账号 151****3183，默认车辆 F03）",
     "无进行中的算路任务（任务卡片页时搜索入口不可达）",
     "设备联网、已解锁、亮屏；手机位置距 VPD 园区较远（办公位）",
-    "本候选限原作者声明的 APP 1.0.26.100 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准"
+    "本候选限原作者声明的 APP 1.0.26.100 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准",
+    "新增任务/车辆/园区范围均须执行前人工核实；声明不是自动采集事实，实测事实与独立判据另核"
   ],
   "env_requirements": {
     "account_state": "logged_in",
@@ -17,7 +18,10 @@
     "app_version": "1.0.26.100",
     "device_form": "bar",
     "vehicle_fault_state": "vpd_fault",
-    "vpd_task_state": "none"
+    "vpd_task_state": "none",
+    "parking_area": "金桥出口加工区",
+    "vehicle_name": "F03",
+    "location_relation": "far_from_destination"
   },
   "test_data": {},
   "test_data_none": true,
@@ -166,14 +170,15 @@
   "knowledge_used": [
     {
       "id": "K-QK-019",
-      "use": "判据：我的位置算路任务卡片 我的爱车→我的位置+故障态+车辆距离目的地较远",
+      "use": "金桥地图中我的位置故障远距场景及模糊建议展示；不同有效行数量未验",
       "applicability": "unconfirmed",
-      "rationale": "K-QK-019 仅按其声明范围用于 S6, S7；判据：我的位置算路任务卡片 我的爱车→我的位置+故障态+车辆距离目的地较远。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
+      "rationale": "K-QK-019用于所列步骤；金桥地图中我的位置故障远距场景及模糊建议展示；不同有效行数量未验。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
       "steps": [
         "S6",
         "S7"
       ],
-      "reported_rationale": "test_goal 候选判据；session-wk-qk6/obs-0035 实测证据"
+      "reported_rationale": "test_goal 候选判据；session-wk-qk6/obs-0035 实测证据",
+      "reported_use": "判据：我的位置算路任务卡片 我的爱车→我的位置+故障态+车辆距离目的地较远"
     },
     {
       "id": "K-QK-USR-002",
@@ -227,7 +232,8 @@
       "原始run/obs与全部失败迭代的可携带证据",
       "修订版本的显式资产人审与独立复跑",
       "独立产品判据确认及适用范围",
-      "Cleanup后置核验；不能从定义推断verified"
+      "Cleanup后置核验；不能从定义推断verified",
+      "入口可见和已知错误排除不证明完整地图/车位数据就绪；场景条件须人工核实"
     ]
   },
   "reported_definition": {

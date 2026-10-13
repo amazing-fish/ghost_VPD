@@ -9,14 +9,16 @@
     "乾崑 APP 已登录（测试账号 151****3183）",
     "存在未取消的 VPD 算路任务（沿 TC-QK-214 发起，F03 故障/启动失败态）",
     "设备已解锁、亮屏（灭屏会导致观测失败：run-20261013-110734-ff26 obs-0030 实测空观测）",
-    "本候选限原作者声明的 APP 1.0.26.100 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准"
+    "本候选限原作者声明的 APP 1.0.26.100 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准",
+    "新增任务/车辆/园区范围均须执行前人工核实；声明不是自动采集事实，实测事实与独立判据另核"
   ],
   "env_requirements": {
     "account_state": "logged_in",
     "app_version": "1.0.26.100",
     "device_form": "bar",
     "vehicle_fault_state": "vpd_fault",
-    "vpd_task_state": "active"
+    "vpd_task_state": "active",
+    "task_type": "along_parking"
   },
   "test_data": {},
   "test_data_none": true,
@@ -93,10 +95,9 @@
         "靠边停车",
         "步行路线"
       ],
-      "desc": "任务卡片辅助入口可见（只断言显示，不点击）",
-      "oracle_refs": [
-        "K-QK-015"
-      ]
+      "desc": "任务卡片辅助入口可见（只断言显示，不点击）；缺独立入口规则，仅记录建议",
+      "oracle_refs": [],
+      "advisory": true
     },
     {
       "id": "A4",
@@ -132,14 +133,15 @@
   "knowledge_used": [
     {
       "id": "K-QK-015",
-      "use": "判据：有活动任务时进 ADS 直达任务卡片页，任务跨 APP 冷重启恢复",
+      "use": "已声明active沿途任务同类描述；唯一身份与完整恢复未验",
       "applicability": "unconfirmed",
-      "rationale": "K-QK-015 仅按其声明范围用于 S4, S5；判据：有活动任务时进 ADS 直达任务卡片页，任务跨 APP 冷重启恢复。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
+      "rationale": "K-QK-015用于所列步骤；已声明active沿途任务同类描述；唯一身份与完整恢复未验。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
       "steps": [
         "S4",
         "S5"
       ],
-      "reported_rationale": "test_goal 候选判据；run-20261013-111134-3476/obs-0012（重启后进 ADS 直达卡片页）与 session-wk-qk3/obs-0023-0025（卡片结构）实测证据"
+      "reported_rationale": "test_goal 候选判据；run-20261013-111134-3476/obs-0012（重启后进 ADS 直达卡片页）与 session-wk-qk3/obs-0023-0025（卡片结构）实测证据",
+      "reported_use": "判据：有活动任务时进 ADS 直达任务卡片页，任务跨 APP 冷重启恢复"
     },
     {
       "id": "K-QK-USR-002",
@@ -194,7 +196,8 @@
       "修订版本的显式资产人审与独立复跑",
       "独立产品判据确认及适用范围",
       "Cleanup后置核验；不能从定义推断verified",
-      "任务唯一身份关联未实现；当前只检查同类任务描述跨重启可见"
+      "任务唯一身份关联未实现；当前只检查同类任务描述跨重启可见",
+      "入口可见和已知错误排除不证明完整地图/车位数据就绪；场景条件须人工核实"
     ]
   },
   "reported_definition": {

@@ -4,16 +4,19 @@
   "status": "draft",
   "app": "qiankun_hm",
   "title": "乾崑爱车页车辆信息显示断言",
-  "purpose": "登录态下进爱车页，验证当前车辆（F03）信息元素显示：车名、车辆位置（距离+停泊中）、提醒项、数据更新时间、车控入口（只断言显示，不点击）、数字钥匙状态。账号与导航域（VPD 视角）：确认默认车辆上下文供后续 VPD 用例使用。",
+  "purpose": "人工核实F03停泊前提下检查车名、更新时间与停泊中文字；其它入口和信息完整性仅作建议，不证明默认车辆关系、实时刷新或数据正确性。",
   "preconditions": [
     "乾崑 APP 已登录（测试账号 151****3183，默认车辆 F03）",
     "设备已解锁、亮屏",
-    "本候选限原作者声明的 APP 1.0.26.100 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准"
+    "本候选限原作者声明的 APP 1.0.26.100 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准",
+    "新增任务/车辆/园区范围均须执行前人工核实；声明不是自动采集事实，实测事实与独立判据另核"
   ],
   "env_requirements": {
     "account_state": "logged_in",
     "app_version": "1.0.26.100",
-    "device_form": "bar"
+    "device_form": "bar",
+    "vehicle_name": "F03",
+    "vehicle_state": "parked"
   },
   "test_data": {},
   "test_data_none": true,
@@ -78,10 +81,9 @@
         "空调",
         "后备箱"
       ],
-      "desc": "车控入口可见（只断言显示，禁止点击：vehicle_control supervised）",
-      "oracle_refs": [
-        "K-QK-017"
-      ]
+      "desc": "车控入口可见（只断言显示，禁止点击：vehicle_control supervised）；缺独立入口规则，仅记录建议",
+      "oracle_refs": [],
+      "advisory": true
     },
     {
       "id": "A4",
@@ -112,14 +114,15 @@
   "knowledge_used": [
     {
       "id": "K-QK-017",
-      "use": "判据：爱车页车辆信息元素清单（车名/位置停泊中/提醒/更新时间/车控入口/数字钥匙）",
+      "use": "已声明F03停泊场景的车名/停泊中/更新时间展示；完整性刷新未验",
       "applicability": "unconfirmed",
-      "rationale": "K-QK-017 仅按其声明范围用于 S3, S4；判据：爱车页车辆信息元素清单（车名/位置停泊中/提醒/更新时间/车控入口/数字钥匙）。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
+      "rationale": "K-QK-017用于所列步骤；已声明F03停泊场景的车名/停泊中/更新时间展示；完整性刷新未验。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
       "steps": [
         "S3",
         "S4"
       ],
-      "reported_rationale": "test_goal 候选判据；session-wk-qk4/obs-0009 实测证据（F03：SUM 645km、54/38 电量、1.7km 停泊中、车门未锁等3项提醒、更新于 2026/10/13 11:23）"
+      "reported_rationale": "test_goal 候选判据；session-wk-qk4/obs-0009 实测证据（F03：SUM 645km、54/38 电量、1.7km 停泊中、车门未锁等3项提醒、更新于 2026/10/13 11:23）",
+      "reported_use": "判据：爱车页车辆信息元素清单（车名/位置停泊中/提醒/更新时间/车控入口/数字钥匙）"
     }
   ],
   "sources": [
@@ -164,7 +167,9 @@
       "修订版本的显式资产人审与独立复跑",
       "独立产品判据确认及适用范围",
       "Cleanup后置核验；不能从定义推断verified",
-      "实时数据刷新与完整性仍需独立数据基线"
+      "实时数据刷新与完整性仍需独立数据基线",
+      "入口可见和已知错误排除不证明完整地图/车位数据就绪；场景条件须人工核实",
+      "原目的中的完整性/业务关系仍未验；当前自动结论只限必需显示检查"
     ]
   },
   "reported_definition": {

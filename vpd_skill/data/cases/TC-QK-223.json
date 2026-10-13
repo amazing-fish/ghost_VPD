@@ -4,19 +4,21 @@
   "status": "draft",
   "app": "qiankun_hm",
   "title": "乾崑已声明恢复联网场景的VPD首页进入",
-  "purpose": "在人工确认已联网且无任务前提下冷启动进入首页，检查搜索入口、园区名称和网络错误提示；不验证断网→恢复转换或后台连接根因。",
+  "purpose": "在人工声明联网且无任务前提下检查搜索入口及已知停车数据失败；园区与网络提示只作观察，不用断网规则推导联网恢复、切网转换或刷新已验收。",
   "preconditions": [
     "乾崑 APP 已登录（测试账号 151****3183）",
     "设备网络已恢复：执行者在 run 前经系统控制中心重新开启 WLAN（方法与验证留档 session-wk-qk5：ifconfig wlan0 inet addr 恢复）",
     "设备已解锁、亮屏",
-    "本候选限原作者声明的 APP 1.0.26.100 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准"
+    "本候选限原作者声明的 APP 1.0.26.100 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准",
+    "新增任务/车辆/园区范围均须执行前人工核实；声明不是自动采集事实，实测事实与独立判据另核"
   ],
   "env_requirements": {
     "account_state": "logged_in",
     "network": "on",
     "app_version": "1.0.26.100",
     "device_form": "bar",
-    "vpd_task_state": "none"
+    "vpd_task_state": "none",
+    "parking_area": "金桥出口加工区"
   },
   "test_data": {},
   "test_data_none": true,
@@ -78,21 +80,19 @@
       "type": "text_present",
       "text": "金桥出口加工区",
       "exact": false,
-      "desc": "金桥出口加工区可见",
-      "oracle_refs": [
-        "K-QK-013"
-      ]
+      "desc": "园区/网络提示只读取证；缺独立联网恢复判据，不证明转换或刷新",
+      "oracle_refs": [],
+      "advisory": true
     },
     {
       "id": "A3",
       "at": "S5",
       "type": "text_absent",
       "text": "网络异常",
-      "desc": "恢复后无网络异常提示",
-      "oracle_refs": [
-        "K-QK-018"
-      ],
-      "exact": false
+      "desc": "园区/网络提示只读取证；缺独立联网恢复判据，不证明转换或刷新",
+      "oracle_refs": [],
+      "exact": false,
+      "advisory": true
     },
     {
       "id": "A4",
@@ -101,6 +101,17 @@
       "advisory": true,
       "desc": "首页完整性与数据刷新（建议）",
       "prompt": "检查截图：VPD 首页地图/园区名/车位总数/搜索入口/推荐车位是否完整加载，车位总数与断网前对比是否联网刷新。只给建议，不作为缺陷结论"
+    },
+    {
+      "id": "A_NO_LOAD_ERROR",
+      "at": "S5",
+      "type": "text_absent",
+      "text": "停车场信息加载失败",
+      "exact": false,
+      "desc": "已声明联网场景中排除已知停车数据失败，不证明完整地图就绪",
+      "oracle_refs": [
+        "K-QK-013"
+      ]
     }
   ],
   "cleanup": [
@@ -116,20 +127,21 @@
   "knowledge_used": [
     {
       "id": "K-QK-018",
-      "use": "判据：网络恢复后需重进触发加载，重进后 VPD 首页正常（车位总数联网刷新）",
+      "use": "背景：作者断网/恢复报告；本例联网，不作正式Oracle",
       "applicability": "unconfirmed",
-      "rationale": "K-QK-018 仅按其声明范围用于 S4, S5；判据：网络恢复后需重进触发加载，重进后 VPD 首页正常（车位总数联网刷新）。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
+      "rationale": "K-QK-018用于所列步骤；背景：作者断网/恢复报告；本例联网，不作正式Oracle。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
       "steps": [
         "S4",
         "S5"
       ],
-      "reported_rationale": "test_goal 候选判据；session-wk-qk5/obs-0018（恢复不自动刷新）、obs-0028（重进后首页正常：金桥出口加工区72+共315个，断网前 742 联网刷新）实测证据"
+      "reported_rationale": "test_goal 候选判据；session-wk-qk5/obs-0018（恢复不自动刷新）、obs-0028（重进后首页正常：金桥出口加工区72+共315个，断网前 742 联网刷新）实测证据",
+      "reported_use": "判据：网络恢复后需重进触发加载，重进后 VPD 首页正常（车位总数联网刷新）"
     },
     {
       "id": "K-QK-013",
-      "use": "判据：VPD 首页元素清单",
+      "use": "候选首页入口与已知加载失败排除；不证明完整地图就绪",
       "applicability": "unconfirmed",
-      "rationale": "K-QK-013 仅按其声明范围用于 S5；判据：VPD 首页元素清单。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
+      "rationale": "K-QK-013仅用于所列入口检查；默认车位不是健康首页普遍标记，已知停车场数据失败不能当正常进入。原作者引用保留reported_rationale，独立产品依据与完整地图就绪仍待验。",
       "steps": [
         "S5"
       ],
@@ -178,7 +190,8 @@
       "修订版本的显式资产人审与独立复跑",
       "独立产品判据确认及适用范围",
       "Cleanup后置核验；不能从定义推断verified",
-      "断网前后基线、真实网络事实和外部恢复网络未验证；env声明不等于采集证据"
+      "断网前后基线、真实网络事实和外部恢复网络未验证；env声明不等于采集证据",
+      "入口可见和已知错误排除不证明完整地图/车位数据就绪；场景条件须人工核实"
     ]
   },
   "reported_definition": {

@@ -2472,13 +2472,13 @@
       "id": "K-QK-012",
       "kind": "product_rule",
       "subject": "qiankun_hm.login.new_device_sms_verify",
-      "statement": "新设备首次密码登录：点登录后弹「身份验证」确认弹窗（取消/同意），同意后进入短信验证码页（验证码已发至 +86 151****3183，60s 重发倒计时），并弹「是否保存账号和密码」密码保险箱询问（保存密码/下次再说）。",
+      "statement": "已实际触发新设备短信挑战的测试场景中，检查身份验证页、目标测试账户展示与验证码输入。密码保险箱询问仅在系统实际弹出时处置；不要求每次登录、新设备或任意系统配置都出现该询问。",
       "expected": {
         "verify_page_texts": [
           "身份验证",
           "验证码已发至"
         ],
-        "vault_save_prompt": true
+        "vault_save_prompt": "if_triggered"
       },
       "applies_to": {
         "app": "qiankun_hm",
@@ -2502,19 +2502,34 @@
           "why": "新增"
         }
       ],
-      "reported_note": "验证码为一次性短信，发送至测试账号 SIM（不在测试机上）；验证码页不跨 stop_app 恢复（relaunch 回主界面）。选择器校准见 targets qk_verify_agree/qk_sms_code_input/qk_verify_login/qk_vault_later。"
+      "reported_note": "验证码为一次性短信，发送至测试账号 SIM（不在测试机上）；验证码页不跨 stop_app 恢复（relaunch 回主界面）。选择器校准见 targets qk_verify_agree/qk_sms_code_input/qk_verify_login/qk_vault_later。",
+      "reported_definition": {
+        "kind": "product_rule",
+        "statement": "新设备首次密码登录：点登录后弹「身份验证」确认弹窗（取消/同意），同意后进入短信验证码页（验证码已发至 +86 151****3183，60s 重发倒计时），并弹「是否保存账号和密码」密码保险箱询问（保存密码/下次再说）。",
+        "expected": {
+          "verify_page_texts": [
+            "身份验证",
+            "验证码已发至"
+          ],
+          "vault_save_prompt": true
+        },
+        "applies_to": {
+          "app": "qiankun_hm",
+          "app_version": "1.0.26.100"
+        }
+      }
     },
     {
       "id": "K-QK-013",
       "kind": "product_rule",
       "subject": "qiankun_hm.vpd.home_elements",
-      "statement": "登录后从爱车页点「ADS」进入泊车代驾（VPD）首页，加载完成后显示：园区名（如金桥出口加工区72）、「泊车代驾」与车位总数、「搜索车位号设为目的地」、「我的位置/常去地点/附近充电站」入口、「默认车位/默认上车点」（未设置时显示点击去设置占位）、「推荐车位（推荐/沿途找车位）」、停泊位置地图（L1层/俯视）。",
+      "statement": "无活动任务的登录场景中，从爱车页进入VPD后检查搜索车位号设为目的地入口，且不接受已显示停车场信息加载失败的占位作为正常首页进入。默认车位不是所有健康首页的必需文字；搜索入口与已知失败排除也不证明完整地图、车位数据或推荐布局已就绪。独立产品依据待确认。",
       "expected": {
         "home_texts": [
-          "泊车代驾",
-          "默认车位",
           "搜索车位号设为目的地"
-        ]
+        ],
+        "known_load_error_absent": "停车场信息加载失败",
+        "complete_map_ready": "not_verified"
       },
       "applies_to": {
         "app": "qiankun_hm",
@@ -2523,7 +2538,7 @@
       },
       "source": {
         "type": "model_inference",
-        "ref": "周批量实测现场观测 session-wk-qk3 obs-0013/0016/0019（元素清单有证据，判据期望未经产品确认）；原始记录未随仓库提供，本项为从原作者描述形成的候选预期，独立产品依据待确认",
+        "ref": "周批量实测现场观测 session-wk-qk3 obs-0013/0016/0019（元素清单有证据，判据期望未经产品确认）；原始记录未随仓库提供，本项为从原作者描述形成的候选预期，独立产品依据待确认；对照主干K-QK-OBS-201/203的已报告加载差异，撤销默认车位普遍必有的推断；这些观察没有被升级为产品Oracle",
         "reported_type": "test_goal",
         "asset_pr": 36,
         "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728"
@@ -2538,13 +2553,28 @@
           "why": "新增"
         }
       ],
-      "reported_note": "首页含车控卡片（遥控泊车辅助/遥控直行辅助）——测试中禁止点击（vehicle_control supervised）。"
+      "reported_note": "首页含车控卡片（遥控泊车辅助/遥控直行辅助）——测试中禁止点击（vehicle_control supervised）。",
+      "reported_definition": {
+        "kind": "product_rule",
+        "statement": "登录后从爱车页点「ADS」进入泊车代驾（VPD）首页，加载完成后显示：园区名（如金桥出口加工区72）、「泊车代驾」与车位总数、「搜索车位号设为目的地」、「我的位置/常去地点/附近充电站」入口、「默认车位/默认上车点」（未设置时显示点击去设置占位）、「推荐车位（推荐/沿途找车位）」、停泊位置地图（L1层/俯视）。",
+        "expected": {
+          "home_texts": [
+            "泊车代驾",
+            "默认车位",
+            "搜索车位号设为目的地"
+          ]
+        },
+        "applies_to": {
+          "app": "qiankun_hm",
+          "app_version": "1.0.26.100"
+        }
+      }
     },
     {
       "id": "K-QK-014",
       "kind": "product_rule",
       "subject": "qiankun_hm.vpd.find_along_planning",
-      "statement": "VPD 首页点「沿途找车位」一键发起算路（目的地=沿途最近空车位），出现任务卡片「我的爱车 泊入沿途最近空车位」与「开始」按钮；算路过程会唤醒/上电车辆（系统功能启动中%），规划完成后显示结果状态（可用或故障提示）。",
+      "statement": "在明确允许算路的沿途找车位场景中，结果任务描述候选为泊入沿途最近空车位。开始按钮不是必需：故障前提下可不可用或不出现，出现也不证明可激活；故障终态与不可激活另依独立规则。算路可能唤醒或上电，仍须单次动作授权。",
       "expected": {
         "task_card": "泊入沿途最近空车位",
         "may_wake_vehicle": true
@@ -2571,23 +2601,37 @@
           "why": "新增"
         }
       ],
-      "reported_note": "测试边界：只到发起+结果显示，不点「开始」（vehicle_motion/control supervised）。F03 实测为 VPD 功能故障态，与 K-QK-USR-002 一致。"
+      "reported_note": "测试边界：只到发起+结果显示，不点「开始」（vehicle_motion/control supervised）。F03 实测为 VPD 功能故障态，与 K-QK-USR-002 一致。",
+      "reported_definition": {
+        "kind": "product_rule",
+        "statement": "VPD 首页点「沿途找车位」一键发起算路（目的地=沿途最近空车位），出现任务卡片「我的爱车 泊入沿途最近空车位」与「开始」按钮；算路过程会唤醒/上电车辆（系统功能启动中%），规划完成后显示结果状态（可用或故障提示）。",
+        "expected": {
+          "task_card": "泊入沿途最近空车位",
+          "may_wake_vehicle": true
+        },
+        "applies_to": {
+          "app": "qiankun_hm",
+          "app_version": "1.0.26.100"
+        }
+      }
     },
     {
       "id": "K-QK-015",
       "kind": "product_rule",
       "subject": "qiankun_hm.vpd.task_card_restore",
-      "statement": "存在未取消的 VPD 算路任务时：进入 ADS 直达任务卡片页（不落 VPD 首页），任务卡片跨 APP 冷重启（stop_app+relaunch）后恢复显示：任务描述（我的爱车 泊入沿途最近空车位）、状态提示（可用/不可用/失败+重试）与辅助入口（靠边停车/步行路线）。",
+      "statement": "已人工核实仍active的沿途找车位任务场景中，冷启动重进ADS后检查同类沿途任务描述。没有证明前后同一任务唯一身份，不把所有未取消任务、其它任务类型或未知期限都解释为必恢复。",
       "expected": {
         "task_card_texts": [
           "泊入沿途最近空车位"
         ],
-        "restore_after_restart": true
+        "same_task_identity": "not_verified"
       },
       "applies_to": {
         "app": "qiankun_hm",
         "app_version": "1.0.26.100",
-        "device_form": "bar"
+        "device_form": "bar",
+        "vpd_task_state": "active",
+        "task_type": "along_parking"
       },
       "source": {
         "type": "model_inference",
@@ -2606,13 +2650,27 @@
           "why": "新增"
         }
       ],
-      "reported_note": "与 K-QK-001/K-QK-013 关系：有活动任务时进 ADS 不显示首页元素（默认车位等），首页判据仅在无活动任务时适用。"
+      "reported_note": "与 K-QK-001/K-QK-013 关系：有活动任务时进 ADS 不显示首页元素（默认车位等），首页判据仅在无活动任务时适用。",
+      "reported_definition": {
+        "kind": "product_rule",
+        "statement": "存在未取消的 VPD 算路任务时：进入 ADS 直达任务卡片页（不落 VPD 首页），任务卡片跨 APP 冷重启（stop_app+relaunch）后恢复显示：任务描述（我的爱车 泊入沿途最近空车位）、状态提示（可用/不可用/失败+重试）与辅助入口（靠边停车/步行路线）。",
+        "expected": {
+          "task_card_texts": [
+            "泊入沿途最近空车位"
+          ],
+          "restore_after_restart": true
+        },
+        "applies_to": {
+          "app": "qiankun_hm",
+          "app_version": "1.0.26.100"
+        }
+      }
     },
     {
       "id": "K-QK-016",
       "kind": "product_rule",
       "subject": "qiankun_hm.vpd.spot_search_and_route",
-      "statement": "VPD 首页「搜索车位号设为目的地」进入搜索页；输入车位号（如 A43）出现唯一联想行「L1层-A43 车位」带「路线」按钮；点「路线」发起算路，出现任务卡片（我的爱车 L1层-A43 车位 泊入车位）与结果状态（车辆可用态或故障提示）。",
+      "statement": "限定原作者报告的金桥出口加工区地图、L1-A43精确车位场景：搜索结果与最终目的地应分别显示指定车位，并经路线入口发起算路。楼层、车位与唯一建议取决于具体地图和查询，不作为同版本所有园区的固定格式要求。",
       "expected": {
         "suggestion_format": "L1层-XXX 车位",
         "route_btn": "路线",
@@ -2621,7 +2679,9 @@
       "applies_to": {
         "app": "qiankun_hm",
         "app_version": "1.0.26.100",
-        "device_form": "bar"
+        "device_form": "bar",
+        "parking_area": "金桥出口加工区",
+        "destination_spot": "L1-A43"
       },
       "source": {
         "type": "model_inference",
@@ -2640,13 +2700,26 @@
           "why": "新增"
         }
       ],
-      "reported_note": "搜索词为模糊子串（0/A/1 均出多行联想；精确车位号收敛到唯一行）。算路会唤醒车辆（K-QK-006）；只到结果不控车。"
+      "reported_note": "搜索词为模糊子串（0/A/1 均出多行联想；精确车位号收敛到唯一行）。算路会唤醒车辆（K-QK-006）；只到结果不控车。",
+      "reported_definition": {
+        "kind": "product_rule",
+        "statement": "VPD 首页「搜索车位号设为目的地」进入搜索页；输入车位号（如 A43）出现唯一联想行「L1层-A43 车位」带「路线」按钮；点「路线」发起算路，出现任务卡片（我的爱车 L1层-A43 车位 泊入车位）与结果状态（车辆可用态或故障提示）。",
+        "expected": {
+          "suggestion_format": "L1层-XXX 车位",
+          "route_btn": "路线",
+          "task_card": "泊入车位"
+        },
+        "applies_to": {
+          "app": "qiankun_hm",
+          "app_version": "1.0.26.100"
+        }
+      }
     },
     {
       "id": "K-QK-017",
       "kind": "product_rule",
       "subject": "qiankun_hm.car_page.vehicle_info_elements",
-      "statement": "爱车页显示当前车辆信息：车名（F03）、里程（SUM/km 分项）、电量百分比、车内温度、车辆位置（距离+停泊中）、提醒项（车门未锁等N项提醒）、数据更新时间、车控入口（车锁/车窗/闪灯鸣笛/授权驾驶/后备箱/空调）、数字钥匙状态、下载车辆资源入口。",
+      "statement": "限定测试车辆F03且人工核实停泊状态的爱车页场景，检查F03、停泊中与更新时间展示。具体里程、温度、提醒和数据刷新完整性须现场基线，不要求同版本其它车辆或其它运动状态显示F03/停泊中。",
       "expected": {
         "car_page_texts": [
           "停泊中",
@@ -2656,7 +2729,9 @@
       "applies_to": {
         "app": "qiankun_hm",
         "app_version": "1.0.26.100",
-        "device_form": "bar"
+        "device_form": "bar",
+        "vehicle_name": "F03",
+        "vehicle_state": "parked"
       },
       "source": {
         "type": "model_inference",
@@ -2675,27 +2750,43 @@
           "why": "新增"
         }
       ],
-      "reported_note": "车控入口仅断言显示，禁止点击（vehicle_control supervised）；车辆名区点开车辆列表抽屉（F03+被授权的车辆若干辆，行含「车架号 XXXXXX(后6位)」）。切车点击被 policy「授权」正则误报拦截（被授权的车辆节标题命中 account_state 模式）——工具缺陷待人工评审 policy 修订。"
+      "reported_note": "车控入口仅断言显示，禁止点击（vehicle_control supervised）；车辆名区点开车辆列表抽屉（F03+被授权的车辆若干辆，行含「车架号 XXXXXX(后6位)」）。切车点击被 policy「授权」正则误报拦截（被授权的车辆节标题命中 account_state 模式）——工具缺陷待人工评审 policy 修订。",
+      "reported_definition": {
+        "kind": "product_rule",
+        "statement": "爱车页显示当前车辆信息：车名（F03）、里程（SUM/km 分项）、电量百分比、车内温度、车辆位置（距离+停泊中）、提醒项（车门未锁等N项提醒）、数据更新时间、车控入口（车锁/车窗/闪灯鸣笛/授权驾驶/后备箱/空调）、数字钥匙状态、下载车辆资源入口。",
+        "expected": {
+          "car_page_texts": [
+            "停泊中",
+            "更新于"
+          ]
+        },
+        "applies_to": {
+          "app": "qiankun_hm",
+          "app_version": "1.0.26.100"
+        }
+      }
     },
     {
       "id": "K-QK-018",
       "kind": "product_rule",
       "subject": "qiankun_hm.vpd.offline_behavior",
-      "statement": "设备断网（无 SIM，WLAN 关闭）时：①爱车页显示缓存车辆数据（车名/位置/更新时间戳为断网前时刻）；②进 ADS 落 VPD 功能兜底介绍页（泊车代驾辅助说明+遥控泊车辅助/遥控直行辅助卡片说明）并显示「网络异常，请稍候重试」提示，不加载地图首页；③网络恢复后当前页不自动刷新，退出重进后 VPD 首页正常加载（园区名+车位总数联网刷新）。",
+      "statement": "在人工核实断网的测试场景，候选检查为VPD兜底介绍与网络异常提示，以及车辆页仍有车名/更新时间展示。缓存保持需要断网前基线，当前未验；不自动刷新或重进恢复只是原作者报告，不写为产品必须如此的要求。",
       "expected": {
         "offline_vp_entry": [
           "网络异常，请稍候重试",
           "泊车代驾辅助"
         ],
-        "cached_car_page": [
+        "car_page_display": [
           "更新于"
         ],
-        "recover_needs_reentry": true
+        "cache_consistency": "not_verified",
+        "network_transition": "not_verified"
       },
       "applies_to": {
         "app": "qiankun_hm",
         "app_version": "1.0.26.100",
-        "device_form": "bar"
+        "device_form": "bar",
+        "network": "off"
       },
       "source": {
         "type": "model_inference",
@@ -2714,30 +2805,52 @@
           "why": "新增"
         }
       ],
-      "reported_note": "断网操作方法（无 root 无 cmd 通道）：uinput 下滑控制中心（-T -g 1100 40 1100 1400 500 2000）后点 WLAN 磁贴（transition_togglewifi_ui_extension [696,490][864,658]，uinput -T -c 780 574），ifconfig wlan0 无 inet 验证。恢复后从兜底页 back 会退出 APP。"
+      "reported_note": "断网操作方法（无 root 无 cmd 通道）：uinput 下滑控制中心（-T -g 1100 40 1100 1400 500 2000）后点 WLAN 磁贴（transition_togglewifi_ui_extension [696,490][864,658]，uinput -T -c 780 574），ifconfig wlan0 无 inet 验证。恢复后从兜底页 back 会退出 APP。",
+      "reported_definition": {
+        "kind": "product_rule",
+        "statement": "设备断网（无 SIM，WLAN 关闭）时：①爱车页显示缓存车辆数据（车名/位置/更新时间戳为断网前时刻）；②进 ADS 落 VPD 功能兜底介绍页（泊车代驾辅助说明+遥控泊车辅助/遥控直行辅助卡片说明）并显示「网络异常，请稍候重试」提示，不加载地图首页；③网络恢复后当前页不自动刷新，退出重进后 VPD 首页正常加载（园区名+车位总数联网刷新）。",
+        "expected": {
+          "offline_vp_entry": [
+            "网络异常，请稍候重试",
+            "泊车代驾辅助"
+          ],
+          "cached_car_page": [
+            "更新于"
+          ],
+          "recover_needs_reentry": true
+        },
+        "applies_to": {
+          "app": "qiankun_hm",
+          "app_version": "1.0.26.100"
+        }
+      }
     },
     {
       "id": "K-QK-019",
       "kind": "product_rule",
       "subject": "qiankun_hm.vpd.my_location_route",
-      "statement": "搜索页点「我的位置」以当前位置为目的地直接发起算路（无联想列表），结果任务卡片显示「我的爱车」「我的位置」；当前测试场景下结果显示 F03 故障态文案（泊车代驾辅助暂不可用）且出现距离校验提示「车辆距离目的地较远」（手机位置距园区较远所致）。另：模糊词（0/A/1 等）搜索出多行联想（L1层-Axx 车位），各行带路线按钮，不收敛唯一建议行。",
+      "statement": "限定原作者报告的金桥出口加工区地图。我的位置算路仅在已核实F03故障且位置远离目的地的场景中检查故障与远距拒绝提示，不要求正常近距场景同样拒绝，也不从提示推断网络或定位根因。模糊词场景目前只检查至少一条楼层建议；不同有效行数量仍未验。",
       "expected": {
-        "task_card": [
-          "我的爱车",
-          "我的位置"
-        ],
-        "rejection_texts": [
-          "泊车代驾辅助暂不可用",
-          "车辆距离目的地较远"
-        ],
+        "my_location_fault_and_far_scenario": {
+          "task_card": [
+            "我的爱车",
+            "我的位置"
+          ],
+          "rejection_texts": [
+            "泊车代驾辅助暂不可用",
+            "车辆距离目的地较远"
+          ]
+        },
         "fuzzy_suggestions": [
           "L1层-A"
-        ]
+        ],
+        "distinct_row_count": "not_verified"
       },
       "applies_to": {
         "app": "qiankun_hm",
         "app_version": "1.0.26.100",
-        "device_form": "bar"
+        "device_form": "bar",
+        "parking_area": "金桥出口加工区"
       },
       "source": {
         "type": "model_inference",
@@ -2756,7 +2869,28 @@
           "why": "新增"
         }
       ],
-      "reported_note": "「车辆距离目的地较远」为新观测文案，不在 K-QK-USR-002 故障态文案清单内，属距离校验提示非 VPD 故障；待产品确认语义。"
+      "reported_note": "「车辆距离目的地较远」为新观测文案，不在 K-QK-USR-002 故障态文案清单内，属距离校验提示非 VPD 故障；待产品确认语义。",
+      "reported_definition": {
+        "kind": "product_rule",
+        "statement": "搜索页点「我的位置」以当前位置为目的地直接发起算路（无联想列表），结果任务卡片显示「我的爱车」「我的位置」；当前测试场景下结果显示 F03 故障态文案（泊车代驾辅助暂不可用）且出现距离校验提示「车辆距离目的地较远」（手机位置距园区较远所致）。另：模糊词（0/A/1 等）搜索出多行联想（L1层-Axx 车位），各行带路线按钮，不收敛唯一建议行。",
+        "expected": {
+          "task_card": [
+            "我的爱车",
+            "我的位置"
+          ],
+          "rejection_texts": [
+            "泊车代驾辅助暂不可用",
+            "车辆距离目的地较远"
+          ],
+          "fuzzy_suggestions": [
+            "L1层-A"
+          ]
+        },
+        "applies_to": {
+          "app": "qiankun_hm",
+          "app_version": "1.0.26.100"
+        }
+      }
     },
     {
       "id": "K-QK-020",

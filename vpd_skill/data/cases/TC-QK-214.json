@@ -151,9 +151,9 @@
   "knowledge_used": [
     {
       "id": "K-QK-013",
-      "use": "判据：VPD 首页元素（无活动任务时）",
+      "use": "候选首页入口与已知加载失败排除；不证明完整地图就绪",
       "applicability": "unconfirmed",
-      "rationale": "K-QK-013 仅按其声明范围用于 S5；判据：VPD 首页元素（无活动任务时）。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
+      "rationale": "K-QK-013仅用于所列入口检查；默认车位不是健康首页普遍标记，已知停车场数据失败不能当正常进入。原作者引用保留reported_rationale，独立产品依据与完整地图就绪仍待验。",
       "steps": [
         "S5"
       ],
@@ -171,13 +171,14 @@
     },
     {
       "id": "K-QK-014",
-      "use": "判据：沿途找车位任务卡片与算路过程表现",
+      "use": "沿途任务描述；开始非必需，故障终态/不可激活另按独立规则",
       "applicability": "unconfirmed",
-      "rationale": "K-QK-014 仅按其声明范围用于 S7；判据：沿途找车位任务卡片与算路过程表现。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
+      "rationale": "K-QK-014用于所列步骤；沿途任务描述；开始非必需，故障终态/不可激活另按独立规则。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
       "steps": [
         "S7"
       ],
-      "reported_rationale": "test_goal 候选判据；session-wk-qk3/obs-0023、obs-0025 实测证据"
+      "reported_rationale": "test_goal 候选判据；session-wk-qk3/obs-0023、obs-0025 实测证据",
+      "reported_use": "判据：沿途找车位任务卡片与算路过程表现"
     },
     {
       "id": "K-QK-006",
@@ -236,7 +237,8 @@
       "原始run/obs与全部失败迭代的可携带证据",
       "修订版本的显式资产人审与独立复跑",
       "独立产品判据确认及适用范围",
-      "Cleanup后置核验；不能从定义推断verified"
+      "Cleanup后置核验；不能从定义推断verified",
+      "入口可见和已知错误排除不证明完整地图/车位数据就绪；场景条件须人工核实"
     ]
   },
   "reported_definition": {

@@ -191,3 +191,58 @@ def test_task_result_generic_confirmation_keeps_vehicle_motion_gate(ws, target):
     assert denied["allowed"] is False
     assert denied["deny"]["class"] == "vehicle_motion"
     assert denied["deny"]["supervised"] is True
+
+
+@pytest.mark.parametrize("other_texts", [
+    ["金桥出口加工区", "泊车代驾 共 742 个", "常去地点", "3号车位[默认]"],
+    ["华为练秋湖研发中心", "泊车代驾 共 13308 个", "常去地点", "1号停车点[上车点]"],
+])
+def test_home_checks_accept_loaded_display_without_default_parking_placeholder(ws, other_texts):
+    case = ws.load_case("TC-QK-215")
+    texts = ["搜索车位号设为目的地"] + other_texts
+    assert all(_holds(ws, case["id"], a["id"], texts) is True
+               for a in case["assertions"] if not a.get("advisory"))
+    assert KnowledgeStore(ws.root).oracle_status(["K-QK-013"], facts={
+        "app": "qiankun_hm", "app_version": "1.0.26.100", "device_form": "bar"})["status"] == "unconfirmed"
+
+
+def test_failed_parking_placeholder_does_not_satisfy_home_entry(ws):
+    app = ws.app("qiankun_hm")
+    texts = ["搜索车位号设为目的地", "默认车位", "停车场信息加载失败，请重试"]
+    page = app.states.identify(_tree(texts), app.bundle, True)
+    assert not app.states.is_state(page, "qk_vpd_home")
+    assert _holds(ws, "TC-QK-215", "A2", texts) is False
+
+
+def test_first_failed_parking_placeholder_stops_before_along_route_action(ws, tmp_path):
+    data = read_json(SKILL / "fixtures/worlds/qiankun_hm_base.json")
+    data["initial_flags"].update(logged_in=True, vehicle="F03")
+    data["screens"]["qk_vpd_home"] = {"root": {"t": "Column", "b": [0, 0, 1320, 2848], "children": [
+        {"t": "Text", "text": text, "b": [40, 300 + n * 70, 1100, 350 + n * 70]}
+        for n, text in enumerate(["搜索车位号设为目的地", "默认车位", "停车场信息加载失败，请重试"]) ]}}
+    path = tmp_path / "failed-parking.json"
+    write_json(path, data)
+    case = ws.load_case("TC-QK-228")
+    run = run_case(ws, case["id"], device_spec=f"replay:{path}", propose=False,
+                   env=case["env_requirements"], authorize=["vpd_entry", "route_planning"])
+    first = next(s for s in run["steps"] if s["step_id"] == "S4")
+    assert any(a["status"] == "postcondition_not_met" for a in first["attempts"])
+    assert next(s for s in run["steps"] if s["step_id"] == "S11")["outcome"] == "not_run"
+
+
+@pytest.mark.parametrize("kid,context", [
+    ("K-QK-015", {"vpd_task_state": "none", "task_type": "along_parking"}),
+    ("K-QK-015", {"vpd_task_state": "active", "task_type": "specific_spot"}),
+    ("K-QK-016", {"parking_area": "another-area"}),
+    ("K-QK-017", {"vehicle_name": "another-vehicle"}),
+    ("K-QK-018", {"network": "on"}),
+    ("K-QK-019", {"parking_area": "another-area"}),
+])
+def test_scenario_specific_claims_cannot_generalize_to_other_task_vehicle_or_map(ws, kid, context):
+    facts = {"app": "qiankun_hm", "app_version": "1.0.26.100", "device_form": "bar", **context}
+    assert KnowledgeStore(ws.root).oracle_status([kid], facts=facts)["status"] == "out_of_scope"
+
+
+def test_cold_start_vehicle_data_cannot_pass_from_position_label_alone(ws):
+    assert _holds(ws, "TC-QK-229", "A2", ["车辆位置"]) is False
+    assert _holds(ws, "TC-QK-229", "A2", ["更新于"]) is True

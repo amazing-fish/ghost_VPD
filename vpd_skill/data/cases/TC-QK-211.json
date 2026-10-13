@@ -222,12 +222,13 @@
     },
     {
       "id": "K-QK-012",
-      "use": "候选判据：新设备身份验证页与验证码框",
+      "use": "已触发短信挑战场景；保险箱仅实际触发时，未验设备信任",
       "applicability": "unconfirmed",
-      "rationale": "用于本例S14；独立产品依据及原始现场材料待补",
+      "rationale": "K-QK-012用于所列步骤；已触发短信挑战场景；保险箱仅实际触发时，未验设备信任。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
       "steps": [
         "S14"
-      ]
+      ],
+      "reported_use": "候选判据：新设备身份验证页与验证码框"
     }
   ],
   "sources": [

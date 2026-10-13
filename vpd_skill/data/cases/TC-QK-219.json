@@ -9,14 +9,17 @@
     "乾崑 APP 已登录（测试账号 151****3183，默认车辆 F03 在白名单园区：金桥出口加工区72）",
     "无未取消的 VPD 算路任务（有活动任务时进 ADS 直达任务卡片页，搜索入口不可见；任务期限尚无独立产品要求，须现场确认无活动任务）",
     "设备已解锁、亮屏",
-    "本候选限原作者声明的 APP 1.0.26.100 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准"
+    "本候选限原作者声明的 APP 1.0.26.100 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准",
+    "新增任务/车辆/园区范围均须执行前人工核实；声明不是自动采集事实，实测事实与独立判据另核"
   ],
   "env_requirements": {
     "account_state": "logged_in",
     "app_version": "1.0.26.100",
     "device_form": "bar",
     "vehicle_fault_state": "vpd_fault",
-    "vpd_task_state": "none"
+    "vpd_task_state": "none",
+    "parking_area": "金桥出口加工区",
+    "destination_spot": "L1-A43"
   },
   "test_data": {},
   "test_data_none": true,
@@ -192,16 +195,17 @@
   "knowledge_used": [
     {
       "id": "K-QK-016",
-      "use": "判据：车位搜索联想格式（L1层-XXX 车位+路线按钮）与点路线发起算路出任务卡片（泊入车位）",
+      "use": "限定金桥L1-A43地图和目的地场景",
       "applicability": "unconfirmed",
-      "rationale": "K-QK-016 仅按其声明范围用于 S5, S6, S8, S9；判据：车位搜索联想格式（L1层-XXX 车位+路线按钮）与点路线发起算路出任务卡片（泊入车位）。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
+      "rationale": "K-QK-016用于所列步骤；限定金桥L1-A43地图和目的地场景。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
       "steps": [
         "S5",
         "S6",
         "S8",
         "S9"
       ],
-      "reported_rationale": "test_goal 候选判据；session-wk-qk4/obs-0063-0075（联想：0/A/1 多行、A43 唯一行）→obs-0079（任务卡片 我的爱车 L1层-A43 车位 泊入车位+故障态）实测证据"
+      "reported_rationale": "test_goal 候选判据；session-wk-qk4/obs-0063-0075（联想：0/A/1 多行、A43 唯一行）→obs-0079（任务卡片 我的爱车 L1层-A43 车位 泊入车位+故障态）实测证据",
+      "reported_use": "判据：车位搜索联想格式（L1层-XXX 车位+路线按钮）与点路线发起算路出任务卡片（泊入车位）"
     },
     {
       "id": "K-QK-USR-002",
@@ -255,7 +259,8 @@
       "原始run/obs与全部失败迭代的可携带证据",
       "修订版本的显式资产人审与独立复跑",
       "独立产品判据确认及适用范围",
-      "Cleanup后置核验；不能从定义推断verified"
+      "Cleanup后置核验；不能从定义推断verified",
+      "入口可见和已知错误排除不证明完整地图/车位数据就绪；场景条件须人工核实"
     ]
   },
   "reported_definition": {

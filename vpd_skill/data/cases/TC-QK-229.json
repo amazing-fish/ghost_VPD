@@ -8,13 +8,16 @@
   "preconditions": [
     "乾崑 APP 已登录（测试账号 151****3183，默认车辆 F03）",
     "设备联网、已解锁、亮屏",
-    "本候选限原作者声明的 APP 1.0.26.100 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准"
+    "本候选限原作者声明的 APP 1.0.26.100 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准",
+    "新增任务/车辆/园区范围均须执行前人工核实；声明不是自动采集事实，实测事实与独立判据另核"
   ],
   "env_requirements": {
     "account_state": "logged_in",
     "network": "on",
     "app_version": "1.0.26.100",
-    "device_form": "bar"
+    "device_form": "bar",
+    "vehicle_name": "F03",
+    "vehicle_state": "parked"
   },
   "test_data": {},
   "test_data_none": true,
@@ -61,13 +64,10 @@
     {
       "id": "A2",
       "at": "S4",
-      "type": "text_present_any",
-      "any": [
-        "更新于",
-        "停泊中",
-        "车辆位置"
-      ],
-      "desc": "爱车页车辆数据正常渲染",
+      "type": "text_present",
+      "text": "更新于",
+      "exact": false,
+      "desc": "更新时间标签展示；不证明完整、实时或正确数据",
       "oracle_refs": [
         "K-QK-017"
       ]
@@ -79,6 +79,17 @@
       "advisory": true,
       "desc": "弹窗处置留痕与页面完整性（建议）",
       "prompt": "检查截图与 run 留痕：冷启动是否出现车辆资源包弹窗、执行器是否自动处置（run.json interrupts 记录）、爱车页是否完整。只给建议，不作为缺陷结论"
+    },
+    {
+      "id": "A_PARKED",
+      "at": "S4",
+      "type": "text_present",
+      "text": "停泊中",
+      "exact": false,
+      "desc": "已声明F03停泊场景的状态文字；不证明弹窗实际处置",
+      "oracle_refs": [
+        "K-QK-017"
+      ]
     }
   ],
   "cleanup": [
@@ -90,14 +101,15 @@
   "knowledge_used": [
     {
       "id": "K-QK-017",
-      "use": "判据：爱车页车辆信息元素清单",
+      "use": "已声明F03停泊场景的车名/停泊中/更新时间展示；完整性刷新未验",
       "applicability": "unconfirmed",
-      "rationale": "K-QK-017 仅按其声明范围用于 S3, S4；判据：爱车页车辆信息元素清单。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
+      "rationale": "K-QK-017用于所列步骤；已声明F03停泊场景的车名/停泊中/更新时间展示；完整性刷新未验。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
       "steps": [
         "S3",
         "S4"
       ],
-      "reported_rationale": "test_goal 候选判据；session-wk-qk4 实测（A1/A2 断言依据）；车辆资源包弹窗为 benign 中断（states.json qk_vehicle_resource_dialog，执行层动作前自动关闭）"
+      "reported_rationale": "test_goal 候选判据；session-wk-qk4 实测（A1/A2 断言依据）；车辆资源包弹窗为 benign 中断（states.json qk_vehicle_resource_dialog，执行层动作前自动关闭）",
+      "reported_use": "判据：爱车页车辆信息元素清单"
     }
   ],
   "sources": [
@@ -142,7 +154,8 @@
       "修订版本的显式资产人审与独立复跑",
       "独立产品判据确认及适用范围",
       "Cleanup后置核验；不能从定义推断verified",
-      "缺确实触发→实际处置→后置验证的运行事件证据；当前自动断言只验证导航"
+      "缺确实触发→实际处置→后置验证的运行事件证据；当前自动断言只验证导航",
+      "入口可见和已知错误排除不证明完整地图/车位数据就绪；场景条件须人工核实"
     ]
   },
   "reported_definition": {

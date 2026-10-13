@@ -58,7 +58,7 @@
       "id": "S5",
       "action": "wait",
       "duration_s": 5,
-      "desc": "首次首页就绪检查；失败保持首次异常，不无条件重启规避",
+      "desc": "首次入口检查并排除已知加载失败；不证明完整地图就绪，失败不无条件重启规避",
       "expect_state": "qk_vpd_home"
     },
     {
@@ -149,7 +149,7 @@
       "type": "text_present",
       "text": "搜索车位号设为目的地",
       "exact": false,
-      "desc": "首次进入就绪结论独立保留",
+      "desc": "首次搜索入口展示；完整地图就绪另待验",
       "oracle_refs": [
         "K-QK-013"
       ]
@@ -181,20 +181,21 @@
     },
     {
       "id": "K-QK-014",
-      "use": "判据：沿途找车位一键算路任务卡片",
+      "use": "沿途任务描述；开始非必需，故障终态/不可激活另按独立规则",
       "applicability": "unconfirmed",
-      "rationale": "K-QK-014 仅按其声明范围用于 S11, S12；判据：沿途找车位一键算路任务卡片。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
+      "rationale": "K-QK-014用于所列步骤；沿途任务描述；开始非必需，故障终态/不可激活另按独立规则。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
       "steps": [
         "S11",
         "S12"
       ],
-      "reported_rationale": "test_goal 候选判据；session 214 实测（A1 任务创建断言依据）"
+      "reported_rationale": "test_goal 候选判据；session 214 实测（A1 任务创建断言依据）",
+      "reported_use": "判据：沿途找车位一键算路任务卡片"
     },
     {
       "id": "K-QK-013",
-      "use": "候选首页判据：首次进入页面的搜索入口，不用于期限或过期后返回首页推断",
+      "use": "候选首页入口与已知加载失败排除；不证明完整地图就绪",
       "applicability": "unconfirmed",
-      "rationale": "K-QK-013 用于S4首页就绪及S5的A_HOME；首页产品依据与适用范围待独立确认。原作者旧期限推断保留于reported_rationale/reported_use，不作为当前验收。",
+      "rationale": "K-QK-013仅用于所列入口检查；默认车位不是健康首页普遍标记，已知停车场数据失败不能当正常进入。原作者引用保留reported_rationale，独立产品依据与完整地图就绪仍待验。",
       "steps": [
         "S4",
         "S5"
@@ -248,7 +249,8 @@
       "修订版本的显式资产人审与独立复跑",
       "独立产品判据确认及适用范围",
       "Cleanup后置核验；不能从定义推断verified",
-      "独立产品过期条件与明确期限未提供；不得把过期/未过期双态同时称为验收"
+      "独立产品过期条件与明确期限未提供；不得把过期/未过期双态同时称为验收",
+      "入口可见和已知错误排除不证明完整地图/车位数据就绪；场景条件须人工核实"
     ]
   },
   "reported_definition": {
