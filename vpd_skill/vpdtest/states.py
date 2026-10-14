@@ -6,8 +6,10 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Optional
 
+from .locate import resolve
 from .tree import MODAL_TYPES, UiTree
 from .util import short_hash
 
@@ -58,9 +60,10 @@ def signature(tree: Optional[UiTree]) -> Optional[str]:
 
 
 class StateModel:
-    def __init__(self, data: dict, bundle: str):
+    def __init__(self, data: dict, bundle: str, targets: dict | None = None):
         self.data = data
         self.bundle = bundle
+        self.targets = targets if targets is not None else {}
         self.states = data.get("states", {})
         self.interrupts = data.get("interrupts", {})
         self.recipes = data.get("recipes", {})
@@ -134,7 +137,7 @@ class StateModel:
         ids = list(dict.fromkeys(s for s in ids + [page.get("state")] if isinstance(s, str)))
         return [t for sid in ids for t in self.deny_for(sid)]
 
-    def confirmation_sources(self, tree: UiTree | None, target_ref=None, target=None, page=None) -> list:
+    def confirmation_sources(self, tree: UiTree | None, target_ref=None, target=None, page=None, layout=None) -> list:
         """只认当前同一弹窗的完整登记签名及已评审关闭方式，不信目标自填的 review/source。"""
         if tree is None or tree.status != "ok":
             return []
@@ -166,7 +169,31 @@ class StateModel:
                 dismiss = spec.get("dismiss_target")
                 matches = (isinstance(dismiss, str) and dismiss == target_ref) or (
                     isinstance(dismiss, dict) and dismiss == target)
-                if matches or spec.get("dismiss_text"):
+                holders = {}
+                if matches:
+                    declared = self.targets.get(dismiss) if isinstance(dismiss, str) else dismiss
+                    if not declared:
+                        continue
+                    strategies = [s for s in declared.get("strategies", []) if s.get("kind") in ("text", "id", "xpath")]
+                    if layout is None and any(s.get("when") or (s.get("within") or {}).get("pane") is not None
+                                              for s in strategies):
+                        continue
+                    loc = resolve("benign-dismiss", {**declared, "strategies": strategies}, tree, None,
+                                  Path("."), layout=layout)
+                    found = loc["attempts"][-1].get("node") if loc.get("status") == "found" else None
+                    nodes = [tree.nodes[found["idx"]]] if found else []
+                elif spec.get("dismiss_text"):
+                    label = spec["dismiss_text"].strip()
+                    nodes = [n for n in tree.nodes if label in (n.text.strip(), n.description.strip())]
+                else:
+                    continue
+                for node in nodes:
+                    holder = tree.clickable_container(node)
+                    owner = next((n for n in [holder] + tree.ancestors(holder) if n.type in MODAL_TYPES), None)
+                    if holder.clickable and tree.shown(node) and tree.shown(holder) and owner and owner.idx == modal.idx:
+                        holders[holder.idx] = holder
+                if len(holders) == 1:
                     out.append({"kind": "reviewed_benign_interrupt", "interrupt": iid, "modal_idx": modal.idx,
+                                "container_idx": next(iter(holders)),
                                 "button_text": None if matches else spec["dismiss_text"]})
         return out

@@ -27,7 +27,7 @@ class App:
         self.meta = read_json(self.dir / "app.json")
         self.bundle, self.ability = self.meta["bundle"], self.meta["ability"]
         self.targets = read_json(self.dir / "targets.json")["targets"]
-        self.states = StateModel(read_json(self.dir / "states.json"), self.bundle)
+        self.states = StateModel(read_json(self.dir / "states.json"), self.bundle, self.targets)
         self.flows = read_json(self.dir / "flows.json", {"flows": {}})["flows"]
 
     def target(self, ref) -> tuple:

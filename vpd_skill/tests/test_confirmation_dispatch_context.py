@@ -15,6 +15,7 @@ from vpdtest.execute import Executor
 from vpdtest.explore import explore
 from vpdtest.locate import resolve
 from vpdtest.session import parse_select
+from vpdtest.templates import crop
 from vpdtest.util import read_json, read_jsonl, write_json
 
 
@@ -450,3 +451,161 @@ def test_tree_backed_partial_navigation_still_uses_observed_full_label(ws, tmp_p
     event = _tap_events(ctx)[-1]
     assert event["sent"] is True and event["checks"]["tap"]["policy"]["allowed"]
     assert ctx.device.state["stack"][-1] == "detail"
+
+
+def _benign_confirmation_fixture(ws, tmp_path, *, two=True, registered=None, parent_label=False,
+                                 decorated_other=False):
+    close = {"t": "Button", "id": "fixture-close", "click": True, "go": "detail",
+             "b": [80, 500, 1240, 620], "children": [
+                 {"t": "Text", "id": "fixture-close-label", "text": "确定", "b": [100, 520, 1220, 600]},
+             ]}
+    if parent_label:
+        close["text"] = "确定"
+    children = [{"t": "Text", "text": "离线提示", "b": [60, 320, 1260, 400]}, close]
+    if two:
+        other = {"t": "Button", "id": "fixture-other", "click": True, "go": "detail",
+                 "b": [80, 700, 1240, 850], "children": [
+                     {"t": "Text", "id": "fixture-other-label", "text": "确定", "b": [100, 735, 940, 810]},
+                 ]}
+        if decorated_other:
+            other["children"].append({"t": "Image", "icon": "ego-view", "b": [980, 705, 1220, 845]})
+        children.append(other)
+    modal = {"t": "Dialog", "b": [40, 280, 1280, 1100], "children": children}
+    spec = _world(tmp_path, _home(modal), name="benign-confirmation-binding")
+    ctx = _ctx(ws, spec)
+    ctx.app.states.states.clear()
+    ctx.app.states.interrupts.clear()
+    interrupt = {"class": "benign", "review": "reviewed", "require_text": ["离线提示"], "settle_s": 0}
+    if registered:
+        interrupt["dismiss_target"] = "fixture_info_ok"
+        ctx.app.targets["fixture_info_ok"] = {
+            "side_effect": "dismiss_dialog", "strategies": [
+                {"kind": registered, "value": "fixture-close" if registered == "id" else "确定"},
+            ]}
+    else:
+        interrupt["dismiss_text"] = "确定"
+    ctx.app.states.interrupts["fixture_info"] = interrupt
+    return ctx
+
+
+def _dispatch_benign_fixture(ctx, target, *, target_ref="inline:fixture", point=None):
+    obs, tree = ctx.observe("benign-confirmation-binding")
+    loc = resolve(target_ref, target, tree, ctx.observer.screenshot_abs(obs), ctx.app.dir,
+                  point=point, layout=obs.get("layout"))
+    assert loc["status"] == "found"
+    att = {"action": "tap", "step_id": "B1"}
+    result = ctx.dispatcher.send(
+        "tap", *loc["point"], preconditions=ctx.dispatcher.app_conditions("tap"), att=att,
+        tap={"tree": tree, "loc": loc, "target": target, "target_ref": target_ref,
+             "page": obs["page"], "state_deny": ctx.app.states.deny_for_page(obs["page"])})
+    return result, att, loc
+
+
+def _assert_benign_dispatch(ctx, result, att, calls, allowed):
+    assert result.ok is allowed and result.sent is allowed
+    event = _tap_events(ctx)[-1]
+    assert event["sent"] is allowed
+    if allowed:
+        assert len(calls) == 1
+        assert event["checks"]["tap"]["policy"]["allowed"]
+    else:
+        assert calls == [] and att["status"] == "policy_denied"
+        policy = event["checks"]["tap"]["policy"]
+        assert not policy["allowed"] and policy["deny"]["class"] == "confirmation_semantics_unknown"
+
+
+@pytest.mark.parametrize("button_id", ["fixture-close", "fixture-other"])
+def test_label_only_benign_source_cannot_choose_between_two_independent_same_label_buttons(
+        ws, tmp_path, monkeypatch, button_id):
+    ctx = _benign_confirmation_fixture(ws, tmp_path)
+    ctx.authorized = {"vehicle_motion"}
+    calls = _tap_spy(monkeypatch, ctx.device)
+    target = parse_select(f"id={button_id}", side_effect="dismiss_dialog")
+    result, att, _ = _dispatch_benign_fixture(ctx, target)
+    _assert_benign_dispatch(ctx, result, att, calls, False)
+
+
+def test_benign_label_parent_and_child_in_one_click_container_remain_a_unique_close(
+        ws, tmp_path, monkeypatch):
+    ctx = _benign_confirmation_fixture(ws, tmp_path, two=False, parent_label=True)
+    calls = _tap_spy(monkeypatch, ctx.device)
+    target = parse_select("id=fixture-close", side_effect="dismiss_dialog")
+    result, att, _ = _dispatch_benign_fixture(ctx, target)
+    _assert_benign_dispatch(ctx, result, att, calls, True)
+
+
+@pytest.mark.parametrize("button_id,allowed", [("fixture-close", True), ("fixture-other", False)])
+def test_registered_benign_id_close_binds_the_actual_button_even_when_reference_matches(
+        ws, tmp_path, monkeypatch, button_id, allowed):
+    ctx = _benign_confirmation_fixture(ws, tmp_path, registered="id")
+    calls = _tap_spy(monkeypatch, ctx.device)
+    target = parse_select(f"id={button_id}", side_effect="dismiss_dialog")
+    result, att, _ = _dispatch_benign_fixture(ctx, target, target_ref="fixture_info_ok")
+    _assert_benign_dispatch(ctx, result, att, calls, allowed)
+
+
+def test_registered_duplicate_generic_text_cannot_authorize_agent_point_fallback(
+        ws, tmp_path, monkeypatch):
+    ctx = _benign_confirmation_fixture(ws, tmp_path, registered="text")
+    calls = _tap_spy(monkeypatch, ctx.device)
+    target = ctx.app.targets["fixture_info_ok"]
+    result, att, loc = _dispatch_benign_fixture(ctx, target, target_ref="fixture_info_ok", point=[660, 775])
+    assert loc["basis"] == "point" and loc["attempts"][0]["status"] == "ambiguous"
+    _assert_benign_dispatch(ctx, result, att, calls, False)
+
+
+def test_registered_duplicate_generic_text_cannot_authorize_real_template_fallback(
+        ws, tmp_path, monkeypatch):
+    ctx = _benign_confirmation_fixture(ws, tmp_path, registered="text", decorated_other=True)
+    obs, _ = ctx.observe("benign-other-template")
+    crop(ctx.observer.screenshot_abs(obs), [80, 700, 1240, 850],
+         ctx.app.dir / "templates" / "fixture_other.png")
+    target = ctx.app.targets["fixture_info_ok"]
+    target["strategies"].append({"kind": "template", "file": "templates/fixture_other.png", "threshold": 0.95})
+    calls = _tap_spy(monkeypatch, ctx.device)
+    result, att, loc = _dispatch_benign_fixture(ctx, target, target_ref="fixture_info_ok")
+    assert loc["basis"] == "template" and loc["attempts"][0]["status"] == "ambiguous"
+    assert loc["score"] > 0.95
+    _assert_benign_dispatch(ctx, result, att, calls, False)
+
+
+def test_unique_benign_close_source_cannot_prove_an_authorized_controlled_effect(
+        ws, tmp_path, monkeypatch):
+    ctx = _benign_confirmation_fixture(ws, tmp_path, two=False)
+    ctx.authorized = {"vehicle_motion"}
+    calls = _tap_spy(monkeypatch, ctx.device)
+    target = parse_select("id=fixture-close", side_effect="vehicle_motion")
+    result, att, _ = _dispatch_benign_fixture(ctx, target)
+    _assert_benign_dispatch(ctx, result, att, calls, False)
+
+
+@pytest.mark.parametrize("point_mode", ["at", "random_point"])
+def test_registered_benign_parent_cannot_authorize_a_generic_child_touch_receiver(
+        ws, tmp_path, monkeypatch, point_mode):
+    ctx = _benign_confirmation_fixture(ws, tmp_path, two=False, registered="id")
+    # 内嵌的独立点击接收者覆盖父关闭容器；几何上仍在父节点范围内，但有自己的回调。
+    parent = ctx.device.world["screens"]["home"]["root"]["children"][0]["children"][1]
+    parent["children"].append({
+        "t": "Button", "id": "fixture-independent-child", "click": True, "go": "detail",
+        "b": list(parent["b"]), "children": [
+            {"t": "Text", "text": "OK", "b": [100, 520, 1220, 600]},
+        ],
+    })
+    calls = _tap_spy(monkeypatch, ctx.device)
+    obs, tree = ctx.observe("benign-nested-touch-receiver")
+    target = ctx.app.targets["fixture_info_ok"]
+    loc = resolve("fixture_info_ok", target, tree, ctx.observer.screenshot_abs(obs), ctx.app.dir,
+                  layout=obs.get("layout"))
+    assert loc["status"] == "found" and loc["basis"] == "tree"
+    step = {"id": "B2", "action": "tap", "retry": 0, "target": "fixture_info_ok"}
+    step.update(at=[0.5, 0.5] if point_mode == "at" else None,
+                random_point=point_mode == "random_point")
+    executor = Executor(ctx)
+    loc = {**loc, "point": executor._point_in(loc, step, 1, tree), "container_point": True}
+    parent_node = tree.find_id("fixture-close")[0]
+    receiver = tree.touch_target(*loc["point"])
+    assert receiver.id == "fixture-independent-child" and receiver.idx != parent_node.idx
+    assert tree.touch_check(*loc["point"], parent_node)["allowed"]
+    att = {"action": "tap", "step_id": "B2"}
+    result = executor._send_target("tap", loc, obs, tree, target, "fixture_info_ok", step, att)
+    _assert_benign_dispatch(ctx, result, att, calls, False)

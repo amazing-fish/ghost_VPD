@@ -197,10 +197,11 @@ class Policy:
             hits.extend(modal_hits)
             hits.extend({"text": c["text"], "pattern": c["pattern"], "class": c["class"],
                          "reason": "当前弹窗的已登记确认语义"} for c in context)
+            receiver = tree.touch_target(*point)
             benign = [s for s in confirmation_sources or [] if s.get("kind") == "reviewed_benign_interrupt"
+                      and effect in ("navigation", "dismiss_dialog", "read_only")
                       and modal and s.get("modal_idx") == modal.idx
-                      and (s.get("button_text") is None or s.get("button_text").strip() in
-                           [t.strip() for t in generic])]
+                      and receiver is not None and s.get("container_idx") == receiver.idx == container.idx]
             confirmation_unknown = not proven and not benign
             confirmation = {"texts": generic, "modal_idx": modal.idx if modal else None,
                             "rules": hits, "page_sources": page_sources, "contexts": context, "benign": benign}

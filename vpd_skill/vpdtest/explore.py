@@ -42,7 +42,7 @@ def _candidates(ctx, tree, page: dict, layout: dict) -> list:
         pol = ctx.policy.check_tap(tree, vis["center"], "tree", ctx.app.targets.get(ref),
                                    ctx.app.states.deny_for_page(page),
                                    confirmation_sources=ctx.app.states.confirmation_sources(
-                                       tree, ref, ctx.app.targets.get(ref), page))
+                                       tree, ref, ctx.app.targets.get(ref), page, layout))
         out.append({"label": label, "point": list(vis["center"]), "target": ref or {
             "label": label, "strategies": [{"kind": "text", "value": label}], "side_effect": "navigation"},
                     "policy": pol, "selected": any(tree.nodes[c].selected for c in n.children) or n.selected})

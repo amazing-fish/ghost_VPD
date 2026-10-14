@@ -176,7 +176,8 @@ class Executor:
             pol = ctx.policy.check_tap(tree, loc["point"], loc["basis"], target,
                                        ctx.app.states.deny_for_page(obs["page"]), ctx.authorized,
                                        node=_tree_node(tree, loc),
-                                       confirmation_sources=ctx.app.states.confirmation_sources(tree, tid, target, obs["page"]))
+                                       confirmation_sources=ctx.app.states.confirmation_sources(
+                                           tree, tid, target, obs["page"], obs.get("layout")))
             att["policy"] = pol
             if not pol["allowed"]:
                 att["status"] = "policy_denied"
@@ -461,7 +462,7 @@ class Executor:
         ctx = self.ctx
         def pack(loc, obs, tree):
             return {"loc": loc, "tree": tree, "target": target, "target_ref": tid, "page": obs["page"],
-                    "state_deny": ctx.app.states.deny_for_page(obs["page"])}
+                    "state_deny": ctx.app.states.deny_for_page(obs["page"]), "layout": obs.get("layout")}
         def refresh():
             o, t = ctx.observe(f"{step['id']}:dispatch-relocate", screenshot=False)
             l = resolve(tid, target, t, ctx.observer.screenshot_abs(o), ctx.app.dir,
@@ -542,7 +543,8 @@ class Executor:
         pol = ctx.policy.check_tap(tree, loc["point"], loc["basis"], target,
                                    ctx.app.states.deny_for_page(obs["page"]), ctx.authorized,
                                    node=_tree_node(tree, loc),
-                                   confirmation_sources=ctx.app.states.confirmation_sources(tree, tid, target, obs["page"]))
+                                   confirmation_sources=ctx.app.states.confirmation_sources(
+                                       tree, tid, target, obs["page"], obs.get("layout")))
         att["policy_context"] = pol
         if not pol["allowed"]:
             att["status"] = "policy_denied"
