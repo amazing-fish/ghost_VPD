@@ -123,6 +123,9 @@ class Policy:
 
         tree_ok = tree is not None and tree.status == "ok"
         if not tree_ok:
+            if effect in self.task_side_effects:
+                return {"allowed": False, "reason": "无可用 UI 树，无法取得任务动作的当前语义依据",
+                        "label": None, "deny": {"class": "task_semantics_unverified", "effect": effect}}
             if any(s.get("kind") == "text" and not s.get("exact", True) for s in target.get("strategies", [])):
                 return {"allowed": False, "reason": "无可用 UI 树，无法核验非精确文本选择器的确认语义",
                         "label": None, "deny": {"class": "confirmation_semantics_unknown"}}
@@ -237,6 +240,11 @@ class Policy:
         if confirmation_unknown:
             return {"allowed": False, "reason": "通用确认缺少当前页面或同一弹窗的具体副作用依据；需先确认语义",
                     "label": label, "deny": {"class": "confirmation_semantics_unknown"}}
+        if effect in self.task_side_effects and (editable or not (
+                any(h["class"] == effect for h in hits) or
+                any(s["class"] == effect for s in (confirmation or {}).get("page_sources", [])))):
+            return {"allowed": False, "reason": f"当前控件没有可核验的 {effect} 语义，不能仅凭目标声明取得任务许可",
+                    "label": label, "deny": {"class": "task_semantics_unverified", "effect": effect}}
         if hits:
             source = "task_policy" if effect in self.task_side_effects else "explicit"
             return {"allowed": True, "reason": f"{'任务范围允许' if source == 'task_policy' else '已授权'} {effect}，目标声明一致",

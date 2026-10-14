@@ -6,7 +6,7 @@ import pytest
 from test_goal_loop import cli
 from vpdtest.runner import run_case
 from vpdtest.tree import UiTree
-from vpdtest.util import read_jsonl, write_json
+from vpdtest.util import read_json, read_jsonl, write_json
 
 
 def _tree(texts):
@@ -94,6 +94,57 @@ def test_planning_label_cannot_grant_motion_or_unknown_confirmation(ws):
     assert not mixed["allowed"] and mixed["deny"]["class"] == "vehicle_motion"
     generic = policy.check_tap(_tree(["确定"]), (50, 15), "tree", target)
     assert not generic["allowed"] and generic["deny"]["class"] == "confirmation_semantics_unknown"
+
+
+@pytest.mark.parametrize("effect", ["vpd_entry", "route_planning"])
+@pytest.mark.parametrize("basis", ["tree", "template", "point"])
+def test_mislabeled_unclassified_control_cannot_take_automatic_task_grant(ws, effect, basis):
+    denied = ws.policy().check_tap(_tree(["帮助"]), (50, 15), basis,
+                                   {"side_effect": effect, "strategies": [{"kind": "text", "value": "帮助"}]})
+    assert not denied["allowed"] and denied["deny"]["class"] == "task_semantics_unverified"
+    assert "authorized_by" not in denied
+
+
+@pytest.mark.parametrize("effect,label", [("vpd_entry", "ADS"), ("route_planning", "算路")])
+def test_no_tree_cannot_use_declared_label_as_actual_task_evidence(ws, effect, label):
+    denied = ws.policy().check_tap(None, (50, 15), "template",
+                                   {"side_effect": effect, "label": label})
+    assert not denied["allowed"] and denied["deny"]["class"] == "task_semantics_unverified"
+
+
+@pytest.mark.parametrize("effect", ["vpd_entry", "route_planning"])
+def test_inline_misclassification_does_not_dispatch(ws, tmp_path, effect):
+    base = ["--app", "qiankun_hm", "--device", _permission_world(tmp_path), "--session", "task-inline"]
+    cli(ws, "act", "launch", *base)
+    denied = cli(ws, "act", "tap", "--select", "text=爱车", "--side-effect", effect, *base)
+    assert denied["result"]["attempts"][0]["status"] == "policy_denied"
+    events = read_jsonl(ws.runs_dir / "session-task-inline" / "events.jsonl")
+    assert not any(e["event"] == "dispatch" and e.get("op") == "tap" and e.get("sent") for e in events)
+
+
+@pytest.mark.parametrize("effect", ["vpd_entry", "route_planning"])
+@pytest.mark.parametrize("field_value", ["帮助", "算路"])
+def test_unreviewed_registered_input_cannot_claim_task_permission(ws, tmp_path, effect, field_value):
+    spec = _permission_world(tmp_path)
+    path = Path(spec.removeprefix("replay:"))
+    fixture = read_json(path)
+    fixture["screens"]["car"]["root"]["children"].append(
+        {"t": "TextInput", "text": field_value, "b": [40, 600, 900, 720]})
+    write_json(path, fixture)
+    targets_path = ws.root / "apps" / "qiankun_hm" / "targets.json"
+    targets = read_json(targets_path)
+    targets["targets"]["unreviewed_task_input"] = {
+        "status": "unverified", "side_effect": effect, "allow_input": True,
+        "strategies": [{"kind": "text", "value": field_value}]}
+    write_json(targets_path, targets)
+    case = {"id": "TC-TASK-BAD-INPUT", "version": 1, "status": "draft", "app": "qiankun_hm",
+            "authorizations": [effect], "steps": [{"id": "S1", "action": "launch"},
+                {"id": "S2", "action": "input", "target": "unreviewed_task_input", "text": "x"}],
+            "assertions": []}
+    run = run_case(ws, case=case, device_spec=spec, propose=False)
+    assert run["steps"][1]["attempts"][0]["status"] == "policy_denied"
+    assert not any(e["event"] == "dispatch" and e.get("op") in {"tap", "input_text"} and e.get("sent")
+                   for e in read_jsonl(Path(run["dir"]) / "events.jsonl"))
 
 
 def test_old_policy_without_task_categories_keeps_explicit_gate(ws):

@@ -165,6 +165,9 @@ Agent `diagnosis.status` 消费最终 `final_status`，并以匹配最后尝试�
 **授权与运动安全**（`run.json`）：`authorized`（本次授予的副作用）、`supervision.{supervisor, supervised_granted, safety}`、`motion[]`（看门狗事件：`armed` 附触发步骤与控件；由 `moving_states` 观测挂上的记 `step: observed`、`label: state:<状态>`；`stopped_observed` 附状态与耗时）、`safety_stops[]`（触发原因、执行的安全停止步骤、`confirmed_stopped`；未确认时 `action_required` 要求人工接管）。安全停止记录独立于步骤结果，不覆盖首次失败。
 
 按 #49 用户裁决，`task_side_effects` 的 vpd_entry / route_planning 随已委派测试任务许可，无需逐次询问或显式 grant。
+任务点击及任务类别输入还须取得当前 UI 的同类语义规则或已登记确认来源；目标声明、策略 label 或无树模板本身不是依据。
+可编辑值也不是任务动作依据；没有独立动作语义的 task 类输入同样拒绝，注册目标不能跳过此检查。
+无可核验语义时返回 task_semantics_unverified，不下发，也不改问重复授权。沿途找车位/默认车位按精确算路标签分类；不提升生产定位资产状态。
 `authorized` 包括这两类任务许可与显式授予；`authorization_sources` 及 authorization事件的 `grant_sources`
 逐项标识 `task_policy` / `explicit`。旧 `--authorize vpd_entry route_planning` 写法可用，但不增加权限。
 其他 gated/supervised 与硬禁止保持；task类别不能与它们重叠。目标副作用与实际文本必须一致，未知通用确认和混合运动/车控容器继续拒绝。
