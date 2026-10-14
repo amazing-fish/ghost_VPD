@@ -124,7 +124,7 @@ class Dispatcher:
             result = dev.stop(*args)
         else:
             raise ValueError(f"未知物理动作 {op}")
-        if result.sent and op != "clear_text" and self.ctx is not None:
+        if result.sent is not False and op != "clear_text" and self.ctx is not None:
             self.ctx.actions += 1
         if not result.ok and result.error_class in ("budget_exhausted", "motion_timeout", "safety_hold"):
             att["status"] = result.error_class
@@ -204,6 +204,29 @@ class Dispatcher:
             self.store.event("dispatch", step=att.get("step_id"), **data)
 
 
+def auxiliary_dispatches(att):
+    """定位滚动与弹窗处置也是物理动作；缺失的父dispatch不代表这些子动作未发。"""
+    return [item for item in ((att.get("locate") or {}).get("scroll") or []) +
+            (att.get("dismissed") or []) + ((att.get("post") or {}).get("dismissed") or []) +
+            (att.get("recovery_dispatches") or []) if "sent" in item]
+
+
+def dispatch_effect_unknown(att):
+    """物理执行未知与业务后置未达分开；完整clear+input的可靠回执不属于部分执行。"""
+    if any(item["sent"] is not False and (item["sent"] is not True or item.get("ok") is not True
+                                          or item.get("verified") is False)
+           for item in auxiliary_dispatches(att)):
+        return True
+    dispatch = att.get("dispatch") or {}
+    if dispatch and dispatch.get("sent") is not False and (
+            dispatch.get("sent") is not True or dispatch.get("executor_ok") is not True):
+        return True
+    clear = att.get("clear") or {}
+    return bool(clear and clear.get("sent") is not False and not (
+        clear.get("sent") is True and clear.get("ok") is True and dispatch.get("op") == "input_text"
+        and dispatch.get("sent") is True and dispatch.get("executor_ok") is True))
+
+
 def clear_text(device, x, y, count, dispatcher, preconditions, att=None):
     """每个按键都经过关口；中途拒绝仍保留已经下发的事实。"""
     sent = False
@@ -211,7 +234,10 @@ def clear_text(device, x, y, count, dispatcher, preconditions, att=None):
         result = dispatcher.send(op, *args, preconditions=preconditions,
                                  att={"action": "clear_text", "step_id": (att or {}).get("step_id"),
                                       "_safety": bool((att or {}).get("_safety"))})
-        sent = sent or result.sent
+        if sent is True or result.sent is True:
+            sent = True
+        elif result.sent is not False:
+            sent = None  # 后续未发不能抹掉前一步未知发送事实。
         if not result.ok:
             return DeviceResult("clear_text", sent, False, result.error_class,
                                 ("MoveEnd 失败：" if args == ("move_end",) else "") + (result.error or "前置状态失败"))

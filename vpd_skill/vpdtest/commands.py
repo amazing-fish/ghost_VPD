@@ -210,7 +210,8 @@ def _cmd_act(ws: Workspace, a) -> dict:
     # cli 只看顶层 action_required 决定退出码 2：诊断里要求人工接管的，提到顶层
     return {"session": store.run_id, "seq": seq, "step_id": step_id, "result": _scrub_input(res),
             "input_value_recorded": keep if step.get("action") == "input" else None, "diagnosis": diag,
-            **({"action_required": diag["action_required"]} if (diag or {}).get("action_required") else {})}
+            **({"action_required": (diag or {}).get("action_required") or res["action_required"]}
+               if res.get("action_required") or (diag or {}).get("action_required") else {})}
 
 
 def _act_step(ctx, store, a, step_id: str) -> dict:
@@ -288,11 +289,21 @@ def _scrub_input(res: dict) -> dict:
 
 def diagnose(res: dict) -> Optional[dict]:
     """定位/复核失败时给 Agent 的诊断：多匹配的候选、不可见/被裁剪的数量、复核前后的节点。"""
+    if res.get("outcome") in ("passed", "passed_after_recovery", "passed_after_adaptation"):
+        return None
     last = (res.get("attempts") or [{}])[-1]
-    st = last.get("status")
+    st = res.get("final_status") or last.get("status")
     if st in (None, "ok"):
         return None
     out = {"status": st}
+    recovery = next((rec for rec in reversed(res.get("recoveries") or [])
+                     if rec.get("after_attempt") is not None and rec.get("after_attempt") == last.get("n")
+                     and res.get("final_obs")
+                     and (rec.get("post") or {}).get("status") == st
+                     and (rec.get("post") or {}).get("obs_id") == res.get("final_obs")), None)
+    if recovery is not None:
+        out.update(post=recovery["post"], obs_id=res["final_obs"],
+                   recovery={"action": recovery.get("action"), "after_attempt": recovery["after_attempt"]})
     loc = last.get("locate") or {}
     tries = loc.get("attempts") or []
     if st == "target_ambiguous":
@@ -321,12 +332,18 @@ def diagnose(res: dict) -> Optional[dict]:
         out["hint"] = "前台不是被测 APP：可能用户正在用手机，停止操作并报告，不要拉起 APP 抢前台"
     elif st == "policy_denied":
         out["policy"] = last.get("policy") or last.get("policy_context")
+    elif st == "postcondition_not_met":
+        if (last.get("post") or {}).get("status") == st:
+            out.setdefault("post", last["post"])
+        out["hint"] = "当前可靠观测未达到原业务后置：核对判据和当前现场，不以首次覆盖异常替代最终业务结论"
     elif st in ("state_indeterminate", "screen_locked"):
         gate = (last.get("locate") or {}).get("gate") or last
         out.update(state_check=gate.get("state_check"), foreground_check=gate.get("foreground_check"),
                    action_required=True,
-                   hint="查不到锁屏/前台状态，没有发任何手势：先人工确认手机状态（必要时 vpdtest unlock），再重新 observe"
-                   if st == "state_indeterminate" else "手机锁屏/熄屏，没有下发：vpdtest unlock 后重新 observe")
+                   hint="本步骤已有或可能有部分下发，后续动作被状态门禁拒绝；请先核对现场再重新 observe"
+                   if dispatched(res) else (
+                       "查不到锁屏/前台状态，没有发任何手势：先人工确认手机状态（必要时 vpdtest unlock），再重新 observe"
+                       if st == "state_indeterminate" else "手机锁屏/熄屏，没有下发：vpdtest unlock 后重新 observe"))
     return out
 
 

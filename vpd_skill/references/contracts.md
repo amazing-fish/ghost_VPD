@@ -99,7 +99,7 @@
 | `expect_text` | 后置条件另要求页面出现匹配该正则的文字（例如点地图后出现「收藏」才算弹出了车位卡片） |
 | `skip_if_absent` | 本页没有匹配该正则的文字就跳过（记 `skipped`，不算失败），用于可选步骤 |
 | `at` / `random_point` | 在目标容器可见区域内按比例取点 / 按种子随机取点（重试换点），不写像素 |
-| `idempotent` | 允许重发（重复点击无害的步骤） |
+| `idempotent` | 只有字面 `true` 才申请重发；已发目标须明确为 navigation/dismiss_dialog。输入与受控副作用不可用此字段覆盖；返回/随机点选仅在后置未成立的可靠观测下保留重试，不允许丢回执后盲重发 |
 
 `input` 的 `text` 可写 `${var:x}`（用例数据）/ `${param:x}`（流程参数）；来自 `{"secret": ...}` 的值只能输入 `secret: true` 的目标，尝试记录里只有 `input.{ref, secret, length}`，没有值。
 
@@ -122,7 +122,25 @@ agent 模式的 `--point` 记录提出时的窗口尺寸（`point_window`）；�
 
 允许的恢复（`recoveries[]`，追加记录，不覆盖首次失败）：
 `reobserve_and_retry`（定位失败）、`dismiss_interrupt`（仅限 `class=benign` 且 `review=reviewed`）、
-`redispatch`（执行器瞬时错误，或步骤声明 `idempotent`）。`anomaly`、未评审中断、环境错误不恢复。
+`redispatch` 只允许可靠未下发，或上述明确低风险幂等步骤，并受原有重试预算限制。已发/可能已发的非幂等动作、输入与受控副作用，遇超时、命令错误或动作后观测失败不重放原动作；错误名不证明未执行。
+
+`clear.sent` 保留清空阶段的下发事实，后续输入未发不能将整步改成未发；聚合 clear 的 sent 采用三态（任一字面 true→true、全部字面 false→false、其余→null）。会话对未知发送事实保守计入预算，记录 `effect_unknown`。只有清空成功而未完成输入仍为部分执行，不整步清空重跑。
+
+定位内滚动及弹窗处置的辅助物理下发也保留 sent；子动作已发失败或发送未知时，不能仅因父 dispatch 缺失就完整重试。Dispatcher 的动作预算对未知发送事实同样保守计数。恢复复核使用原 attempt 的 motion_mark，不重置运动超时/晚停的事实边界。
+
+良性中断/已登记系统弹窗的原子处置继续可执行，随后重新核验原步骤完整后置条件。后置满足可恢复通过；不满足且原动作不可重放则停止原步骤，不以关闭弹窗代替原业务后置。首次异常、恢复动作与复核证据分别保留。
+
+单次 act、最后一次尝试、flow/recipe 子步骤与 cleanup 同样保留部分执行/未知效果的人工交接信号。最终失败存在未知物理效果时，即使该动作本可安全幂等重试，也因重试已结束而保留 `effect_unknown/action_required`，不能让重试资格掩盖交接。`run` 的 verdict/report 将原子步骤交接列入 `step_recovery` alerts；安全停止警告优先。`anomaly`、未评审中断仍不自动恢复，未知车辆运动发送事实保守挂看门狗。
+
+恢复手势在 `attempt.recovery_dispatches[]` 保留原始 `sent`、`ok` 及 `verified`；`verified=false` 且可能下发时，记录未知效果和人工交接并停止原动作重放。系统弹窗能力的 `dismiss.sent` 同样保留三态，不将未知压成 false。已确认良性关闭后，若原业务后置仍未成立，重新按原步骤的幂等与副作用规则判断剩余重试资格。
+
+clear 与 input 均有可靠成功回执、只在可靠观测下原业务后置未成立时，保留产品失败和禁止重放，但不标记 `effect_unknown`；未完成序列或缺可靠下发/回执仍标记未知效果。执行器与会话共用同一物理证据判定。
+
+恢复以 `after_attempt` 绑定原尝试；仅属于最后一次尝试的可靠原步骤后置可用于最终 `outcome/attribution/final_status/final_obs`，旧恢复不能覆盖后续新错误或观测。原始异常继续保存在 `attempt.status` 和 `first_failure`。例如覆盖物消失后原业务后置未成立，最终为产品 `fail_candidate`，而不是恢复前的工具 `unobservable` 阻塞。
+
+Agent `diagnosis.status` 消费最终 `final_status`，并以匹配最后尝试和 `final_obs` 的恢复后置提供 `post/obs_id/recovery` 证据；不会引用旧恢复，成功恢复返回无失败诊断。可靠业务后置未达的诊断与产品 `fail_candidate` 一致，首次覆盖异常仅在历史失败记录中保留。
+
+可靠下发及成功回执后的可观测 `anomaly`、已知晚停/停止失败等确定失败保留交接，不因此标记 `effect_unknown`；该字段只取未知物理证据、部分执行或明确不可判的观测（如无可用树、查询失败、中断下业务状态不可判、停止查询未知）。可靠已知状态上的中断不因此变成未知执行。执行器三条汇总/恢复路径共用此判断，不用“不是 postcondition_not_met”代替未知性。
 
 步骤结果：`passed` / `passed_after_adaptation` / `passed_after_recovery` / `fail_candidate` / `blocked` / `not_run`。
 关键步骤未通过，后续步骤记为 `not_run`，清理步骤仍执行。

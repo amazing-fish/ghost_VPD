@@ -178,6 +178,14 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
                  step_ids: Optional[set] = None) -> dict:
     """step_ids：用例声明的全部步骤 ID，用来区分"断言引用了不存在的步骤"（用例缺陷）和"步骤未执行"。"""
     findings, suggestions, alerts = [], [], []
+    def recovery_alerts(results):
+        for result in results:
+            subs = result.get("sub_steps") or []
+            if subs:
+                yield from recovery_alerts(subs)
+            elif result.get("action_required"):
+                yield {"kind": "step_recovery", "trigger": result["step_id"],
+                       "action_required": result["action_required"]}
     for s in safety_stops or []:
         if not s.get("confirmed_stopped"):
             # 安全停止没能被观测确认：现场安全问题。它单独成为 alert 并决定结论为阻塞，产品失败仍保留在 findings 里
@@ -185,6 +193,7 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
                            or "未能通过观测确认车辆已停止：请现场监护人立即人工接管"})
             findings.append({"kind": "safety_stop", "result": "blocked", "attribution": "environment",
                              "reason": f"安全停止（触发：{s['trigger']}）未能通过观测确认车辆已停止，需现场人工接管"})
+    alerts.extend(recovery_alerts(steps + (cleanup or [])))
     if not preflight.get("ok"):
         unlock = preflight.get("unlock") or {}
         if unlock and unlock.get("status") != "unlocked":
@@ -264,12 +273,15 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
         findings.append({"kind": "case", "result": "pending", "attribution": "tool",
                          "reason": "存在未执行的必需断言，不能判通过"})
         results.add("pending")
-    if alerts:
+    if any(a["kind"] != "step_recovery" for a in alerts):
         return _final("blocked", "environment", findings, suggestions, steps, alerts, assertions)
     for v in ("failed", "blocked", "pending"):
         if v in results:
             attr = next(f["attribution"] for f in findings if f["result"] == v)
             return _final(v, attr, findings, suggestions, steps, alerts, assertions)
+    if alerts:
+        # 恢复交接不改写已有产品/工具/需求归因，但没有其它结论时也不能冒充通过。
+        return _final("blocked", "tool", findings, suggestions, steps, alerts, assertions)
     return _final("passed", None, findings, suggestions, steps, alerts, assertions)
 
 

@@ -20,6 +20,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
 
+from .dispatch import auxiliary_dispatches, dispatch_effect_unknown
 from .tree import UiTree
 from .util import now_iso, read_json, read_jsonl, read_jsonl_recoverable
 
@@ -102,8 +103,8 @@ IDENTITY_KEYS = ("app", "device", "validation_level")
 
 
 def _sent(e: dict) -> bool:
-    if e.get("sent") is not None:
-        return bool(e["sent"])
+    if "sent" in e:
+        return e["sent"] is not False
     # 旧会话没有 sent 字段：clear_text 事件出现即已点过输入框；scroll_search 按 ok 判断
     return bool(e.get("ok")) if e.get("event") == "scroll_search" else True
 
@@ -126,7 +127,7 @@ def trail(session_dir: Path, expect: Optional[dict] = None) -> dict:
     counted = set()  # 已有下发事件计入预算的请求
     for e in events:
         ev = e.get("event")
-        if ev == "dispatch" and e.get("sent") and e.get("op") != "clear_text":
+        if ev == "dispatch" and _sent(e) and e.get("op") != "clear_text":
             actions += 1  # 与 Dispatcher 同一计数口径：已下发的物理动作，清空输入是聚合动作不单独计
             if cur in open_req:
                 counted.add(cur)
@@ -206,12 +207,16 @@ def summarize(tr: dict) -> dict:
 
 def effect_unknown(result: dict) -> bool:
     """命令已发出但执行器没有确认成功（超时/报错）：现场可能已经变化，不能当作"什么都没发生"。"""
-    return any((a.get("dispatch") or {}).get("sent") and not (a.get("dispatch") or {}).get("executor_ok")
+    return any(a.get("effect_unknown") or dispatch_effect_unknown(a)
                for a in result.get("attempts", []))
 
 
 def dispatched(result: dict) -> bool:
-    return any((a.get("dispatch") or {}).get("sent") for a in result.get("attempts", []))
+    # 未知发送事实保守计入会话预算；不能当作可靠未下发。
+    return any(any(item["sent"] is not False for item in auxiliary_dispatches(a)) or
+               (a.get("dispatch") is not None and a["dispatch"].get("sent") is not False) or
+               (a.get("clear") is not None and a["clear"].get("sent") is not False)
+               for a in result.get("attempts", []))
 
 
 def _derive_select(session_dir: Path, obs_id: Optional[str], point) -> Optional[dict]:

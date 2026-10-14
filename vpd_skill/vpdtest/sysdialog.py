@@ -156,7 +156,7 @@ def resolve_screen_cover(ws, device, store, dispatcher=None, dialogs=None) -> di
                 r = dispatcher.send("tap", *btn["point"], preconditions={"screen_locked": False},
                                     att={"action": "dismiss_system_dialog", "step_id": "system_dialog",
                                          "dialog": did, "button_text": btn["text"]})
-                res["dismiss"] = {"button": btn["text"], "sent": bool(r.sent), "ok": bool(r.ok),
+                res["dismiss"] = {"button": btn["text"], "sent": r.sent, "ok": bool(r.ok),
                                   "error_class": r.error_class}
                 if not r.ok:
                     status, reason = "dismiss_failed", f"关闭按钮点击未完成：{r.error_class}"
