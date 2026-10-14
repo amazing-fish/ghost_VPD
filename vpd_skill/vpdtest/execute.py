@@ -175,7 +175,9 @@ class Executor:
                 att["locate"] = loc
             pol = ctx.policy.check_tap(tree, loc["point"], loc["basis"], target,
                                        ctx.app.states.deny_for_page(obs["page"]), ctx.authorized,
-                                       node=_tree_node(tree, loc))
+                                       node=_tree_node(tree, loc),
+                                       confirmation_sources=ctx.app.states.confirmation_sources(
+                                           tree, tid, target, obs["page"], obs.get("layout")))
             att["policy"] = pol
             if not pol["allowed"]:
                 att["status"] = "policy_denied"
@@ -459,8 +461,8 @@ class Executor:
     def _send_target(self, op, loc, obs, tree, target, tid, step, att, *extra):
         ctx = self.ctx
         def pack(loc, obs, tree):
-            return {"loc": loc, "tree": tree, "target": target,
-                    "state_deny": ctx.app.states.deny_for_page(obs["page"])}
+            return {"loc": loc, "tree": tree, "target": target, "target_ref": tid, "page": obs["page"],
+                    "state_deny": ctx.app.states.deny_for_page(obs["page"]), "layout": obs.get("layout")}
         def refresh():
             o, t = ctx.observe(f"{step['id']}:dispatch-relocate", screenshot=False)
             l = resolve(tid, target, t, ctx.observer.screenshot_abs(o), ctx.app.dir,
@@ -540,7 +542,9 @@ class Executor:
             return denied is None
         pol = ctx.policy.check_tap(tree, loc["point"], loc["basis"], target,
                                    ctx.app.states.deny_for_page(obs["page"]), ctx.authorized,
-                                   node=_tree_node(tree, loc))
+                                   node=_tree_node(tree, loc),
+                                   confirmation_sources=ctx.app.states.confirmation_sources(
+                                       tree, tid, target, obs["page"], obs.get("layout")))
         att["policy_context"] = pol
         if not pol["allowed"]:
             att["status"] = "policy_denied"
