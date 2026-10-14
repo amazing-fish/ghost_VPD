@@ -11,6 +11,7 @@ from .tree import UiTree
 from .util import sha256_obj
 
 VALID_BASIS = ("tree", "template", "point")
+EDITABLE_TYPES = frozenset(("TextInput", "TextArea", "EditText", "SearchField"))
 
 
 class Policy:
@@ -169,7 +170,7 @@ class Policy:
         texts = [t for t in texts if t]
         label = (texts[0] if texts else "")[:40]
         hits = self.match_all(texts, state_deny)
-        editable = any(n.type in ("TextInput", "TextArea", "EditText")
+        editable = any(n.type in EDITABLE_TYPES
                        for n in [node, container] + tree.ancestors(node))
         generic = [] if editable else [t for t in texts if self.confirmation_rx.fullmatch(t.strip())]
         confirmation = None
@@ -189,7 +190,7 @@ class Policy:
             title = next((n for n in tree.nodes if modal and tree.in_scope(n, [modal]) and tree.shown(n)
                           and n.type == "Text" and n.text.strip() and not n.clickable
                           and next((a.idx for a in tree.ancestors(n) if a.idx in modal_ids), None) == modal.idx
-                       and not any(a.clickable or a.type in ("TextInput", "TextArea", "EditText")
+                       and not any(a.clickable or a.type in EDITABLE_TYPES
                                    for a in tree.ancestors(n) if a.idx != modal.idx and tree.is_within(a, modal))), None)
             context = [{"kind": "policy_confirmation_context", "text": title.text, "pattern": rx.pattern,
                         "class": cls, "modal_idx": modal.idx, "title_node": title.idx}

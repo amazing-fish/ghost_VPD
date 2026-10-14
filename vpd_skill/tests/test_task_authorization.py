@@ -124,12 +124,13 @@ def test_inline_misclassification_does_not_dispatch(ws, tmp_path, effect):
 
 @pytest.mark.parametrize("effect", ["vpd_entry", "route_planning"])
 @pytest.mark.parametrize("field_value", ["帮助", "算路"])
-def test_unreviewed_registered_input_cannot_claim_task_permission(ws, tmp_path, effect, field_value):
+@pytest.mark.parametrize("field_type", ["TextInput", "SearchField"])
+def test_unreviewed_registered_input_cannot_claim_task_permission(ws, tmp_path, effect, field_value, field_type):
     spec = _permission_world(tmp_path)
     path = Path(spec.removeprefix("replay:"))
     fixture = read_json(path)
     fixture["screens"]["car"]["root"]["children"].append(
-        {"t": "TextInput", "text": field_value, "b": [40, 600, 900, 720]})
+        {"t": field_type, "text": field_value, "b": [40, 600, 900, 720]})
     write_json(path, fixture)
     targets_path = ws.root / "apps" / "qiankun_hm" / "targets.json"
     targets = read_json(targets_path)
@@ -145,6 +146,18 @@ def test_unreviewed_registered_input_cannot_claim_task_permission(ws, tmp_path, 
     assert run["steps"][1]["attempts"][0]["status"] == "policy_denied"
     assert not any(e["event"] == "dispatch" and e.get("op") in {"tap", "input_text"} and e.get("sent")
                    for e in read_jsonl(Path(run["dir"]) / "events.jsonl"))
+
+
+@pytest.mark.parametrize("field_type", ["TextInput", "SearchField"])
+def test_nested_editable_value_cannot_prove_confirmation_title(ws, field_type):
+    tree = UiTree({"attributes": {"type": "Dialog", "bounds": "[0,0][200,200]"}, "children": [
+        {"attributes": {"type": field_type, "bounds": "[0,0][200,60]"}, "children": [
+            {"attributes": {"type": "Text", "text": "修改名称", "bounds": "[10,10][190,50]"}}]},
+        {"attributes": {"type": "Button", "text": "确定", "clickable": "true", "bounds": "[10,90][190,150]"}}]})
+    node = next(n for n in tree.nodes if n.type == "Button")
+    denied = ws.policy().check_tap(tree, node.center, "tree", {"side_effect": "user_data"},
+                                   authorized={"user_data"}, node=node)
+    assert not denied["allowed"] and denied["deny"]["class"] == "confirmation_semantics_unknown"
 
 
 def test_old_policy_without_task_categories_keeps_explicit_gate(ws):
