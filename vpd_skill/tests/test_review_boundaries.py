@@ -7,7 +7,7 @@ import pytest
 from conftest import world
 from test_dispatch_regression import _ctx
 from test_goal_loop import _lab_world, _start, cli
-from test_qiankun_cases import _classified_map_world
+from test_qiankun_cases import _classified_task_world
 from vpdtest.commands import _run_brief
 from vpdtest.devices import DeviceResult
 from vpdtest.execute import Executor
@@ -287,7 +287,7 @@ def test_killed_act_counts_against_budget_even_without_dispatch_event(tmp_path):
 
 def test_suite_passes_authorization_to_cases(ws, tmp_path):
     write_json(ws.root / "suites" / "qk_auth.json", {"id": "qk_auth", "desc": "fixture", "cases": ["TC-QK-102"]})
-    dev = _classified_map_world(tmp_path, "qiankun_hm_ready.json")
+    dev = _classified_task_world(tmp_path, "qiankun_hm_ready.json")
     bare = cli(ws, "suite", "qk_auth", "--device", dev)["results"][0]
     granted = cli(ws, "suite", "qk_auth", "--device", dev, "--authorize", "vpd_entry", "user_data", "route_planning")
     assert bare["verdict"] == "blocked"

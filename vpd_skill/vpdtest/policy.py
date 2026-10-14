@@ -29,6 +29,12 @@ class Policy:
         self.task_side_effects = set(data.get("task_side_effects", {}))
         if self.task_side_effects & (self.denied_side_effects | self.supervised_side_effects | self.gated_side_effects):
             raise ValueError("task_side_effects 不能与 gated/supervised/硬禁止类别重叠")
+        self.task_action_labels = {}
+        for effect, labels in data.get("task_action_labels", {}).items():
+            if effect not in self.task_side_effects or not isinstance(labels, list) or not labels or any(
+                    not isinstance(label, str) or not label.strip() for label in labels):
+                raise ValueError("task_action_labels 只能为任务类别登记非空的精确动作标签列表")
+            self.task_action_labels[effect] = {label.strip() for label in labels}
         self.authorizable = self.gated_side_effects | self.supervised_side_effects | self.task_side_effects
         self.supervision = data.get("supervision", {})
         self.safe_stop_rx = re.compile(data["safe_stop_text"]) if data.get("safe_stop_text") else None
@@ -241,10 +247,18 @@ class Policy:
         if confirmation_unknown:
             return {"allowed": False, "reason": "通用确认缺少当前页面或同一弹窗的具体副作用依据；需先确认语义",
                     "label": label, "deny": {"class": "confirmation_semantics_unknown"}}
-        if effect in self.task_side_effects and (editable or not (
-                any(h["class"] == effect for h in hits) or
-                any(s["class"] == effect for s in (confirmation or {}).get("page_sources", [])))):
-            return {"allowed": False, "reason": f"当前控件没有可核验的 {effect} 语义，不能仅凭目标声明取得任务许可",
+        task_hits = [h for h in hits if h["class"] == effect]
+        receiver_labels = {text.strip() for text in texts if text.strip()}
+        receiver_nodes = [n for n in tree.nodes if tree.is_within(n, container)]
+        visible_labels = {text.strip() for n in receiver_nodes if tree.shown(n)
+                          for text in (n.text, n.description) if text.strip()}
+        receiver_editable = any(n.type in EDITABLE_TYPES for n in receiver_nodes)
+        exact_action = bool(task_hits and visible_labels) and receiver_labels <= self.task_action_labels.get(effect, set())
+        specific_confirmation = any(s["class"] == effect for s in
+                                    (confirmation or {}).get("page_sources", []) +
+                                    (confirmation or {}).get("contexts", []))
+        if effect in self.task_side_effects and (editable or receiver_editable or not (exact_action or specific_confirmation)):
+            return {"allowed": False, "reason": f"当前控件没有 {effect} 的精确动作标签或具体确认来源，不能取得任务许可",
                     "label": label, "deny": {"class": "task_semantics_unverified", "effect": effect}}
         if hits:
             source = "task_policy" if effect in self.task_side_effects else "explicit"

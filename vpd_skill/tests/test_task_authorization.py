@@ -160,10 +160,59 @@ def test_nested_editable_value_cannot_prove_confirmation_title(ws, field_type):
     assert not denied["allowed"] and denied["deny"]["class"] == "confirmation_semantics_unknown"
 
 
+@pytest.mark.parametrize("effect,label", [
+    ("route_planning", "算路帮助"), ("route_planning", "取消算路"),
+    ("route_planning", "删除算路记录"), ("route_planning", "路线规划中"),
+    ("vpd_entry", "泊车代驾帮助"), ("vpd_entry", "退出泊车代驾")])
+def test_task_keyword_is_not_an_exact_action_label(ws, effect, label):
+    denied = ws.policy().check_tap(_tree([label]), (50, 15), "tree", {"side_effect": effect})
+    assert not denied["allowed"] and denied["deny"]["class"] == "task_semantics_unverified"
+
+
+@pytest.mark.parametrize("effect,action,other", [
+    ("route_planning", "算路", "算路帮助"), ("vpd_entry", "ADS", "泊车代驾帮助"),
+    ("route_planning", "算路", "帮助"), ("vpd_entry", "ADS", "帮助")])
+def test_exact_label_cannot_hide_an_unreviewed_task_keyword_in_same_receiver(ws, effect, action, other):
+    denied = ws.policy().check_tap(_tree([action, other]), (50, 15), "tree", {"side_effect": effect})
+    assert not denied["allowed"] and denied["deny"]["class"] == "task_semantics_unverified"
+
+
+@pytest.mark.parametrize("effect,label", [("route_planning", "算路帮助"), ("vpd_entry", "泊车代驾帮助")])
+def test_inline_task_keyword_control_does_not_dispatch(ws, tmp_path, effect, label):
+    spec = _permission_world(tmp_path)
+    path = Path(spec.removeprefix("replay:"))
+    fixture = read_json(path)
+    fixture["screens"]["car"]["root"]["children"].append(
+        {"t": "Button", "text": label, "b": [40, 600, 900, 720], "go": "result"})
+    write_json(path, fixture)
+    base = ["--app", "qiankun_hm", "--device", spec, "--session", "task-keyword"]
+    cli(ws, "act", "launch", *base)
+    denied = cli(ws, "act", "tap", "--select", f"text={label}", "--side-effect", effect, *base)
+    assert denied["result"]["attempts"][0]["status"] == "policy_denied"
+    assert not any(e["event"] == "dispatch" and e.get("op") == "tap" and e.get("sent")
+                   for e in read_jsonl(ws.runs_dir / "session-task-keyword" / "events.jsonl"))
+
+
+@pytest.mark.parametrize("field_type", ["TextInput", "SearchField"])
+def test_receiver_cannot_borrow_its_child_editor_value(ws, field_type):
+    tree = UiTree({"attributes": {"type": "Button", "bounds": "[0,0][200,200]", "clickable": "true"},
+                   "children": [{"attributes": {"type": field_type, "text": "算路", "bounds": "[0,0][200,50]"}}]})
+    denied = ws.policy().check_tap(tree, (100, 150), "tree", {"side_effect": "route_planning"}, node=tree.nodes[0])
+    assert not denied["allowed"] and denied["deny"]["class"] == "task_semantics_unverified"
+
+
+def test_hidden_label_cannot_prove_current_action(ws):
+    tree = _tree(["算路"])
+    tree.nodes[1].visible = False
+    denied = ws.policy().check_tap(tree, (100, 150), "tree", {"side_effect": "route_planning"}, node=tree.nodes[0])
+    assert not denied["allowed"] and denied["deny"]["class"] == "task_semantics_unverified"
+
+
 def test_old_policy_without_task_categories_keeps_explicit_gate(ws):
     from vpdtest.policy import Policy
     data = {**ws.policy().data}
     data.pop("task_side_effects", None)
+    data.pop("task_action_labels", None)
     data["gated_side_effects"] = {**data["gated_side_effects"], "route_planning": "legacy explicit gate"}
     policy = Policy(data)
     assert not policy.check_authorizations(["route_planning"], set())["ok"]

@@ -37,26 +37,29 @@ def _outcomes(run):
     return [(s["step_id"], s["outcome"], s.get("reason")) for s in run["steps"]]
 
 
-def _classified_map_world(tmp_path, name):
-    # 仅合成正例提供地图动作语义；不能从这里推导真实无文字地图的效果或提升生产资产状态。
+def _classified_task_world(tmp_path, name):
+    # 仅临时正例提供完整精确动作标签；不能推导生产地图/复合控件的效果或提升资产状态。
     fixture = load_world(WORLDS / name)
     stack = [fixture["screens"]["qk_vpd_home"]["root"]]
     found = 0
     while stack:
         node = stack.pop()
         if node.get("t") == "XComponent":
-            node["text"] = "规划路线（合成地图占位）"
+            node["text"] = "规划路线"
             found += 1
+        if node.get("go") == "qk_route_planning" and any(c.get("text") == "默认车位" for c in node.get("children", [])):
+            node["children"] = [c for c in node["children"] if c.get("text") == "默认车位"]
         stack.extend(node.get("children", []))
     assert found == 1
+    fixture["note"] += "；本测试临时地图/默认车位的精确动作标签是合成依据，不代表生产地图或复合控件语义。"
     fixture.pop("_path", None)
     path = tmp_path / name
     write_json(path, fixture)
     return f"replay:{path}"
 
 
-def test_101_fault_blocks_activation_without_touching_start(ws, secrets):
-    run = run_case(ws, "TC-QK-101", device_spec=world("qiankun_hm_base.json"), propose=False, authorize=AUTH_101)
+def test_101_fault_blocks_activation_without_touching_start(ws, secrets, tmp_path):
+    run = run_case(ws, "TC-QK-101", device_spec=_classified_task_world(tmp_path, "qiankun_hm_base.json"), propose=False, authorize=AUTH_101)
     assert all(s["outcome"] == "passed" for s in run["steps"]), _outcomes(run)
     a = {x["id"]: x for x in run["assertions"]}
     # 判据未确认 → pending；观测本身成立：「开始」置灰且 10 秒后仍有不可用提示
@@ -96,7 +99,7 @@ def test_101_blocked_before_any_step_without_secrets_or_authorization(ws, monkey
 
 
 def test_102_favorite_rename_tag_search_and_read_distance(ws, tmp_path):
-    run = run_case(ws, "TC-QK-102", device_spec=_classified_map_world(tmp_path, "qiankun_hm_ready.json"),
+    run = run_case(ws, "TC-QK-102", device_spec=_classified_task_world(tmp_path, "qiankun_hm_ready.json"),
                    propose=False, authorize=AUTH_102)
     assert all(s["outcome"] == "passed" for s in run["steps"]), _outcomes(run)
     assert all(c["outcome"] == "passed" for c in run["cleanup"]), [(c["step_id"], c.get("reason")) for c in run["cleanup"]]
@@ -143,8 +146,8 @@ def test_102_requires_vehicle_in_vpd_map(ws):
     assert all(s["outcome"] == "not_run" for s in run["steps"])
 
 
-def test_103_supervised_lifecycle_pause_background_resume_continue(ws):
-    run = run_case(ws, "TC-QK-103", device_spec=world("qiankun_hm_ready.json"), propose=False, authorize=AUTH_103,
+def test_103_supervised_lifecycle_pause_background_resume_continue(ws, tmp_path):
+    run = run_case(ws, "TC-QK-103", device_spec=_classified_task_world(tmp_path, "qiankun_hm_ready.json"), propose=False, authorize=AUTH_103,
                    supervisor="现场监护人A")
     by = _by(run)
     assert all(s["outcome"] == "passed" for s in run["steps"]), _outcomes(run)
@@ -160,8 +163,8 @@ def test_103_supervised_lifecycle_pause_background_resume_continue(ws):
         {"A1": True, "A2": True, "A3": True, "A4": True}
 
 
-def test_103_fault_world_blocks_at_start_without_arming(ws):
-    run = run_case(ws, "TC-QK-103", device_spec=world("qiankun_hm_base.json"), propose=False, authorize=AUTH_103,
+def test_103_fault_world_blocks_at_start_without_arming(ws, tmp_path):
+    run = run_case(ws, "TC-QK-103", device_spec=_classified_task_world(tmp_path, "qiankun_hm_base.json"), propose=False, authorize=AUTH_103,
                    supervisor="现场监护人A", env={"account_state": "logged_in"})
     by = _by(run)
     assert run["verdict"]["verdict"] == "blocked" and run["verdict"]["attribution"] == "environment"
@@ -180,7 +183,7 @@ def test_103_requires_supervisor(ws):
 
 def test_103_vehicle_resuming_by_itself_is_armed_by_observation(ws, tmp_path):
     # 变体：暂停后退后台，拉回时车已自行恢复运动（不点「继续」）→ 看门狗按 moving_states 观测挂上，泊入后解除
-    w = load_world(WORLDS / "qiankun_hm_ready.json")
+    w = load_world(_classified_task_world(tmp_path, "qiankun_hm_ready.json").removeprefix("replay:"))
     w["screens"]["qk_paused"]["on_resume"] = "qk_moving_final"
     w.pop("_path", None)
     p = tmp_path / "qiankun_auto_resume.json"
@@ -219,7 +222,7 @@ def test_qiankun_lint_and_explore_boundary(ws):
 
 def test_102_resource_pack_popup_is_dismissed_inline(ws, tmp_path):
     """冷启动后盖着「请下载车辆资源包」：执行层在动作前自动点「下次再说」，用例照常通过，不点「立即下载」。"""
-    run = run_case(ws, "TC-QK-102", device_spec=_classified_map_world(tmp_path, "qiankun_hm_resource_popup.json"), propose=False,
+    run = run_case(ws, "TC-QK-102", device_spec=_classified_task_world(tmp_path, "qiankun_hm_resource_popup.json"), propose=False,
                    authorize=AUTH_102)
     assert all(s["outcome"] == "passed" for s in run["steps"]), _outcomes(run)
     events = [json.loads(x) for x in (ws.runs_dir / run["run_id"] / "events.jsonl").read_text("utf-8").splitlines()]
@@ -241,7 +244,7 @@ def _tapped_texts(run):
 
 def test_102_resource_pack_popup_variant_text_is_dismissed(ws, tmp_path):
     """真机出现过的文案变体「请下载更新后的车辆资源包」/「立即更新」也要认出并点「下次再说」。"""
-    run = run_case(ws, "TC-QK-102", device_spec=_classified_map_world(tmp_path, "qiankun_hm_resource_popup_v2.json"), propose=False,
+    run = run_case(ws, "TC-QK-102", device_spec=_classified_task_world(tmp_path, "qiankun_hm_resource_popup_v2.json"), propose=False,
                    authorize=AUTH_102)
     assert all(s["outcome"] == "passed" for s in run["steps"]), _outcomes(run)
     dis = [e for e in _events(ws, run) if e["event"] == "interrupt_dismissed"]
@@ -251,7 +254,7 @@ def test_102_resource_pack_popup_variant_text_is_dismissed(ws, tmp_path):
 
 def test_102_unregistered_popup_with_defer_button_is_dismissed(ws, tmp_path):
     """没登记的弹窗：按 Dialog 结构认出，里面有「以后再说」这类推迟按钮就点掉，不点「去开启」。"""
-    run = run_case(ws, "TC-QK-102", device_spec=_classified_map_world(tmp_path, "qiankun_hm_unregistered_popup.json"), propose=False,
+    run = run_case(ws, "TC-QK-102", device_spec=_classified_task_world(tmp_path, "qiankun_hm_unregistered_popup.json"), propose=False,
                    authorize=AUTH_102)
     assert all(s["outcome"] == "passed" for s in run["steps"]), _outcomes(run)
     dis = [e for e in _events(ws, run) if e["event"] == "interrupt_dismissed"]

@@ -165,7 +165,9 @@ Agent `diagnosis.status` 消费最终 `final_status`，并以匹配最后尝试�
 **授权与运动安全**（`run.json`）：`authorized`（本次授予的副作用）、`supervision.{supervisor, supervised_granted, safety}`、`motion[]`（看门狗事件：`armed` 附触发步骤与控件；由 `moving_states` 观测挂上的记 `step: observed`、`label: state:<状态>`；`stopped_observed` 附状态与耗时）、`safety_stops[]`（触发原因、执行的安全停止步骤、`confirmed_stopped`；未确认时 `action_required` 要求人工接管）。安全停止记录独立于步骤结果，不覆盖首次失败。
 
 按 #49 用户裁决，`task_side_effects` 的 vpd_entry / route_planning 随已委派测试任务许可，无需逐次询问或显式 grant。
-任务点击及任务类别输入还须取得当前 UI 的同类语义规则或已登记确认来源；目标声明、策略 label 或无树模板本身不是依据。
+任务点击及任务类别输入还须取得当前 UI 的精确动作标签（task_action_labels）或具体已登记确认来源；目标声明、策略 label 或无树模板本身不是依据。
+宽泛 deny_text 命中只施加限制，不证明任务动作；带任务关键词的帮助/取消/记录/状态或混合控件不按关键词自动放行。
+直接任务许可核对完整接收控件的动作标签；隐藏文字和编辑子树不能借用。复合控件含未分类文字时保持未知，不能为通过测试扩充生产允许范围；正例简化仅在临时合成世界中进行。
 可编辑值也不是任务动作依据；没有独立动作语义的 task 类输入同样拒绝，注册目标不能跳过此检查。
 无可核验语义时返回 task_semantics_unverified，不下发，也不改问重复授权。沿途找车位/默认车位按精确算路标签分类；不提升生产定位资产状态。
 `authorized` 包括这两类任务许可与显式授予；`authorization_sources` 及 authorization事件的 `grant_sources`
