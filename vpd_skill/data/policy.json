@@ -89,6 +89,10 @@
     "vpd_entry": "已委派的VPD测试任务内进入ADS/VPD页面，无需逐次询问或显式--authorize；目标仍须声明同一副作用",
     "route_planning": "已委派的VPD测试任务内发起算路并观察结果，无需逐次询问或显式--authorize；可能唤醒车辆，不包含开始或任何运动/车控"
   },
+  "task_action_labels": {
+    "vpd_entry": ["ADS", "泊车代驾", "代客泊车"],
+    "route_planning": ["算路", "规划路线", "路线规划", "导航到", "去这里", "沿途找车位", "默认车位", "路线"]
+  },
   "gated_note": "gated 类只能由人在单次运行上显式授权（run --authorize），用例声明 authorizations 只是申请；explore 和经验永远不带授权。denied_side_effects 任何情况下都拒绝。",
   "supervised_side_effects": {
     "vehicle_motion": "激活/开始泊车/继续/泊入/泊出/召唤等会让车辆运动的操作：只在有人在场监护的回归运行中允许",
@@ -116,7 +120,8 @@
       "changes": [
         "按维护者本轮明确要求取消vpd_entry与route_planning逐次授权，改为任务范围许可，操作记录保留task_policy来源",
         "其他gated、supervised和硬禁止保持；目标声明、通用确认语义和混合容器限制保持",
-        "PR #51 review后要求任务点击取得当前UI类别依据，拒绝仅凭声明与无树模板；按既有入口定义登记沿途找车位/默认车位的精确算路标签，不提升定位资产状态"
+        "PR #51 review后要求任务点击取得当前UI类别依据，拒绝仅凭声明与无树模板；按既有入口定义登记沿途找车位/默认车位的精确算路标签，不提升定位资产状态",
+        "宽泛deny_text仅施加限制；自动任务许可须task_action_labels精确动作标签或具体确认来源，帮助/取消/记录/状态等关键词扩展及混合接收控件不获自动许可"
       ],
       "reviewed_by": "规则目标由amazing-fish在2026-10-15本轮会话明确指定；Issue #49实现仍待PR人工评审"
     },
