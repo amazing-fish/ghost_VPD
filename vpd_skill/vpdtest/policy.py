@@ -115,7 +115,13 @@ class Policy:
                                                    if s.get("kind") == "text"]
             for strategy in target.get("strategies", []):
                 if strategy.get("kind") == "xpath":
-                    labels.extend(re.findall(r"['\"]([^'\"]+)['\"]", strategy.get("value", "")))
+                    xpath = strategy.get("value", "")
+                    # 没有当前树时不能求值文本/动态表达式；concat 等不能拆成安全的字面标签。
+                    expression = re.sub(r"'[^']*'|\"[^\"]*\"", "", xpath)
+                    if re.search(r"@\s*(?:text|description)\b|@\s*\*|attribute\s*::|\(|\$", expression):
+                        return {"allowed": False, "reason": "无可用 UI 树，无法核验文本或动态 XPath 的确认语义",
+                                "label": None, "deny": {"class": "confirmation_semantics_unknown"}}
+                    labels.extend(re.findall(r"['\"]([^'\"]+)['\"]", xpath))
             if any(isinstance(t, str) and self.confirmation_rx.fullmatch(t.strip()) for t in labels):
                 return {"allowed": False, "reason": "无可用 UI 树，无法核验通用确认的当前语义",
                         "label": None, "deny": {"class": "confirmation_semantics_unknown"}}

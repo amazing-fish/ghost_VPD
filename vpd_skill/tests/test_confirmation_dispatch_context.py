@@ -8,6 +8,7 @@ from copy import deepcopy
 import pytest
 from test_dispatch_regression import _ctx
 from test_goal_loop import _lab_world, _start, cli
+from test_no_tree import _setup as _no_tree_setup
 
 from vpdtest.devices.replay import ReplayDevice
 from vpdtest.execute import Executor
@@ -353,3 +354,47 @@ def test_same_scope_confirmation_needs_every_candidate_to_agree(
     if allowed:
         assert len(calls) == 1
         assert _tap_events(ctx)[-1]["sent"] is True
+
+
+@pytest.mark.parametrize("xpath,allowed", [
+    ("//*[@text=concat('确','定')]", False),
+    ("//*[@description=concat('O','K')]", False),
+    ("//*[normalize-space(@text)='下一页']", False),
+    ("//*[@text=$confirmation]", False),
+    ("//*[attribute::text='下一页']", False),
+    ("//*[@*[name()='text']=concat('确','定')]", False),
+    ("//*[@id=concat('full','-view')]", False),
+    ("//*[@id='full-view']", True),
+    ("//*[@id='full-view(@text)']", True),
+], ids=["concat-confirm", "concat-ok-description", "text-function", "variable", "text-attribute-axis",
+        "dynamic-attribute", "id-function", "literal-id-navigation", "literal-id-punctuation"])
+def test_no_tree_xpath_cannot_hide_semantics_behind_real_template_dispatch(
+        ws, tmp_path, monkeypatch, xpath, allowed):
+    ctx, app, dev, obs, tree, target, _ = _no_tree_setup(ws, tmp_path)
+    assert tree is None or tree.status != "ok"
+    target["strategies"][0] = {"kind": "xpath", "value": xpath}
+    calls = _tap_spy(monkeypatch, dev)
+    # 使用实际截图裁剪模板并真实匹配，证明后备定位已成功，拒绝来自 Dispatcher policy gate。
+    loc = resolve("fixture-full-view", target, tree, ctx.observer.screenshot_abs(obs), app.dir)
+    assert loc["status"] == "found" and loc["basis"] == "template"
+    assert loc["attempts"][0]["status"] == "skipped_no_tree"
+    assert loc["score"] > 0.95
+    att = {"action": "tap", "step_id": "X1"}
+    result = ctx.dispatcher.send(
+        "tap", *loc["point"], preconditions=ctx.dispatcher.app_conditions("tap"), att=att,
+        tap={"tree": tree, "loc": loc, "target": target,
+             "target_ref": "fixture-full-view", "page": obs["page"],
+             "state_deny": ctx.app.states.deny_for_page(obs["page"])})
+    assert result.ok is allowed and result.sent is allowed
+    event = _tap_events(ctx)[-1]
+    assert event["sent"] is allowed
+    if allowed:
+        assert len(calls) == 1
+        assert event["checks"]["tap"]["policy"]["allowed"]
+        assert dev.current_screen() == "map2"
+    else:
+        assert calls == [] and att["status"] == "policy_denied"
+        policy = event["checks"]["tap"]["policy"]
+        assert not policy["allowed"]
+        assert policy["deny"]["class"] == "confirmation_semantics_unknown"
+        assert dev.current_screen() == "map"

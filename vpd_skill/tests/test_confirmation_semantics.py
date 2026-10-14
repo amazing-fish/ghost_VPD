@@ -218,6 +218,26 @@ def test_no_tree_xpath_literal_confirmation_cannot_use_template_fallback(ws):
     assert not ws.policy().check_tap(None, (10, 10), "template", target)["allowed"]
 
 
+@pytest.mark.parametrize("identifier", ["home(text())", "attribute @text label"])
+def test_no_tree_static_id_literal_is_not_a_dynamic_xpath(ws, identifier):
+    target = {"strategies": [{"kind": "xpath", "value": f"//*[@id='{identifier}']"}]}
+    assert ws.policy().check_tap(None, (10, 10), "template", target)["allowed"]
+
+
+def test_available_tree_navigation_keeps_compound_xpath_support(ws):
+    tree, node = _tree("我的")
+    target = {"strategies": [{"kind": "xpath", "value": "//*[@text=concat('我','的')]"}]}
+    assert ws.policy().check_tap(tree, node.center, "tree", target, node=node)["allowed"]
+
+
+@pytest.mark.parametrize("xpath", ["//*[@ text='我的']", "//*[@ *='我的']",
+                                   "//*[attribute::text='我的']", "//*[attribute::*='我的']"])
+def test_no_tree_text_or_dynamic_attribute_xpath_forms_cannot_fall_back(ws, xpath):
+    target = {"strategies": [{"kind": "xpath", "value": xpath}]}
+    result = ws.policy().check_tap(None, (10, 10), "template", target)
+    assert not result["allowed"] and result["deny"]["class"] == "confirmation_semantics_unknown"
+
+
 def test_editable_value_cannot_impersonate_a_registered_modal_title(ws):
     tree, node = _tree(title="未登记语义")
     title = next(n for n in tree.nodes if n.text == "未登记语义")
