@@ -171,11 +171,19 @@ class Policy:
                         "class": cls, "modal_idx": modal.idx, "title_node": title.idx}
                        for rx, cls in self.confirmation_contexts if title and rx.fullmatch(title.text.strip())]
             # Modal 状态说明只能增加限制；正向来源另须显式登记的确认标题，不能从“算路中”推定点击效果。
-            page_sources = [s for s in confirmation_sources or [] if s.get("kind") == "state_confirmation_effect"
-                            and any(re.search(s["pattern"], t.strip()) for t in generic)
-                            and (s.get("scope_idx") is None or (
-                                isinstance(s["scope_idx"], int) and 0 <= s["scope_idx"] < len(tree.nodes)
-                                and tree.is_within(container, tree.nodes[s["scope_idx"]])))]
+            page_sources = []
+            for source in confirmation_sources or []:
+                if source.get("kind") != "state_confirmation_candidates":
+                    continue
+                scope_idx = source.get("scope_idx")
+                if scope_idx is not None and not (isinstance(scope_idx, int) and 0 <= scope_idx < len(tree.nodes)
+                                                  and tree.is_within(container, tree.nodes[scope_idx])):
+                    continue
+                effects = [{r["class"] for r in candidate.get("rules", []) if re.search(r["pattern"], t.strip())}
+                           for candidate in source.get("candidates", []) for t in generic]
+                # 同栏每个候选须对每个确认标签给出同一唯一效果；缺失和冲突都不是正向证据。
+                if effects and all(len(classes) == 1 for classes in effects) and len(set.union(*effects)) == 1:
+                    page_sources.append({**source, "class": next(iter(effects[0]))})
             proven = bool(page_sources or context)
             hits.extend(modal_hits)
             hits.extend({"text": c["text"], "pattern": c["pattern"], "class": c["class"],

@@ -12,6 +12,7 @@ from test_goal_loop import _lab_world, _start, cli
 from vpdtest.devices.replay import ReplayDevice
 from vpdtest.execute import Executor
 from vpdtest.explore import explore
+from vpdtest.locate import resolve
 from vpdtest.session import parse_select
 from vpdtest.util import read_json, read_jsonl, write_json
 
@@ -293,3 +294,62 @@ def test_pane_only_ambiguous_candidates_keep_restrictive_effect_union(ws, tmp_pa
     assert page["panes"][1]["candidates"] == ["fixture_motion", "fixture_data"]
     rules = deepcopy(ctx.app.states.deny_for_page(page))
     assert {rule["class"] for rule in rules if isinstance(rule, dict)} == {"vehicle_motion", "user_data"}
+
+
+@pytest.mark.parametrize("path", ["executor", "dispatcher"])
+@pytest.mark.parametrize("second_effects,allowed", [
+    ({}, False),
+    ({"^确定$": "vehicle_motion"}, True),
+    ({"^确定$": "user_data"}, False),
+    ({"^取消$": "vehicle_motion"}, False),
+], ids=["unmapped-candidate", "matching-consensus", "conflicting-effects", "unmatched-rule"])
+def test_same_scope_confirmation_needs_every_candidate_to_agree(
+        ws, tmp_path, monkeypatch, path, second_effects, allowed):
+    spec = _world(tmp_path, _home(
+        {"t": "Text", "text": "CANDIDATE A", "b": [40, 100, 1280, 180]},
+        {"t": "Text", "text": "CANDIDATE B", "b": [40, 200, 1280, 280]},
+        _button(),
+    ), name=f"confirmation-consensus-{path}")
+    ctx = _ctx(ws, spec)
+    ctx.app.states.states.clear()
+    ctx.app.states.states.update({
+        "fixture_motion": {"require_text": ["CANDIDATE A"],
+                           "effect_text": {"^确定$": "vehicle_motion"}},
+        "fixture_other": {"require_text": ["CANDIDATE B"],
+                          "effect_text": second_effects},
+    })
+    # 两种授权都有，避免把语义一致性测试误写成缺少 grant 的测试。
+    ctx.authorized = {"vehicle_motion", "user_data"}
+    calls = _tap_spy(monkeypatch, ctx.device)
+    initial_obs, _ = ctx.observe("confirmation-candidates-before")
+    target = parse_select("text=确定", side_effect="vehicle_motion")
+    if path == "executor":
+        result = Executor(ctx).run_step({"id": "C1", "action": "tap", "retry": 0,
+                                         "target": target}, "fixture")
+        if allowed:
+            assert result["outcome"] == "passed"
+        else:
+            _assert_unissued(ctx, result, calls)
+    else:
+        obs, tree = ctx.observe("confirmation-consensus")
+        loc = resolve("fixture-confirmation", target, tree, None, ctx.app.dir,
+                      layout=obs.get("layout"))
+        assert loc["status"] == "found"
+        att = {"action": "tap", "step_id": "C1"}
+        result = ctx.dispatcher.send(
+            "tap", *loc["point"], preconditions=ctx.dispatcher.app_conditions("tap"), att=att,
+            tap={"tree": tree, "loc": loc, "target": target,
+                 "target_ref": "fixture-confirmation", "page": obs["page"],
+                 "state_deny": ctx.app.states.deny_for_page(obs["page"])})
+        assert result.ok is allowed
+        assert result.sent is allowed
+        if not allowed:
+            assert att["status"] == "policy_denied"
+            assert calls == []
+            assert _tap_events(ctx)[-1]["sent"] is False
+    page = initial_obs["page"]
+    assert page["state"] == "ambiguous" and page["active"] == []
+    assert page["candidates"] == ["fixture_motion", "fixture_other"]
+    if allowed:
+        assert len(calls) == 1
+        assert _tap_events(ctx)[-1]["sent"] is True

@@ -81,6 +81,46 @@ def test_legacy_pane_record_without_owner_is_not_positive_confirmation_proof():
     assert model.confirmation_sources(tree, page=page) == []
 
 
+@pytest.mark.parametrize("other_rules", [{}, {"^返回$": "vehicle_motion"}])
+def test_every_ambiguous_candidate_must_explain_the_confirmation(ws, other_rules):
+    tree, node = _tree(title="开始")
+    model = StateModel({"states": {
+        "motion": {"require_text": ["开始"], "effect_text": {"^确定$": "vehicle_motion"}},
+        "other": {"require_text": ["开始"], "effect_text": other_rules},
+    }}, BUNDLE)
+    page = model.identify(tree, BUNDLE, True)
+    assert page["state"] == "ambiguous"
+    result = _check(ws, tree, node, "vehicle_motion", model.deny_for_page(page),
+                    model.confirmation_sources(tree, page=page), ["vehicle_motion"])
+    assert not result["allowed"] and result["deny"]["class"] == "confirmation_semantics_unknown"
+
+
+def test_same_effect_patterns_in_every_candidate_are_positive_evidence(ws):
+    tree, node = _tree(title="开始")
+    model = StateModel({"states": {
+        "motion": {"require_text": ["开始"], "effect_text": {"^确定$": "vehicle_motion"}},
+        "other": {"require_text": ["开始"], "effect_text": {
+            "^确定$": "vehicle_motion", "确定": "vehicle_motion"}},
+    }}, BUNDLE)
+    page = model.identify(tree, BUNDLE, True)
+    result = _check(ws, tree, node, "vehicle_motion", model.deny_for_page(page),
+                    model.confirmation_sources(tree, page=page), ["vehicle_motion"])
+    assert result["allowed"]
+    source = result["confirmation_source"]["page_sources"][0]
+    assert source["class"] == "vehicle_motion" and len(source["candidates"]) == 2
+
+
+def test_every_generic_label_in_the_container_needs_candidate_consensus(ws):
+    tree, node = _tree(title="开始", mixed=True)
+    next(n for n in tree.nodes if n.text == "返回").text = "OK"
+    model = StateModel({"states": {"motion": {
+        "require_text": ["开始"], "effect_text": {"^确定$": "vehicle_motion"}}}}, BUNDLE)
+    page = model.identify(tree, BUNDLE, True)
+    result = _check(ws, tree, node, "vehicle_motion", model.deny_for_page(page),
+                    model.confirmation_sources(tree, page=page), ["vehicle_motion"])
+    assert not result["allowed"] and result["deny"]["class"] == "confirmation_semantics_unknown"
+
+
 def test_input_value_named_confirmation_is_not_a_confirmation_button(ws):
     tree, node = _tree()
     node.type = "TextInput"

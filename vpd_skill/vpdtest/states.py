@@ -146,11 +146,14 @@ class StateModel:
         if not panes:
             scopes = [(None, page.get("candidates") or page.get("active") or [page.get("state")])]
         for scope_idx, candidates in scopes:
-            for sid in candidates:
-                spec = self.states.get(sid or "", {})
-                out.extend({"kind": "state_confirmation_effect", "state": sid, "scope_idx": scope_idx,
-                            "pattern": pattern, "class": effect}
-                           for pattern, effect in spec.get("effect_text", {}).items())
+            candidates = list(dict.fromkeys(sid for sid in candidates if isinstance(sid, str)))
+            if candidates:
+                # 空规则也保留：一个候选知道按钮效果，不能代表另一个未知候选。
+                out.append({"kind": "state_confirmation_candidates", "scope_idx": scope_idx,
+                            "candidates": [{"state": sid, "rules": [
+                                {"pattern": pattern, "class": effect}
+                                for pattern, effect in self.states.get(sid, {}).get("effect_text", {}).items()]}
+                                for sid in candidates]})
         for modal in tree.modal_layers():
             matched = [(iid, spec) for iid, spec in self.interrupts.items()
                        if _texts_match(spec, tree, [modal], owner_modal=modal)]

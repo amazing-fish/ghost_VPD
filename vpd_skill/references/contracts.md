@@ -122,6 +122,7 @@ agent 模式的 `--point` 记录提出时的窗口尺寸（`point_window`）；�
 
 **不确定页面与通用确认（#43）**：页面限制取 `active`、全窗 `candidates`、各栏候选与旧记录 `state` 的并集；
 歧义仍是歧义，不为取规则制造 active。默认「确定/确认/OK」（可由 policy 的 `generic_confirmation_text` 配置）
+的页面正向来源须由按钮所属范围的每个候选对每个确认标签给出同一唯一副作用；空规则、未匹配和效果冲突仍是未知，限制并集不受影响。
 按当前点击容器的 text/description 判断，匹配时处理外围空白，证据保留原文字。
 通用确认须有对实际按钮生效的页面/控件规则、同一最近 Dialog 中 `confirmation_contexts` 明确登记的首个非交互、非输入字段 Text 标题，
 或当前同一 Dialog 完整命中已评审良性中断及其声明的关闭按钮。目标自填 side_effect/review/source、持有授权或
