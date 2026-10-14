@@ -175,11 +175,18 @@ def test_qiankun_lint_and_explore_boundary(ws):
     assert lint(ws.load_case("TC-QK-103"), app, kn, pol) == []
     issues = lint(ws.load_case("TC-QK-102"), app, kn, pol)
     assert len(issues) == 1 and "qk_map" in issues[0]["problem"] and "hypothesis" in issues[0]["problem"]
-    # 探索不带任何授权：不进 VPD、不点账号区
+    # 不带显式 grant 也可按任务策略进入 ADS；加载态没有 recipe，覆盖如实停止。
     exp = explore(ws, "qiankun_hm", "qk_car_tab", world("qiankun_hm_base.json"), budget=40)
-    assert exp["exit"]["reason"] == "frontier_exhausted"
-    assert "ADS" in {s["label"] for s in exp["skipped"]}
-    assert not any(t["to"] in ("qk_vpd_loading", "qk_vpd_home") for t in exp["transitions"])
+    assert exp["exit"] == {"reason": "reset_failed", "state": "qk_vpd_loading"}
+    assert any(t["label"] == "ADS" and t["to"] == "qk_vpd_loading" for t in exp["transitions"])
+    assert "qk_vpd_loading" in exp["coverage"]["unvisited_declared"]
+    assert any("没有到达状态 qk_vpd_loading 的 recipe" in a for a in exp["anomalies"])
+    dispatches = [e for e in _events(ws, exp) if e["event"] == "dispatch" and e.get("sent")]
+    permissions = [e.get("checks", {}).get("tap", {}).get("policy", {}) for e in dispatches]
+    assert any(p.get("authorized_by") == "vpd_entry" and p.get("authorization_source") == "task_policy"
+               for p in permissions)
+    assert not any(p.get("authorized_by") in {"account_state", "vehicle_selection", "user_data",
+                                               "vehicle_motion", "vehicle_control"} for p in permissions)
 
 
 def test_102_resource_pack_popup_is_dismissed_inline(ws):
