@@ -1,5 +1,5 @@
 {
-  "version": "policy-0.6",
+  "version": "policy-0.7",
   "note": "运行边界。Skill/经验/模型都不能修改本文件；变更需人工评审并单独提交。",
   "allowed_packages": [
     "app.huawei.hmos.motor",
@@ -49,7 +49,7 @@
     },
     {
       "class": "user_data",
-      "pattern": "收藏|重命名|标签|^删除$",
+      "pattern": "收藏|重命名|修改名称|标签|^删除$",
       "reason": "改变账号下的用户数据（需授权）"
     },
     {
@@ -109,6 +109,15 @@
   "safe_stop_note": "side_effect=safe_stop 的目标（暂停/退出泊车等）在任何授权下都可点击、不占动作预算：安全停止不应被门槛挡住。但点击点所在可点击容器里必须有停止类文字，且不能同时含有其他会触发运动/车控的文字。",
   "changelog": [
     {
+      "version": "policy-0.7",
+      "date": "2026-10-14",
+      "changes": [
+        "通用确认须具备当前页面/同一弹窗的受控语义或已评审良性关闭依据；副作用声明和授权本身不证明语义",
+        "用户数据关键词补修改名称，覆盖既有重命名弹窗标题；其他授权与硬禁止规则不放宽"
+      ],
+      "reviewed_by": "待本Issue #43独立PR人工评审；Agent未批准新策略"
+    },
+    {
       "version": "policy-0.6",
       "date": "2026-10-13",
       "changes": [
@@ -138,6 +147,14 @@
         "vehicle_motion 的 reason 与 policy-0.3 的监护授权语义对齐"
       ],
       "reviewed_by": "待用户评审（PR #2）"
+    }
+  ],
+  "generic_confirmation_text": "^(?:确定|确认|OK)$",
+  "confirmation_contexts": [
+    {
+      "pattern": "^(?:重命名|修改名称)(?:（[^）]*）)?$",
+      "class": "user_data",
+      "basis": "现有用户数据操作语义；只适用于同一Dialog中可见Text标题，字段值与背景文字不能证明确认语义"
     }
   ]
 }
