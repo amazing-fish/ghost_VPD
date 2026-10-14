@@ -164,6 +164,11 @@ Agent `diagnosis.status` 消费最终 `final_status`，并以匹配最后尝试�
 
 **授权与运动安全**（`run.json`）：`authorized`（本次授予的副作用）、`supervision.{supervisor, supervised_granted, safety}`、`motion[]`（看门狗事件：`armed` 附触发步骤与控件；由 `moving_states` 观测挂上的记 `step: observed`、`label: state:<状态>`；`stopped_observed` 附状态与耗时）、`safety_stops[]`（触发原因、执行的安全停止步骤、`confirmed_stopped`；未确认时 `action_required` 要求人工接管）。安全停止记录独立于步骤结果，不覆盖首次失败。
 
+按 #49 用户裁决，`task_side_effects` 的 vpd_entry / route_planning 随已委派测试任务许可，无需逐次询问或显式 grant。
+`authorized` 包括这两类任务许可与显式授予；`authorization_sources` 及 authorization事件的 `grant_sources`
+逐项标识 `task_policy` / `explicit`。旧 `--authorize vpd_entry route_planning` 写法可用，但不增加权限。
+其他 gated/supervised 与硬禁止保持；task类别不能与它们重叠。目标副作用与实际文本必须一致，未知通用确认和混合运动/车控容器继续拒绝。
+
 **原文取证（#32 裁决）**：树、可见文字、设备错误、事件和运行汇总保留采集原文，不脱敏、不按系统窗口扣留。窗口表未知不代表整屏 dump 失败；`dump_error` 仅反映实际采集错误或设备不支持 dump。截图仍受 APP 白名单约束，白名单内 APP 相互切换时保留截图，但旧业务树按 `fresh=false` 失效。旧 `redacted`、`private_windows`、`system_overlays`、`clipboard_may_hold_secret` 字段及 `secret_typed` 事件不再生成；旧会话事件可以读取但不再控制取证。密钥的外置引用、缺失检测、输入目标授权及生成用例的外置参数分类保持；回放设备的输入值只在内存中，恢复状态仍沿用现有格式。
 
 ## 3. 判定（`assertions[]` 与 `verdict`）

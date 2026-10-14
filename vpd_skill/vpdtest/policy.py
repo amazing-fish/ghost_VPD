@@ -25,7 +25,10 @@ class Policy:
         self.gated_side_effects = set(data.get("gated_side_effects", {}))
         # supervised：车辆运动/车控。不是禁止，而是"授权 + 在场监护人 (+ 安全停止声明)"的更高门槛
         self.supervised_side_effects = set(data.get("supervised_side_effects", {}))
-        self.authorizable = self.gated_side_effects | self.supervised_side_effects
+        self.task_side_effects = set(data.get("task_side_effects", {}))
+        if self.task_side_effects & (self.denied_side_effects | self.supervised_side_effects | self.gated_side_effects):
+            raise ValueError("task_side_effects 不能与 gated/supervised/硬禁止类别重叠")
+        self.authorizable = self.gated_side_effects | self.supervised_side_effects | self.task_side_effects
         self.supervision = data.get("supervision", {})
         self.safe_stop_rx = re.compile(data["safe_stop_text"]) if data.get("safe_stop_text") else None
         self.confirmation_rx = re.compile(data.get("generic_confirmation_text") or r"^(?:确定|确认|OK)$", re.IGNORECASE)
@@ -65,11 +68,20 @@ class Policy:
             raise ValueError(f"--authorize 不接受 {bad}：可授予的只有 {sorted(self.authorizable)}"
                              + (f"；{forbidden} 为 policy 硬禁止，任何授权下都不执行" if forbidden else ""))
 
+    def effective_grants(self, granted) -> set:
+        """任务策略许可与显式授予统一；任务类别仍要匹配真实目标副作用。"""
+        return set(granted or ()) | self.task_side_effects
+
+    def grant_sources(self, granted) -> dict:
+        return {effect: "task_policy" if effect in self.task_side_effects else "explicit"
+                for effect in sorted(self.effective_grants(granted))}
+
     def check_authorizations(self, requested: list, granted: set, supervisor: Optional[str] = None,
                              safety: Optional[dict] = None) -> dict:
-        """用例申请的授权必须全部由本次运行显式给出；不能申请硬禁止类。
+        """task 类随测试任务许可；gated/supervised 仍需本次显式授予，不能申请硬禁止类。
         supervised 类（车辆运动/车控）还需要在场监护人；vehicle_motion 还需要用例声明安全停止序列。"""
         bad = [r for r in requested if r not in self.authorizable]
+        granted = self.effective_grants(granted)
         missing = [r for r in requested if r in self.authorizable and r not in granted]
         need_sup = [r for r in requested if r in self.supervision.get("requires_supervisor", self.supervised_side_effects)]
         no_sup = need_sup if (need_sup and not (supervisor or "").strip()) else []
@@ -87,7 +99,7 @@ class Policy:
         effect = (target or {}).get("side_effect", "navigation")
         if effect in self.denied_side_effects:
             return {"allowed": False, "reason": f"目标副作用 {effect} 在 policy 中被禁止", "label": None, "deny": None}
-        if effect in self.authorizable and effect not in set(authorized or ()):
+        if effect in self.authorizable and effect not in self.effective_grants(authorized):
             sup = effect in self.supervised_side_effects
             how = f"--authorize {effect}" + (" --supervisor <在场监护人>" if sup else "")
             return {"allowed": False, "reason": f"目标副作用 {effect} 需要本次运行显式授权（{how}）",
@@ -98,8 +110,8 @@ class Policy:
                   state_deny: Optional[list] = None, authorized: Optional[set] = None, node=None,
                   confirmation_sources: list | None = None) -> dict:
         """判定一次点击。返回 {allowed, reason, label, deny}；不会抛异常。
-        authorized：本次运行由人显式授予的 gated 副作用；只放行"目标声明了同一副作用"的命中。"""
-        target, authorized = target or {}, set(authorized or ())
+        task 类随测试任务许可；其他类使用 authorized。只放行"目标声明了同一副作用"的命中。"""
+        target, authorized = target or {}, self.effective_grants(authorized)
         if basis not in VALID_BASIS:
             return {"allowed": False, "reason": f"未知定位依据 {basis}", "label": None, "deny": None}
         effect = target.get("side_effect", "navigation")
@@ -217,18 +229,23 @@ class Policy:
         if gated:
             h = gated[0]
             sup = h["class"] in self.supervised_side_effects
-            why = f"需授权 {h['class']}{'（且有在场监护人）' if sup else ''} 且目标声明 side_effect={h['class']}"
+            task = h["class"] in self.task_side_effects
+            why = (f"目标须声明 side_effect={h['class']}" if task else
+                   f"需授权 {h['class']}{'（且有在场监护人）' if sup else ''} 且目标声明 side_effect={h['class']}")
             return {"allowed": False, "reason": f"命中受控文本「{h['text']}」：{why}", "label": label,
-                    "deny": {**h, "gated": True, "supervised": sup}}
+                    "deny": {**h, "gated": not task, "task": task, "supervised": sup}}
         if confirmation_unknown:
             return {"allowed": False, "reason": "通用确认缺少当前页面或同一弹窗的具体副作用依据；需先确认语义",
                     "label": label, "deny": {"class": "confirmation_semantics_unknown"}}
         if hits:
-            return {"allowed": True, "reason": f"已授权 {effect}，目标声明一致", "label": label, "deny": None,
-                    "authorized_by": effect, **({"confirmation_source": confirmation} if confirmation else {})}
+            source = "task_policy" if effect in self.task_side_effects else "explicit"
+            return {"allowed": True, "reason": f"{'任务范围允许' if source == 'task_policy' else '已授权'} {effect}，目标声明一致",
+                    "label": label, "deny": None, "authorized_by": effect, "authorization_source": source,
+                    **({"confirmation_source": confirmation} if confirmation else {})}
         if basis == "point" and not texts:
             return {"allowed": False, "reason": "坐标落在无文本标识的控件上，无法确认副作用", "label": label, "deny": None}
         return {"allowed": True, "reason": "通过", "label": label, "deny": None,
+                **({"authorized_by": effect, "authorization_source": "task_policy"} if effect in self.task_side_effects else {}),
                 **({"confirmation_source": confirmation} if confirmation else {})}
 
     def _check_safe_stop(self, texts: list, hits: list, label: str) -> dict:

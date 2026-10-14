@@ -18,6 +18,8 @@
    输出 `completed=false`、`action_required` 与按计划顺序排列的 `not_run`。
    用例集保留触发接管的 `results` 行；经验验证另用 `handoff` 给出阶段（baseline/trial）、源 run 和 report。
    未完成的比较不计改进、不晋级经验；暂停前已成立的回退继续保留为 rejected。
+   vpd_entry / route_planning 随已委派VPD任务许可，不为这两类反复询问或补 `--authorize`；
+   run 的 `authorization_sources` 与会话 authorization事件的 `grant_sources` 区分 task_policy / explicit。
 3. **读文件**：能打开返回的 `report.md`、`obs/<id>/observation.json`，可选能查看 `screen.png`（用于未知页面理解与 UI/UX 建议）。
 4. **加载指令**：把 `SKILL.md` 作为技能说明加载；`references/` 按需读取。
 

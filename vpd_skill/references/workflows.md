@@ -13,12 +13,12 @@
 
 回归中允许的变化只有：定位策略顺序（经验 overlay）与已记录的执行恢复；断言、关键步骤、判据不变。
 
-## 需要授权的运行（登录、切车、算路、控车）
+## 任务范围与需要显式授权的运行
 
-1. 先读用例的 `authorizations` 与 `preconditions`，把需要的授权、账号前提、是否会让车移动告诉用户，由用户决定是否授予。
+1. 先读用例的 `authorizations` 与 `preconditions`。已委派任务内进VPD/算路无需逐次询问；其他gated与supervised类别仍检查明确授予。一般入口/算路诊断自行取证现场，不将未知车辆条件填成已确认的场景事实。
 2. 账号/密码只放环境变量：`$env:VPD_SECRET_QIANKUN_PHONE = '...'`（值由用户在自己的终端里设置，不经过你）。
-3. gated：`.\vpdtest.ps1 run TC-QK-101 --device $D --env account_state=logged_out --authorize account_state vehicle_selection vpd_entry route_planning`。
-4. 控车：`.\vpdtest.ps1 run TC-QK-103 --device $D --env account_state=logged_in --authorize vpd_entry route_planning vehicle_motion --supervisor <监护人>`。用例必须声明 `safety`；运行中出现首次失败、超时（`max_motion_s`）或用例结束仍在动，执行器自动执行安全停止并单独记录。
+3. gated：`.\vpdtest.ps1 run TC-QK-101 --device $D --env account_state=logged_out --authorize account_state vehicle_selection`。
+4. 控车：`.\vpdtest.ps1 run TC-QK-103 --device $D --env account_state=logged_in --authorize vehicle_motion --supervisor <监护人>`。用例必须声明 `safety`；运行中出现首次失败、超时（`max_motion_s`）或用例结束仍在动，执行器自动执行安全停止并单独记录。
 5. 读报告：监视时间线（TOR、车速、故障文字的首次出现时间）、看门狗 `motion[]`、`safety_stops[]`。有 `action_required` 时立即转告用户人工接管。
 6. 单步控车同理（加 `--app qiankun_hm`）：`act tap --target qk_pause` 不需授权（safe_stop）；`act tap --target qk_continue --authorize vehicle_motion --supervisor <人>`。
 
@@ -45,7 +45,7 @@
 # 补齐 purpose / preconditions / assertions（独立 oracle_refs）/ cleanup / knowledge_used 后：
 .\vpdtest.ps1 case lint TC-QK-201
 # 单条 run 可先作非正式取证；晋级或放入任何批量入口前，按下方“探索资产人工审核”操作。
-.\vpdtest.ps1 run TC-QK-201 --device $D --env account_state=logged_in --env favorite_spot_slot=available --env vehicle_in_vpd_map=yes --authorize vpd_entry user_data --record-replay
+.\vpdtest.ps1 run TC-QK-201 --device $D --env account_state=logged_in --env favorite_spot_slot=available --env vehicle_in_vpd_map=yes --authorize user_data --record-replay
 ```
 
 - `--select`：`text=` 精确、`text~=` 包含、`id=`、`xpath=`，`--within type=|id=|pane=` 限定范围。只覆盖有 UI 树的页面。

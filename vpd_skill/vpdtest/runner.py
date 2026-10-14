@@ -102,7 +102,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     params = Params(case.get("test_data"), ws.config.get("secrets"), store.run_id)
     ctx.params = params
     unmet = [{"key": f"secret.{n}", "required": f"环境变量 VPD_SECRET_{n}", "actual": "未设置"} for n in params.missing]
-    # 授权：用例只能申请 gated/supervised 类副作用，必须由本次运行显式授予（--authorize），硬禁止类无法授予；
+    # task 类来自任务策略；其他 gated/supervised 类必须显式授予，硬禁止类无法授予。
     # supervised 类（车辆运动/车控）还要有在场监护人，vehicle_motion 还要有安全停止声明
     requested = [a["effect"] if isinstance(a, dict) else a for a in case.get("authorizations", [])]
     auth = ctx.policy.check_authorizations(requested, set(authorize or []), supervisor, case.get("safety"))
@@ -116,10 +116,12 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                   for p in safety_mod.problems(case.get("safety"), app, ctx.policy)]
     if unmet:
         envc = {**envc, "ok": False, "unmet": envc["unmet"] + unmet}
-    ctx.authorized = set(requested) & set(authorize or [])
+    ctx.authorized = ctx.policy.effective_grants(set(requested) & set(authorize or []))
     ctx.supervisor = supervisor
     ctx.motion = safety_mod.MotionGuard(case.get("safety"), ctx.clock, store)
-    store.event("authorization", requested=requested, granted=sorted(ctx.authorized), supervisor=bool(supervisor))
+    grant_sources = ctx.policy.grant_sources(ctx.authorized)
+    store.event("authorization", requested=requested, granted=sorted(ctx.authorized), grant_sources=grant_sources,
+                supervisor=bool(supervisor))
     steps, cleanup, safety_stops = [], [], []
     if pre["ok"] and envc["ok"]:
         ex = Executor(ctx)
@@ -196,7 +198,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
            "knowledge_snapshot": knowledge.oracle_status(refs)["items"] if refs else [],
            "facts": knowledge.facts, "knowledge_used": case.get("knowledge_used", []), "goal": case.get("goal"),
            "verdict": verdict, "actions": ctx.actions, "seed": ctx.seed,
-           "test_data": params.public(), "authorized": sorted(ctx.authorized),
+           "test_data": params.public(), "authorized": sorted(ctx.authorized), "authorization_sources": grant_sources,
            "supervision": {"supervisor": supervisor,
                            "supervised_granted": sorted(ctx.authorized & ctx.policy.supervised_side_effects),
                            "safety": case.get("safety")},
