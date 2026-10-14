@@ -10,11 +10,12 @@ from vpdtest.util import read_json, read_jsonl, write_json
 from conftest import world
 
 
-def _case(requirements):
+def _case(requirements, layout_requirements=None):
     return {
         "id": "TC-MEASURED-ENV", "version": 1, "status": "draft", "app": "motor_hm",
         "title": "Synthetic measured precondition", "purpose": "Check before launch",
-        "env_requirements": requirements, "steps": [{"id": "S1", "action": "launch"}],
+        "env_requirements": requirements, "layout_requirements": layout_requirements or {},
+        "steps": [{"id": "S1", "action": "launch"}],
         "assertions": [], "cleanup": [{"action": "stop_app"}],
     }
 
@@ -68,7 +69,8 @@ def test_missing_measured_build_remains_unknown_for_oracles(ws):
 
 
 @pytest.mark.parametrize("initial", ["locked", "usb_dialog"])
-def test_incompatible_build_blocks_preflight_recovery_dispatch(ws, tmp_path, initial):
+@pytest.mark.parametrize("compatibility", ["build", "layout"])
+def test_incompatible_case_blocks_preflight_recovery_dispatch(ws, tmp_path, initial, compatibility):
     name = "motor_hm_usb_dialog.json" if initial == "usb_dialog" else "motor_hm_base.json"
     from vpdtest.devices.replay import load_world
     data = load_world(world(name).split(":", 1)[1])
@@ -84,8 +86,8 @@ def test_incompatible_build_blocks_preflight_recovery_dispatch(ws, tmp_path, ini
     write_json(path, data)
     spec = f"replay:{path}"
     ws.config.update(secrets={"LOCK_PIN_TEST": "246810"}, unlock_secrets={spec: "LOCK_PIN_TEST"})
-    run = run_case(ws, case=_case({"app_version": "different-build"}), device_spec=spec,
-                   env={"app_version": "different-build"}, propose=False)
+    case = _case({"app_version": "different-build"}) if compatibility == "build" else _case({}, {"wide": True})
+    run = run_case(ws, case=case, device_spec=spec, env={"app_version": "different-build"}, propose=False)
     assert run["verdict"]["verdict"] == "blocked"
     assert not _sent(run), "incompatible case must not unlock or dismiss before being blocked"
     assert "unlock" not in run["preflight"] and "system_dialog" not in run["preflight"]
@@ -118,3 +120,45 @@ def test_build_is_rechecked_after_unlock_before_business_dispatch(ws, tmp_path, 
     assert all(s["outcome"] == "not_run" for s in run["steps"]) and not run["cleanup"]
     assert not any(e.get("op") in ("launch", "stop") for e in _sent(run))
     assert "system_dialog" not in run["preflight"]
+
+
+def test_layout_is_rechecked_after_unlock_before_business_dispatch(ws, tmp_path, monkeypatch):
+    data = read_json(world("motor_hm_base.json").split(":", 1)[1])
+    data["initial"].update(locked=True, screen_on=False, lock_pin="246810")
+    data["display"]["density"] = 1.5  # synthetic wide layout at the first measurement
+    path = tmp_path / "layout-changes-after-unlock.json"
+    write_json(path, data)
+    spec = f"replay:{path}"
+    ws.config.update(secrets={"LOCK_PIN_TEST": "246810"}, unlock_secrets={spec: "LOCK_PIN_TEST"})
+    original = ReplayDevice.preflight
+    calls = []
+
+    def preflight(device, bundle):
+        pre = original(device, bundle)
+        calls.append(pre)
+        if len(calls) > 1:
+            pre["display"]["density"] = 3.375
+        return pre
+
+    monkeypatch.setattr(ReplayDevice, "preflight", preflight)
+    run = run_case(ws, case=_case({}, {"wide": True}), device_spec=spec, propose=False)
+    assert len(calls) == 2 and run["preflight"]["unlock"]["status"] == "unlocked"
+    assert run["verdict"]["verdict"] == "blocked" and not run["env"]["ok"]
+    assert run["env"]["layout"]["display_profile"]["wide"] is False
+    assert all(s["outcome"] == "not_run" for s in run["steps"]) and not run["cleanup"]
+    assert not any(e.get("op") in ("launch", "stop") for e in _sent(run))
+    assert "system_dialog" not in run["preflight"]
+
+
+def test_matching_layout_allows_preflight_recovery_and_keeps_business_env(ws, tmp_path):
+    data = read_json(world("motor_hm_base.json").split(":", 1)[1])
+    data["initial"].update(locked=True, screen_on=False, lock_pin="246810")
+    path = tmp_path / "compatible-layout.json"
+    write_json(path, data)
+    spec = f"replay:{path}"
+    ws.config.update(secrets={"LOCK_PIN_TEST": "246810"}, unlock_secrets={spec: "LOCK_PIN_TEST"})
+    run = run_case(ws, case=_case({"account_state": "logged_in"}, {"wide": False}),
+                   device_spec=spec, env={"account_state": "logged_in"}, propose=False)
+    assert run["env"]["ok"] and run["preflight"]["unlock"]["status"] == "unlocked"
+    assert run["steps"][0]["outcome"] == "passed"
+    assert any(e.get("op") == "launch" for e in _sent(run))

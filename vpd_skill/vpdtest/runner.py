@@ -25,10 +25,12 @@ from .verdict import PASSED, case_verdict, evaluate_assertion
 from .workspace import RunContext, Workspace
 
 
-def _env_check(case: dict, facts: dict) -> dict:
+def _env_check(case: dict, facts: dict, pre_layout: dict) -> dict:
     unmet = [{"key": k, "required": v, "actual": facts.get(k)}
              for k, v in case.get("env_requirements", {}).items() if facts.get(k) != v]
-    return {"ok": not unmet, "facts": facts, "required": case.get("env_requirements", {}), "unmet": unmet}
+    unmet += layout_mod.check_requirements(case.get("layout_requirements", {}), pre_layout)
+    return {"ok": not unmet, "facts": facts, "required": case.get("env_requirements", {}), "unmet": unmet,
+            "layout": {"required": case.get("layout_requirements", {}), "display_profile": pre_layout}}
 
 
 def run_facts(app, pre: dict, declared: dict) -> dict:
@@ -66,7 +68,8 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     pre = device.preflight(app.bundle)
     declared = {**device.env_facts(), **(env or {})}
     facts = run_facts(app, pre, declared)
-    envc = _env_check(case, facts)
+    pre_layout = layout_mod.profile(None, pre.get("display"), ctx.observer.layout_cfg)
+    envc = _env_check(case, facts, pre_layout)
     screen_checks = {"screen_awake", "screen_unlocked"}
     if envc["ok"] and any(c["check"] in screen_checks and not c["ok"] for c in pre["checks"]) and all(
             c["ok"] for c in pre["checks"] if c["check"] not in screen_checks):
@@ -76,7 +79,8 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
         if unlocked["status"] == "unlocked":
             pre = device.preflight(app.bundle)
             facts = run_facts(app, pre, declared)
-            envc = _env_check(case, facts)
+            pre_layout = layout_mod.profile(None, pre.get("display"), ctx.observer.layout_cfg)
+            envc = _env_check(case, facts, pre_layout)
         else:
             pre["checks"].append({"check": "unlock_capability", "ok": False,
                                   "error_class": unlocked["status"], "value": unlocked.get("reason")})
@@ -93,12 +97,6 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
 
     store.event("preflight", ok=pre["ok"], checks=pre["checks"])
     ctx.observer.display = pre.get("display")  # 复用前置检查读到的显示参数，不重复查询
-    # 形态要求（例如只适用于折叠屏展开态的用例）：启动前按显示参数判定，不满足记为环境阻塞而不是失败
-    pre_layout = layout_mod.profile(None, pre.get("display"), ctx.observer.layout_cfg)
-    lay_unmet = layout_mod.check_requirements(case.get("layout_requirements", {}), pre_layout)
-    if lay_unmet:
-        envc = {**envc, "ok": False, "unmet": envc["unmet"] + lay_unmet}
-    envc["layout"] = {"required": case.get("layout_requirements", {}), "display_profile": pre_layout}
     knowledge.bind(facts)
     # 参数与密钥：密钥只从环境变量/本地配置读取；缺失时判环境阻塞，不向输入框写空值
     params = Params(case.get("test_data"), ws.config.get("secrets"), store.run_id)
