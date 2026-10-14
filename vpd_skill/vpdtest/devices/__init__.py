@@ -7,7 +7,7 @@
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Optional
 
 # 系统桌面包名（平台常量）：dispatch 前置检查、replay 初始/停止态、execute 停止恢复判定共用；
@@ -25,11 +25,6 @@ class DeviceResult:
     raw: str = ""
     duration_ms: int = 0
     data: dict = field(default_factory=dict)
-
-    def to_dict(self) -> dict:
-        d = asdict(self)
-        d["raw"] = (self.raw or "")[-800:]
-        return d
 
 
 def create_device(spec: str, state_path=None):

@@ -364,7 +364,9 @@ def _run_brief(run: dict) -> dict:
             "not_verified": [x["id"] for x in v.get("not_verified") or []], "known_issue": v.get("known_issue"),
             "attribution": v["attribution"], "recovered": v["recovered"], "adapted": v["adapted"],
             "first_anomaly": v["first_anomaly"] and {k: v["first_anomaly"].get(k) for k in ("step", "attempt", "status")},
-            "findings": [{k: f.get(k) for k in ("result", "step", "id", "reason", "attribution")} for f in v["findings"]],
+            # detail 是阻塞条件的结构化清单（env_requirement/preflight）：Agent 按它补参数，不必解析 reason 原文
+            "findings": [{k: f.get(k) for k in ("result", "step", "id", "reason", "attribution")}
+                         | ({"detail": f["detail"]} if f.get("detail") else {}) for f in v["findings"]],
             "experience_candidates": run["experience_candidates"], "validation_level": run["validation_level"],
             "report": str(Path(run["dir"]) / "report.md"),
             "informal": run.get("informal", run["case"].get("status") != "regression"),
@@ -381,18 +383,25 @@ def cmd_suite(ws: Workspace, a) -> dict:
     sstore.event("suite_start", suite=a.suite, total=len(suite["cases"]) * len(devices),
                  cases=[e["id"] if isinstance(e, dict) else e for e in suite["cases"]], devices=devices)
     rows = []
-    for dev in devices:
-        for entry in suite["cases"]:
-            cid = entry["id"] if isinstance(entry, dict) else entry
-            env = entry.get("env", {}) if isinstance(entry, dict) else {}
-            sstore.event("case_start", case=cid, device=dev, index=len(rows) + 1)
-            # 授权与 run 同一语义：run_case 只授予用例自己申请的部分，监护人缺失时该用例阻塞
-            row = _run_brief(run_case(ws, cid, device_spec=dev, env=env, authorize=a.authorize,
-                                      supervisor=a.supervisor, require_asset_review=True))
-            sstore.event("case_done", case=cid, device=dev, run_id=row["run_id"], verdict=row["verdict"])
-            rows.append(row)
-    sstore.event("suite_end", verdicts=[r["verdict"] for r in rows])
-    return {"suite": a.suite, "suite_run": sstore.run_id, "results": rows}
+    plan = [(dev, entry) for dev in devices for entry in suite["cases"]]
+    for index, (dev, entry) in enumerate(plan):
+        cid = entry["id"] if isinstance(entry, dict) else entry
+        env = entry.get("env", {}) if isinstance(entry, dict) else {}
+        sstore.event("case_start", case=cid, device=dev, index=len(rows) + 1)
+        # 授权与 run 同一语义：run_case 只授予用例自己申请的部分，监护人缺失时该用例阻塞
+        row = _run_brief(run_case(ws, cid, device_spec=dev, env=env, authorize=a.authorize,
+                                  supervisor=a.supervisor, require_asset_review=True))
+        sstore.event("case_done", case=cid, device=dev, run_id=row["run_id"], verdict=row["verdict"])
+        rows.append(row)
+        if row.get("action_required"):
+            not_run = [{"case": e["id"] if isinstance(e, dict) else e, "device": d}
+                       for d, e in plan[index + 1:]]
+            sstore.event("suite_end", verdicts=[r["verdict"] for r in rows], completed=False,
+                         action_required=row["action_required"], not_run=not_run)
+            return {"suite": a.suite, "suite_run": sstore.run_id, "results": rows,
+                    "action_required": row["action_required"], "completed": False, "not_run": not_run}
+    sstore.event("suite_end", verdicts=[r["verdict"] for r in rows], completed=True, not_run=[])
+    return {"suite": a.suite, "suite_run": sstore.run_id, "results": rows, "completed": True, "not_run": []}
 
 
 def cmd_explore(ws: Workspace, a) -> dict:

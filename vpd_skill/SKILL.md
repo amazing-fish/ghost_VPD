@@ -42,7 +42,9 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
    单条诊断 `run` 可以先取证，未有效审核的探索资产仍标 informal。审核不确认 Oracle、不提升成熟度、不授予动作授权；
    内容或绑定依赖变化须重审，字段与范围见 [workflows](references/workflows.md#探索资产人工审核30)。
 6. **执行与判定**：`run <case> --device <spec> --authorize …`。结论只取执行器的 verdict；读 report 的
-   "尚未验证的检查""清理""用到的知识与适用性"。退出码 2 或 `action_required` 表示需要人工接管，立即转告用户。
+   "尚未验证的检查""清理""用到的知识与适用性"。退出码 2 或 `action_required` 表示需要人工接管，立即转告用户；
+   退出码 3 是命令或工具错误（含 `UsageError`），修正命令即可。`blocked` 时按 `findings[].detail` 逐项补齐条件
+   （退出码表见 [host-integration](references/host-integration.md)）。
 7. **交接**：汇报用到的知识及理由、每一步对应的命令、证据位置（obs/截图）、结论、未覆盖的范围，
    并分开说明离线回放与真机验证。下一位 Agent 只靠用例、知识和证据就能复测。
 
@@ -127,7 +129,7 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
 .\vpdtest.ps1 case from-session --session s1 --new-id TC-QK-201 --app qiankun_hm --goal "<目标原文>" [--drop A4=理由]
 .\vpdtest.ps1 act tap --target tab_my --expect my_tab --session s1 --device hdc:<serial>
 .\vpdtest.ps1 case from-exploration --run <explore-id> --transitions T3 T5 --new-id TC-EXP-001
-.\vpdtest.ps1 experience validate <XP-id> --suite motor_hm_smoke --device <spec1> --device <spec2>
+.\vpdtest.ps1 experience validate <XP-id> --app motor_hm --suite motor_hm_smoke --device <spec1> --device <spec2>
 ```
 
 离线（无真机）把 `--device` 换成 `replay:motor_hm_base.json`、`replay:qiankun_hm_ready.json` 等回放世界；回放结论只证明协议与闭环，必须在汇报中标注"离线回放"。

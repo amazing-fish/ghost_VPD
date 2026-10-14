@@ -54,6 +54,14 @@ class Policy:
         return [{"text": text, "pattern": rx.pattern, "reason": reason, "class": cls}
                 for text in texts for rx, reason, cls in rules if rx.search(text)]
 
+    def check_grants(self, granted) -> None:
+        """命令行 --authorize 只接受可授予的副作用名；拼错或硬禁止类直接报错，不静默忽略。"""
+        bad = sorted(set(granted or ()) - self.authorizable)
+        if bad:
+            forbidden = [g for g in bad if g in self.denied_side_effects]
+            raise ValueError(f"--authorize 不接受 {bad}：可授予的只有 {sorted(self.authorizable)}"
+                             + (f"；{forbidden} 为 policy 硬禁止，任何授权下都不执行" if forbidden else ""))
+
     def check_authorizations(self, requested: list, granted: set, supervisor: Optional[str] = None,
                              safety: Optional[dict] = None) -> dict:
         """用例申请的授权必须全部由本次运行显式给出；不能申请硬禁止类。

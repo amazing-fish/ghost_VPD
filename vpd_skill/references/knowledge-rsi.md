@@ -12,7 +12,8 @@
 
 知识条目字段：`id, kind, subject, statement, expected, applies_to{app, app_version, ...}, source{type, ref, commit},
 status, confirmed_by, history`。`source.type` 取值：requirement_doc / text_case / repo_code / reviewer /
-skill_policy / model_inference / observation。
+skill_policy / model_inference / observation / test_goal（测试目标里的期望，找不到独立判据时记录，仍是 unconfirmed）。
+`knowledge add <file>` 的文件至少要有 `id`、`kind`、`statement`、`source`（`{"type": …, "ref": …}`）。
 
 - 确认：`knowledge confirm <id> --reviewer <人>`；model_inference / observation 来源必须加 `--basis`。
 - 知识状态只允许 `unconfirmed` / `confirmed` / `deprecated`。未知、缺失或非字符串状态在判据端为

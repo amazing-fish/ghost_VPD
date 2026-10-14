@@ -8,19 +8,20 @@
 | 来源等级 | 内容 | 落地位置 | 能否支撑判定 |
 |---|---|---|---|
 | 真机只读观测 | 包名 `com.yinwang.qiankunapp.hm`、`EntryAbility`、版本 1.0.26.100（`bm dump -n`，未启动 APP） | `app.json.sources` | 只作环境事实 |
-| 原工程代码 | 32 个目标的选择器（`mhero_config.py` 原样 xpath，附行号）；登录、按车架号后 6 位切车、ADS 进入、默认车位算路、开始/确定激活、暂停/继续/退出的流程；「开始」可用 = Button opacity 1.0；不可用提示持续 10 s 才算失败；完成文案；算路可能唤醒车辆 | `targets.json`（status=unverified）、`flows.json`、`states.json`（review=pending）、K-QK-002…007；旧 K-QK-001 已按 #33 废弃 | 需负责人确认；入口选定 K-AV-001 但仍未确认、仅限原 debug 范围 |
+| 原工程代码 | 目标选择器（`mhero_config.py` 原样 xpath，附行号）；登录、按车架号后 6 位切车、ADS 进入、默认车位算路、开始/确定激活、暂停/继续/退出的流程；「开始」可用 = Button opacity 1.0；不可用提示持续 10 s 才算失败；完成文案；算路可能唤醒车辆 | `targets.json`（status=unverified）、`flows.json`、`states.json`（review=pending）、K-QK-002…007；旧 K-QK-001 已按 #33 废弃 | 需负责人确认；入口选定 K-AV-001 但仍未确认、仅限原 debug 范围 |
 | 用户描述 | 测试车 M5/末位 7885；当前有故障应无法激活；收藏→重命名→标签→按名搜索→算路→读距离；控车始终允许、探索受限 | K-QK-USR-001…004（source=reviewer） | unconfirmed，需负责人确认 |
 | Skill 推测 | 地图是 XComponent、点地图弹车位卡片、收藏/重命名/标签按钮文字、标签是固定选项、常去地点列表结构 | 9 个 status=hypothesis 目标、2 个 hypothesis 流程 | 不能晋级，`case lint` 会拦 |
 
 按层整理（与 [capability-model.md](capability-model.md) 一致）：
 
 - **动作**：tap、input、swipe（含可复现随机滑动）、back/home、launch/resume/stop_app、wait、read、monitor。
-- **原子能力**（41 个目标，按副作用）：导航 9、账号 7、切车 1、进入 VPD 1、算路 3、改用户数据 7（假设）、
-  车辆运动 5、安全停止 2、只读 4，另有地图 1、常去地点 1（假设）。
+- **原子能力**（53 个目标，按 `side_effect` 统计，以 `targets.json` 为准）：导航 13、账号 11、算路 8、改用户数据 8、
+  车辆运动 5、只读 4、安全停止 2、切车 1、进入 VPD 1；其中 9 个为 hypothesis（地图、收藏/重命名/标签等）。
 - **状态**：爱车/探索页、车辆列表、VPD 加载/首页、算路中/算路结果、运动中/已暂停/已完成；中断：安全码（阻塞）、版本更新（阻塞）、应用异常。
 - **功能流程**：`login_password`、`switch_vehicle`、`enter_vpd`、`plan_default_spot`、`search_and_plan`、
   `favorite_random_spot`（假设）、`unfavorite`（假设）。
-- **用例**：TC-QK-101（故障时不可激活）、TC-QK-102（收藏→搜索→算路→距离）、TC-QK-103（有人监护的激活→运动→暂停→后台→继续→完成）。
+- **用例**：TC-QK-101（故障时不可激活）、TC-QK-102（收藏→搜索→算路→距离）、TC-QK-103（有人监护的激活→运动→暂停→后台→继续→完成），
+  以及后续探索沉淀的 TC-QK-2xx（清单见 `data/cases/`）。
 
 ## 2. 探索 → 沉淀的闭环（目标优先）
 
@@ -76,4 +77,5 @@
    核对探索/爱车页选中态、账号区、车辆列表、ADS、默认车位、算路结果与「开始」opacity。
 3. 用 `observe` 在 VPD 首页看地图区域在 UI 树里是否有子节点、点一下是否弹车位卡片，再决定 `qk_map` 与收藏类目标的真实选择器。
 4. 校准后跑 TC-QK-102；车辆无故障且有人在车旁时再跑 TC-QK-103（`--supervisor`）。
-5. 每个核对过的目标/状态改为 `calibrated_on_device` 并写上 run/obs；判据由负责人 `knowledge confirm`。
+5. 核对过的目标把 `status` 改为 `calibrated_on_device`，状态把 `review` 改为 `calibrated_on_device`，都写上 run/obs；
+   判据由负责人 `knowledge confirm`。

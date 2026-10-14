@@ -55,6 +55,8 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```
 
 - `device`：`hdc:<serial>`（`hdc list targets` 查看）或 `replay:<world>.json`。命令行 `--device` 优先。
+  示例配置不设默认设备：两处都没有时命令报"未指定设备"（退出码 3），不会静默跑回放。
+  早期 `install.ps1` 生成的 `config.local.json` 带 `"device": "replay:motor_hm_base.json"`，测真机前请改掉或删除该键。
 - 环境变量 `VPD_WORKSPACE` 或 `--workspace` 可指向另一份 `data/`（例如团队共享的知识与用例）。
 
 ## 运行

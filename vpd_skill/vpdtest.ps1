@@ -7,7 +7,9 @@ $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $py = Join-Path $root '.venv\Scripts\python.exe'
 if (-not (Test-Path $py)) {
-    Write-Error "Virtual env not found: $py . Run .\install.ps1 first."
+    # Same contract as the CLI: one JSON object on stdout, exit 3 (Write-Error under 'Stop' would throw and exit 1)
+    $msg = "Virtual env not found: $py . Run .\install.ps1 first."
+    [Console]::Out.WriteLine((@{ error = 'EnvironmentError'; message = $msg } | ConvertTo-Json -Compress))
     exit 3
 }
 $prevEnc = [Console]::OutputEncoding

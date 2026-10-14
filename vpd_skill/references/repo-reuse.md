@@ -9,7 +9,7 @@
 | 适配后复用 | 多尺度模板匹配 | `app/drivers/img_parser/img_parser.py` | 修正：返回中心点而非左上角、返回得分、统一阈值比较、报告多匹配 |
 | 适配后复用 | Harmony 设备操作 | `app/drivers/harmony/harmony_driver.py` | 改为返回 `DeviceResult`、不吞异常、有超时、列表传参；dumpLayout 限定 `-b <bundle>` |
 | 隔离 | Flask / Huey / MySQL / Redis / 任务调度 | `app/__init__.py`、`app/tasks/`、`app/models/` | `import app.drivers...` 会连带导入 Flask 蓝图、peewee、redis，并由 `config_util` 在导入时执行 adb/hdc；新工具完全不 import `app` 包 |
-| 隔离 | VPD 车端流程（进图、算路、巡航、泊车） | `app/service/vpd/vpd.py` 其余部分 | 触发车辆运动，v0.1 无实车授权；保留为后续"车端能力"接口边界 |
+| 隔离 | VPD 车端流程（进图、算路、巡航、泊车） | `app/service/vpd/vpd.py` 其余部分 | 不复用原代码。新工具的控车走自己的授权链：`--authorize vehicle_motion --supervisor` + 用例 `safety`（见 SKILL.md「授权、密钥与控车」、TC-QK-103） |
 | 暂不引入 | Android 驱动 | `app/drivers/android/android_driver.py` | 本机无 Android 设备可验证；接口已预留（`devices/` 新增适配器即可） |
 | 暂不引入 | 录屏、小鲁班通知、DB 统计 | `scrcpy_util.py`、`xiaoluban_util.py`、`tables.py` | 与 APP 软件验证闭环无直接关系 |
 | 暂不引入 | OCR / 视觉模型服务 | — | 本机未安装 OCR；视觉理解由宿主 Agent 看截图完成，只能产生建议或受约束的单步提议 |

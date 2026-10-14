@@ -13,8 +13,7 @@ from typing import Callable, Optional
 
 from .util import append_jsonl, new_id, now_iso, read_json, read_jsonl, write_json
 
-AUTO_ADOPTABLE = {"locator_preference", "wait_timeout"}
-REVIEW_REQUIRED = {"interrupt_rule", "state_signature", "skill_note"}
+AUTO_ADOPTABLE = {"locator_preference", "wait_timeout"}  # 其余类型（interrupt_rule、state_signature…）adopt 须 --reviewer
 FORBIDDEN = {"assertion_change", "step_removal", "policy_change"}
 
 
@@ -118,28 +117,40 @@ class ExperienceStore:
         from .verdict import RANK
         item = self.get(xid)
         rows, regress, improved, exercised = [], False, set(), set()
-        for dev in devices:
-            for cid in case_ids:
-                base = run_case(cid, dev, self.overlay(baseline_only=True))
-                trial = run_case(cid, dev, self.overlay(trial=xid))
-                b, t = base["verdict"]["verdict"], trial["verdict"]["verdict"]
-                b_ad, t_ad = _adaptations(base), _adaptations(trial)
-                if _exercised(item, trial, cid):
-                    exercised.add((cid, dev))
-                row = {"case": cid, "device": dev, "baseline": b, "trial": t,
-                       "baseline_run": base["run_id"], "trial_run": trial["run_id"],
-                       "baseline_adaptations": b_ad, "trial_adaptations": t_ad}
-                # 基线能判出的产品失败，试验组却变成阻塞/待确认：执行改动把缺陷藏到了工具问题后面，按回退处理
-                if RANK[t] < RANK[b] or (b == "failed" and t not in ("failed", "passed")):
-                    regress, row["regression"] = True, True
-                # 改进只认"试验组真的通过"或"结论不变但少用了自适应"；离开 failed 本身不算改进。
-                # 按（用例，设备）分别记：改进必须出现在真正用到这条经验的运行上，不能由别处的改进顶替
-                if ((t == "passed" and b != "passed") or (t == b and t_ad < b_ad)) and (cid, dev) in exercised:
-                    improved.add((cid, dev))
-                rows.append(row)
+        plan = [(dev, cid, phase) for dev in devices for cid in case_ids for phase in ("baseline", "trial")]
+        handoff = None
+        for index in range(0, len(plan), 2):
+            dev, cid, _ = plan[index]
+            base = run_case(cid, dev, self.overlay(baseline_only=True))
+            if base["verdict"].get("action_required"):
+                handoff = (index, base)
+                break
+            trial = run_case(cid, dev, self.overlay(trial=xid))
+            if trial["verdict"].get("action_required"):
+                handoff = (index + 1, trial)
+                break
+            b, t = base["verdict"]["verdict"], trial["verdict"]["verdict"]
+            b_ad, t_ad = _adaptations(base), _adaptations(trial)
+            if _exercised(item, trial, cid):
+                exercised.add((cid, dev))
+            row = {"case": cid, "device": dev, "baseline": b, "trial": t,
+                   "baseline_run": base["run_id"], "trial_run": trial["run_id"],
+                   "baseline_adaptations": b_ad, "trial_adaptations": t_ad}
+            # 基线能判出的产品失败，试验组却变成阻塞/待确认：执行改动把缺陷藏到了工具问题后面，按回退处理
+            if RANK[t] < RANK[b] or (b == "failed" and t not in ("failed", "passed")):
+                regress, row["regression"] = True, True
+            # 改进只认"试验组真的通过"或"结论不变但少用了自适应"；离开 failed 本身不算改进。
+            # 按（用例，设备）分别记：改进必须出现在真正用到这条经验的运行上，不能由别处的改进顶替
+            if ((t == "passed" and b != "passed") or (t == b and t_ad < b_ad)) and (cid, dev) in exercised:
+                improved.add((cid, dev))
+            rows.append(row)
         gap = _coverage_gap(item, exercised)
         if regress:
             status, reason = "rejected", "试验组相对基线出现回退"
+            if handoff:
+                reason += "；后续验证因需要人工接管而暂停"
+        elif handoff:
+            status, reason = "candidate", "验证因需要人工接管而暂停；未完成比较不计为验证通过"
         elif gap:
             status, reason = "candidate", gap
         elif not improved:
@@ -151,7 +162,19 @@ class ExperienceStore:
                                            + "之外得到验证并出现改进")
         result = {"ts": now_iso(), "status": status, "reason": reason, "cases": case_ids, "devices": devices,
                   "exercised_cases": sorted({c for c, _ in exercised}),
-                  "exercised": sorted(f"{c}@{d}" for c, d in exercised), "rows": rows}
+                  "exercised": sorted(f"{c}@{d}" for c, d in exercised), "rows": rows,
+                  "completed": handoff is None, "not_run": []}
+        if handoff:
+            stopped, run = handoff
+            dev, cid, phase = plan[stopped]
+            result["action_required"] = run["verdict"]["action_required"]
+            result["handoff"] = {"case": cid, "device": dev, "phase": phase, "run_id": run["run_id"],
+                                 "report": str(Path(run["dir"]) / "report.md"),
+                                 "action_required": result["action_required"]}
+            if phase == "trial":
+                result["handoff"]["baseline_run"] = base["run_id"]
+                result["handoff"]["baseline_report"] = str(Path(base["dir"]) / "report.md")
+            result["not_run"] = [{"case": c, "device": d, "phase": p} for d, c, p in plan[stopped + 1:]]
         item["validations"].append(result)
         item["history"].append({"ts": now_iso(), "from": item["status"], "to": status, "why": reason})
         item["status"] = status
