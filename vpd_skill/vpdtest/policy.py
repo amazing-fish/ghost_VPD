@@ -28,6 +28,9 @@ class Policy:
         self.authorizable = self.gated_side_effects | self.supervised_side_effects
         self.supervision = data.get("supervision", {})
         self.safe_stop_rx = re.compile(data["safe_stop_text"]) if data.get("safe_stop_text") else None
+        self.confirmation_rx = re.compile(data.get("generic_confirmation_text") or r"^(?:确定|确认|OK)$", re.IGNORECASE)
+        self.confirmation_contexts = [(re.compile(c["pattern"]), c["class"])
+                                     for c in data.get("confirmation_contexts", [])]
         self.deny_node_types = set(data.get("deny_node_types", []))
         self.allow_point_without_tree = bool(data.get("allow_point_tap_without_tree", False))
         self.allow_input = bool(data.get("allow_text_input", False))
@@ -52,7 +55,7 @@ class Policy:
             else:
                 rules.append((re.compile(p), "页面级禁止", "state_deny"))
         return [{"text": text, "pattern": rx.pattern, "reason": reason, "class": cls}
-                for text in texts for rx, reason, cls in rules if rx.search(text)]
+                for text in texts for rx, reason, cls in rules if rx.search(text.strip())]
 
     def check_grants(self, granted) -> None:
         """命令行 --authorize 只接受可授予的副作用名；拼错或硬禁止类直接报错，不静默忽略。"""
@@ -92,7 +95,8 @@ class Policy:
         return None
 
     def check_tap(self, tree: Optional[UiTree], point: tuple, basis: str, target: Optional[dict] = None,
-                  state_deny: Optional[list] = None, authorized: Optional[set] = None, node=None) -> dict:
+                  state_deny: Optional[list] = None, authorized: Optional[set] = None, node=None,
+                  confirmation_sources: list | None = None) -> dict:
         """判定一次点击。返回 {allowed, reason, label, deny}；不会抛异常。
         authorized：本次运行由人显式授予的 gated 副作用；只放行"目标声明了同一副作用"的命中。"""
         target, authorized = target or {}, set(authorized or ())
@@ -107,6 +111,14 @@ class Policy:
 
         tree_ok = tree is not None and tree.status == "ok"
         if not tree_ok:
+            labels = [target.get("label", "")] + [s.get("value", "") for s in target.get("strategies", [])
+                                                   if s.get("kind") == "text"]
+            for strategy in target.get("strategies", []):
+                if strategy.get("kind") == "xpath":
+                    labels.extend(re.findall(r"['\"]([^'\"]+)['\"]", strategy.get("value", "")))
+            if any(isinstance(t, str) and self.confirmation_rx.fullmatch(t.strip()) for t in labels):
+                return {"allowed": False, "reason": "无可用 UI 树，无法核验通用确认的当前语义",
+                        "label": None, "deny": {"class": "confirmation_semantics_unknown"}}
             if effect == "safe_stop":
                 # 安全停止豁免预算与运动锁，所以只在能按停止类文字确认控件身份时才点；
                 # 没有 UI 树时模板/坐标都无法确认，宁可交人工接管也不盲点
@@ -133,6 +145,48 @@ class Policy:
         texts = [t for t in texts if t]
         label = (texts[0] if texts else "")[:40]
         hits = self.match_all(texts, state_deny)
+        editable = any(n.type in ("TextInput", "TextArea", "EditText")
+                       for n in [node, container] + tree.ancestors(node))
+        generic = [] if editable else [t for t in texts if self.confirmation_rx.fullmatch(t.strip())]
+        confirmation = None
+        confirmation_unknown = False
+        if effect == "safe_stop" and any(re.search(r"确定|确认|\bOK\b", t, re.IGNORECASE) for t in texts):
+            return {"allowed": False, "reason": "安全停止控件的同一容器含通用确认，无法确认是纯停止动作",
+                    "label": label, "deny": {"class": "safe_stop_unconfirmed"}}
+        if generic:
+            # 同一可点击容器含确认按钮时，safe_stop 声明不能把确认变成停止。
+            if effect == "safe_stop":
+                return {"allowed": False, "reason": "安全停止控件的同一容器含通用确认，无法确认是纯停止动作",
+                        "label": label, "deny": {"class": "safe_stop_unconfirmed"}}
+            # 只读目标所属最近弹窗，不能借背景页或另一弹窗的文字证明确认语义。
+            modal_ids = {m.idx for m in tree.modal_layers()}
+            modal = next((m for m in [container] + tree.ancestors(container) if m.idx in modal_ids), None)
+            modal_hits = self.match_all(tree.texts_in([modal]), state_deny) if modal else []
+            title = next((n for n in tree.nodes if modal and tree.in_scope(n, [modal]) and tree.shown(n)
+                          and n.type == "Text" and n.text.strip() and not n.clickable
+                          and next((a.idx for a in tree.ancestors(n) if a.idx in modal_ids), None) == modal.idx
+                       and not any(a.clickable or a.type in ("TextInput", "TextArea", "EditText")
+                                   for a in tree.ancestors(n) if a.idx != modal.idx and tree.is_within(a, modal))), None)
+            context = [{"kind": "policy_confirmation_context", "text": title.text, "pattern": rx.pattern,
+                        "class": cls, "modal_idx": modal.idx, "title_node": title.idx}
+                       for rx, cls in self.confirmation_contexts if title and rx.fullmatch(title.text.strip())]
+            # Modal 状态说明只能增加限制；正向来源另须显式登记的确认标题，不能从“算路中”推定点击效果。
+            page_sources = [s for s in confirmation_sources or [] if s.get("kind") == "state_confirmation_effect"
+                            and any(re.search(s["pattern"], t.strip()) for t in generic)
+                            and (s.get("scope_idx") is None or (
+                                isinstance(s["scope_idx"], int) and 0 <= s["scope_idx"] < len(tree.nodes)
+                                and tree.is_within(container, tree.nodes[s["scope_idx"]])))]
+            proven = bool(page_sources or context)
+            hits.extend(modal_hits)
+            hits.extend({"text": c["text"], "pattern": c["pattern"], "class": c["class"],
+                         "reason": "当前弹窗的已登记确认语义"} for c in context)
+            benign = [s for s in confirmation_sources or [] if s.get("kind") == "reviewed_benign_interrupt"
+                      and modal and s.get("modal_idx") == modal.idx
+                      and (s.get("button_text") is None or s.get("button_text").strip() in
+                           [t.strip() for t in generic])]
+            confirmation_unknown = not proven and not benign
+            confirmation = {"texts": generic, "modal_idx": modal.idx if modal else None,
+                            "rules": hits, "page_sources": page_sources, "contexts": context, "benign": benign}
         if effect == "safe_stop":
             return self._check_safe_stop(texts, hits, label)
         # 硬禁止（不可逆账号变更/升级/支付/清数据、页面级禁止）任何授权下都拒绝；
@@ -148,12 +202,16 @@ class Policy:
             why = f"需授权 {h['class']}{'（且有在场监护人）' if sup else ''} 且目标声明 side_effect={h['class']}"
             return {"allowed": False, "reason": f"命中受控文本「{h['text']}」：{why}", "label": label,
                     "deny": {**h, "gated": True, "supervised": sup}}
+        if confirmation_unknown:
+            return {"allowed": False, "reason": "通用确认缺少当前页面或同一弹窗的具体副作用依据；需先确认语义",
+                    "label": label, "deny": {"class": "confirmation_semantics_unknown"}}
         if hits:
             return {"allowed": True, "reason": f"已授权 {effect}，目标声明一致", "label": label, "deny": None,
-                    "authorized_by": effect}
+                    "authorized_by": effect, **({"confirmation_source": confirmation} if confirmation else {})}
         if basis == "point" and not texts:
             return {"allowed": False, "reason": "坐标落在无文本标识的控件上，无法确认副作用", "label": label, "deny": None}
-        return {"allowed": True, "reason": "通过", "label": label, "deny": None}
+        return {"allowed": True, "reason": "通过", "label": label, "deny": None,
+                **({"confirmation_source": confirmation} if confirmation else {})}
 
     def _check_safe_stop(self, texts: list, hits: list, label: str) -> dict:
         """安全停止（暂停/退出泊车）：不需要授权、不受页面级禁止限制。

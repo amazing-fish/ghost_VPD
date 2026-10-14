@@ -120,6 +120,18 @@ agent 模式的 `--point` 记录提出时的窗口尺寸（`point_window`）；�
 
 **策略文字语境（#35）**：`check_tap` 检查最近可点击容器的各条 text/description。policy-0.6 仅对完整标签「被授权的车辆」「附近充电站」（允许外围空白）排除对应的授权/充电关键词误命中；同容器其他文字、其他规则、页面级 deny/effect 与目标显式副作用继续检查。混合标签、换行追加指令、充电站启动与充电费不按该例外放行。纯文字断言不经过动作门禁；切车仍须目标声明 vehicle_selection 且本次授权。该修复只缩窄既有配置，不改变 Policy / Executor / Dispatcher 接口。
 
+**不确定页面与通用确认（#43）**：页面限制取 `active`、全窗 `candidates`、各栏候选与旧记录 `state` 的并集；
+歧义仍是歧义，不为取规则制造 active。默认「确定/确认/OK」（可由 policy 的 `generic_confirmation_text` 配置）
+按当前点击容器的 text/description 判断，匹配时处理外围空白，证据保留原文字。
+通用确认须有对实际按钮生效的页面/控件规则、同一最近 Dialog 中 `confirmation_contexts` 明确登记的首个非交互、非输入字段 Text 标题，
+或当前同一 Dialog 完整命中已评审良性中断及其声明的关闭按钮。目标自填 side_effect/review/source、持有授权或
+弹窗里的“算路中”等状态说明不单独证明语义。限制并集不作跨栏的正向来源；页面effect的正向依据须属于当前按钮所在栏。上下文不抵消硬禁止或多候选副作用冲突；
+受控动作仍需目标声明与本次授权一致。没有可用树时，已知通用确认标签不能借模板免除语义核验。
+Executor、act、探索候选和 Dispatcher 重检共用判定，重定位后从当前树重建来源；
+输出 `confirmation_source` 或 `confirmation_semantics_unknown`。纯导航/安全停止仍可执行，停止容器混有确认词时拒绝。输入字段的值不作为确认按钮，嵌套弹窗与其他栏不提供正向来源。
+系统弹窗原子能力继续使用既有登记、prefer/forbid 与前后复核。升级 policy-0.7 后旧绑定依赖的审核/重放须按现有机制复核，
+Agent 不自动确认产品知识或批准生产资产。
+
 允许的恢复（`recoveries[]`，追加记录，不覆盖首次失败）：
 `reobserve_and_retry`（定位失败）、`dismiss_interrupt`（仅限 `class=benign` 且 `review=reviewed`）、
 `redispatch` 只允许可靠未下发，或上述明确低风险幂等步骤，并受原有重试预算限制。已发/可能已发的非幂等动作、输入与受控副作用，遇超时、命令错误或动作后观测失败不重放原动作；错误名不证明未执行。

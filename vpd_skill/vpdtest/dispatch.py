@@ -186,7 +186,9 @@ class Dispatcher:
                 return {"status": "target_obscured", "blocker": touch["receiver"],
                         "expected": touch["scope"], "touch": touch}
         policy = self.ctx.policy.check_tap(tree, loc["point"], loc["basis"], target,
-                                           tap.get("state_deny"), self.ctx.authorized, node=node)
+                                           tap.get("state_deny"), self.ctx.authorized, node=node,
+                                           confirmation_sources=self.ctx.app.states.confirmation_sources(
+                                               tree, tap.get("target_ref"), target, tap.get("page")))
         return {"status": "ok" if policy["allowed"] else "policy_denied", "policy": policy, "touch": touch}
 
     def _reject(self, op, preconditions, checks, att):

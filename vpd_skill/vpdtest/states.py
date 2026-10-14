@@ -8,13 +8,21 @@ from __future__ import annotations
 import re
 from typing import Optional
 
-from .tree import UiTree
+from .tree import MODAL_TYPES, UiTree
 from .util import short_hash
 
 
-def _texts_match(spec: dict, tree: UiTree, scope: Optional[list] = None) -> bool:
+def _texts_match(spec: dict, tree: UiTree, scope: Optional[list] = None, owner_modal=None) -> bool:
     """scope=None 在整个窗口上匹配；给定分栏节点时只看该栏内的文本（选中态仍按整棵树的容器判断）。"""
-    texts = tree.texts_in(scope)
+    def owned(node):
+        if owner_modal is None:
+            return True
+        nearest = next((n for n in [node] + tree.ancestors(node) if n.type in MODAL_TYPES), None)
+        return nearest is not None and nearest.idx == owner_modal.idx
+
+    texts = (tree.texts_in(scope) if owner_modal is None else
+             [t for n in tree.nodes if tree.shown(n) and tree.in_scope(n, scope) and owned(n)
+              for t in (n.text.strip(), n.description.strip()) if t])
     for t in spec.get("require_text", []):
         if t not in texts:
             return False
@@ -30,7 +38,7 @@ def _texts_match(spec: dict, tree: UiTree, scope: Optional[list] = None) -> bool
         if any(re.search(pat, x) for x in texts):
             return False
     for t in spec.get("require_selected_text", []):
-        if not any(is_selected(tree, n) for n in tree.find_text(t) if tree.in_scope(n, scope)):
+        if not any(is_selected(tree, n) for n in tree.find_text(t) if tree.in_scope(n, scope) and owned(n)):
             return False
     return True
 
@@ -93,7 +101,8 @@ class StateModel:
             per = []
             for p in panes:
                 node = tree.nodes[p["node_idx"]]
-                per.append({"pane": p["index"], "candidates": [sid for sid, spec in self.states.items()
+                per.append({"pane": p["index"], "node_idx": p["node_idx"],
+                            "candidates": [sid for sid, spec in self.states.items()
                                                                if _texts_match(spec, tree, [node])]})
             out["panes"] = per
             if any(len(x["candidates"]) > 1 for x in per) or (len(cands) > 1 and not any(x["candidates"] for x in per)):
@@ -118,6 +127,43 @@ class StateModel:
         return list(spec.get("deny_text", [])) + [{"pattern": p, "class": c} for p, c in spec.get("effect_text", {}).items()]
 
     def deny_for_page(self, page: dict) -> list:
-        """分栏时多个状态同时生效，禁止文本取并集（从严）。"""
-        ids = page.get("active") or [page.get("state")]
+        """歧义不解除限制：取全窗、各栏候选与已识别状态的限制并集，不制造 active 状态。"""
+        ids = list(page.get("active") or []) + list(page.get("candidates") or [])
+        for pane in page.get("panes") or []:
+            ids.extend(pane.get("candidates") or [])
+        ids = list(dict.fromkeys(s for s in ids + [page.get("state")] if isinstance(s, str)))
         return [t for sid in ids for t in self.deny_for(sid)]
+
+    def confirmation_sources(self, tree: UiTree | None, target_ref=None, target=None, page=None) -> list:
+        """只认当前同一弹窗的完整登记签名及已评审关闭方式，不信目标自填的 review/source。"""
+        if tree is None or tree.status != "ok":
+            return []
+        out = []
+        page = page or {}
+        panes = page.get("panes") or []
+        scopes = [(p["node_idx"], p.get("candidates") or []) for p in panes
+                  if isinstance(p.get("node_idx"), int) and 0 <= p["node_idx"] < len(tree.nodes)]
+        if not panes:
+            scopes = [(None, page.get("candidates") or page.get("active") or [page.get("state")])]
+        for scope_idx, candidates in scopes:
+            for sid in candidates:
+                spec = self.states.get(sid or "", {})
+                out.extend({"kind": "state_confirmation_effect", "state": sid, "scope_idx": scope_idx,
+                            "pattern": pattern, "class": effect}
+                           for pattern, effect in spec.get("effect_text", {}).items())
+        for modal in tree.modal_layers():
+            matched = [(iid, spec) for iid, spec in self.interrupts.items()
+                       if _texts_match(spec, tree, [modal], owner_modal=modal)]
+            if any(spec.get("class") != "benign" or spec.get("review") != "reviewed" for _, spec in matched):
+                continue
+            for iid, spec in matched:
+                if not any(spec.get(k) for k in ("require_text", "require_any_text", "require_text_pattern",
+                                                "require_selected_text")):
+                    continue
+                dismiss = spec.get("dismiss_target")
+                matches = (isinstance(dismiss, str) and dismiss == target_ref) or (
+                    isinstance(dismiss, dict) and dismiss == target)
+                if matches or spec.get("dismiss_text"):
+                    out.append({"kind": "reviewed_benign_interrupt", "interrupt": iid, "modal_idx": modal.idx,
+                                "button_text": None if matches else spec["dismiss_text"]})
+        return out
