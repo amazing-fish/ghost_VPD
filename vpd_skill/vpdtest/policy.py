@@ -111,6 +111,9 @@ class Policy:
 
         tree_ok = tree is not None and tree.status == "ok"
         if not tree_ok:
+            if any(s.get("kind") == "text" and not s.get("exact", True) for s in target.get("strategies", [])):
+                return {"allowed": False, "reason": "无可用 UI 树，无法核验非精确文本选择器的确认语义",
+                        "label": None, "deny": {"class": "confirmation_semantics_unknown"}}
             labels = [target.get("label", "")] + [s.get("value", "") for s in target.get("strategies", [])
                                                    if s.get("kind") == "text"]
             for strategy in target.get("strategies", []):

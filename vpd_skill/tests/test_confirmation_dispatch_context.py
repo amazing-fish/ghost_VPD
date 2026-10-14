@@ -398,3 +398,55 @@ def test_no_tree_xpath_cannot_hide_semantics_behind_real_template_dispatch(
         assert not policy["allowed"]
         assert policy["deny"]["class"] == "confirmation_semantics_unknown"
         assert dev.current_screen() == "map"
+
+
+@pytest.mark.parametrize("selector,allowed", [
+    ({"kind": "text", "value": "确", "exact": False}, False),
+    ({"kind": "text", "value": "O", "exact": False}, False),
+    ({"kind": "text", "value": "", "exact": False}, False),
+    ({"kind": "text", "value": "全", "exact": False}, False),
+    ({"kind": "text", "value": "全览", "exact": True}, True),
+    ({"kind": "text", "value": "全览"}, True),
+], ids=["partial-confirm", "partial-ok", "empty-partial", "partial-navigation",
+        "exact-navigation", "default-exact-navigation"])
+def test_no_tree_partial_text_cannot_authorize_real_template_dispatch(
+        ws, tmp_path, monkeypatch, selector, allowed):
+    ctx, app, dev, obs, tree, target, _ = _no_tree_setup(ws, tmp_path)
+    assert tree is None or tree.status != "ok"
+    target["strategies"][0] = selector
+    calls = _tap_spy(monkeypatch, dev)
+    loc = resolve("fixture-full-view", target, tree, ctx.observer.screenshot_abs(obs), app.dir)
+    assert loc["status"] == "found" and loc["basis"] == "template"
+    assert loc["attempts"][0]["status"] == "skipped_no_tree" and loc["score"] > 0.95
+    att = {"action": "tap", "step_id": "P1"}
+    result = ctx.dispatcher.send(
+        "tap", *loc["point"], preconditions=ctx.dispatcher.app_conditions("tap"), att=att,
+        tap={"tree": tree, "loc": loc, "target": target,
+             "target_ref": "fixture-full-view", "page": obs["page"],
+             "state_deny": ctx.app.states.deny_for_page(obs["page"])})
+    assert result.ok is allowed and result.sent is allowed
+    event = _tap_events(ctx)[-1]
+    assert event["sent"] is allowed
+    if allowed:
+        assert len(calls) == 1 and dev.current_screen() == "map2"
+        assert event["checks"]["tap"]["policy"]["allowed"]
+    else:
+        assert calls == [] and att["status"] == "policy_denied"
+        assert dev.current_screen() == "map"
+        policy = event["checks"]["tap"]["policy"]
+        assert not policy["allowed"] and policy["deny"]["class"] == "confirmation_semantics_unknown"
+
+
+def test_tree_backed_partial_navigation_still_uses_observed_full_label(ws, tmp_path, monkeypatch):
+    spec = _world(tmp_path, _home(_button("查看详情")), name="partial-navigation-with-tree")
+    ctx = _ctx(ws, spec)
+    calls = _tap_spy(monkeypatch, ctx.device)
+    target = {"side_effect": "navigation", "strategies": [
+        {"kind": "text", "value": "查看", "exact": False},
+    ]}
+    result = Executor(ctx).run_step({"id": "P2", "action": "tap", "retry": 0,
+                                     "target": target}, "fixture")
+    assert result["outcome"] == "passed" and len(calls) == 1
+    event = _tap_events(ctx)[-1]
+    assert event["sent"] is True and event["checks"]["tap"]["policy"]["allowed"]
+    assert ctx.device.state["stack"][-1] == "detail"
