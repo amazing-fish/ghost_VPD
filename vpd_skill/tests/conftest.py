@@ -1,4 +1,4 @@
-"""测试夹具：把真实 data/ 复制到临时工作区，按需通过真实的 confirm/评审接口确认知识，避免污染仓库数据。"""
+"""ws 用于生产资产集成；verdict_ws 独立构造合成知识/用例，避免产品治理改变判定契约。"""
 import shutil
 import sys
 from pathlib import Path
@@ -7,6 +7,8 @@ import pytest
 
 SKILL = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SKILL))
+
+from verdict_fixtures import make_verdict_workspace
 
 from vpdtest.knowledge import KnowledgeStore  # noqa: E402
 from vpdtest.util import read_json, write_json  # noqa: E402
@@ -28,6 +30,11 @@ def ws(tmp_path) -> Workspace:
     w.config.pop("secrets", None)  # 测试不读本机 config.local.json 里的真实密钥
     w.config.pop("device", None)
     return w
+
+
+@pytest.fixture
+def verdict_ws(tmp_path) -> Workspace:
+    return make_verdict_workspace(tmp_path, SKILL)
 
 
 def confirm(ws: Workspace, *ids: str) -> None:
