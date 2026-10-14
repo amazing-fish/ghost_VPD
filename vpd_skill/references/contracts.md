@@ -181,6 +181,15 @@ Agent `diagnosis.status` 消费最终 `final_status`，并以匹配最后尝试�
 判据适用性：`knowledge_snapshot[].applicability` 把条目 `applies_to` 与 `run.json.facts`（APP、实测版本、屏幕形态、
 `--env` 声明）逐项比较。事实缺失或版本描述不可比较（如"内部debug版 phone_fc78649"）→ `applicability_unknown`；
 不相等 → `out_of_scope`。`operation` / `observation` 类条目不是判据（`not_oracle`）。
+
+`env_requirements` 与判据使用同一组运行事实：`app` 来自被测 APP 定义，`app_version`、`device_form`
+来自本次设备前置检查；这三项即使未知也不能用 `--env` 替代。版本/形态不符或必需实测值缺失时，
+运行判环境阻塞，业务步骤与清理不执行，自动解锁和已登记弹窗关闭也不下发。解锁后重新实测并复核。
+账号、车辆、园区及任务状态等当前适配器不能测量的业务条件，仍需现场人工确认后用 `--env` 声明。
+
+普通 JSON 更新仍通过同目录临时文件原子替换。Windows 文件替换出现 5/32/33 时最多尝试 5 次，
+累计等待 0.5 秒；持续失败仍报错并保留旧文件及待写内容。原始证据的独占创建不使用该重试，
+目标已存在仍直接报错；文件替换重试不触发设备动作重发。
 知识条目状态只允许 `unconfirmed` / `confirmed` / `deprecated`；未知、缺失或非字符串状态派生为
 判据 `invalid`，废弃条目的判据为 `missing`。`superseded_by` 只记录历史替代关系，不是可写入的知识状态。
 

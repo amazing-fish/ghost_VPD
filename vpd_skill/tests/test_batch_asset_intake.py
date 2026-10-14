@@ -128,6 +128,7 @@ def test_scope_changes_do_not_expand_old_confirmed_motor_oracles(ws):
 
 def test_initial_home_loading_failure_stays_a_failure_without_unconditional_restart(ws, tmp_path):
     data = read_json(SKILL / "fixtures/worlds/qiankun_hm_base.json")
+    data["app_version"] = ws.load_case("TC-QK-228")["env_requirements"]["app_version"]
     data["initial_flags"].update(logged_in=True, vehicle="F03")
     data["screens"]["qk_vpd_home"] = {"root": {"t": "Column", "b": [0, 0, 1320, 2848], "children": [
         {"t": "Text", "text": "正在加载（合成占位）", "b": [40, 500, 900, 600]}]}}
@@ -216,6 +217,7 @@ def test_failed_parking_placeholder_does_not_satisfy_home_entry(ws):
 
 def test_first_failed_parking_placeholder_stops_before_along_route_action(ws, tmp_path):
     data = read_json(SKILL / "fixtures/worlds/qiankun_hm_base.json")
+    data["app_version"] = ws.load_case("TC-QK-228")["env_requirements"]["app_version"]
     data["initial_flags"].update(logged_in=True, vehicle="F03")
     data["screens"]["qk_vpd_home"] = {"root": {"t": "Column", "b": [0, 0, 1320, 2848], "children": [
         {"t": "Text", "text": text, "b": [40, 300 + n * 70, 1100, 350 + n * 70]}
