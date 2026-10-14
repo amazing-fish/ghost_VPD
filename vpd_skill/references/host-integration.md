@@ -14,6 +14,10 @@
 
    环境阻塞（缺授权、缺密钥、`--env` 不符）时退出码仍为 0、`verdict=blocked`，逐项条件在 `findings[].detail`
    （`key` / `required` / `actual`）里，按它补参数，不要解析 `reason` 原文。
+   `suite` 与 `experience validate` 一旦某次运行要求人工接管，立即暂停剩余计划并退出 2；
+   输出 `completed=false`、`action_required` 与按计划顺序排列的 `not_run`。
+   用例集保留触发接管的 `results` 行；经验验证另用 `handoff` 给出阶段（baseline/trial）、源 run 和 report。
+   未完成的比较不计改进、不晋级经验；暂停前已成立的回退继续保留为 rejected。
 3. **读文件**：能打开返回的 `report.md`、`obs/<id>/observation.json`，可选能查看 `screen.png`（用于未知页面理解与 UI/UX 建议）。
 4. **加载指令**：把 `SKILL.md` 作为技能说明加载；`references/` 按需读取。
 

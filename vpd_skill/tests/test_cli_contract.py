@@ -6,8 +6,8 @@ import sys
 from pathlib import Path
 
 import pytest
-
 from test_goal_loop import cli
+
 from vpdtest import workspace as workspace_mod
 from vpdtest.cli import build_parser, main
 from vpdtest.util import SKILL_ROOT, read_json
@@ -83,7 +83,7 @@ def test_wrapper_without_venv_prints_json_and_exits_3(tmp_path, shell):
         pytest.skip(f"{shell} 不在 PATH")
     shutil.copy(SKILL_ROOT / "vpdtest.ps1", tmp_path / "vpdtest.ps1")
     r = subprocess.run([exe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File",
-                        str(tmp_path / "vpdtest.ps1"), "doctor"], capture_output=True, text=True, timeout=60,
+                        str(tmp_path / "vpdtest.ps1"), "doctor"], check=False, capture_output=True, text=True, timeout=60,
                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     assert r.returncode == 3, r.stderr
     out = json.loads(r.stdout)
