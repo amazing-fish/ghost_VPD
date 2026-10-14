@@ -247,13 +247,12 @@ class Policy:
         if confirmation_unknown:
             return {"allowed": False, "reason": "通用确认缺少当前页面或同一弹窗的具体副作用依据；需先确认语义",
                     "label": label, "deny": {"class": "confirmation_semantics_unknown"}}
-        task_hits = [h for h in hits if h["class"] == effect]
         receiver_labels = {text.strip() for text in texts if text.strip()}
         receiver_nodes = [n for n in tree.nodes if tree.is_within(n, container)]
         visible_labels = {text.strip() for n in receiver_nodes if tree.shown(n)
                           for text in (n.text, n.description) if text.strip()}
         receiver_editable = any(n.type in EDITABLE_TYPES for n in receiver_nodes)
-        exact_action = bool(task_hits and visible_labels) and receiver_labels <= self.task_action_labels.get(effect, set())
+        exact_action = bool(visible_labels) and receiver_labels <= self.task_action_labels.get(effect, set())
         specific_confirmation = any(s["class"] == effect for s in
                                     (confirmation or {}).get("page_sources", []) +
                                     (confirmation or {}).get("contexts", []))

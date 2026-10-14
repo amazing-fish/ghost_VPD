@@ -78,6 +78,33 @@ def test_act_without_flags_uses_registered_target_and_records_sources(ws, tmp_pa
     assert len([e for e in events if e["event"] == "dispatch" and e.get("op") == "tap" and e.get("sent")]) == 2
 
 
+@pytest.mark.parametrize("explicit", [False, True])
+def test_registered_route_label_dispatches_without_a_deny_pattern_hit(ws, tmp_path, explicit):
+    spec = _permission_world(tmp_path)
+    path = Path(spec.removeprefix("replay:"))
+    fixture = read_json(path)
+    fixture["screens"]["car"]["root"]["children"].append(
+        {"t": "Button", "text": "路线", "b": [40, 600, 900, 720], "go": "result"})
+    write_json(path, fixture)
+    assert not ws.policy().match_all(["路线"])
+    base = ["--app", "qiankun_hm", "--device", spec, "--session", "task-route-label"]
+    cli(ws, "act", "launch", *base)
+    flags = ["--authorize", "route_planning"] if explicit else []
+    result = cli(ws, "act", "tap", "--target", "qk_spot_route_btn", *flags, *base)
+    assert result["result"]["outcome"].startswith("passed")
+    events = read_jsonl(ws.runs_dir / "session-task-route-label" / "events.jsonl")
+    assert len([e for e in events if e["event"] == "dispatch" and e.get("op") == "tap" and e.get("sent")]) == 1
+
+
+@pytest.mark.parametrize("restriction,expected", [
+    ([{"pattern": "^路线$", "class": "state_deny"}], "state_deny"),
+    ([{"pattern": "^路线$", "class": "vehicle_motion"}], "vehicle_motion")])
+def test_allowlisted_route_label_still_obeys_independent_restrictions(ws, restriction, expected):
+    denied = ws.policy().check_tap(_tree(["路线"]), (50, 15), "tree",
+                                   {"side_effect": "route_planning"}, state_deny=restriction)
+    assert not denied["allowed"] and denied["deny"]["class"] == expected
+
+
 @pytest.mark.parametrize("effect,label", [("account_state", "登录"), ("vehicle_selection", "选择车辆"),
                                          ("user_data", "收藏"), ("vehicle_motion", "开始"),
                                          ("vehicle_control", "车窗"), ("payment", "支付")])
