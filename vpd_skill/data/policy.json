@@ -40,12 +40,12 @@
     {
       "class": "vpd_entry",
       "pattern": "泊车代驾|代客泊车|^ADS$",
-      "reason": "进入泊车代驾页面（需授权）。乾崑 APP 的入口文字是「ADS」（app/config/mhero_config.py:264）"
+      "reason": "进入泊车代驾页面（随已委派任务许可）。乾崑 APP 的入口文字是「ADS」（app/config/mhero_config.py:264）"
     },
     {
       "class": "route_planning",
       "pattern": "算路|规划路线|路线规划|导航到|去这里",
-      "reason": "发起算路（需授权）。「去这里」按原工程只是设目的地并开始算路（app/service/vpd/vpd_harmony.py:17-54 之后等待「路线规划中」），不直接让车动"
+      "reason": "发起算路（随已委派任务许可）。「去这里」按原工程只是设目的地并开始算路（app/service/vpd/vpd_harmony.py:17-54 之后等待「路线规划中」），不直接让车动"
     },
     {
       "class": "user_data",
