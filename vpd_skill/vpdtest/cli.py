@@ -81,7 +81,7 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--duration", type=float, help="wait/monitor 的时长（秒）")
     a.add_argument("--interval", type=float, default=2, help="monitor 采样间隔（秒）")
     a.add_argument("--watch", action="append", help="monitor 关注的文字 name=正则，如 tor=接管|请注意")
-    a.add_argument("--authorize", nargs="*", default=[], help="本步授予的 gated/supervised 副作用（人确认后给出）")
+    a.add_argument("--authorize", nargs="*", default=[], help="本步显式授予的 gated/supervised 副作用；VPD进入/算路随任务许可，无需传入")
     a.add_argument("--supervisor", help="在场监护人：授予 vehicle_motion/vehicle_control 时必填")
     a.add_argument("--step-id")
 
@@ -92,8 +92,8 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--trial", help="试用一条经验候选（不采纳）")
     r.add_argument("--record-replay", action="store_true", help="把结果记入用例的 replays（晋级依据）")
     r.add_argument("--authorize", nargs="*", default=[],
-                   help="本次运行授予用例申请的副作用：gated（account_state/vehicle_selection/vpd_entry/route_planning/"
-                        "user_data）或 supervised（vehicle_motion/vehicle_control，须同时 --supervisor）；"
+                   help="本次运行显式授予：gated（account_state/vehicle_selection/user_data）"
+                        "或 supervised（vehicle_motion/vehicle_control，须同时 --supervisor）；VPD进入/算路随任务许可；"
                         "不可逆账号变更/升级/支付/清数据不可授予")
     r.add_argument("--supervisor", help="在场监护人（姓名或工号）：授予 vehicle_motion/vehicle_control 时必填，记入报告")
     r.add_argument("--fail-on", nargs="*", default=[], choices=["failed", "blocked", "pending"])

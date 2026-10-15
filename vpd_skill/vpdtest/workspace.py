@@ -91,7 +91,7 @@ class RunContext:
                                  ws.layout_config() if layout_cfg is None else layout_cfg, display,
                                  dialogs=load_dialogs(ws.root) if dialogs is None else dialogs)
         self.params = None        # 用例参数（含密钥引用），由 runner 设置
-        self.authorized = set()   # 本次运行由人显式授予的 gated/supervised 副作用
+        self.authorized = self.policy.effective_grants(set())  # 任务许可；gated/supervised 仍需显式授予
         self.supervisor = None    # 在场监护人（supervised 类授权的前提），记入证据
         self.seed = store.run_id  # 随机动作的默认种子，记入证据以便复现
         self.actions = 0

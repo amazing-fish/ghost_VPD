@@ -1,5 +1,5 @@
 {
-  "version": "policy-0.7",
+  "version": "policy-0.8",
   "note": "运行边界。Skill/经验/模型都不能修改本文件；变更需人工评审并单独提交。",
   "allowed_packages": [
     "app.huawei.hmos.motor",
@@ -40,12 +40,12 @@
     {
       "class": "vpd_entry",
       "pattern": "泊车代驾|代客泊车|^ADS$",
-      "reason": "进入泊车代驾页面（需授权）。乾崑 APP 的入口文字是「ADS」（app/config/mhero_config.py:264）"
+      "reason": "进入泊车代驾页面（随已委派任务许可）。乾崑 APP 的入口文字是「ADS」（app/config/mhero_config.py:264）"
     },
     {
       "class": "route_planning",
-      "pattern": "算路|规划路线|路线规划|导航到|去这里",
-      "reason": "发起算路（需授权）。「去这里」按原工程只是设目的地并开始算路（app/service/vpd/vpd_harmony.py:17-54 之后等待「路线规划中」），不直接让车动"
+      "pattern": "算路|规划路线|路线规划|导航到|去这里|^(?:沿途找车位|默认车位)$",
+      "reason": "发起算路（随已委派任务许可）。「去这里」按原工程只是设目的地并开始算路（app/service/vpd/vpd_harmony.py:17-54 之后等待「路线规划中」），不直接让车动"
     },
     {
       "class": "user_data",
@@ -83,9 +83,15 @@
   "gated_side_effects": {
     "account_state": "登录/登出/切换账号：改变账号状态，只在本次运行 --authorize account_state 时允许，且目标须声明同一副作用",
     "vehicle_selection": "切换当前车辆：影响后续所有车辆相关页面",
-    "vpd_entry": "进入泊车代驾（VPD）页面：只是导航，但页面内有会触发车辆运动的按钮",
-    "route_planning": "发起算路：可能向车端/云端下发路线请求，未确认是否会唤醒车辆",
     "user_data": "收藏/重命名/设置标签/删除自建收藏：改变账号下的用户数据，用例须带清理步骤"
+  },
+  "task_side_effects": {
+    "vpd_entry": "已委派的VPD测试任务内进入ADS/VPD页面，无需逐次询问或显式--authorize；目标仍须声明同一副作用",
+    "route_planning": "已委派的VPD测试任务内发起算路并观察结果，无需逐次询问或显式--authorize；可能唤醒车辆，不包含开始或任何运动/车控"
+  },
+  "task_action_labels": {
+    "vpd_entry": ["ADS", "泊车代驾", "代客泊车"],
+    "route_planning": ["算路", "规划路线", "路线规划", "导航到", "去这里", "沿途找车位", "默认车位", "路线"]
   },
   "gated_note": "gated 类只能由人在单次运行上显式授权（run --authorize），用例声明 authorizations 只是申请；explore 和经验永远不带授权。denied_side_effects 任何情况下都拒绝。",
   "supervised_side_effects": {
@@ -108,6 +114,17 @@
   "safe_stop_text": "暂停|停止|结束|退出|取消|中止|终止|急停|返回",
   "safe_stop_note": "side_effect=safe_stop 的目标（暂停/退出泊车等）在任何授权下都可点击、不占动作预算：安全停止不应被门槛挡住。但点击点所在可点击容器里必须有停止类文字，且不能同时含有其他会触发运动/车控的文字。",
   "changelog": [
+    {
+      "version": "policy-0.8",
+      "date": "2026-10-15",
+      "changes": [
+        "按维护者本轮明确要求取消vpd_entry与route_planning逐次授权，改为任务范围许可，操作记录保留task_policy来源",
+        "其他gated、supervised和硬禁止保持；目标声明、通用确认语义和混合容器限制保持",
+        "PR #51 review后要求任务点击取得当前UI类别依据，拒绝仅凭声明与无树模板；按既有入口定义登记沿途找车位/默认车位的精确算路标签，不提升定位资产状态",
+        "宽泛deny_text仅施加限制；自动任务许可须task_action_labels精确动作标签或具体确认来源，帮助/取消/记录/状态等关键词扩展及混合接收控件不获自动许可"
+      ],
+      "reviewed_by": "规则目标由amazing-fish在2026-10-15本轮会话明确指定；Issue #49实现仍待PR人工评审"
+    },
     {
       "version": "policy-0.7",
       "date": "2026-10-14",

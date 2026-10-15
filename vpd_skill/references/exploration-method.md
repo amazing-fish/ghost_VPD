@@ -73,7 +73,7 @@
 ## 5. 真机校准清单（乾崑，按顺序）
 
 1. 测试人员解锁手机，确认前台可以切到乾崑；设置 `VPD_SECRET_QIANKUN_PHONE`、`VPD_SECRET_QIANKUN_PASSWORD`（只放环境变量）。
-2. `run TC-QK-101 --env account_state=logged_out --authorize account_state vehicle_selection vpd_entry route_planning`：
+2. `run TC-QK-101 --env account_state=logged_out --authorize account_state vehicle_selection`：
    核对探索/爱车页选中态、账号区、车辆列表、ADS、默认车位、算路结果与「开始」opacity。
 3. 用 `observe` 在 VPD 首页看地图区域在 UI 树里是否有子节点、点一下是否弹车位卡片，再决定 `qk_map` 与收藏类目标的真实选择器。
 4. 校准后跑 TC-QK-102；车辆无故障且有人在车旁时再跑 TC-QK-103（`--supervisor`）。

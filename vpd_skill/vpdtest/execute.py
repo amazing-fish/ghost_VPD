@@ -531,10 +531,10 @@ class Executor:
         return None
 
     def _inline_input_ok(self, tid, target, loc, obs, tree, att) -> bool:
-        """输入框的副作用检查。登记目标按声明的 side_effect 过授权门槛（重命名框是 user_data、账号框是 account_state，
-        与点击同一规则）；现场选择器定位的输入框还要按所在控件的文字检查（重命名框里有「收藏」→ user_data 需授权）。"""
+        """输入框的副作用检查。登记目标按声明过权限门槛；task 类和现场选择器还须核验当前 UI 语义，
+        不能仅凭登记或可编辑值取得默认任务许可。重命名框 user_data、账号框 account_state 仍需显式授权。"""
         ctx = self.ctx
-        if not tid.startswith("inline:"):
+        if not tid.startswith("inline:") and target.get("side_effect") not in ctx.policy.task_side_effects:
             denied = ctx.policy.check_effect(target, ctx.authorized)
             if denied:
                 att["policy_context"] = denied

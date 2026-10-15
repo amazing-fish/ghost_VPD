@@ -362,7 +362,8 @@ def test_approval_does_not_grant_runtime_side_effect_authorization(ws):
     _approve(ws)
     run = run_case(ws, case["id"], device_spec=BASE, require_asset_review=True, propose=False)
     assert run["asset_review"]["valid"] and run["verdict"]["verdict"] == "blocked"
-    assert run["authorized"] == [] and all(s["outcome"] == "not_run" for s in run["steps"])
+    assert "user_data" not in run["authorized"] and all(s["outcome"] == "not_run" for s in run["steps"])
+    assert run["authorization_sources"] == {"route_planning": "task_policy", "vpd_entry": "task_policy"}
     assert any(u["key"] == "authorize.user_data" for u in run["env"]["unmet"])
 
 
