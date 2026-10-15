@@ -37,8 +37,29 @@ def _outcomes(run):
     return [(s["step_id"], s["outcome"], s.get("reason")) for s in run["steps"]]
 
 
-def test_101_fault_blocks_activation_without_touching_start(ws, secrets):
-    run = run_case(ws, "TC-QK-101", device_spec=world("qiankun_hm_base.json"), propose=False, authorize=AUTH_101)
+def _classified_task_world(tmp_path, name):
+    # 仅临时正例提供完整精确动作标签；不能推导生产地图/复合控件的效果或提升资产状态。
+    fixture = load_world(WORLDS / name)
+    stack = [fixture["screens"]["qk_vpd_home"]["root"]]
+    found = 0
+    while stack:
+        node = stack.pop()
+        if node.get("t") == "XComponent":
+            node["text"] = "规划路线"
+            found += 1
+        if node.get("go") == "qk_route_planning" and any(c.get("text") == "默认车位" for c in node.get("children", [])):
+            node["children"] = [c for c in node["children"] if c.get("text") == "默认车位"]
+        stack.extend(node.get("children", []))
+    assert found == 1
+    fixture["note"] += "；本测试临时地图/默认车位的精确动作标签是合成依据，不代表生产地图或复合控件语义。"
+    fixture.pop("_path", None)
+    path = tmp_path / name
+    write_json(path, fixture)
+    return f"replay:{path}"
+
+
+def test_101_fault_blocks_activation_without_touching_start(ws, secrets, tmp_path):
+    run = run_case(ws, "TC-QK-101", device_spec=_classified_task_world(tmp_path, "qiankun_hm_base.json"), propose=False, authorize=AUTH_101)
     assert all(s["outcome"] == "passed" for s in run["steps"]), _outcomes(run)
     a = {x["id"]: x for x in run["assertions"]}
     # 判据未确认 → pending；观测本身成立：「开始」置灰且 10 秒后仍有不可用提示
@@ -77,8 +98,9 @@ def test_101_blocked_before_any_step_without_secrets_or_authorization(ws, monkey
     assert all(s["outcome"] == "not_run" for s in run["steps"]) and run["actions"] == 0
 
 
-def test_102_favorite_rename_tag_search_and_read_distance(ws):
-    run = run_case(ws, "TC-QK-102", device_spec=world("qiankun_hm_ready.json"), propose=False, authorize=AUTH_102)
+def test_102_favorite_rename_tag_search_and_read_distance(ws, tmp_path):
+    run = run_case(ws, "TC-QK-102", device_spec=_classified_task_world(tmp_path, "qiankun_hm_ready.json"),
+                   propose=False, authorize=AUTH_102)
     assert all(s["outcome"] == "passed" for s in run["steps"]), _outcomes(run)
     assert all(c["outcome"] == "passed" for c in run["cleanup"]), [(c["step_id"], c.get("reason")) for c in run["cleanup"]]
     assert {m["step"]: m["value"] for m in run["measurements"]}["S4"] == "356"
@@ -92,6 +114,15 @@ def test_102_favorite_rename_tag_search_and_read_distance(ws):
     state = read_json(ws.runs_dir / run["run_id"] / "replay_state.json")
     assert state["flags"]["faved"] is False and state["flags"]["tag_label"] == "常用"
     assert name not in json.dumps(state, ensure_ascii=False)  # 输入值不落盘到回放状态
+
+
+def test_102_unclassified_map_cannot_claim_automatic_route_permission(ws):
+    run = run_case(ws, "TC-QK-102", device_spec=world("qiankun_hm_ready.json"), propose=False, authorize=AUTH_102)
+    map_step = _by(run)["S2"]["sub_steps"][1]
+    assert map_step["outcome"] == "blocked"
+    assert all(a["policy"]["deny"]["class"] == "task_semantics_unverified" and "dispatch" not in a
+               for a in map_step["attempts"])
+    assert all(_by(run)[s]["outcome"] == "not_run" for s in ("S3", "S4"))
 
 
 def test_102_blocked_without_user_data_authorization(ws):
@@ -115,8 +146,8 @@ def test_102_requires_vehicle_in_vpd_map(ws):
     assert all(s["outcome"] == "not_run" for s in run["steps"])
 
 
-def test_103_supervised_lifecycle_pause_background_resume_continue(ws):
-    run = run_case(ws, "TC-QK-103", device_spec=world("qiankun_hm_ready.json"), propose=False, authorize=AUTH_103,
+def test_103_supervised_lifecycle_pause_background_resume_continue(ws, tmp_path):
+    run = run_case(ws, "TC-QK-103", device_spec=_classified_task_world(tmp_path, "qiankun_hm_ready.json"), propose=False, authorize=AUTH_103,
                    supervisor="现场监护人A")
     by = _by(run)
     assert all(s["outcome"] == "passed" for s in run["steps"]), _outcomes(run)
@@ -132,8 +163,8 @@ def test_103_supervised_lifecycle_pause_background_resume_continue(ws):
         {"A1": True, "A2": True, "A3": True, "A4": True}
 
 
-def test_103_fault_world_blocks_at_start_without_arming(ws):
-    run = run_case(ws, "TC-QK-103", device_spec=world("qiankun_hm_base.json"), propose=False, authorize=AUTH_103,
+def test_103_fault_world_blocks_at_start_without_arming(ws, tmp_path):
+    run = run_case(ws, "TC-QK-103", device_spec=_classified_task_world(tmp_path, "qiankun_hm_base.json"), propose=False, authorize=AUTH_103,
                    supervisor="现场监护人A", env={"account_state": "logged_in"})
     by = _by(run)
     assert run["verdict"]["verdict"] == "blocked" and run["verdict"]["attribution"] == "environment"
@@ -152,7 +183,7 @@ def test_103_requires_supervisor(ws):
 
 def test_103_vehicle_resuming_by_itself_is_armed_by_observation(ws, tmp_path):
     # 变体：暂停后退后台，拉回时车已自行恢复运动（不点「继续」）→ 看门狗按 moving_states 观测挂上，泊入后解除
-    w = load_world(WORLDS / "qiankun_hm_ready.json")
+    w = load_world(_classified_task_world(tmp_path, "qiankun_hm_ready.json").removeprefix("replay:"))
     w["screens"]["qk_paused"]["on_resume"] = "qk_moving_final"
     w.pop("_path", None)
     p = tmp_path / "qiankun_auto_resume.json"
@@ -175,16 +206,23 @@ def test_qiankun_lint_and_explore_boundary(ws):
     assert lint(ws.load_case("TC-QK-103"), app, kn, pol) == []
     issues = lint(ws.load_case("TC-QK-102"), app, kn, pol)
     assert len(issues) == 1 and "qk_map" in issues[0]["problem"] and "hypothesis" in issues[0]["problem"]
-    # 探索不带任何授权：不进 VPD、不点账号区
+    # 不带显式 grant 也可按任务策略进入 ADS；加载态没有 recipe，覆盖如实停止。
     exp = explore(ws, "qiankun_hm", "qk_car_tab", world("qiankun_hm_base.json"), budget=40)
-    assert exp["exit"]["reason"] == "frontier_exhausted"
-    assert "ADS" in {s["label"] for s in exp["skipped"]}
-    assert not any(t["to"] in ("qk_vpd_loading", "qk_vpd_home") for t in exp["transitions"])
+    assert exp["exit"] == {"reason": "reset_failed", "state": "qk_vpd_loading"}
+    assert any(t["label"] == "ADS" and t["to"] == "qk_vpd_loading" for t in exp["transitions"])
+    assert "qk_vpd_loading" in exp["coverage"]["unvisited_declared"]
+    assert any("没有到达状态 qk_vpd_loading 的 recipe" in a for a in exp["anomalies"])
+    dispatches = [e for e in _events(ws, exp) if e["event"] == "dispatch" and e.get("sent")]
+    permissions = [e.get("checks", {}).get("tap", {}).get("policy", {}) for e in dispatches]
+    assert any(p.get("authorized_by") == "vpd_entry" and p.get("authorization_source") == "task_policy"
+               for p in permissions)
+    assert not any(p.get("authorized_by") in {"account_state", "vehicle_selection", "user_data",
+                                               "vehicle_motion", "vehicle_control"} for p in permissions)
 
 
-def test_102_resource_pack_popup_is_dismissed_inline(ws):
+def test_102_resource_pack_popup_is_dismissed_inline(ws, tmp_path):
     """冷启动后盖着「请下载车辆资源包」：执行层在动作前自动点「下次再说」，用例照常通过，不点「立即下载」。"""
-    run = run_case(ws, "TC-QK-102", device_spec=world("qiankun_hm_resource_popup.json"), propose=False,
+    run = run_case(ws, "TC-QK-102", device_spec=_classified_task_world(tmp_path, "qiankun_hm_resource_popup.json"), propose=False,
                    authorize=AUTH_102)
     assert all(s["outcome"] == "passed" for s in run["steps"]), _outcomes(run)
     events = [json.loads(x) for x in (ws.runs_dir / run["run_id"] / "events.jsonl").read_text("utf-8").splitlines()]
@@ -204,9 +242,9 @@ def _tapped_texts(run):
             for a in x["attempts"] if a.get("locate")]
 
 
-def test_102_resource_pack_popup_variant_text_is_dismissed(ws):
+def test_102_resource_pack_popup_variant_text_is_dismissed(ws, tmp_path):
     """真机出现过的文案变体「请下载更新后的车辆资源包」/「立即更新」也要认出并点「下次再说」。"""
-    run = run_case(ws, "TC-QK-102", device_spec=world("qiankun_hm_resource_popup_v2.json"), propose=False,
+    run = run_case(ws, "TC-QK-102", device_spec=_classified_task_world(tmp_path, "qiankun_hm_resource_popup_v2.json"), propose=False,
                    authorize=AUTH_102)
     assert all(s["outcome"] == "passed" for s in run["steps"]), _outcomes(run)
     dis = [e for e in _events(ws, run) if e["event"] == "interrupt_dismissed"]
@@ -214,9 +252,9 @@ def test_102_resource_pack_popup_variant_text_is_dismissed(ws):
     assert not any("立即更新" in t for t in _tapped_texts(run))
 
 
-def test_102_unregistered_popup_with_defer_button_is_dismissed(ws):
+def test_102_unregistered_popup_with_defer_button_is_dismissed(ws, tmp_path):
     """没登记的弹窗：按 Dialog 结构认出，里面有「以后再说」这类推迟按钮就点掉，不点「去开启」。"""
-    run = run_case(ws, "TC-QK-102", device_spec=world("qiankun_hm_unregistered_popup.json"), propose=False,
+    run = run_case(ws, "TC-QK-102", device_spec=_classified_task_world(tmp_path, "qiankun_hm_unregistered_popup.json"), propose=False,
                    authorize=AUTH_102)
     assert all(s["outcome"] == "passed" for s in run["steps"]), _outcomes(run)
     dis = [e for e in _events(ws, run) if e["event"] == "interrupt_dismissed"]

@@ -215,7 +215,7 @@ def _cmd_act(ws: Workspace, a) -> dict:
 
 
 def _act_step(ctx, store, a, step_id: str) -> dict:
-    # 单步授权：由人看过当前观测后给出。supervised 类（控车/运动）必须写明在场监护人；
+    # task 类沿用任务策略；其他单步授权由人给出，supervised 类仍必须写明在场监护人。
     # act 是一次性进程，没有跨步骤的运动看门狗，停车由监护人或下一条 act（safe_stop 目标）完成
     granted = set(a.authorize or [])
     auth = ctx.policy.check_authorizations(sorted(granted), granted, a.supervisor, {"safe_stop": ["human"]})
@@ -223,8 +223,9 @@ def _act_step(ctx, store, a, step_id: str) -> dict:
         raise ValueError(f"不可授权：{auth['not_grantable']}（policy 硬禁止）")
     if auth["missing_supervisor"]:
         raise ValueError(f"{auth['missing_supervisor']} 需要在场监护人：加 --supervisor <姓名/工号>")
-    ctx.authorized, ctx.supervisor = granted, a.supervisor
-    store.event("authorization", requested=sorted(granted), granted=sorted(granted), supervisor=bool(a.supervisor))
+    ctx.authorized, ctx.supervisor = ctx.policy.effective_grants(granted), a.supervisor
+    store.event("authorization", requested=sorted(granted), granted=sorted(ctx.authorized),
+                grant_sources=ctx.policy.grant_sources(ctx.authorized), supervisor=bool(a.supervisor))
     step = {"id": step_id, "action": a.action, "retry": 0, "timeout_s": a.timeout,
             **step_options(a.action, {"expect": a.expect, "expect_text": a.expect_text,
                                      "duration": a.duration, "interval": a.interval,

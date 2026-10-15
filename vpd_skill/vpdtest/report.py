@@ -89,7 +89,13 @@ def render_run(run: dict) -> str:
                 for m in run["measurements"]]
     if run.get("authorized"):
         sup = (run.get("supervision") or {})
-        out += ["", f"> 本次运行由人授权的副作用：{'、'.join(run['authorized'])}"
+        sources = run.get("authorization_sources") or {}
+        task = [effect for effect in run["authorized"] if sources.get(effect) == "task_policy"]
+        explicit = [effect for effect in run["authorized"] if effect not in task]
+        if task:
+            out += ["", f"> 任务范围允许的副作用：{'、'.join(task)}（无需逐次授权）。"]
+        if explicit:
+            out += ["", f"> 本次运行由人授权的副作用：{'、'.join(explicit)}"
                 + (f"；在场监护人：{_esc(sup.get('supervisor'))}" if sup.get("supervised_granted") else "")
                 + "。不可逆账号变更/升级/支付/清数据任何授权下都禁止。"]
     for s in run.get("safety_stops", []):

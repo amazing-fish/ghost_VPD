@@ -25,21 +25,21 @@ from .verdict import PASSED, case_verdict, evaluate_assertion
 from .workspace import RunContext, Workspace
 
 
-def _env_check(case: dict, facts: dict) -> dict:
+def _env_check(case: dict, facts: dict, pre_layout: dict) -> dict:
     unmet = [{"key": k, "required": v, "actual": facts.get(k)}
              for k, v in case.get("env_requirements", {}).items() if facts.get(k) != v]
-    return {"ok": not unmet, "facts": facts, "required": case.get("env_requirements", {}), "unmet": unmet}
+    unmet += layout_mod.check_requirements(case.get("layout_requirements", {}), pre_layout)
+    return {"ok": not unmet, "facts": facts, "required": case.get("env_requirements", {}), "unmet": unmet,
+            "layout": {"required": case.get("layout_requirements", {}), "display_profile": pre_layout}}
 
 
 def run_facts(app, pre: dict, declared: dict) -> dict:
-    """知识适用性比较用的事实：执行器实际查到的优先；--env 声明只补充查不到的项，不能覆盖实测值
-    （否则声明一个旧版本号就能让版本范围不符的判据"适用"，得出假通过）。"""
+    """前置与判据共用的事实：APP身份、版本和形态只取实测，未知也不能用声明替代。
+    --env 仅补充执行器无法测量的业务条件（如账号、车辆及园区状态）。"""
     disp = pre.get("display") or {}
     measured = {"app": app.id, "app_version": pre.get("app_version"), "device_form": disp.get("device_form")}
     out = {k: v for k, v in (declared or {}).items() if v not in (None, "")}
-    out.update({k: v for k, v in measured.items() if v not in (None, "")})
-    for k in measured:
-        out.setdefault(k, None)
+    out.update({k: v if v not in (None, "") else None for k, v in measured.items()})
     return out
 
 
@@ -66,14 +66,21 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                 steps=[{"id": s["id"], "action": s["action"]} for s in case.get("steps", [])])
 
     pre = device.preflight(app.bundle)
+    declared = {**device.env_facts(), **(env or {})}
+    facts = run_facts(app, pre, declared)
+    pre_layout = layout_mod.profile(None, pre.get("display"), ctx.observer.layout_cfg)
+    envc = _env_check(case, facts, pre_layout)
     screen_checks = {"screen_awake", "screen_unlocked"}
-    if any(c["check"] in screen_checks and not c["ok"] for c in pre["checks"]) and all(
+    if envc["ok"] and any(c["check"] in screen_checks and not c["ok"] for c in pre["checks"]) and all(
             c["ok"] for c in pre["checks"] if c["check"] not in screen_checks):
         from .unlock import unlock_device
         before_checks = [dict(c) for c in pre["checks"]]
         unlocked = unlock_device(ws, device, store, dispatcher=ctx.dispatcher)
         if unlocked["status"] == "unlocked":
             pre = device.preflight(app.bundle)
+            facts = run_facts(app, pre, declared)
+            pre_layout = layout_mod.profile(None, pre.get("display"), ctx.observer.layout_cfg)
+            envc = _env_check(case, facts, pre_layout)
         else:
             pre["checks"].append({"check": "unlock_capability", "ok": False,
                                   "error_class": unlocked["status"], "value": unlocked.get("reason")})
@@ -83,27 +90,19 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     # 系统弹窗检查：锁屏/前台/安装检查看不见盖在屏幕上的系统弹窗（2026-10-08 真机：USB 连接方式弹窗
     # preflight 全绿却两次阻塞 S1）。先按窗口名快查已登记弹窗，命中才做整屏诊断并用原子能力关闭；
     # 未命中/查询失败不阻塞，动作后的 unobservable 恢复会用完整诊断兜底。
-    if pre.get("ok"):
+    if pre.get("ok") and envc["ok"]:
         from .sysdialog import preflight_dialog_check
         pre["system_dialog"] = preflight_dialog_check(ws, device, store, dispatcher=ctx.dispatcher,
                                                      dialogs=ctx.observer.dialogs)
 
     store.event("preflight", ok=pre["ok"], checks=pre["checks"])
     ctx.observer.display = pre.get("display")  # 复用前置检查读到的显示参数，不重复查询
-    facts = {**device.env_facts(), **(env or {})}
-    envc = _env_check(case, facts)
-    # 形态要求（例如只适用于折叠屏展开态的用例）：启动前按显示参数判定，不满足记为环境阻塞而不是失败
-    pre_layout = layout_mod.profile(None, pre.get("display"), ctx.observer.layout_cfg)
-    lay_unmet = layout_mod.check_requirements(case.get("layout_requirements", {}), pre_layout)
-    if lay_unmet:
-        envc = {**envc, "ok": False, "unmet": envc["unmet"] + lay_unmet}
-    envc["layout"] = {"required": case.get("layout_requirements", {}), "display_profile": pre_layout}
-    knowledge.bind(run_facts(app, pre, facts))
+    knowledge.bind(facts)
     # 参数与密钥：密钥只从环境变量/本地配置读取；缺失时判环境阻塞，不向输入框写空值
     params = Params(case.get("test_data"), ws.config.get("secrets"), store.run_id)
     ctx.params = params
     unmet = [{"key": f"secret.{n}", "required": f"环境变量 VPD_SECRET_{n}", "actual": "未设置"} for n in params.missing]
-    # 授权：用例只能申请 gated/supervised 类副作用，必须由本次运行显式授予（--authorize），硬禁止类无法授予；
+    # task 类来自任务策略；其他 gated/supervised 类必须显式授予，硬禁止类无法授予。
     # supervised 类（车辆运动/车控）还要有在场监护人，vehicle_motion 还要有安全停止声明
     requested = [a["effect"] if isinstance(a, dict) else a for a in case.get("authorizations", [])]
     auth = ctx.policy.check_authorizations(requested, set(authorize or []), supervisor, case.get("safety"))
@@ -117,10 +116,12 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                   for p in safety_mod.problems(case.get("safety"), app, ctx.policy)]
     if unmet:
         envc = {**envc, "ok": False, "unmet": envc["unmet"] + unmet}
-    ctx.authorized = set(requested) & set(authorize or [])
+    ctx.authorized = ctx.policy.effective_grants(set(requested) & set(authorize or []))
     ctx.supervisor = supervisor
     ctx.motion = safety_mod.MotionGuard(case.get("safety"), ctx.clock, store)
-    store.event("authorization", requested=requested, granted=sorted(ctx.authorized), supervisor=bool(supervisor))
+    grant_sources = ctx.policy.grant_sources(ctx.authorized)
+    store.event("authorization", requested=requested, granted=sorted(ctx.authorized), grant_sources=grant_sources,
+                supervisor=bool(supervisor))
     steps, cleanup, safety_stops = [], [], []
     if pre["ok"] and envc["ok"]:
         ex = Executor(ctx)
@@ -197,7 +198,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
            "knowledge_snapshot": knowledge.oracle_status(refs)["items"] if refs else [],
            "facts": knowledge.facts, "knowledge_used": case.get("knowledge_used", []), "goal": case.get("goal"),
            "verdict": verdict, "actions": ctx.actions, "seed": ctx.seed,
-           "test_data": params.public(), "authorized": sorted(ctx.authorized),
+           "test_data": params.public(), "authorized": sorted(ctx.authorized), "authorization_sources": grant_sources,
            "supervision": {"supervisor": supervisor,
                            "supervised_granted": sorted(ctx.authorized & ctx.policy.supervised_side_effects),
                            "safety": case.get("safety")},

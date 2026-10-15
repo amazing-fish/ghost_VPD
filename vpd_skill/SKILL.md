@@ -18,7 +18,7 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
 要在现场核对后才能用。
 
 1. **拆目标**：要做哪些操作（收藏、重命名、退出再进入、搜索）、要证明什么（新名称仍能找到）、会产生哪些副作用
-   （user_data 要清理；登录/切车/进 VPD/算路/改收藏要 `--authorize`；车辆运动/车控还要 `--supervisor`，探索永远不带运动授权）。
+   （user_data 要清理；登录/切车/改收藏仍要 `--authorize`；已委派任务内进 VPD/算路无需逐次询问或该参数；车辆运动/车控仍要监护，探索永远不带运动授权）。
 2. **检索知识**：`knowledge search <关键词…> --app <app> --device <spec>`。结果分三类读：
    **产品要求**回答"应该怎样"（只有 confirmed 且适用于本次版本/形态的才能作判据）；**操作经验**回答"可以怎样操作"
    （targets/flows/状态签名/校准笔记，看 status 与适用性）；**现场观察**回答"某次实际发生了什么"（不能证明"应该是什么"）。
@@ -68,8 +68,9 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
 
 ## 授权、密钥与控车
 
-- 副作用分三级（`data/policy.json`）：硬禁止（不可逆账号变更、升级、支付、清数据）永远不做；gated（account_state、
-  vehicle_selection、vpd_entry、route_planning、user_data）要 `--authorize <副作用>` 且目标声明同一副作用；
+- 副作用按 `data/policy.json` 分类：task（vpd_entry、route_planning）随已委派的VPD测试任务许可，不逐次询问、不要求 `--authorize`；
+  仍须明确目标副作用，报告记 task_policy 来源，旧显式参数可解析。硬禁止（不可逆账号变更、升级、支付、清数据）永远不做；gated（account_state、
+  vehicle_selection、user_data）要 `--authorize <副作用>` 且目标声明同一副作用；
   supervised（vehicle_motion、vehicle_control）另需 `--supervisor`，vehicle_motion 还要用例 `safety`。缺任何一项 → 运行前判阻塞，一步都不执行。
 - 账号、密码只写成 `{"secret": "NAME"}`，值来自环境变量 `VPD_SECRET_NAME`。不要把用户在对话里给的账号、密码、锁屏密码写进任何文件或命令行；
   解锁能力自动用于回归和动作恢复，也可通过 `vpdtest unlock` 单独调用。`config.local.json` 的
@@ -85,6 +86,9 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
 - 点击前要确认控件可用的步骤写 `require_enabled`（例如「开始」置灰表示有故障）：不可用时判阻塞，不点。
 - 选择器来自原工程的目标标 `unverified`，原工程没有、按描述推测的标 `hypothesis`：真机校准前含假设目标的用例不能晋级。
   方法见 [exploration-method.md](references/exploration-method.md)。
+
+一般入口/算路取证不要求用户先确认固定园区、车辆故障态或无任务：自行观察，未知就记录未知；
+特定故障用例的判据仍只适用于真实成立的场景。条件未知时采用 informal 探索/诊断，不填写虚假的 `--env`，不冒充 TC-QK-214 故障验收。
 
 ## 屏幕形态（直板 / 折叠 / 分栏）
 
@@ -116,10 +120,10 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
 ```powershell
 .\vpdtest.ps1 doctor --device hdc:<serial>
 .\vpdtest.ps1 run TC-MOTOR-HM-001 --device hdc:<serial> [--env account_state=logged_out] [--record-replay]
-.\vpdtest.ps1 run TC-QK-101 --device hdc:<serial> --env account_state=logged_out --authorize account_state vehicle_selection vpd_entry route_planning
-.\vpdtest.ps1 run TC-QK-103 --device hdc:<serial> --env account_state=logged_in --authorize vpd_entry route_planning vehicle_motion --supervisor <监护人>
+.\vpdtest.ps1 run TC-QK-101 --device hdc:<serial> --env account_state=logged_out --authorize account_state vehicle_selection
+.\vpdtest.ps1 run TC-QK-103 --device hdc:<serial> --env account_state=logged_in --authorize vehicle_motion --supervisor <监护人>
 .\vpdtest.ps1 suite motor_hm_smoke --device hdc:<serial>
-.\vpdtest.ps1 suite <含乾崑用例的集合> --device hdc:<serial> --authorize vpd_entry user_data route_planning   # 每条用例只拿到自己申请的部分
+.\vpdtest.ps1 suite <含乾崑用例的集合> --device hdc:<serial> --authorize user_data   # 每条用例只拿到自己申请的部分
 .\vpdtest.ps1 explore --start car_tab --budget 30 --goal "我的页导航" --device hdc:<serial>
 .\vpdtest.ps1 knowledge search 收藏 重命名 --app qiankun_hm --device hdc:<serial>
 .\vpdtest.ps1 observe --app qiankun_hm --session s1 --device hdc:<serial>

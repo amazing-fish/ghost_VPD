@@ -127,7 +127,7 @@ agent 模式的 `--point` 记录提出时的窗口尺寸（`point_window`）；�
 通用确认须有对实际按钮生效的页面/控件规则、同一最近 Dialog 中 `confirmation_contexts` 明确登记的首个非交互、非输入字段 Text 标题，
 或当前同一 Dialog 完整命中已评审良性中断及其声明的关闭按钮。目标自填 side_effect/review/source、持有授权或
 弹窗里的“算路中”等状态说明不单独证明语义。限制并集不作跨栏的正向来源；页面effect的正向依据须属于当前按钮所在栏。上下文不抵消硬禁止或多候选副作用冲突；
-受控动作仍需目标声明与本次授权一致。没有可用树时，已知通用确认标签不能借模板免除语义核验。
+受控动作仍需目标声明与实际许可类别一致（任务策略许可或显式授权）。没有可用树时，已知通用确认标签不能借模板免除语义核验。
 无树时文本/description XPath及含括号表达式（包括函数）、变量、动态属性或attribute轴的XPath无法核验，不允许模板回退；普通ID字面定位仍按既有模板规则处理。字符串字面量内的括号或属性名称不作动态表达式。
 无树时非精确文本选择器（exact=false）也不能借模板回退；精确文本导航及有树的部分文本定位保留，通用确认仍受当前语义检查。
 生产候选 `qk_start_confirm` 也遵守当前来源门槛：已有小弹窗仍显示 `qk_route_result` 的「开始」时可按登记效果及授权执行；全窗弹窗遮住该签名且无独立来源时拒绝并交接。前一次 `qk_start`、`source_flow` 文本或运动授权不自动继承为当前确认的证明。真实布局/来源的支持仍需独立取证与评审，不从合成变体新增生产签名。
@@ -164,6 +164,16 @@ Agent `diagnosis.status` 消费最终 `final_status`，并以匹配最后尝试�
 
 **授权与运动安全**（`run.json`）：`authorized`（本次授予的副作用）、`supervision.{supervisor, supervised_granted, safety}`、`motion[]`（看门狗事件：`armed` 附触发步骤与控件；由 `moving_states` 观测挂上的记 `step: observed`、`label: state:<状态>`；`stopped_observed` 附状态与耗时）、`safety_stops[]`（触发原因、执行的安全停止步骤、`confirmed_stopped`；未确认时 `action_required` 要求人工接管）。安全停止记录独立于步骤结果，不覆盖首次失败。
 
+按 #49 用户裁决，`task_side_effects` 的 vpd_entry / route_planning 随已委派测试任务许可，无需逐次询问或显式 grant。
+任务点击及任务类别输入还须取得当前 UI 的精确动作标签（task_action_labels）或具体已登记确认来源；目标声明、策略 label 或无树模板本身不是依据。
+宽泛 deny_text 命中只施加限制，不证明任务动作；带任务关键词的帮助/取消/记录/状态或混合控件不按关键词自动放行。
+直接任务许可核对完整接收控件的动作标签；隐藏文字和编辑子树不能借用。复合控件含未分类文字时保持未知，不能为通过测试扩充生产允许范围；正例简化仅在临时合成世界中进行。
+可编辑值也不是任务动作依据；没有独立动作语义的 task 类输入同样拒绝，注册目标不能跳过此检查。
+无可核验语义时返回 task_semantics_unverified，不下发，也不改问重复授权。沿途找车位/默认车位按精确算路标签分类；不提升生产定位资产状态。
+`authorized` 包括这两类任务许可与显式授予；`authorization_sources` 及 authorization事件的 `grant_sources`
+逐项标识 `task_policy` / `explicit`。旧 `--authorize vpd_entry route_planning` 写法可用，但不增加权限。
+其他 gated/supervised 与硬禁止保持；task类别不能与它们重叠。目标副作用与实际文本必须一致，未知通用确认和混合运动/车控容器继续拒绝。
+
 **原文取证（#32 裁决）**：树、可见文字、设备错误、事件和运行汇总保留采集原文，不脱敏、不按系统窗口扣留。窗口表未知不代表整屏 dump 失败；`dump_error` 仅反映实际采集错误或设备不支持 dump。截图仍受 APP 白名单约束，白名单内 APP 相互切换时保留截图，但旧业务树按 `fresh=false` 失效。旧 `redacted`、`private_windows`、`system_overlays`、`clipboard_may_hold_secret` 字段及 `secret_typed` 事件不再生成；旧会话事件可以读取但不再控制取证。密钥的外置引用、缺失检测、输入目标授权及生成用例的外置参数分类保持；回放设备的输入值只在内存中，恢复状态仍沿用现有格式。
 
 ## 3. 判定（`assertions[]` 与 `verdict`）
@@ -181,6 +191,17 @@ Agent `diagnosis.status` 消费最终 `final_status`，并以匹配最后尝试�
 判据适用性：`knowledge_snapshot[].applicability` 把条目 `applies_to` 与 `run.json.facts`（APP、实测版本、屏幕形态、
 `--env` 声明）逐项比较。事实缺失或版本描述不可比较（如"内部debug版 phone_fc78649"）→ `applicability_unknown`；
 不相等 → `out_of_scope`。`operation` / `observation` 类条目不是判据（`not_oracle`）。
+
+`env_requirements` 与判据使用同一组运行事实：`app` 来自被测 APP 定义，`app_version`、`device_form`
+来自本次设备前置检查；这三项即使未知也不能用 `--env` 替代。版本/形态不符或必需实测值缺失时，
+运行判环境阻塞，业务步骤与清理不执行，自动解锁和已登记弹窗关闭也不下发。解锁后重新实测并复核。
+`layout_requirements`（宽窄屏、方向、折叠状态等）在同一恢复前门槛中按实测布局检查，解锁后也重新计算；
+不能因为没有同时声明 `env_requirements` 而跳过。
+账号、车辆、园区及任务状态等当前适配器不能测量的业务条件，仍需现场人工确认后用 `--env` 声明。
+
+普通 JSON 更新仍通过同目录临时文件原子替换。Windows 文件替换出现 5/32/33 时最多尝试 5 次，
+累计等待 0.5 秒；持续失败仍报错并保留旧文件及待写内容。原始证据的独占创建不使用该重试，
+目标已存在仍直接报错；文件替换重试不触发设备动作重发。
 知识条目状态只允许 `unconfirmed` / `confirmed` / `deprecated`；未知、缺失或非字符串状态派生为
 判据 `invalid`，废弃条目的判据为 `missing`。`superseded_by` 只记录历史替代关系，不是可写入的知识状态。
 

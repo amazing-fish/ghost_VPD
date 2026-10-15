@@ -211,7 +211,7 @@ def test_declared_env_cannot_override_measured_facts(ws):
     f = run_facts(ws.app("motor_hm"), {"app_version": "3.0.4.100", "display": {"device_form": "bar"}},
                   {"app_version": "3.0.3.200", "device_form": "foldable", "account_state": "logged_in"})
     assert f["app_version"] == "3.0.4.100" and f["device_form"] == "bar" and f["account_state"] == "logged_in"
-    assert run_facts(ws.app("motor_hm"), {}, {"app_version": "3.0.3.200"})["app_version"] == "3.0.3.200"  # 查不到时才用声明
+    assert run_facts(ws.app("motor_hm"), {}, {"app_version": "3.0.3.200"})["app_version"] is None  # 未实测不靠声明制造适用
 
 
 def test_point_tap_is_converted_only_when_a_unique_selector_exists(ws, tmp_path):

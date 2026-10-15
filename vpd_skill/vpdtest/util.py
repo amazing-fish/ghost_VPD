@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import tempfile
+import time
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -44,7 +45,16 @@ def write_json(path, data: Any, exclusive: bool = False) -> Path:
     fd, tmp = tempfile.mkstemp(dir=str(p.parent), suffix=".tmp")
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         f.write(text)
-    os.replace(tmp, p)
+    # Windows can briefly deny replacement while another process holds the file.
+    # Retry the same atomic operation, never truncate/fallback; persistent denial still raises.
+    for attempt in range(5):
+        try:
+            os.replace(tmp, p)
+            break
+        except PermissionError as error:
+            if getattr(error, "winerror", None) not in (5, 32, 33) or attempt == 4:
+                raise
+            time.sleep(0.05 * (attempt + 1))
     return p
 
 
