@@ -96,6 +96,21 @@ def test_invalid_swipe_step_rejected_before_observe_unlock_and_budget(ws, tmp_pa
     assert not any(e["event"] == "dispatch" for e in read_jsonl(ctx.store.events_path))
 
 
+def test_invalid_swipe_does_not_hide_existing_safety_hold(ws, tmp_path, monkeypatch):
+    ctx = _ctx(ws, _lab_world(tmp_path))
+    hold = {"trigger": "previous_stop_unconfirmed", "ts": "fixture"}
+    ctx.safety_hold = hold
+
+    def unexpected(*args, **kwargs):
+        pytest.fail("existing hold must not observe, unlock or dispatch")
+
+    monkeypatch.setattr(ctx, "observe", unexpected)
+    monkeypatch.setattr("vpdtest.unlock.unlock_device", unexpected)
+    result = Executor(ctx).run_step({"id": "S1", "action": "swipe", "point": []}, "held-invalid-swipe")
+    assert result["final_status"] == "safety_hold" and result.get("action_required")
+    assert ctx.safety_hold is hold and ctx.actions == 0
+
+
 def _historical_session(ws, request):
     directory = ws.runs_dir / "session-historical-swipe"
     directory.mkdir(parents=True)
@@ -178,3 +193,33 @@ def test_run_rejects_invalid_swipe_before_opening_device(ws, monkeypatch, source
     with pytest.raises(ValueError, match="swipe"):
         run_case(ws, case=candidate, propose=False)
     assert not list(ws.runs_dir.glob("run-*"))
+
+
+@pytest.mark.parametrize("shape", ["flow", "recipe", "flow_recipe", "recipe_flow", "cyclic_flow"])
+def test_composite_definition_rejected_before_earlier_valid_child(ws, tmp_path, monkeypatch, shape):
+    ctx = _ctx(ws, _lab_world(tmp_path))
+    invalid = {"id": "BAD", "action": "swipe", "point": [640, 1660]}
+    flow = {"id": "F1", "action": "flow", "flow": "invalid_swipe"}
+    recipe = {"id": "R1", "action": "ensure_state", "state": "invalid_swipe"}
+    children = [{"id": "BEFORE", "action": "launch"}, invalid]
+    ctx.app.flows["invalid_swipe"] = {"params": {}, "steps": children}
+    ctx.app.states.recipes["invalid_swipe"] = children
+    if shape == "flow_recipe":
+        ctx.app.flows["invalid_swipe"]["steps"] = [{"action": "launch"}, recipe]
+    elif shape == "recipe_flow":
+        ctx.app.states.recipes["invalid_swipe"] = [{"action": "launch"}, flow]
+    elif shape == "cyclic_flow":
+        ctx.app.flows["invalid_swipe"]["steps"] = [flow, invalid]
+
+    def unexpected(*args, **kwargs):
+        pytest.fail("composite definition must be validated before observing or executing any child")
+
+    monkeypatch.setattr(ctx, "observe", unexpected)
+    monkeypatch.setattr(ctx.device, "launch", unexpected)
+    monkeypatch.setattr("vpdtest.unlock.unlock_device", unexpected)
+    root = recipe if shape in ("recipe", "recipe_flow") else flow
+    result = Executor(ctx).run_step(root, "composite-swipe-contract")
+    assert result["outcome"] == "blocked" and result["attribution"] == "tool"
+    assert result["final_status"] == "invalid_step" and "swipe" in result["reason"]
+    assert ctx.actions == 0
+    assert not any(e["event"] == "dispatch" for e in read_jsonl(ctx.store.events_path))

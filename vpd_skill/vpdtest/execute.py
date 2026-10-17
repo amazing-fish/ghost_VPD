@@ -10,6 +10,7 @@ import re
 import time
 from typing import Optional
 
+from .cases import iter_case_steps
 from .devices import DeviceResult
 from .devices import LAUNCHER
 from .dispatch import auxiliary_dispatches, dispatch_effect_unknown
@@ -75,6 +76,12 @@ class Executor:
         if held is not None:
             att["dispatch"] = {"sent": held.sent, "executor_ok": held.ok, "error_class": held.error_class}
             return self._summarize(step, [att], [])
+        # 直接执行 flow/recipe 的调用方也先检查整段定义，不能先执行有效子步骤再发现后面的错误。
+        for child, _, where in iter_case_steps({"steps": [step]}, self.ctx.app):
+            error = swipe_options_error(child)
+            if error:
+                att.update(status="invalid_step", reason=f"{where}: {error}")
+                return self._summarize(step, [att], [])
         if step["action"] == "ensure_state":
             return self._ensure_state(step, case_id)
         if step["action"] == "flow":
