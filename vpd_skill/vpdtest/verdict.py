@@ -244,6 +244,13 @@ def evaluate_assertion(a: dict, steps: dict, load: Callable, knowledge, app) -> 
         return {**out, "result": "pass" if holds else "fail", "observed_holds": holds}
     obs, tree = load(step["final_obs"])
     if a["type"] == "visual_review":
+        shot = obs.get("screenshot") or {}
+        if shot.get("status") == "error":
+            error_class = shot.get("error_class") or "screenshot_capture_error"
+            return {**out, "result": "error", "attribution": error_attribution(error_class),
+                    "stage": "screenshot", "error_class": error_class, "error": shot.get("error"),
+                    "evidence": {"obs": obs["obs_id"], "ts": obs.get("ts"), "screenshot": shot},
+                    "reason": "视觉检查所需截图采集失败，不能完成该检查"}
         return {**out, "result": "pending", "evidence": {"obs": obs["obs_id"], "screenshot": obs.get("screenshot", {}).get("path")},
                 "reason": "主观/视觉检查：只输出建议，需人工或经确认的规则转化为确定性断言", "prompt": a.get("prompt")}
     holds, ev = _check(a, obs, tree, app)

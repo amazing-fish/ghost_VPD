@@ -225,6 +225,7 @@ Agent `diagnosis.status` 消费最终 `final_status`，并以匹配最后尝试�
 
 - `execution.status=completed/blocked/error`；`execution.errors[]` 递归保留最终执行错误，包括非关键流程子步骤与可选清理。父级复制摘要不重复计数；已恢复错误不重新升级。
   advisory 只抑制产品失败，不丢弃其所需证据的采集错误；产品与执行投影仍独立。
+  visual_review 所需截图明确采集失败也记 error；withheld/skipped/缺失仍待确认。非视觉断言可继续使用独立有效的树证据。
 - `product_verdict=passed/failed/pending`；`product_failed` 与产品 `failure_signature` 继续独立保留。
 - 未确认安全停止仍优先阻塞并要求人工接管；否则 error 优先于产品 failed、blocked、pending，最后才可能 passed。
   产品失败与执行错误并存时，摘要为 error，产品失败及两类证据均保留。无确定非建议断言不能通过。
