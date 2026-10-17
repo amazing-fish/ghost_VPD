@@ -16,7 +16,7 @@ from .observe import RunStore
 from .params import Params
 from .runner import run_case
 from .session import (IDENTITY_KEYS, SessionMismatch, dispatched, effect_unknown, from_session, next_seq,
-                      parse_select, summarize, trail, session_lock, step_options)
+                      parse_select, summarize, trail, session_lock, step_options, swipe_options_error)
 from .templates import crop
 from .util import append_jsonl, now_iso, read_json, read_jsonl, write_json
 from .workspace import RunContext, Workspace
@@ -215,6 +215,9 @@ def _cmd_act(ws: Workspace, a) -> dict:
 
 
 def _act_step(ctx, store, a, step_id: str) -> dict:
+    error = swipe_options_error({"action": a.action, "point": a.point, "basis": a.basis, "duration": a.duration})
+    if error:
+        raise ValueError(error)
     # task 类沿用任务策略；其他单步授权由人给出，supervised 类仍必须写明在场监护人。
     # act 是一次性进程，没有跨步骤的运动看门狗，停车由监护人或下一条 act（safe_stop 目标）完成
     granted = set(a.authorize or [])

@@ -105,6 +105,7 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
 |---|---|
 | `page.state = unknown` | 看该观测的 `screen.png`，描述页面语义；未声明页面用 `--expect-text` 写后置条件；如需纳入状态模型，提议 states.json 签名（需人工评审） |
 | 无 UI 树 / 定位失败 | `--select` 只覆盖有 UI 树的页面，地图等自绘区域（XComponent）不在树里。先考虑已有模板；可用 `template-crop` 从观测裁剪模板并提议登记。只有确有把握时才用 `act tap --point x,y --basis "<看到了什么>"`，且执行器仍会按 policy 拦截 |
+| 定点拖动 / swipe 参数拒绝 | `act swipe` 只按 `direction` 和可选 `within` 做容器上下滚动；`--point`、`--basis`、`--duration` 明确拒绝，不会退化为普通滚动。历史含这些参数的动作不能直接固化，可重新采样或用 `--drop A序号=理由` 留痕排除。定点/AVM 手势能力仍待实现，按当前受控入口或人工交接处理。 |
 | `target_ambiguous` | 不要挑一个点；`diagnosis.candidates` 列出了各候选，用 `--within` 限定容器/分栏或改用 `id=`/`xpath=` |
 | `target_stale` / `foreground_changed` | 观察与下发之间页面变了 / 前台被切走：重新 observe 再决定；前台是其他应用时停止并报告 |
 | `state_indeterminate` / unlock `indeterminate` | 下发前查不到锁屏/前台状态，停止后续动作（此前已下发的动作保留证据，`action_required`）：确认手机状态后重新 observe，不要改用 `--point` 绕过 |
