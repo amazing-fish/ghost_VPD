@@ -108,12 +108,12 @@ def dependency_hash(case: dict, app, knowledge) -> str:
         if item_status(item) not in ACTIVE:
             facts[kid]["inactive"] = True
     providers = definitions(case, app)
-    conditions = {name: providers.get(name) for name in sorted(used_conditions)}
-    for provider in conditions.values():
+    conditions = {name: providers.get(name) for name in sorted(used_conditions)} if isinstance(providers, dict) else providers
+    for provider in conditions.values() if isinstance(conditions, dict) else []:
         want_provider_targets(provider)
     return sha256_obj({"steps": steps, "targets": targets, "states": app.states.states,
                        "interrupts": app.states.interrupts, "oracles": facts, "conditions": conditions,
-                       "result_contract": 4})[:12]
+                       "result_contract": 5})[:12]
 
 
 # 审核覆盖审阅语义；成熟度/运行记录不使正常晋级或新重放自失效。
@@ -340,6 +340,8 @@ def lint(case: dict, app, knowledge, policy=None, runs_dir: Optional[Path] = Non
     step_ids = {s.get("id") for s in case.get("steps", [])}
     condition_defs = definitions(case, app)
     issues += validate_definitions(condition_defs, app)
+    if not isinstance(condition_defs, dict):
+        condition_defs = {}  # 结构问题已保留；继续检查该资产及后续资产的其他字段。
     for s, _, where in iter_case_steps(case, app):
         if "when" in s:
             issues += [{"field": f"{where}.when" + (f".{p['field'].removeprefix('guard.')}" if p.get("field") else ""),

@@ -160,19 +160,23 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     steps, cleanup, safety_stops = [], [], []
     if pre["ok"] and envc["ok"]:
         ex = Executor(ctx)
-        halted = False
+        halted = None
         for st in case["steps"]:
             if halted:
-                steps.append({"step_id": st["id"], "action": st["action"], "outcome": "not_run",
+                blocked = {"step_id": st["id"], "action": st["action"], "outcome": "not_run",
                               "critical": st.get("critical", True), "attempts": [], "recoveries": [], "adapted": False,
-                              "oracle_refs": st.get("oracle_refs", [])})
+                              "oracle_refs": st.get("oracle_refs", [])}
+                if halted["outcome"] == "skipped":
+                    blocked.update(final_status="required_step_skipped", blocked_by=halted["step_id"],
+                                   reason="必需前置步骤因操作条件未满足而未执行，后继步骤停止")
+                steps.append(blocked)
                 continue
             store.event("step_start", step=st["id"], action=st["action"])
             res = ex.run_step(st, case["id"])
             steps.append(res)
             store.event("step_done", step=st["id"], outcome=res["outcome"])
-            if res["outcome"] not in (*PASSED, "skipped") and res["critical"]:
-                halted = True
+            if res["outcome"] not in PASSED and res["critical"]:
+                halted = res
                 if ctx.motion.armed or ctx.motion.locked():
                     # 运动中出现首次关键失败：先安全停止，再清理。首次失败原样保留在该步骤记录里
                     safety_stops.append(safety_mod.safe_stop(ex, "critical_step_failed",

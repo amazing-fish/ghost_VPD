@@ -402,6 +402,11 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
     findings.extend(_execution_findings(steps, "step"))
     findings.extend(_execution_findings(cleanup or [], "cleanup"))
     for s in steps:
+        if s["outcome"] == "not_run" and s.get("final_status") == "required_step_skipped":
+            findings.append({"kind": "step", "step": s["step_id"], "result": "pending",
+                             "attribution": "requirement_unclear", "reason": s.get("reason"),
+                             "evidence": {"blocked_by": s.get("blocked_by")}})
+            continue
         if s["outcome"] in PASSED or s["outcome"] in ("not_run", "skipped"):
             continue
         if s["outcome"] == "pending":

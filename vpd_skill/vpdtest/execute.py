@@ -118,6 +118,18 @@ class Executor:
             bindings.append({"condition": name, "scope": record.get("scope"), "parent": step["id"]})
         return {"_condition_guards": self._when_guards(step), "_condition_bindings": bindings}
 
+    @staticmethod
+    def _required_skip(base, child, children):
+        """A required capability did not execute; do not start its dependants."""
+        return {**base, "outcome": "pending", "attribution": "requirement_unclear",
+                "reason": f"必需子步骤 {child['step_id']} 的操作条件不满足，未执行；停止后续子步骤",
+                "final_status": "condition_unknown", "condition": child.get("condition"),
+                "sub_steps": children, "attempts": [a for item in children for a in item["attempts"]],
+                "adapted": any(item.get("adapted") for item in children),
+                "recoveries": [r for item in children for r in item.get("recoveries", [])],
+                "first_failure": next((item["first_failure"] for item in children if item.get("first_failure")), None),
+                "final_obs": child.get("final_obs")}
+
     # ---- 对外入口 ----
     def run_step(self, step: dict, case_id: str) -> dict:
         """Operation selection never substitutes for an executed product check."""
@@ -268,6 +280,8 @@ class Executor:
                 tid, target = self._target(step)
                 loc, obs, tree = self._locate(tid, target, obs, tree, step)
             att["locate"] = loc
+            if loc.get("condition"):
+                att["condition"] = loc["condition"]
             if loc["status"] != "found":
                 att["status"] = _unresolved(loc)
                 return att
@@ -300,6 +314,8 @@ class Executor:
             tid, target = self._target(step)
             loc, obs, tree = self._locate(tid, target, obs, tree, step)
             att["locate"] = loc
+            if loc.get("condition"):
+                att["condition"] = loc["condition"]
             if loc["status"] != "found":
                 att["status"] = _unresolved(loc)
                 return att
@@ -389,6 +405,8 @@ class Executor:
                 return att
             loc, obs, tree = self._locate(tid, target, obs, tree, step)
             att["locate"] = loc
+            if loc.get("condition"):
+                att["condition"] = loc["condition"]
             if loc["status"] != "found":
                 att["status"] = _unresolved(loc)
                 return att
@@ -576,6 +594,15 @@ class Executor:
         while loc["status"] in ("not_found", "partially_visible") and scroll and swipes < int(scroll.get("max", 3)):
             # 滚动查找也是手势：和正式下发一样先确认锁屏与前台，查不到/不对就停，不滑
             gate = {"action": "swipe", "step_id": step.get("id"), "_safety": bool(step.get("_safety"))}
+            if self._when_guards(step):
+                condition = self._operation_condition(step, obs, tree)
+                ctx.store.event("condition", step=step["id"], phase="locate_scroll", condition=condition)
+                gate["condition"] = condition
+                loc["condition"] = condition
+                if condition["status"] != "true":
+                    loc.update(status="blocked_state", gate={"status": "condition_" + condition["status"]},
+                               execution_error=condition.get("execution_error"))
+                    break
             if not self._foreground_ok(gate):
                 loc = {**loc, "status": "blocked_state", "gate": {k: gate.get(k) for k in (
                     "status", "error_class", "foreground_check", "state_check", "action_required") if k in gate},
@@ -592,6 +619,10 @@ class Executor:
                         content_changed=before != after if before else None)
             trail.append(info)
             ctx.store.event("scroll_search", target=tid, **info)
+            if not r.ok and str(gate.get("status", "")).startswith("condition_"):
+                loc.update(status="blocked_state", gate={"status": gate["status"]}, condition=gate["condition"],
+                           execution_error=gate.get("execution_error"))
+                break
             if r.error_class in ("budget_exhausted", "motion_timeout", "safety_hold"):
                 loc = {**loc, "status": "blocked_state", "gate": {"status": r.error_class}}
                 break
@@ -889,6 +920,8 @@ class Executor:
                                "_flow_params": local, "_flow_raw": step.get("params", {}),
                                "_safety": bool(step.get("_safety")), **self._child_condition_context(step)}, case_id)
             subs.append(s)
+            if s["outcome"] == "skipped" and s.get("critical", True):
+                return self._required_skip(base, s, subs)
             if s["outcome"] != "skipped" and not s["outcome"].startswith("passed") and s.get("critical", True):
                 return {**base, "outcome": s["outcome"], "attribution": s.get("attribution"),
                         "reason": f"流程 {step['flow']} 第 {i + 1} 步（{sub.get('desc', sub['action'])}）未通过：{s.get('reason')}",
@@ -1315,7 +1348,9 @@ class Executor:
             s = self.run_step({"critical": True, "retry": 1, **sub, "id": f"{step['id']}.{i + 1}",
                                "_safety": bool(step.get("_safety")), **self._child_condition_context(step)}, case_id)
             subs.append(s)
-            if s["outcome"] != "skipped" and not s["outcome"].startswith("passed"):
+            if s["outcome"] == "skipped" and s.get("critical", True):
+                return self._required_skip(base, s, subs)
+            if s["outcome"] != "skipped" and not s["outcome"].startswith("passed") and s.get("critical", True):
                 return {**base, "outcome": s["outcome"], "attribution": s.get("attribution"),
                         "reason": f"前置状态 {target} 未到达：{s.get('reason')}", "sub_steps": subs,
                         "attempts": [a for x in subs for a in x["attempts"]], "first_failure": s.get("first_failure"),

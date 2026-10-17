@@ -190,7 +190,7 @@ def test_promote_never_restores_business_env_to_new_oracle_context(verdict_ws):
         cases.promote(verdict_ws, case["id"], "regression", kn, reviewer="pytest-synthetic", allow_offline=True)
 
 
-@pytest.mark.parametrize("earlier_contract", [1, 2, 3, None], ids=["early-1", "early-2", "early-3", "current"])
+@pytest.mark.parametrize("earlier_contract", [1, 2, 3, 4, None], ids=["early-1", "early-2", "early-3", "early-4", "current"])
 def test_promotion_requires_current_dependency_contract_despite_complete_branch_replays(
         verdict_ws, monkeypatch, earlier_contract):
     # Create two isolated historical summaries through the real recording path.

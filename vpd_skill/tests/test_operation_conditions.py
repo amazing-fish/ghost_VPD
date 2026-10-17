@@ -56,7 +56,7 @@ def test_historical_when_is_invalidated_by_dispatched_action(verdict_ws):
 
 
 @pytest.mark.parametrize("kind", ["flow", "ensure_state"])
-def test_all_skipped_children_never_become_passed_parent(verdict_ws, kind):
+def test_required_skipped_child_stops_parent_before_the_next_child(verdict_ws, kind):
     executor = _executor(verdict_ws)
     child = {"action": "back", "when": {"condition": "car_visible", "equals": False}}
     if kind == "flow":
@@ -66,8 +66,8 @@ def test_all_skipped_children_never_become_passed_parent(verdict_ws, kind):
         executor.ctx.app.states.recipes["synthetic"] = [child, child]
         step = {"id": "F1", "action": "ensure_state", "state": "synthetic"}
     result = executor.run_step(step, "synthetic")
-    assert result["outcome"] == "skipped"
-    assert len(result["sub_steps"]) == 2 and all(s["outcome"] == "skipped" for s in result["sub_steps"])
+    assert result["outcome"] == "pending"
+    assert len(result["sub_steps"]) == 1 and result["sub_steps"][0]["outcome"] == "skipped"
     assert executor.ctx.actions == 0
 
 

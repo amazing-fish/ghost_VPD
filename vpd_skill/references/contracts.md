@@ -244,7 +244,7 @@ Replay world 的 env_facts 只是标明 offline_replay 的合成环境，不代�
 `run/suite --fail-on error` 可配置退出码 1；人工接管仍优先退出码 2，定义/程序异常仍退出码 3。
 suite 摘要及 Console 接受 error；经验验证不对 error 做产品结论排序，未解决错误、错误转 pending 或
 同为 error 但少适配都不能验证通过。可靠的 error→passed 才可计改善。晋级只计无执行错误的确定重放。
-新依赖指纹包含 `result_contract=4`，旧重放需按新口径重新积累；旧无条件内容哈希不变；新 conditions 内容与外部条件定义/目标/规则前置均绑定指纹，历史原始 run/verdict 不改写。
+新依赖指纹包含 `result_contract=5`，旧重放需按新口径重新积累；旧无条件内容哈希不变；新 conditions 内容与外部条件定义/目标/规则前置均绑定指纹，历史原始 run/verdict 不改写。
 探索资产现有 engine_hash 也会因引擎变更使审核失效，仍须由人重新审核，Agent 不自动批准。
 
 步骤崩溃/异常中断仅在归因为 product 时引用通用不变量 `K-GEN-001`；工具/环境候选不经产品 Oracle 转为失败。
@@ -296,11 +296,14 @@ suite 摘要及 Console 接受 error；经验验证不对 error 做产品结论�
   条件动作的准备弹窗操作异常保留 error（`prepare_interrupt` 阶段）、原始回执和首次失败；已下发而效果未知时同时要求人工交接，不用后续选支抹去异常。
   正常策略拒绝、预算和外部输入交接仍为 blocked。flow/recipe 的每个子步骤仍走现有 Executor/Dispatcher；父条件全链继承并与子条件同时复核，父选择的车辆/任务/账户身份不能暗中更换。
   已执行部分动作但有必需子步骤未执行，或任一子步骤条件未知时，父操作保留 pending，不能从最后页面制造执行完成或分支覆盖。可选 false 子步骤可跳过，unknown 仍需补证。
+  默认必需（critical=true）的子步骤 skipped 时，flow/recipe 立即 pending 并停止后继；顶层必需步骤 skipped 也阻断后继并将它们记 not_run/pending 原因。仅显式 critical=false 的可选分支允许跳过后继续。末尾分支 skipped 不抹掉已完成公共断言或该分支独立 guard 的不涉及结论。
   read 的定位滚动及事实有效期同样在测量前复核，辅助滚动原文保留，不用滚动后的读数冒充原分支已验证；没有第二套 Planner。
+  read/tap/input 共用定位循环，每次辅助 swipe 前重核完整操作条件链；前一次动作使历史来源失效或当前反证/未知时不再下发下一次滚动。
   操作 skipped 本身不能证明产品不适用：只有产品 guard 自身为 false 才能不涉及，否则关联检查未执行，不能通过。
 
 `assertions[].guard` 及 `assertion_selected` 事件保存 condition/status/value/source/obs/ts/scope/action_epoch/checks/reason，
 操作记录用 `steps[].condition`；报告与 Console 显示相同记录，不重新选支。缺失或非法定义在下发前由 lint/Runner 拒绝。
+非法 conditions 容器保留为结构化 lint 问题，不中断后续资产检查；Runner/执行上下文仍拒绝执行，依赖指纹也保留无效容器输入而不冒充空定义。
 
 聚合与覆盖：公共断言通过、故障断言不涉及时保留公共结论；全部非建议断言不涉及时整例 `not_applicable`。
 适用且 confirmed 的断言违反规则仍 failed；执行 error 与独立产品 failed 的双方证据及签名继续保留。
@@ -364,4 +367,4 @@ lint 共用 `iter_case_steps` 遍历主步骤、cleanup、safe_stop 和引用的
 问题字段保留来源路径，如 `cleanup.C2`、`safe_stop.X1`、`steps.F1→flow:...X1`；递归引用会报错，不无限展开。
 
 选支重试后条件变为 false/unknown 不构成原动作恢复：此前未恢复的 error 或产品失败候选及原错归因继续保留。
-结果契约版本 4 同时使早期候选版本 2/3 的重放失效，包括清理弹窗前尚未复核操作条件的运行；历史 raw run/verdict 不改写。
+结果契约版本 5 同时使早期候选版本 2/3/4 的重放失效，包括准备弹窗/逐次滚动前尚未复核条件及必需步骤跳过后仍继续的运行；历史 raw run/verdict 不改写。

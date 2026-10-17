@@ -14,11 +14,13 @@ CHECKS = {"text_present", "text_present_any", "target_present", "state_is"}
 REQUIRED_SCOPE = {"page": set(), "account": {"account"}, "vehicle": {"vehicle"}, "task": {"vehicle", "task"}}
 
 
-def definitions(case: dict, app) -> dict:
-    """Case-local definitions override the app's registered providers."""
+def definitions(case: dict, app):
+    """Merge valid containers; preserve malformed input for structural validation."""
     registered, local = app.meta.get("conditions", {}), case.get("conditions", {})
-    if not isinstance(registered, dict) or not isinstance(local, dict):
-        raise ValueError("conditions 须为命名条件定义对象")  # noqa: TRY004 - asset validation uses ValueError
+    if not isinstance(registered, dict):
+        return registered
+    if not isinstance(local, dict):
+        return local
     return {**registered, **local}
 
 
@@ -83,6 +85,8 @@ def validate_definitions(defs: dict, app) -> list:
 
 
 def validate_guard(guard: dict, defs: dict, step_ids: set | None = None) -> list:
+    if not isinstance(defs, dict):
+        return [{"field": "guard", "problem": "conditions 容器无效，无法解析条件引用"}]
     if not isinstance(guard, dict):
         return [{"field": "guard", "problem": "guard/when 须为命名条件引用对象"}]
     issues = []
@@ -134,10 +138,10 @@ def evaluate_guard(guard: dict, defs: dict, steps: dict, load, app, obs: dict, t
               "scope": dict((obs or {}).get("scope") or {}), "action_epoch": (obs or {}).get("action_epoch")}
     problems = validate_guard(guard, defs)
     name = referenced.get("condition")
-    spec = defs.get(name) if isinstance(name, str) else None
-    if isinstance(name, str) and name not in defs and name and type(referenced.get("equals")) is bool and not (set(referenced) - {"condition", "equals", "at"}):
+    spec = defs.get(name) if isinstance(defs, dict) and isinstance(name, str) else None
+    if isinstance(defs, dict) and isinstance(name, str) and name not in defs and name and type(referenced.get("equals")) is bool and not (set(referenced) - {"condition", "equals", "at"}):
         return {**record, "reason": f"条件 {name!r} 尚无当前观测提供者，需继续取证"}
-    if isinstance(name, str) and name in defs:
+    if isinstance(defs, dict) and isinstance(name, str) and name in defs:
         problems += validate_definitions({name: spec}, app)
     if problems:
         error = {"stage": "condition_definition", "attribution": "tool", "error_class": "invalid_condition",

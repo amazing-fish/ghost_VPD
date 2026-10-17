@@ -99,7 +99,8 @@ def test_current_full_guard_chain_precedes_preparatory_dismiss(condition_rig, mo
         assert second["outcome"] == "passed"
     else:
         assert not _sent_taps(run), (second, _sent_taps(run))
-        assert second["outcome"] == ("skipped" if change == "false" else "pending")
+        expected = "skipped" if change == "false" and not kind.startswith("flow_") else "pending"
+        assert second["outcome"] == expected
         assert (second.get("condition") or {}).get("status") == ("false" if change == "false" else "unknown")
 
 

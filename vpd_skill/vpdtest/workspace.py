@@ -86,6 +86,8 @@ class RunContext:
         self.facts = {}  # Runner 在实测 preflight 后绑定；--env 声明不成为条件证据
         from .conditions import definitions
         self.conditions = definitions({}, app)
+        if not isinstance(self.conditions, dict):
+            raise ValueError("conditions 须为命名条件定义对象")  # noqa: TRY004 - invalid asset
         self.step_results = {}  # 完整步骤 ID → 本次执行结果，供 when 引用已执行的来源
         self.policy = policy or ws.policy()
         from .dispatch import Dispatcher
