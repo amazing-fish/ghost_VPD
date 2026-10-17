@@ -1108,6 +1108,14 @@ class Executor:
     # ---- 汇总 ----
     def _summarize(self, step: dict, attempts: list, recoveries: list) -> dict:
         last, last_rec = attempts[-1], (recoveries[-1] if recoveries else None)
+        if last["status"] in ("condition_false", "condition_unknown") and len(attempts) > 1:
+            previous = self._summarize(step, attempts[:-1], recoveries)
+            if previous["outcome"] in ("error", "fail_candidate"):
+                if previous["outcome"] == "error":
+                    from .verdict import execution_error
+                    previous["execution_error"] = execution_error(previous)
+                return {**previous, "attempts": attempts, "recoveries": recoveries, "condition": last.get("condition"),
+                        "reason": (previous.get("reason") or "原步骤未完成") + "；后续条件变化不构成原步骤恢复"}
         if last_rec and last_rec.get("after_attempt") != last["n"]:
             last_rec = None  # 旧恢复不能覆盖后来重试的错误或观测。
         rec_ok = bool(last_rec and last_rec.get("status") == "ok")

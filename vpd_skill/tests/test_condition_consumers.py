@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from conftest import confirm, world
 from verdict_fixtures import COPY_CASE, COPY_RULE
+
 from vpdtest import cli as cli_mod
 from vpdtest.cli import build_parser
 from vpdtest.commands import _run_brief

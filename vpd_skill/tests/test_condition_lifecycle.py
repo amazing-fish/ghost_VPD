@@ -3,6 +3,7 @@ from copy import deepcopy
 
 import pytest
 from verdict_fixtures import COPY_RULE, NAV_CASE, NAV_RULE
+
 from vpdtest import cases
 from vpdtest.experience import ExperienceStore
 from vpdtest.knowledge import KnowledgeStore

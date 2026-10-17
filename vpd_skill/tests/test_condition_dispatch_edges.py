@@ -3,6 +3,7 @@ from pathlib import Path
 """Review-only synthetic Executor edge probes; no production oracle is touched."""
 from test_dispatch_regression import _ctx
 from test_goal_loop import _lab_world
+
 from vpdtest.execute import Executor
 from vpdtest.util import read_json, read_jsonl, write_json
 

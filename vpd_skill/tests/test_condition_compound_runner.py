@@ -16,6 +16,7 @@ from test_condition_runner import (
     _assertions,
     _coverage,
 )
+
 from vpdtest.runner import run_case
 from vpdtest.util import read_json, read_jsonl, write_json
 

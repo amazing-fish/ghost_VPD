@@ -7,6 +7,7 @@ from copy import deepcopy
 from pathlib import Path
 
 import pytest
+
 from vpdtest.cases import content_hash, dependency_hash, record_replay, replay_basis
 from vpdtest.devices import DeviceResult
 from vpdtest.devices.replay import ReplayDevice

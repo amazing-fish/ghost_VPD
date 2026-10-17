@@ -3,6 +3,7 @@
 import pytest
 from conftest import world
 from test_dispatch_regression import _ctx
+
 from vpdtest.devices import DeviceResult
 from vpdtest.execute import Executor
 from vpdtest.util import read_json
