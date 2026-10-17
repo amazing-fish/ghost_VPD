@@ -26,8 +26,12 @@ def collection_error(obs: dict) -> dict:
     obs = obs or {}
     tree = obs.get("tree") or {}
     foreground = obs.get("foreground_error") or (obs.get("page") or {}).get("observation_error")
+    queries = [q for q in obs.get("foreground_query_errors") or []
+               if q.get("error_class") not in (None, "foreground_unknown", "foreground_changed")]
     ec = foreground if foreground not in (None, "foreground_unknown", "foreground_changed") else None
-    if ec:
+    if queries:
+        detail = {k: queries[0].get(k) for k in ("error_class", "error", "raw")}
+    elif ec:
         detail = {"error_class": ec, "error": (obs.get("foreground_error_detail") or {}).get("error")}
     elif tree.get("status") == "error" or tree.get("captured_status") == "error":
         detail = {"error_class": tree.get("error_class") or "tree_collection_error", "error": tree.get("error")}
@@ -35,6 +39,7 @@ def collection_error(obs: dict) -> dict:
         return {}
     return {**detail, "stage": "observation", "attribution": error_attribution(detail["error_class"]),
             "evidence": {"obs": obs.get("obs_id"), "ts": obs.get("ts"), "tree": tree,
+                         "foreground_query_errors": queries,
                          "foreground_error": foreground, "foreground_error_detail": obs.get("foreground_error_detail")}}
 
 
@@ -245,12 +250,24 @@ def evaluate_assertion(a: dict, steps: dict, load: Callable, knowledge, app) -> 
     obs, tree = load(step["final_obs"])
     if a["type"] == "visual_review":
         shot = obs.get("screenshot") or {}
+        capture_error = {}
         if shot.get("status") == "error":
-            error_class = shot.get("error_class") or "screenshot_capture_error"
+            capture_error = shot
+        elif shot.get("status") == "withheld":
+            capture_error = shot.get("capture_error") or {}
+        if capture_error:
+            error_class = capture_error.get("error_class") or "screenshot_capture_error"
             return {**out, "result": "error", "attribution": error_attribution(error_class),
-                    "stage": "screenshot", "error_class": error_class, "error": shot.get("error"),
+                    "stage": "screenshot", "error_class": error_class, "error": capture_error.get("error"),
                     "evidence": {"obs": obs["obs_id"], "ts": obs.get("ts"), "screenshot": shot},
                     "reason": "视觉检查所需截图采集失败，不能完成该检查"}
+        if shot.get("status") != "ok" or _stale(obs):
+            error = collection_error(obs)
+            evidence = error.get("evidence") or {}
+            foreground = evidence.get("foreground_error")
+            if error and (evidence.get("foreground_query_errors") or
+                          foreground not in (None, "foreground_unknown", "foreground_changed")):
+                return {**out, **error, "result": "error", "reason": "前台查询失败使视觉输入缺失或失效，不能完成该检查"}
         return {**out, "result": "pending", "evidence": {"obs": obs["obs_id"], "screenshot": obs.get("screenshot", {}).get("path")},
                 "reason": "主观/视觉检查：只输出建议，需人工或经确认的规则转化为确定性断言", "prompt": a.get("prompt")}
     holds, ev = _check(a, obs, tree, app)

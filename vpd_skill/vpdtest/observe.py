@@ -84,7 +84,19 @@ class Observer:
 
     def observe(self, label: str = "", screenshot: bool = True) -> tuple:
         oid, d = self.store.next_obs_dir()
-        fg = self.device.foreground()
+        foreground_errors = []
+
+        def foreground(stage):
+            value = self.device.foreground()
+            error = getattr(self.device, "last_query_error", None)
+            if error not in (None, "foreground_unknown", "foreground_changed"):
+                detail = dict(getattr(self.device, "last_query_error_detail", None) or {})
+                foreground_errors.append({"stage": stage, "error_class": error,
+                                          "error": detail.get("error"), "raw": detail.get("raw"),
+                                          "detail": detail})
+            return value
+
+        fg = foreground("initial")
         fg_err = getattr(self.device, "last_query_error", None)
         alive = self.device.process_alive(self.bundle)
         obs = {"obs_id": oid, "ts": now_iso(), "label": label, "device": self.device.serial,
@@ -121,18 +133,23 @@ class Observer:
             obs["screenshot"] = {"status": "skipped"}
         elif not self._shot_ok(fg):
             obs["screenshot"] = {"status": "withheld", "reason": f"前台 {fg} 不在截图 APP 白名单中"}
-        elif not self._shot_ok(foreground_before_shot := self.device.foreground()):
-            obs["screenshot"] = {"status": "withheld", "reason": f"截图前前台 {foreground_before_shot} 不在 APP 白名单中"}
         else:
-            self._capture_screenshot(obs, d)
+            foreground_before_shot = foreground("before_screenshot")
+            if not self._shot_ok(foreground_before_shot):
+                obs["screenshot"] = {"status": "withheld", "reason": f"截图前前台 {foreground_before_shot} 不在 APP 白名单中"}
+            else:
+                self._capture_screenshot(obs, d)
 
         display = self._display_for(tree)
         if (display or {}).get("execution_error"):
             # 显示重取是附加元数据；保留原错，不否定独立有效的前台/UI 树证据。
             obs["display_error"] = display["execution_error"]
         # 所有设备采集（含显示参数）结束后复查；不能只删除截图而沿用旧树。
-        fg_after = self.device.foreground()
+        fg_after = foreground("final")
         final_error = getattr(self.device, "last_query_error", None)
+        if foreground_errors:
+            # 同一次观测后查成功不会补采早先缺失的树/截图；下一次完整观测独立记录。
+            obs["foreground_query_errors"] = foreground_errors
         obs["foreground_after"] = fg_after  # 仅保留查询记录；消费者看 foreground/page/fresh。
         obs["fresh"] = fg_after is not None and fg_after == fg == foreground_before_shot
         if not obs["fresh"]:
@@ -153,7 +170,9 @@ class Observer:
                 obs.pop("foreground_error", None)
             if not self._shot_ok(fg_after) and (d / "screen.png").exists():
                 (d / "screen.png").unlink()
-                obs["screenshot"] = {"status": "withheld", "reason": f"观测末查前台 {fg_after} 不在 APP 白名单中，已删除截图"}
+                capture_error = obs["screenshot"] if obs["screenshot"].get("status") == "error" else None
+                obs["screenshot"] = {"status": "withheld", "reason": f"观测末查前台 {fg_after} 不在 APP 白名单中，已删除截图",
+                                     **({"capture_error": capture_error} if capture_error else {})}
             self.store.event("observation_stale", obs_id=oid, foreground_before=obs["foreground_before"],
                              foreground_before_shot=foreground_before_shot, foreground_after=fg_after,
                              reason=reason)
