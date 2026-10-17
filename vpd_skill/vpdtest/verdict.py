@@ -1,7 +1,7 @@
 """判定契约。
 
-断言结果：pass / fail / pending（有证据但判据未确认、冲突或属主观项）/ undeterminable（证据不足）/ not_run。
-用例结论：passed 通过 / failed 失败 / blocked 阻塞 / pending 待确认，另记问题归属。
+断言结果：pass / fail / error（明确执行或取证错误）/ pending（判据待确认或主观项）/ undeterminable（证据不足）/ not_run。
+用例结论：passed 通过 / failed 失败 / error 执行错误 / blocked 阻塞 / pending 待确认，另记独立产品结论及问题归属。
 只有"确定性证据 + 已确认判据"才能得出通过或失败；模型意见（visual_review）永远只进入建议。
 """
 from __future__ import annotations

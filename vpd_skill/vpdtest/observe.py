@@ -127,6 +127,9 @@ class Observer:
             self._capture_screenshot(obs, d)
 
         display = self._display_for(tree)
+        if (display or {}).get("execution_error"):
+            # 显示重取是附加元数据；保留原错，不否定独立有效的前台/UI 树证据。
+            obs["display_error"] = display["execution_error"]
         # 所有设备采集（含显示参数）结束后复查；不能只删除截图而沿用旧树。
         fg_after = self.device.foreground()
         final_error = getattr(self.device, "last_query_error", None)

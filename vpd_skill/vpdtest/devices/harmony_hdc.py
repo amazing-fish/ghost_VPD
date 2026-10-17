@@ -181,7 +181,7 @@ def infer_device_form(fold_param: Optional[str], fold_status: Optional[str]) -> 
     """直板/折叠是设备属性，只用于记录与分组；布局判断看窗口 vp 宽度。"""
     if fold_param or fold_status in ("expanded", "folded", "half_folded"):
         return "foldable", "const.window.foldscreen.type 存在或折叠状态为已知值"
-    if fold_status in (None, "unknown"):
+    if fold_status == "unknown":
         return "bar", "无 const.window.foldscreen.type 且折叠状态 UNKNOWN（直板机真机观测）"
     return None, "无法判断"
 
@@ -191,6 +191,7 @@ class HdcDevice:
 
     def __init__(self, serial: Optional[str] = None, hdc: str = "hdc", timeout_s: float = 20.0):
         self.hdc, self.timeout_s = hdc, timeout_s
+        self.target_discovery_error = None
         self.serial = serial or self._first_target()
         self.poll_interval = 1.0
         self.spec = f"hdc:{self.serial}"
@@ -223,30 +224,55 @@ class HdcDevice:
 
     def _first_target(self) -> Optional[str]:
         r = self._run(["list", "targets"], "list_targets", with_target=False)
+        self.target_discovery_error = (None if r.ok else {
+            "stage": "device_discovery", "op": r.op, "sent": r.sent, "executor_ok": r.ok,
+            "error_class": r.error_class or "device_discovery_error", "error": r.error,
+            "raw": r.raw, "duration_ms": r.duration_ms})
         lines = [ln.strip() for ln in r.raw.splitlines() if ln.strip() and "Empty" not in ln]
         return lines[0] if r.ok and lines else None
 
     # ---- 状态采集 ----
     def _param(self, prop: str) -> Optional[str]:
         r = self._shell("param", "get", prop, op="param_get")
+        errors = getattr(self, "param_query_errors", {})
+        errors.pop(prop, None)
+        # 参数不存在是该查询的有效结果，不能与命令执行失败合并为同一个 None。
+        absent = bool(re.fullmatch(r"Get parameter\s+.+?\s+fail!", r.raw.strip(), re.IGNORECASE))
+        if not r.ok and not (r.error_class == "command_failed" and absent):
+            errors[prop] = {"error_class": r.error_class, "error": r.error, "raw": r.raw,
+                            "query": prop}
+        self.param_query_errors = errors
         v = r.raw.strip() if r.ok else ""
         return None if (not v or "fail" in v.lower()) else v  # 不存在的参数输出 "Get parameter ... fail!"
 
     def info(self) -> dict:
         out = {"serial": self.serial, "kind": self.kind}
+        errors = {}
         for key, prop in (("model", "const.product.model"), ("name", "const.product.name"),
                           ("os", "const.ohos.fullname"), ("software", "const.product.software.version")):
             out[key] = self._param(prop)
+            error = getattr(self, "param_query_errors", {}).get(prop)
+            if error:
+                errors[prop] = error
+        if errors:
+            out["query_errors"] = errors  # 身份补充元数据失败留证，不改变独立的产品/动作判定。
         return out
 
     def display_info(self) -> dict:
         r = self._shell("hidumper", "-s", "DisplayManagerService", "-a", "-a", op="display_dump")
         if not r.ok:
             return {"source": "hidumper DisplayManagerService", "error_class": r.error_class, "error": r.error,
-                    "density": None}
+                    "raw": r.raw, "density": None,
+                    "execution_error": {"error_class": r.error_class, "error": r.error, "raw": r.raw,
+                                        "query": "display_dump"}}
         d = parse_display(r.raw)
         fold_param = self._param("const.window.foldscreen.type")
+        error = getattr(self, "param_query_errors", {}).get("const.window.foldscreen.type")
         d["device_form"], d["device_form_basis"] = infer_device_form(fold_param, d.get("fold_status"))
+        if error:
+            d["execution_error"] = error
+            if d.get("fold_status") not in ("expanded", "folded", "half_folded"):
+                d["device_form"], d["device_form_basis"] = None, "折叠属性查询失败，无独立证据确认设备形态"
         d.update(foldscreen_type=fold_param, source="hidumper DisplayManagerService")
         return d
 
@@ -258,8 +284,11 @@ class HdcDevice:
     def preflight(self, bundle: str) -> dict:
         checks = []
         if not self.serial:
-            checks.append({"check": "device_online", "ok": False, "error_class": "device_offline",
-                           "detail": "hdc list targets 没有设备"})
+            error = self.target_discovery_error
+            checks.append({"check": "device_online", "ok": False,
+                           "error_class": error["error_class"] if error else "device_offline",
+                           "detail": (error.get("error") or "hdc list targets 执行失败，设备列表未知") if error else "hdc list targets 没有设备",
+                           **({"execution_error": error} if error else {})})
             return {"ok": False, "checks": checks, "device": {"serial": None}}
         power = self._shell("hidumper", "-s", "3301", "-a", "-a", op="power_state")
         checks.append({"check": "device_online", "ok": power.error_class != "device_offline",
@@ -280,8 +309,13 @@ class HdcDevice:
         checks.append({"check": "app_installed", "ok": ver is not None, "value": ver,
                        "error_class": None if ver else "app_missing",
                        **({"execution_error": self.version_query_error} if self.version_query_error else {})})
-        return {"ok": all(c["ok"] for c in checks), "checks": checks, "device": self.info(), "app_version": ver,
-                "display": self.display_info()}
+        info, display = self.info(), self.display_info()
+        display_error = display.get("execution_error")
+        checks.append({"check": "display_info", "ok": not display_error,
+                       "error_class": display_error.get("error_class") if display_error else None,
+                       **({"execution_error": display_error} if display_error else {})})
+        return {"ok": all(c["ok"] for c in checks), "checks": checks, "device": info, "app_version": ver,
+                "display": display}
 
     def foreground(self) -> Optional[str]:
         """查询失败时返回 None 并在 last_query_error 记录原因，避免把"查不到"当成"不在 APP 内"。"""
@@ -290,13 +324,23 @@ class HdcDevice:
         self.last_query_error_detail = None if r.ok else {"error": r.error, "raw": r.raw}
         if not r.ok:
             return None
-        return foreground_from_evidence(r.raw, self.shown_windows())
+        foreground = parse_foreground(r.raw)
+        if foreground is not None:
+            return foreground
+        windows = self.shown_windows()
+        error = getattr(self, "window_query_error", None)
+        if windows is None and error:
+            self.last_query_error = error["error_class"]
+            self.last_query_error_detail = error
+        return foreground_from_evidence(r.raw, windows)
 
     def process_alive(self, bundle: str) -> Optional[bool]:
         r = self._shell("pidof", bundle, op="pidof")
-        self.process_query_error = (None if r.sent and r.error_class in (None, "command_failed") else
+        # pidof 未命中可以非零退出且无输出；显式错误输出不能冒充 PID 或进程已退出。
+        queried = r.sent and (r.error_class is None or (r.error_class == "command_failed" and not r.raw.strip()))
+        self.process_query_error = (None if queried else
                                     {"error_class": r.error_class, "error": r.error, "raw": r.raw})
-        return bool(r.raw.strip()) if r.sent and r.error_class in (None, "command_failed") else None
+        return bool(r.raw.strip()) if queried else None
 
     def _pull(self, remote: str, local: Path, op: str) -> DeviceResult:
         r = self._run(["file", "recv", remote, str(local)], op)
@@ -410,12 +454,17 @@ class HdcDevice:
         锁屏时 aa dump 里没有 FOREGROUND mission，不能据此当成桌面。
         查询是只读的：hidumper 偶发空输出（2026-10-01 真机运行中出现，单独连查 20 次复现不了），
         间隔 0.5s 重查，连续 tries 次都认不出才返回 None。"""
+        error = None
+        self.screen_query_error = None
         for i in range(max(1, tries)):
             v = self._screen_locked_once()
             if v is not None:
+                self.screen_query_error = None
                 return v
+            error = self.screen_query_error or error
             if i + 1 < tries:
                 time.sleep(0.5)
+        self.screen_query_error = error
         return None
 
     def _screen_locked_once(self) -> Optional[bool]:
@@ -448,13 +497,22 @@ class HdcDevice:
 
     def lock_pin_pad(self):
         remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.json"
+        self.pin_pad_query_error = None
         r = self._shell("uitest", "dumpLayout", "-p", remote, op="lock_dump", timeout=30)
-        raw = self._shell("cat", remote, op="lock_dump_read").raw if r.ok else ""
+        if r.ok:
+            r = self._shell("cat", remote, op="lock_dump_read")
         self._shell("rm", "-f", remote, op="cleanup")
-        try:
-            return find_pin_pad(json.loads(raw)) if raw else None
-        except ValueError:
+        if not r.ok:
+            self.pin_pad_query_error = {"op": r.op, "error_class": r.error_class or "command_failed",
+                                        "error": r.error, "raw": r.raw}
             return None
+        try:
+            tree = json.loads(r.raw)
+        except ValueError as error:
+            self.pin_pad_query_error = {"op": r.op, "error_class": "tree_parse_error",
+                                        "error": str(error), "raw": r.raw}
+            return None
+        return find_pin_pad(tree)
 
     def wake_unlock(self, pin, dispatcher=None):
         from ..unlock import wake_unlock
@@ -463,6 +521,8 @@ class HdcDevice:
     def shown_windows(self) -> Optional[list]:
         """当前显示的窗口名；查询失败或格式认不出 → None。只取窗口名与层级，不取窗口内容。"""
         r = self._shell("hidumper", "-s", "WindowManagerService", "-a", "-a", op="window_list")
+        self.window_query_error = (None if r.ok else {"op": r.op, "error_class": r.error_class or "command_failed",
+                                                     "error": r.error, "raw": r.raw})
         return parse_windows(r.raw) if r.ok else None
 
     def clear_text(self, x, y, count, dispatcher, preconditions, att=None):

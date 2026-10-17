@@ -96,6 +96,7 @@ def test_parse_real_display_dump_reads_only_screen_sections():
     assert d["fold_status"] == "unknown" and d["screens"] == 1
     assert "com.example.private" not in str(d)  # 进程列表段不读取
     assert infer_device_form(None, d["fold_status"])[0] == "bar"
+    assert infer_device_form(None, None)[0] is None  # 无可靠形态字段不能推断直板。
     assert infer_device_form("1,0,0,0", "expanded")[0] == "foldable"
 
 

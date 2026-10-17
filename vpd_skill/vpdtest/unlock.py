@@ -10,10 +10,10 @@ from .util import now_iso, sha256_obj, write_json
 from .verdict import error_attribution
 
 
-def _query_failure(device):
-    error = getattr(device, "screen_query_error", None)
-    return ({"execution_error": {**error, "stage": "unlock_query", "attribution": error_attribution(error.get("error_class")),
-                                 "evidence": {"query": "screen_locked", "detail": error}}} if error else {})
+def _query_failure(device, field="screen_query_error", query="screen_locked", stage="unlock_query"):
+    error = getattr(device, field, None)
+    return ({"execution_error": {**error, "stage": stage, "attribution": error_attribution(error.get("error_class")),
+                                 "evidence": {"query": query, "detail": error}}} if error else {})
 
 
 def _command_failure(r, stage, att=None):
@@ -57,9 +57,14 @@ def wake_unlock(device, pin, dispatcher=None, sleep=None, att=None):
         return result("unlocked", method="wake")
     if locked is None:
         return result("indeterminate", reason="唤醒后查询不到锁屏状态", **_query_failure(device))
-    swipe = unlock_swipe_points(device.display_info())
+    display = device.display_info()
+    swipe = unlock_swipe_points(display)
     if swipe is None:
-        return result("indeterminate", reason="查询不到显示尺寸，未上滑")
+        error = display.get("execution_error")
+        return result("indeterminate", reason="查询不到显示尺寸，未上滑",
+                      **({"execution_error": {**error, "stage": "unlock_display",
+                                              "attribution": error_attribution(error.get("error_class")),
+                                              "evidence": {"query": "display_info", "detail": error}}} if error else {}))
     r = dispatcher.send("swipe", *swipe, 3000, preconditions={"screen_locked": True}, att=action("swipe"))
     if not r.ok:
         return result("indeterminate", error_class=r.error_class, reason=f"上滑未完成：{r.error_class}", **_command_failure(r, "unlock_swipe", last_action))
@@ -74,7 +79,8 @@ def wake_unlock(device, pin, dispatcher=None, sleep=None, att=None):
         return result("missing_secret", reason="当前设备需要 PIN，未配置对应的 secret 映射或值")
     pad = device.lock_pin_pad()
     if pad is None:
-        return result("indeterminate", reason="未能识别锁屏数字键盘，未输入")
+        return result("indeterminate", reason="未能识别锁屏数字键盘，未输入",
+                      **_query_failure(device, field="pin_pad_query_error", query="lock_pin_pad", stage="unlock_pin_pad"))
     for ch in pin:
         r = dispatcher.send("tap", *pad[ch], preconditions={"screen_locked": True},
                             att=action("pin_digit"))
