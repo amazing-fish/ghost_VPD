@@ -14,6 +14,7 @@ from typing import Optional
 
 from .knowledge import ACTIVE, item_status
 from .safety import TREE_KINDS, untreed_strategies
+from .session import swipe_options_error
 from .util import now_iso, read_json, sha256_file, sha256_obj, write_json
 
 REQUIRED = ("purpose", "preconditions", "test_data", "steps", "assertions", "cleanup", "sources")
@@ -310,6 +311,9 @@ def lint(case: dict, app, knowledge, policy=None, runs_dir: Optional[Path] = Non
             issues.append({"field": f"test_data.{k}", "problem": "会话没有保留这次输入的原文（不允许输入/敏感框/疑似密钥）："
                                                                  "非敏感数据请直接填值，账号密码改写为 {\"secret\": NAME}"})
     for s, _, where in iter_case_steps(case, app):
+        error = swipe_options_error(s)
+        if error:
+            issues.append({"field": where, "problem": error})
         if s.get("_lint_cycle"):
             issues.append({"field": where, "problem": "flow/recipe 存在递归引用，不能展开执行"})
         if s["action"] in ("tap", "input"):

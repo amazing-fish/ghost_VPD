@@ -78,6 +78,15 @@
 | `monitor` | — | `duration_s`、`interval_s`、`watch{名: 正则}`、`until_state` / `until_text` / `until_text_gone`、`stop_on`、`abort_on` | 见下方「监视」 | `duration_s`（上限 `max_monitor_s`） | 不重试 | 无（只观测） |
 | `flow` | `flows.json` 中存在 | `flow`、`params` | 每个子步骤各自的后置条件 | 子步骤各自 | 子步骤默认 1 | 子步骤的副作用 |
 
+`act swipe` 不是定点拖动：当前明确拒绝 `--point`、`--basis`、`--duration`。
+CLI 参数错误在会话锁、设备初始化和信息查询前拒绝，不创建会话，也不追加请求/拒绝事件。
+直接 step/flow 中的 `point`、`basis`、`point_window`、`point_basis`、`duration`、`duration_s` 同样在观测、解锁和动作前拒绝为
+`invalid_step`（工具阻塞），lint 也报告定义错误。旧会话曾接受这些参数并不证明手势按提议执行，
+`case from-session` 拒绝将其静默固化为普通滚动；需重新采样或通过已有 `--drop A序号=理由` 显式排除。
+不带这些参数的容器滚动、`within` 与既有随机地图滑动继续沿原路径执行。
+`--duration` 的单位为秒，仅用于 wait/monitor；设备 `uitest uiInput swipe` 的末参数为速度 px/s，
+不是时长，参见 [OpenHarmony 参数说明](https://github.com/openharmony/docs/blob/master/zh-cn/application-dev/application-test/uitest-guidelines.md)。
+
 前台查询返回未知（`None`）时，`back`/`home` 按 `state_indeterminate` 停下，即使查询命令成功也不下发。
 已识别的桌面允许导航；真机 `aa dump` 没有前台 mission 不能作为桌面证据，当前适配器保持返回未知，
 直到有未锁屏桌面及系统层窗口的样本支持正面识别。

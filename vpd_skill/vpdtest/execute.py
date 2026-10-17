@@ -10,12 +10,14 @@ import re
 import time
 from typing import Optional
 
+from .cases import iter_case_steps
 from .devices import DeviceResult
 from .devices import LAUNCHER
 from .dispatch import auxiliary_dispatches, dispatch_effect_unknown
 from .layout import key as layout_key
 from .layout import resolve_scope
 from .locate import resolve
+from .session import swipe_options_error
 from .util import now_iso
 
 ENV_ERRORS = {"screen_locked", "screen_off", "device_offline", "app_missing", "tool_missing", "transport_unavailable"}
@@ -54,6 +56,8 @@ FOREGROUND_BOUND = ("tap", "input", "swipe", "back", "home")
 
 def classify(att: dict) -> tuple:
     st = att["status"]
+    if st == "invalid_step" and att.get("reason"):
+        return "blocked", "tool", att["reason"]
     if st == "device_error":
         ec = att.get("error_class")
         return ("blocked", "environment" if ec in ENV_ERRORS else "tool",
@@ -72,6 +76,12 @@ class Executor:
         if held is not None:
             att["dispatch"] = {"sent": held.sent, "executor_ok": held.ok, "error_class": held.error_class}
             return self._summarize(step, [att], [])
+        # 直接执行 flow/recipe 的调用方也先检查整段定义，不能先执行有效子步骤再发现后面的错误。
+        for child, _, where in iter_case_steps({"steps": [step]}, self.ctx.app):
+            error = swipe_options_error(child)
+            if error:
+                att.update(status="invalid_step", reason=f"{where}: {error}")
+                return self._summarize(step, [att], [])
         if step["action"] == "ensure_state":
             return self._ensure_state(step, case_id)
         if step["action"] == "flow":
@@ -101,6 +111,10 @@ class Executor:
     def _attempt(self, step: dict, n: int, case_id: str) -> dict:
         ctx, kind = self.ctx, step["action"]
         att = {"n": n, "ts": now_iso(), "action": kind, "step_id": step["id"], "_safety": bool(step.get("_safety"))}
+        error = swipe_options_error(step)
+        if error:
+            att.update(status="invalid_step", reason=error)
+            return att
         safety = bool(step.get("_safety"))  # 安全停止步骤：不受动作预算与运动超时拦截
         if not safety and ctx.motion.locked():
             att.update(status="motion_timeout", motion={"elapsed_s": ctx.motion.elapsed(), "max_s": ctx.motion.max_s,

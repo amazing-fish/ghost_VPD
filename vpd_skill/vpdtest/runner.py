@@ -9,6 +9,7 @@ from . import safety as safety_mod
 from .cases import (
     content_hash,
     dependency_hash,
+    iter_case_steps,
     require_review,
     review_context,
     review_status,
@@ -19,6 +20,7 @@ from .knowledge import KnowledgeStore
 from .observe import RunStore
 from .params import Params
 from .report import render_run
+from .session import swipe_options_error
 from .tree import UiTree
 from .util import now_iso, read_json, read_jsonl, write_json
 from .verdict import PASSED, case_verdict, evaluate_assertion
@@ -48,6 +50,11 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
              authorize: Optional[list] = None, supervisor: Optional[str] = None, require_asset_review: bool = False) -> dict:
     case = case or ws.load_case(case_id)
     app = ws.app(case["app"])
+    # 定义错误先拒绝，不能先为无法执行的手势解锁或关闭系统弹窗。
+    for step, _, where in iter_case_steps(case, app):
+        error = swipe_options_error(step)
+        if error:
+            raise ValueError(f"{where}: {error}")
     knowledge, policy = KnowledgeStore(ws.root), ws.policy()
     context = review_context(ws, app)
     asset_review = (require_review if require_asset_review else review_status)(ws, case, knowledge, app, policy, context)

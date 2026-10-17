@@ -31,6 +31,18 @@ SELECT_RE = re.compile(r"^(text~|text|id|xpath)=(.+)$", re.S)
 CHROME_TYPES = ("TabBar",)
 
 
+def swipe_options_error(request: dict) -> str | None:
+    """拒绝当前容器滚动无法兑现的坐标/时长，现场、执行和固化共用同一契约。"""
+    if request.get("action") != "swipe":
+        return None
+    fields = [key for key in ("point", "basis", "point_window", "point_basis", "duration", "duration_s")
+              if request.get(key) is not None]
+    if not fields:
+        return None
+    return (f"swipe 不支持参数 {', '.join(fields)}：当前按滚动容器计算坐标，定点拖动和自定义时长暂不支持；"
+            "请移除这些参数后使用 direction/within 容器滚动。duration 仅用于 wait/monitor。")
+
+
 def parse_select(spec: str, within: Optional[str] = None, side_effect: str = "navigation",
                  allow_input: bool = False) -> dict:
     """--select 'text=重命名' → 内联目标。多匹配/不可见/部分可见由 locate 诊断，这里不挑第一个。"""
@@ -380,6 +392,10 @@ def step_options(action: str, request: dict) -> dict:
 
 def _to_case_step(it: dict, req: dict, session_dir: Path, test_data: dict, facts: dict) -> dict:
     seq, action = it["seq"], req.get("action")
+    error = swipe_options_error(req)
+    if error:
+        raise ValueError(f"历史动作 A{seq} 的参数未被兑现，不能固化成普通滚动：{error} "
+                         f"请重新采样，或用 --drop A{seq}=理由 显式排除并保留依据。")
     rec = it.get("record") or {}
     last = (rec.get("attempts") or [{}])[-1]
     step = {"id": f"S{seq}", "action": action, "timeout_s": req.get("timeout", 8), "retry": 1, "critical": True,
