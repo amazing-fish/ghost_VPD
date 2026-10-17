@@ -291,7 +291,9 @@ suite 摘要及 Console 接受 error；经验验证不对 error 做产品结论�
   多前置中任何明确采集异常→error，其次未知/冲突→pending，才可能 false→不涉及；已知 false 不掩盖另一条件的未知/错误。
   缺 provider 只保留 pending。显式互斥的条件要求也进入知识冲突/resolve 的同源作用范围，健康与故障的对立预定义规则不互相制造冲突；真正重叠的冲突仍待确认。K-QK-USR-002 将原确认文字中的故障前提机器化，没有新增生产读取器或确认健康事实。
 - `step.when` 使用同样引用，执行前自动新采样，恢复/重试继续复核。false 记录 `skipped`（未触发），不作为动作成功；unknown 记 pending，关键步骤停止后续，error 沿第一切片留归因与原错。
-  正常策略拒绝、预算和外部输入交接仍为 blocked。flow/recipe 的每个子步骤仍走现有 Executor/Dispatcher；没有第二套 Planner。
+  正常策略拒绝、预算和外部输入交接仍为 blocked。flow/recipe 的每个子步骤仍走现有 Executor/Dispatcher；父条件全链继承并与子条件同时复核，父选择的车辆/任务/账户身份不能暗中更换。
+  已执行部分动作但有必需子步骤未执行，或任一子步骤条件未知时，父操作保留 pending，不能从最后页面制造执行完成或分支覆盖。可选 false 子步骤可跳过，unknown 仍需补证。
+  read 的定位滚动及事实有效期同样在测量前复核，辅助滚动原文保留，不用滚动后的读数冒充原分支已验证；没有第二套 Planner。
   操作 skipped 本身不能证明产品不适用：只有产品 guard 自身为 false 才能不涉及，否则关联检查未执行，不能通过。
 
 `assertions[].guard` 及 `assertion_selected` 事件保存 condition/status/value/source/obs/ts/scope/action_epoch/checks/reason，

@@ -78,7 +78,7 @@ def test_optional_unknown_child_remains_visible_in_flow(verdict_ws):
         {"action": "back", "critical": False, "when": {"condition": "unknown", "equals": True}},
         {"action": "wait", "duration_s": 0}]}
     result = executor.run_step({"id": "F1", "action": "flow", "flow": "synthetic"}, "synthetic")
-    assert result["outcome"] == "passed" and result["sub_steps"][0]["outcome"] == "pending"
+    assert result["outcome"] == "pending" and result["sub_steps"][0]["outcome"] == "pending"
     assert result["sub_steps"][0]["condition"]["status"] == "unknown"
 
 

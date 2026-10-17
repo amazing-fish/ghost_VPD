@@ -235,7 +235,8 @@ def select_applicability(guards, definitions, steps, load, app, obs, tree) -> di
         return {"status": "unknown", "records": records, "reason": "同一条件的声明要求互相矛盾，不能据此选择不涉及"}
     statuses = {r["status"] for r in records}
     status = next((x for x in ("error", "unknown", "false") if x in statuses), "true")
-    return {**(records[0] if len(records) == 1 else {}), "status": status, "records": records,
+    primary = next((r for r in records if r["status"] == status), records[0])
+    return {**primary, "status": status, "records": records,
             "reason": "；".join(str(r.get("reason", "")) for r in records)}
 
 
