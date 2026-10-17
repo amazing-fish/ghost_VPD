@@ -1112,14 +1112,14 @@ class Executor:
     # ---- 汇总 ----
     def _summarize(self, step: dict, attempts: list, recoveries: list) -> dict:
         last, last_rec = attempts[-1], (recoveries[-1] if recoveries else None)
+        retained = None
         if last["status"] in ("condition_false", "condition_unknown") and len(attempts) > 1:
             previous = self._summarize(step, attempts[:-1], recoveries)
             if previous["outcome"] in ("error", "fail_candidate"):
                 if previous["outcome"] == "error":
                     from .verdict import execution_error
                     previous["execution_error"] = execution_error(previous)
-                return {**previous, "attempts": attempts, "recoveries": recoveries, "condition": last.get("condition"),
-                        "reason": (previous.get("reason") or "原步骤未完成") + "；后续条件变化不构成原步骤恢复"}
+                retained = previous
         if last_rec and last_rec.get("after_attempt") != last["n"]:
             last_rec = None  # 旧恢复不能覆盖后来重试的错误或观测。
         rec_ok = bool(last_rec and last_rec.get("status") == "ok")
@@ -1170,6 +1170,11 @@ class Executor:
             out["first_failure"] = {"attempt": first_bad["n"], "status": first_bad["status"],
                                     "obs_before": first_bad.get("obs_before"), "obs_after": first_bad.get("obs_after"),
                                     "detail": _failure_detail(first_bad)}
+        if retained:
+            # 原错不能被选支清除；最新尝试的不明副作用、交接和辅助动作仍须完整汇总。
+            out = {**retained, **out, **{key: retained[key] for key in
+                   ("outcome", "attribution", "final_obs", "final_status", "execution_error") if key in retained},
+                   "reason": (retained.get("reason") or "原步骤未完成") + "；后续条件变化不构成原步骤恢复"}
         return out
 
     # ---- 到达已知状态 ----
