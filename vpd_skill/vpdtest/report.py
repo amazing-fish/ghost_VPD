@@ -75,10 +75,13 @@ def render_run(run: dict) -> str:
         out += ["", "## 尚未验证的检查（关联步骤没有执行到，不能据本次结论推断它们成立或不成立）", ""]
         out += [f"- `{x['id']}`（步骤 `{_esc(x.get('at'))}`）：{_esc(x.get('reason'))}" for x in v["not_verified"]]
     bad_clean = [c for c in run.get("cleanup", []) if not str(c["outcome"]).startswith("passed")]
+    cleanup_errors = [f for f in (v.get("execution") or {}).get("errors", []) if f.get("kind") == "cleanup"]
     if run.get("cleanup"):
-        out += ["", "## 清理", "", "- " + ("全部完成" if not bad_clean else "**未完成**：" + "、".join(
+        out += ["", "## 清理", "", "- " + ("全部完成" if not bad_clean and not cleanup_errors else "**未完成**：" + "、".join(
             f"`{c['step_id']}` {OUTCOME.get(c['outcome'], c['outcome'])}{'' if c.get('required', True) else '（非必需）'}"
-            f"：{_esc(c.get('reason'))}" for c in bad_clean) + "。测试数据可能未恢复，请人工核对")]
+            f"：{_esc(c.get('reason'))}" for c in bad_clean)
+            + ("；子步骤执行错误：" + "、".join(f"`{f['step']}`" for f in cleanup_errors) if cleanup_errors else "")
+            + "。测试数据可能未恢复，请人工核对")]
     if not run["preflight"]["ok"]:
         for ch in run["preflight"]["checks"]:
             if not ch["ok"]:

@@ -61,6 +61,27 @@ def execution_error(step: dict, stage: str = "step") -> dict:
                          "collection": detail.get("evidence"), "post": post or att.get("post")}}
 
 
+def _execution_findings(results: list, kind: str, ancestors: tuple = (), cleanup_required=None) -> list:
+    """流程完成不消除其非关键子步骤错误；父级复制的错误摘要只投影一次。"""
+    findings = []
+    for step in results:
+        required = step.get("required", True) if kind == "cleanup" and not ancestors else cleanup_required
+        nested = _execution_findings(step.get("sub_steps") or [], kind, ancestors + (step["step_id"],), required)
+        if nested:
+            findings.extend(nested)
+        elif step.get("outcome") == "error":
+            finding = {"kind": kind, "step": step["step_id"], "result": "error",
+                       "attribution": step.get("attribution") or "tool", "reason": step.get("reason"),
+                       "mode": step.get("final_status"), **execution_error(step, kind)}
+            if ancestors:
+                finding.update(parent_step=ancestors[-1], ancestors=list(ancestors))
+                finding["evidence"].update(parent_step=ancestors[-1], ancestors=list(ancestors))
+            if kind == "cleanup":
+                finding["cleanup_required"] = required
+            findings.append(finding)
+    return findings
+
+
 def _stale(obs) -> bool:
     return not obs or obs.get("fresh") is False or (obs.get("tree") or {}).get("status") == "stale"
 
@@ -287,13 +308,13 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
                                                   "reason": "环境要求未满足：" + "、".join(
                                                       f"{u['key']}={u['actual']}（需 {u['required']}）" for u in env_check["unmet"]),
                                                   "detail": env_check["unmet"]}], [], steps, assertions=assertions)
+    findings.extend(_execution_findings(steps, "step"))
+    findings.extend(_execution_findings(cleanup or [], "cleanup"))
     for s in steps:
         if s["outcome"] in PASSED or s["outcome"] == "not_run":
             continue
         if s["outcome"] == "error":
-            findings.append({"kind": "step", "step": s["step_id"], "result": "error",
-                             "attribution": s.get("attribution") or "tool", "reason": s.get("reason"),
-                             "mode": s.get("final_status"), **execution_error(s)})
+            continue  # 已按真实失败子步骤投影，避免父子重复计数。
         elif s["outcome"] == "fail_candidate" and s.get("attribution", "product") == "product":
             # 崩溃/异常中断由通用不变量判定，不依赖该步骤业务判据是否已确认
             refs = [GENERIC_CRASH] if s.get("final_status") == "anomaly" else list(s.get("oracle_refs", []))
@@ -310,6 +331,10 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
                              "attribution": s.get("attribution", "tool"), "reason": s.get("reason"),
                              "mode": s.get("final_status")})
     for a in assertions:
+        if a["result"] == "error":
+            findings.append({"kind": "assertion", "id": a["id"], "result": "error", "advisory": a["advisory"],
+                             **{k: a.get(k) for k in ("attribution", "reason", "stage", "error_class", "error", "evidence")}})
+            continue
         if a["advisory"]:
             if a["result"] in ("pending", "fail", "undeterminable"):
                 suggestions.append(a)
@@ -317,9 +342,6 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
         if a["result"] == "fail":
             findings.append({"kind": "assertion", "id": a["id"], "result": "failed", "attribution": "product",
                              "reason": a.get("desc"), "mode": _assertion_mode(a)})
-        elif a["result"] == "error":
-            findings.append({"kind": "assertion", "id": a["id"], "result": "error",
-                             **{k: a.get(k) for k in ("attribution", "reason", "stage", "error_class", "error", "evidence")}})
         elif a["result"] in ("pending", "undeterminable"):
             findings.append({"kind": "assertion", "id": a["id"], "result": "pending",
                              "attribution": "requirement_unclear" if a["result"] == "pending" else "tool",
@@ -334,15 +356,16 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
             findings.append({"kind": "assertion", "id": a["id"], "result": "not_verified", "attribution": None,
                              "reason": a.get("reason")})
     for c in cleanup or []:
+        if c["outcome"] == "error":
+            continue  # 包含可选清理，已递归保留执行错误。
         if c["outcome"] == "not_run" and c.get("final_status") == "safety_hold":
             findings.append({"kind": "cleanup", "step": c["step_id"], "result": "not_verified",
                              "attribution": None, "reason": c.get("reason")})
             continue
-        if c["outcome"] == "error" or (c["outcome"] not in PASSED and c.get("required", True)):
+        if c["outcome"] not in PASSED and c.get("required", True):
             # 清理没完成：账号/车辆数据可能没恢复，整体不能判通过
             findings.append({"kind": "cleanup", "step": c["step_id"],
-                             "result": "error" if c["outcome"] == "error" else "blocked",
-                             **(execution_error(c, "cleanup") if c["outcome"] == "error" else {}),
+                             "result": "blocked",
                              "attribution": c.get("attribution") or "tool",
                              "reason": f"{'必需' if c.get('required', True) else '可选'}清理未完成（{c.get('reason') or c['outcome']}），测试数据可能未恢复，需人工核对"})
     results = {f["result"] for f in findings}

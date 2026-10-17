@@ -223,7 +223,8 @@ Agent `diagnosis.status` 消费最终 `final_status`，并以匹配最后尝试�
 
 `verdict` 保留兼容摘要，新增以下投影，均从现有步骤、断言与 findings 生成：
 
-- `execution.status=completed/blocked/error`；`execution.errors[]` 保留最终执行错误，包括可选清理中的工具错误。
+- `execution.status=completed/blocked/error`；`execution.errors[]` 递归保留最终执行错误，包括非关键流程子步骤与可选清理。父级复制摘要不重复计数；已恢复错误不重新升级。
+  advisory 只抑制产品失败，不丢弃其所需证据的采集错误；产品与执行投影仍独立。
 - `product_verdict=passed/failed/pending`；`product_failed` 与产品 `failure_signature` 继续独立保留。
 - 未确认安全停止仍优先阻塞并要求人工接管；否则 error 优先于产品 failed、blocked、pending，最后才可能 passed。
   产品失败与执行错误并存时，摘要为 error，产品失败及两类证据均保留。无确定非建议断言不能通过。
