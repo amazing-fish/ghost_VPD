@@ -66,7 +66,7 @@ Issue 标题建议：`[Task] ...`、`[Bug] ...`、`[Knowledge] ...`。优先级�
 1. **基线**：worktree、branch、base SHA、HEAD SHA、workspace、设备 APP build（如有）。
 2. **变更**：改了什么、为什么、明确没改什么，文件与 diff。
 3. **验证**：基线测试 / 新测试结果；`real_device` 和 `offline_replay` 分开；真实 `run_id/obs_id`。
-4. **判定**：操作是否成功、产品 verdict（passed/failed/pending/blocked）、oracle_refs、适用范围。
+4. **判定**：操作是否成功、产品及执行 verdict（passed/failed/not_applicable/pending/error/blocked）、oracle_refs、适用范围。
 5. **清理与安全**：副作用是否授权、Safety Hold 状态、Cleanup 是否有独立后置验证。
 6. **后续**：阻塞、未完成事项、需人工决策、建议后续 Issue/PR。
 

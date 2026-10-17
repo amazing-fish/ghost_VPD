@@ -2213,6 +2213,7 @@
       "id": "K-QK-USR-002",
       "kind": "requirement",
       "subject": "qiankun_hm.vpd.fault_blocks_activation",
+    "condition_requirements": {"vehicle_fault": true},
       "statement": "车辆当前有故障时，进入 VPD 选默认车位算路后不能激活（「开始」不可用或不出现，并有不可用/故障提示）。",
       "expected": {
         "activation_possible": false

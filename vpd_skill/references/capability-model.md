@@ -30,3 +30,10 @@
 3. **原子能力**：`plan_default_spot` 的第 2 步是 `monitor`：等到算路结果页，同时记录「路线规划中」与故障提示的出现时间。
 4. **判定**：A1 `target_enabled qk_start expected=false`，按原工程规则「Button opacity=1 才可用」读 `opacity`；判据 K-QK-USR-002 / K-QK-002 未确认 → 待确认，`observed_holds` 表示观测本身成立。
 5. **互补用例**：TC-QK-103 在同一位置用 `tap qk_start require_enabled`：可用才点，不可用判阻塞，不会误触发运动。
+
+## 操作选路与产品断言的边界（#56）
+
+flow/state 只提供操作路径；子步骤 `when` 可按当前独立条件自动选路，未触发记录 skipped，未知保留 pending。
+用例的 `guard` 与规则 `condition_requirements` 另行决定产品断言适用性，不能把 flow 到终态视为产品通过。
+条件定义、证据范围及生命周期见 [contracts](contracts.md#断言前置与操作选支56-第二切片)。
+211/212 的来源和真实登录路径迁移仍归 #31，本轮仅提供公共能力。

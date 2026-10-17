@@ -32,4 +32,12 @@
 - **其他支持 SKILL.md 的宿主**：`install.ps1 -LinkSkill -SkillDir <宿主技能目录>\vpd-app-test`（路径以宿主文档为准）。
 - **只支持 system prompt / 工具调用的宿主**：把 SKILL.md 正文放进指令，把 `vpdtest` 注册为一个 shell 工具即可。
 
-CI 或无人值守执行时不需要 Agent：`.\vpdtest.ps1 suite motor_hm_smoke --device hdc:<serial> --fail-on failed blocked`。
+CI 或无人值守执行时不需要 Agent：`.\vpdtest.ps1 suite motor_hm_smoke --device hdc:<serial> --fail-on failed error blocked`。
+
+## 自动选支的消费
+
+宿主直接消费 `assertions[].guard`、`verdict.coverage` 和 `execution`，无需逐步向 LLM 请求选支。
+`source/obs/ts/scope/action_epoch/checks/reason` 可在 run/report/Console 核对。
+`not_applicable` 不计通过或覆盖；全部不涉及时整例不涉及。`step.when` 的 skipped 不计产品分支覆盖。
+`--fail-on not_applicable` 可配置退出码1，人工接管仍优先2。缺独立条件证据是 pending，明确采集异常是 error，正常受阻是 blocked。
+业务 `--env` 只保留调度声明；不得据旧故障声明或开始可用反推当前健康。

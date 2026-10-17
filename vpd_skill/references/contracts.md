@@ -196,10 +196,11 @@ Agent `diagnosis.status` 消费最终 `final_status`，并以匹配最后尝试�
 | `pending` | 证据确定，但判据 unconfirmed / conflicted / missing / invalid / out_of_scope / applicability_unknown / not_oracle；或属主观检查 |
 | `error` | 所需观测有明确的采集/解析/查询错误；附工具或环境归因、阶段及原始证据。截图失败不影响可用的文字/状态证据 |
 | `undeterminable` | 证据不足（无 UI 树时判断"有/无"、定位多匹配等）；文字断言只认可见矩形非空的节点（被列表裁掉的不算） |
+| `not_applicable` | 当前有效、独立的 guard 明确 false，不计通过/失败或覆盖 |
 | `not_run` | 关联步骤未成功（列入 `verdict.not_verified`）；引用的步骤不存在 → 用例定义错误，汇总为 error/tool |
 
 判据适用性：`knowledge_snapshot[].applicability` 把条目 `applies_to` 与 `run.json.facts`（APP、实测版本、屏幕形态、
-`--env` 声明）逐项比较。事实缺失或版本描述不可比较（如"内部debug版 phone_fc78649"）→ `applicability_unknown`；
+独立事实；`--env` 仅保留调度声明）逐项比较。事实缺失或版本描述不可比较（如"内部debug版 phone_fc78649"）→ `applicability_unknown`；
 不相等 → `out_of_scope`。`operation` / `observation` 类条目不是判据（`not_oracle`）。
 
 `env_requirements` 与判据使用同一组运行事实：`app` 来自被测 APP 定义，`app_version`、`device_form`
@@ -207,7 +208,9 @@ Agent `diagnosis.status` 消费最终 `final_status`，并以匹配最后尝试�
 运行判环境阻塞，业务步骤与清理不执行，自动解锁和已登记弹窗关闭也不下发。解锁后重新实测并复核。
 `layout_requirements`（宽窄屏、方向、折叠状态等）在同一恢复前门槛中按实测布局检查，解锁后也重新计算；
 不能因为没有同时声明 `env_requirements` 而跳过。
-账号、车辆、园区及任务状态等当前适配器不能测量的业务条件，仍需现场人工确认后用 `--env` 声明。
+账号、车辆、园区及任务等业务 `--env` 仅满足旧整例调度门禁，不自动进入真机 `oracle_facts`。
+`run.facts` / `env.facts` 保留旧调度投影，`run.declarations` 明示来源与 measured=false；产品 Oracle 另绑定实测 `oracle_facts`。
+Replay world 的 env_facts 只是标明 offline_replay 的合成环境，不代表真机取证。
 
 普通 JSON 更新仍通过同目录临时文件原子替换。Windows 文件替换出现 5/32/33 时最多尝试 5 次，
 累计等待 0.5 秒；持续失败仍报错并保留旧文件及待写内容。原始证据的独占创建不使用该重试，
@@ -234,22 +237,75 @@ Agent `diagnosis.status` 消费最终 `final_status`，并以匹配最后尝试�
 - `execution.status=completed/blocked/error`；`execution.errors[]` 递归保留最终执行错误，包括非关键流程子步骤与可选清理。父级复制摘要不重复计数；已恢复错误不重新升级。
   advisory 只抑制产品失败，不丢弃其所需证据的采集错误；产品与执行投影仍独立。
   visual_review 所需截图明确采集失败也记 error；withheld/skipped/缺失仍待确认。非视觉断言可继续使用独立有效的树证据。
-- `product_verdict=passed/failed/pending`；`product_failed` 与产品 `failure_signature` 继续独立保留。
+- `product_verdict=passed/failed/pending/not_applicable`；`product_failed` 与产品 `failure_signature` 继续独立保留。
 - 未确认安全停止仍优先阻塞并要求人工接管；否则 error 优先于产品 failed、blocked、pending，最后才可能 passed。
   产品失败与执行错误并存时，摘要为 error，产品失败及两类证据均保留。无确定非建议断言不能通过。
 
 `run/suite --fail-on error` 可配置退出码 1；人工接管仍优先退出码 2，定义/程序异常仍退出码 3。
 suite 摘要及 Console 接受 error；经验验证不对 error 做产品结论排序，未解决错误、错误转 pending 或
 同为 error 但少适配都不能验证通过。可靠的 error→passed 才可计改善。晋级只计无执行错误的确定重放。
-新依赖指纹包含 `result_contract=1`，旧重放需按新口径重新积累；内容哈希不变，历史原始 run/verdict 不改写。
+新依赖指纹包含 `result_contract=2`，旧重放需按新口径重新积累；旧无条件内容哈希不变；新 conditions 内容与外部条件定义/目标/规则前置均绑定指纹，历史原始 run/verdict 不改写。
 探索资产现有 engine_hash 也会因引擎变更使审核失效，仍须由人重新审核，Agent 不自动批准。
 
 步骤崩溃/异常中断仅在归因为 product 时引用通用不变量 `K-GEN-001`；工具/环境候选不经产品 Oracle 转为失败。
 `knowledge.applicability` 与 confirmed 门槛保持；引用判据不适用仍 pending，不能据此把业务断言改成不涉及。
 
-**尚未实现**：断言级结构化前置、自动选支及 `not_applicable` 生产路径在 #56 第二切片。
-自由文本 preconditions 不执行，业务 `--env` 尚无独立新鲜度证据，不能声称已解决陈旧故障声明。
-未分类的存储/程序异常仍保留 CLI 堆栈并退出 3；本包不宽泛吞异常绕过安全停止和清理链。
+### 断言前置与操作选支（#56 第二切片）
+
+三个职责互不代替：`step.when` 决定是否操作；`assertion.guard` 决定产品断言是否适用；
+现有断言及独立 `oracle_refs` 评价预先定义的响应契约。命中 `expect_state`/monitor 终态只代表步骤后置满足，不能自动得到产品 passed。
+
+条件定义放 `case.conditions` 或 APP 的 `app.json.conditions`（同名 case 定义覆盖 APP，仍受内容/依赖指纹及资产人审绑定）。
+下面是**合成示例**，目标与文案不注册到生产：
+
+```json
+{
+  "conditions": {
+    "vehicle_fault": {
+      "kind": "task",
+      "true": {"type": "text_present", "text": "合成独立诊断：故障"},
+      "false": {"type": "text_present", "text": "合成独立诊断：健康"},
+      "scope": {"vehicle": "synthetic_vehicle_identity", "task": "synthetic_task_identity"}
+    }
+  },
+  "assertions": [
+    {"id": "A-common", "at": "S5", "type": "text_present", "text": "合成任务可见", "oracle_refs": ["K-SYNTH-TASK"]},
+    {"id": "A-fault", "at": "S5", "guard": {"condition": "vehicle_fault", "equals": true},
+     "type": "target_enabled", "target": "synthetic_start", "expected": false, "oracle_refs": ["K-SYNTH-FAULT"]}
+  ]
+}
+```
+
+- `kind=page/account/vehicle/task`。APP/build、设备、观测编号与采集时间随观测记录；account 必需当前账户身份目标，vehicle 必需车辆身份目标，task 必需车辆与任务身份目标。
+  身份目标必须在当前树唯一定位并读到非空可见 text，`--env` 的身份声明不能填补。生产已有条件文字不会被自动解析为读取器。
+- `true` / `false` 各为独立肯定型 `text_present` / `text_present_any` / `target_present` / `state_is` 检查。
+  正证命中且反证未命中为 true，反证命中且正证未命中为 false；两者都命中为冲突，都未命中为未知；历史来源即使同 epoch，也不能覆盖当前观测明确相反的独立证据。
+  缺树、过期、缺身份或范围变化不能解释成 false。`target_enabled` 与 absence 不能作为“健康”的反推证据。
+  作者与评审仍须核对语义独立：禁止用被测的开始可用、算路成功、预期提示本身定义场景前置。
+- `guard={condition,equals,at?}` 默认用断言所关联步骤的终态观测；`at` 显式引用另一已成功步骤的终态。
+  所有当前 provider 都来自 UI，只有同一 `action_epoch`、相同 APP/build/身份范围的观测才可复用；任何实际或可能下发动作使旧条件失效，拒绝下发不失效。
+  这是 UI 来源的有效性边界，不是把车辆真实状态永久绑定页面。可按具体事实声明正有限 `max_age_s`；没有统一默认秒数。
+  显式事实有效期还在实际下发关口按当前时钟复核，长定位不能用采样时点绕过到期。
+  `clock_s` 使用执行器时钟（Replay 含虚拟等待），对断言当时证据截面评价；之后 cleanup 不会反向作废已保存证据。
+- 规则可声明 `condition_requirements={条件名:bool}`，与显式 guard 合并，不允许调用方漏掉已确认规则的前提。
+  多前置中任何明确采集异常→error，其次未知/冲突→pending，才可能 false→不涉及；已知 false 不掩盖另一条件的未知/错误。
+  缺 provider 只保留 pending。显式互斥的条件要求也进入知识冲突/resolve 的同源作用范围，健康与故障的对立预定义规则不互相制造冲突；真正重叠的冲突仍待确认。K-QK-USR-002 将原确认文字中的故障前提机器化，没有新增生产读取器或确认健康事实。
+- `step.when` 使用同样引用，执行前自动新采样，恢复/重试继续复核。false 记录 `skipped`（未触发），不作为动作成功；unknown 记 pending，关键步骤停止后续，error 沿第一切片留归因与原错。
+  正常策略拒绝、预算和外部输入交接仍为 blocked。flow/recipe 的每个子步骤仍走现有 Executor/Dispatcher；没有第二套 Planner。
+  操作 skipped 本身不能证明产品不适用：只有产品 guard 自身为 false 才能不涉及，否则关联检查未执行，不能通过。
+
+`assertions[].guard` 及 `assertion_selected` 事件保存 condition/status/value/source/obs/ts/scope/action_epoch/checks/reason，
+操作记录用 `steps[].condition`；报告与 Console 显示相同记录，不重新选支。缺失或非法定义在下发前由 lint/Runner 拒绝。
+
+聚合与覆盖：公共断言通过、故障断言不涉及时保留公共结论；全部非建议断言不涉及时整例 `not_applicable`。
+适用且 confirmed 的断言违反规则仍 failed；执行 error 与独立产品 failed 的双方证据及签名继续保留。
+`verdict.coverage` 按断言分别列 verified / not_applicable / unverified；只有适用且 confirmed 的 pass/fail 算该断言已验证。
+N/A、未知、error、未触发操作与未执行均不计分支覆盖。逐断言覆盖/Oracle/事实进入 replay 摘要，
+条件资产晋级须每条所需断言在当前指纹下至少两次真实 verified 的一致证据；共同断言通过不能替代未触发分支。
+经验对照须有相同适用及已验证分支，不能通过跳过困难分支制造改善。
+
+旧无条件资产仍顺序执行。依赖契约升级使旧重放需重新积累；历史原始文件不改写。
+未分类存储/程序异常仍保留堆栈并退出 3，不宽泛吞异常绕过停止/清理。211/212 登录资产迁移留 #31，真机分支可用性仍需独立验收。
 
 ## 4. 探索资产审核与运行准入（#30）
 

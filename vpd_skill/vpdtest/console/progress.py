@@ -167,14 +167,27 @@ def detail(runs_dir: Path, run_id: str, tail: int = 60) -> Optional[dict]:
     if rj.exists():
         try:
             run = json.loads(rj.read_text(encoding="utf-8"))
-            out["steps"] = [{"step_id": s.get("step_id"), "action": s.get("action"), "outcome": s.get("outcome"),
-                             "critical": s.get("critical"), "attempts": len(s.get("attempts") or []),
-                             "last_status": ((s.get("attempts") or [{}])[-1]).get("status")}
-                            for s in run.get("steps", [])]
-            out["assertions"] = [{k: a.get(k) for k in ("id", "result", "reason")} for a in run.get("assertions", [])]
+            out["steps"] = [_step_detail(s) for s in run.get("steps", [])]
+            out["cleanup"] = [_step_detail(s) for s in run.get("cleanup", [])]
+            out["assertions"] = [{k: a[k] for k in ("id", "at", "type", "result", "reason", "verified", "guard",
+                                                    "advisory", "oracle_refs", "evidence") if k in a}
+                                 for a in run.get("assertions", [])]
             out["verdict_detail"] = run.get("verdict")
+            out["coverage"] = (run.get("verdict") or {}).get("coverage")
         except (ValueError, OSError):
             pass
     rp = d / "report.md"
     out["report"] = str(rp) if rp.exists() else None
     return out
+
+
+def _step_detail(step: dict) -> dict:
+    row = {"step_id": step.get("step_id"), "action": step.get("action"), "outcome": step.get("outcome"),
+           "critical": step.get("critical"), "attempts": len(step.get("attempts") or []),
+           "last_status": ((step.get("attempts") or [{}])[-1]).get("status")}
+    for key in ("condition", "reason", "final_obs"):
+        if key in step:
+            row[key] = step[key]
+    if step.get("sub_steps"):
+        row["sub_steps"] = [_step_detail(s) for s in step["sub_steps"]]
+    return row

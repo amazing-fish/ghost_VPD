@@ -266,6 +266,20 @@ input[type=text] { flex: 1; min-width: 120px; }
     return el("table", {}, el("thead", {}, el("tr", {}, ...cols.map((c) => el("th", { scope: "col" }, c[1])))),
       el("tbody", {}, ...rows.map((r) => el("tr", {}, ...cols.map((c) => el("td", {}, r[c[0]] == null ? "" : String(r[c[0]])))))));
   }
+  const valueText = (v) => v == null ? "" : (typeof v === "object" ? JSON.stringify(v) : String(v));
+  function conditionText(record) {
+    if (!record) return "无条件 / 历史未记录";
+    const status = { true: "满足", false: "明确不满足", unknown: "未知", error: "取证异常" };
+    const rows = record.records || [record];
+    return `${status[record.status] || record.status || "未知"} · ` + rows.map((r) =>
+      [r.condition, r.reason, r.source, r.obs, r.ts, valueText(r.scope)].filter(Boolean).join(" · ")).join("；");
+  }
+  function flatSteps(rows) {
+    return (rows || []).flatMap((s) => [s, ...flatSteps(s.sub_steps)]);
+  }
+  function conditionEvidence(title, rows) {
+    return el("details", {}, el("summary", {}, title), el("pre", {}, JSON.stringify(rows, null, 2)));
+  }
   async function pollDetail() {
     if (!selected) return;
     try {
@@ -273,9 +287,22 @@ input[type=text] { flex: 1; min-width: 120px; }
       const box = $("detail"), kids = [el("h2", {}, (d.title || d.run_id) + (d.case_title ? " · " + d.case_title : ""))];
       if (d.verdict_detail) kids.push(el("p", {}, `结论：${d.verdict_detail.label || d.verdict_detail.verdict}` +
         (d.verdict_detail.attribution_label ? `（归因：${d.verdict_detail.attribution_label}）` : "")));
-      if (d.steps) kids.push(table([["step_id", "步骤"], ["action", "动作"], ["outcome", "结果"], ["attempts", "尝试"],
-                                    ["last_status", "最后状态"]], d.steps));
-      if (d.assertions && d.assertions.length) kids.push(table([["id", "断言"], ["result", "结果"], ["reason", "说明"]], d.assertions));
+      if (d.coverage) kids.push(el("p", {}, `断言覆盖：已验证 ${(d.coverage.verified || []).length}；` +
+        `不涉及 ${(d.coverage.not_applicable || []).length}；未验证覆盖 ${(d.coverage.unverified || []).length}`));
+      const operationRows = [...flatSteps(d.steps), ...flatSteps(d.cleanup)].map((s) =>
+        ({ ...s, condition_text: conditionText(s.condition) }));
+      if (operationRows.length) kids.push(table([["step_id", "步骤"], ["action", "动作"], ["outcome", "结果"],
+        ["attempts", "尝试"], ["condition_text", "操作条件"]], operationRows));
+      if (d.assertions && d.assertions.length) kids.push(table([["id", "断言"], ["result", "结果"],
+        ["verified_text", "验证覆盖"], ["guard_text", "断言前置"], ["reason", "说明"]],
+        d.assertions.map((a) => ({ ...a, guard_text: conditionText(a.guard),
+          verified_text: a.verified === true ? "已验证" : (a.verified === false ? "未验证覆盖" : "历史未记录") }))));
+      const operationEvidence = operationRows.filter((s) => s.condition).map((s) =>
+        ({ step: s.step_id, outcome: s.outcome, condition: s.condition }));
+      const assertionEvidence = (d.assertions || []).filter((a) => a.guard).map((a) =>
+        ({ assertion: a.id, result: a.result, verified: a.verified, guard: a.guard }));
+      if (operationEvidence.length) kids.push(conditionEvidence("选支证据：操作条件", operationEvidence));
+      if (assertionEvidence.length) kids.push(conditionEvidence("选支证据：断言前置", assertionEvidence));
       if (d.report) kids.push(el("p", { class: "muted" }, "报告：" + d.report));
       kids.push(el("h2", {}, "最近事件"), el("pre", {}, d.tail.map((e) => JSON.stringify(e)).join("\n")));
       box.replaceChildren(...kids);
