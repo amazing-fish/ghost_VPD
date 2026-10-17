@@ -78,7 +78,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     pre_layout = layout_mod.profile(None, pre.get("display"), ctx.observer.layout_cfg)
     envc = _env_check(case, facts, pre_layout)
     screen_checks = {"screen_awake", "screen_unlocked"}
-    if envc["ok"] and any(c["check"] in screen_checks and not c["ok"] for c in pre["checks"]) and all(
+    if envc["ok"] and not any(c.get("execution_error") for c in pre["checks"]) and any(c["check"] in screen_checks and not c["ok"] for c in pre["checks"]) and all(
             c["ok"] for c in pre["checks"] if c["check"] not in screen_checks):
         from .unlock import unlock_device
         before_checks = [dict(c) for c in pre["checks"]]
@@ -90,7 +90,8 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
             envc = _env_check(case, facts, pre_layout)
         else:
             pre["checks"].append({"check": "unlock_capability", "ok": False,
-                                  "error_class": unlocked["status"], "value": unlocked.get("reason")})
+                                  "error_class": unlocked["status"], "value": unlocked.get("reason"),
+                                  **({"execution_error": unlocked["execution_error"]} if unlocked.get("execution_error") else {})})
         pre["unlock"] = unlocked
         store.event("preflight_before_unlock", checks=before_checks)
 
@@ -184,9 +185,10 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     elif known.get("status") == "known_failure":
         # 已知缺陷用例：结论照常判定，另外说明缺陷是否仍按同一特征复现（不把失败改成通过）
         sig = verdict.get("failure_signature")
+        reproduced = bool(verdict.get("product_failed") and sig == known.get("signature"))
         verdict["known_issue"] = {"ref": known.get("issue"), "expected_signature": known.get("signature"),
-                                  "reproduced": verdict["verdict"] == "failed" and sig == known.get("signature"),
-                                  "note": "仍按同一特征复现" if (verdict["verdict"] == "failed" and sig == known.get("signature"))
+                                  "reproduced": reproduced,
+                                  "note": "产品失败仍按同一特征复现（执行结果另列）" if reproduced
                                   else "未按已知特征复现：可能已修复、路径变化或本次被其他问题挡住，需人工核对"}
     refs = sorted({r for x in case.get("assertions", []) + case["steps"] for r in x.get("oracle_refs", [])})
     run = {"run_id": store.run_id, "skill_version": __version__, "started": started, "finished": now_iso(),

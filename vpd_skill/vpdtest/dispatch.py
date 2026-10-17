@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from .devices import LAUNCHER, DeviceResult
+from .verdict import error_attribution
 
 
 class Dispatcher:
@@ -31,6 +32,8 @@ class Dispatcher:
                 result = unlock_device(self.ctx.ws, dev, self.store, dispatcher=self, att=att)
                 att["unlock"] = checks["unlock"] = result
                 if result["status"] != "unlocked":
+                    if result.get("execution_error"):
+                        att["execution_error"] = result["execution_error"]
                     status = result.get("error_class")
                     if status not in ("budget_exhausted", "motion_timeout", "safety_hold"):
                         status = "screen_locked" if result["status"] in ("pin_rejected", "missing_secret") else "state_indeterminate"
@@ -39,6 +42,11 @@ class Dispatcher:
                 locked = dev.screen_locked()
             checks["screen_locked"] = {"actual": locked, "expected": expected}
             if locked is not expected:
+                error = getattr(dev, "screen_query_error", None)
+                if locked is None and error:
+                    att["execution_error"] = {**error, "stage": "dispatch_recheck",
+                                              "attribution": error_attribution(error.get("error_class")),
+                                              "evidence": {"query": "screen_locked", "result": locked, "detail": error}}
                 att.update(status="screen_locked" if locked is True and expected is False else "state_indeterminate",
                            error_class="state_query_failed" if locked is None else "screen_locked", action_required=True,
                            state_check={"query": "screen_locked", "result": locked, "expected": expected})
@@ -52,6 +60,11 @@ class Dispatcher:
             att["foreground_check"] = {"foreground": fg, "expected": expected,
                                        "screen_locked": checks.get("screen_locked", {}).get("actual")}
             if fg is None:
+                if error:
+                    detail = getattr(dev, "last_query_error_detail", None) or {}
+                    att["execution_error"] = {"stage": "dispatch_recheck", "error_class": error,
+                                              "error": detail.get("error"), "attribution": error_attribution(error),
+                                              "evidence": {"query": "foreground", "detail": detail}}
                 att.update(status="state_indeterminate", error_class="state_query_failed" if error else "foreground_unknown", action_required=True,
                            state_check={"query": "foreground", "result": None, "detail": error})
                 return False, checks
@@ -201,6 +214,8 @@ class Dispatcher:
                 "aggregate": op == "clear_text",
                 "executor_ok": result.ok, "error_class": result.error_class, "error": result.error,
                 "duration_ms": result.duration_ms}
+        if not result.ok:
+            data["raw"] = result.raw
         att["dispatch_recheck"] = {"preconditions": preconditions, "checks": checks}
         if self.store is not None:
             self.store.event("dispatch", step=att.get("step_id"), **data)
@@ -233,14 +248,16 @@ def clear_text(device, x, y, count, dispatcher, preconditions, att=None):
     """每个按键都经过关口；中途拒绝仍保留已经下发的事实。"""
     sent = False
     for op, args in [("tap", (x, y)), ("key", ("move_end",))] + [("key", ("delete",))] * max(0, int(count)):
-        result = dispatcher.send(op, *args, preconditions=preconditions,
-                                 att={"action": "clear_text", "step_id": (att or {}).get("step_id"),
-                                      "_safety": bool((att or {}).get("_safety"))})
+        sub_att = {"action": "clear_text", "step_id": (att or {}).get("step_id"),
+                   "_safety": bool((att or {}).get("_safety"))}
+        result = dispatcher.send(op, *args, preconditions=preconditions, att=sub_att)
         if sent is True or result.sent is True:
             sent = True
         elif result.sent is not False:
             sent = None  # 后续未发不能抹掉前一步未知发送事实。
         if not result.ok:
+            if att is not None and sub_att.get("execution_error"):
+                att["execution_error"] = sub_att["execution_error"]
             return DeviceResult("clear_text", sent, False, result.error_class,
-                                ("MoveEnd 失败：" if args == ("move_end",) else "") + (result.error or "前置状态失败"))
+                                ("MoveEnd 失败：" if args == ("move_end",) else "") + (result.error or "前置状态失败"), raw=result.raw)
     return DeviceResult("clear_text", sent, True)

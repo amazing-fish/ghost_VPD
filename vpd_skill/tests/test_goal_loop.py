@@ -268,7 +268,7 @@ def test_required_assertion_on_missing_step_is_not_pass(ws):
     case["assertions"].append({"id": "A9", "at": "S99", "type": "text_present", "text": "我的",
                                "desc": "拼错的步骤", "oracle_refs": ["K-MOT-001"]})
     run = run_case(ws, case=case, device_spec=world("motor_hm_base.json"))
-    assert run["verdict"]["verdict"] == "blocked"
+    assert run["verdict"]["verdict"] == "error"
     assert any(f["id"] == "A9" and "不存在" in f["reason"] for f in run["verdict"]["findings"])
     assert any(i["field"] == "assertions.A9" for i in C.lint(case, ws.app("motor_hm"), KnowledgeStore(ws.root)))
 
@@ -808,7 +808,7 @@ def test_gesture_is_not_sent_when_lock_or_foreground_query_fails(ws, tmp_path):
         for action in ("back", "swipe"):
             out = cli(ws, "act", action, "--app", "motor_hm", "--session", "qf1", "--device", dev)
             att = out["result"]["attempts"][-1]
-            assert "dispatch" not in att and out["result"]["attribution"] == "environment", (q, action)
+            assert "dispatch" not in att and out["result"]["attribution"] == ("tool" if q == "foreground" else "environment"), (q, action)
             if q == "foreground" and action == "swipe":
                 # 滑动先按观测定滑动区域：前台查不到时观测本身就失败，在门禁之前已停下（同样不发）
                 assert att["status"] == "observation_failed"

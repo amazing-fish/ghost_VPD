@@ -62,7 +62,8 @@ def content_hash(case: dict) -> str:
 def dependency_hash(case: dict, app, knowledge) -> str:
     """用例引用的外部定义的指纹：content_hash 只覆盖用例文件本身，但目标选择器、展开后的 flow/recipe 步骤、
     页面状态/打断定义、判据条目的陈述和预期改了，同一份用例就测了另一件事，旧重放不再作数。
-    有效判据的确认状态、历史不计入（确认之后不必重新重放）；废弃/无效使旧重放失效。"""
+    有效判据的确认状态、历史不计入（确认之后不必重新重放）；废弃/无效使旧重放失效。
+    result_contract 绑定结果语义，旧引擎的阻塞/产品候选不能充当新契约的确定重放。"""
     steps, targets, oracles = [], {}, set()
 
     def want(t):
@@ -83,7 +84,7 @@ def dependency_hash(case: dict, app, knowledge) -> str:
         if item_status(item) not in ACTIVE:
             facts[kid]["inactive"] = True
     return sha256_obj({"steps": steps, "targets": targets, "states": app.states.states,
-                       "interrupts": app.states.interrupts, "oracles": facts})[:12]
+                       "interrupts": app.states.interrupts, "oracles": facts, "result_contract": 1})[:12]
 
 
 # 审核覆盖审阅语义；成熟度/运行记录不使正常晋级或新重放自失效。
@@ -433,9 +434,18 @@ def record_replay(ws, case_id: str, run: dict) -> dict:
         "run_id": run["run_id"], "verdict": v["verdict"], "hash": run["case"]["hash"], "deps": run["case"].get("deps"),
         "validation_level": run["validation_level"], "device": run["device_spec"], "ts": now_iso(),
         "failure_signature": v.get("failure_signature", []), "alerts": len(v.get("alerts") or []),
-        "not_verified": len(v.get("not_verified") or []), "facts": run.get("facts")})
+        "not_verified": len(v.get("not_verified") or []), "facts": run.get("facts"),
+        **{k: v[k] for k in ("execution", "product_verdict", "product_failed") if k in v}})
     write_json(ws.case_path(case_id), case)
     return case
+
+
+def has_execution_error(summary: dict) -> bool:
+    """读取执行层记录；兼容历史摘要，不把产品失败或正常阻塞推断成工具故障。"""
+    execution = summary.get("execution") or {}
+    return (summary.get("verdict") == "error" or execution.get("status") == "error"
+            or bool(execution.get("errors"))
+            or any(f.get("result") == "error" for f in summary.get("findings") or []))
 
 
 def replay_basis(case: dict, deps: Optional[str] = None) -> dict:
@@ -460,7 +470,7 @@ def replay_basis(case: dict, deps: Optional[str] = None) -> dict:
     # 待确认/阻塞的重放不给出产品结论。它之前的确定结论不再作数：之后又出现了不能复测的运行。
     # 判据确认之前的待确认运行因此不会永久挡住晋级，只要求确认之后重新重放
     order = list(runs.values())  # 记录顺序即运行顺序
-    decisive = [r for r in order if r["verdict"] in ("passed", "failed")]
+    decisive = [r for r in order if r["verdict"] in ("passed", "failed") and not has_execution_error(r)]
     last_bad = max((i for i, r in enumerate(order) if r not in decisive), default=-1)
     rows = order[last_bad + 1:]
     out["ignored"] = [{"run_id": r["run_id"], "verdict": r["verdict"]} for r in order[:last_bad + 1]]

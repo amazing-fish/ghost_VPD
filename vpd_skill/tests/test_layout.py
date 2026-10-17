@@ -85,7 +85,7 @@ def test_transport_error_is_environment_not_missing_target(ws):
     ctx = RunContext(ws, app, dev, store, Overlay([]), mode="regression")
     res = Executor(ctx).run_step({"id": "S", "action": "tap", "target": "tab_my", "expect_state": "my_tab",
                                   "retry": 1}, "c")
-    assert res["outcome"] == "blocked" and res["attribution"] == "environment"
+    assert res["outcome"] == "error" and res["attribution"] == "environment"
     assert [a["status"] for a in res["attempts"]] == ["observation_failed", "observation_failed"]
     assert not any("dispatch" in a for a in res["attempts"])
 
@@ -96,6 +96,7 @@ def test_parse_real_display_dump_reads_only_screen_sections():
     assert d["fold_status"] == "unknown" and d["screens"] == 1
     assert "com.example.private" not in str(d)  # 进程列表段不读取
     assert infer_device_form(None, d["fold_status"])[0] == "bar"
+    assert infer_device_form(None, None)[0] is None  # 无可靠形态字段不能推断直板。
     assert infer_device_form("1,0,0,0", "expanded")[0] == "foldable"
 
 

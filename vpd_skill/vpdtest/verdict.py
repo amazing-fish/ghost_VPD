@@ -1,7 +1,7 @@
 """判定契约。
 
-断言结果：pass / fail / pending（有证据但判据未确认、冲突或属主观项）/ undeterminable（证据不足）/ not_run。
-用例结论：passed 通过 / failed 失败 / blocked 阻塞 / pending 待确认，另记问题归属。
+断言结果：pass / fail / error（明确执行或取证错误）/ pending（判据待确认或主观项）/ undeterminable（证据不足）/ not_run。
+用例结论：passed 通过 / failed 失败 / error 执行错误 / blocked 阻塞 / pending 待确认，另记独立产品结论及问题归属。
 只有"确定性证据 + 已确认判据"才能得出通过或失败；模型意见（visual_review）永远只进入建议。
 """
 from __future__ import annotations
@@ -10,11 +10,81 @@ from typing import Callable, Optional
 
 from .tree import UiTree
 
-RANK = {"failed": 0, "blocked": 1, "pending": 2, "passed": 3}
-LABEL = {"passed": "通过", "failed": "失败", "blocked": "阻塞", "pending": "待确认"}
+RANK = {"error": 0, "failed": 1, "blocked": 2, "pending": 3, "passed": 4}
+LABEL = {"passed": "通过", "failed": "失败", "error": "执行错误", "blocked": "阻塞", "pending": "待确认"}
 ATTR_LABEL = {"product": "产品", "tool": "工具", "environment": "环境", "requirement_unclear": "需求不明确"}
 PASSED = ("passed", "passed_after_adaptation", "passed_after_recovery")
 GENERIC_CRASH = "K-GEN-001"
+
+
+def error_attribution(error_class) -> str:
+    return "environment" if error_class in {"device_offline", "transport_unavailable", "screen_off", "screen_locked"} else "tool"
+
+
+def collection_error(obs: dict) -> dict:
+    """只识别采集器明确报告的错误；空树、过时和无法识别前台不等于查询故障。"""
+    obs = obs or {}
+    tree = obs.get("tree") or {}
+    foreground = obs.get("foreground_error") or (obs.get("page") or {}).get("observation_error")
+    queries = [q for q in obs.get("foreground_query_errors") or []
+               if q.get("error_class") not in (None, "foreground_unknown", "foreground_changed")]
+    ec = foreground if foreground not in (None, "foreground_unknown", "foreground_changed") else None
+    if queries:
+        detail = {k: queries[0].get(k) for k in ("error_class", "error", "raw")}
+    elif ec:
+        detail = {"error_class": ec, "error": (obs.get("foreground_error_detail") or {}).get("error")}
+    elif tree.get("status") == "error" or tree.get("captured_status") == "error":
+        detail = {"error_class": tree.get("error_class") or "tree_collection_error", "error": tree.get("error")}
+    else:
+        return {}
+    return {**detail, "stage": "observation", "attribution": error_attribution(detail["error_class"]),
+            "evidence": {"obs": obs.get("obs_id"), "ts": obs.get("ts"), "tree": tree,
+                         "foreground_query_errors": queries,
+                         "foreground_error": foreground, "foreground_error_detail": obs.get("foreground_error_detail")}}
+
+
+def execution_error(step: dict, stage: str = "step") -> dict:
+    """提取最终失败，不把已恢复的首次错误重新升为本次错误。原始记录仍留在 run。"""
+    subs = step.get("sub_steps") or []
+    if subs:
+        failed = next((s for s in reversed(subs) if s.get("outcome") not in PASSED), None)
+        if failed:
+            return {**execution_error(failed, stage), "parent_step": step.get("step_id")}
+    att = (step.get("attempts") or [{}])[-1]
+    rec = (step.get("recoveries") or [{}])[-1]
+    post = rec.get("post") if rec.get("after_attempt") == att.get("n") else None
+    dispatch = att.get("dispatch") or {}
+    detail = step.get("execution_error") or (post or {}).get("execution_error") or att.get("execution_error") or {}
+    status = step.get("final_status") or att.get("status")
+    return {"stage": detail.get("stage") or ("dispatch" if status == "device_error" else
+                                             "stop_verification" if status == "stop_not_confirmed" else stage),
+            "error_class": detail.get("error_class") or att.get("error_class") or dispatch.get("error_class") or status,
+            "error": detail.get("error") or dispatch.get("error"),
+            "evidence": {"step": step.get("step_id"), "obs_before": att.get("obs_before"),
+                         "obs_after": step.get("final_obs") or att.get("obs_after"),
+                         "dispatch": dispatch, "stop_check": att.get("stop_check"),
+                         "collection": detail.get("evidence"), "post": post or att.get("post")}}
+
+
+def _execution_findings(results: list, kind: str, ancestors: tuple = (), cleanup_required=None) -> list:
+    """流程完成不消除其非关键子步骤错误；父级复制的错误摘要只投影一次。"""
+    findings = []
+    for step in results:
+        required = step.get("required", True) if kind == "cleanup" and not ancestors else cleanup_required
+        nested = _execution_findings(step.get("sub_steps") or [], kind, ancestors + (step["step_id"],), required)
+        if nested:
+            findings.extend(nested)
+        elif step.get("outcome") == "error":
+            finding = {"kind": kind, "step": step["step_id"], "result": "error",
+                       "attribution": step.get("attribution") or "tool", "reason": step.get("reason"),
+                       "mode": step.get("final_status"), **execution_error(step, kind)}
+            if ancestors:
+                finding.update(parent_step=ancestors[-1], ancestors=list(ancestors))
+                finding["evidence"].update(parent_step=ancestors[-1], ancestors=list(ancestors))
+            if kind == "cleanup":
+                finding["cleanup_required"] = required
+            findings.append(finding)
+    return findings
 
 
 def _stale(obs) -> bool:
@@ -98,19 +168,32 @@ def _seen(a: dict, step: dict, load: Callable) -> tuple:
     import re
     mons = _monitors(step)
     expected = a.get("expected", True)
-    entries, gaps = [], []
+    entries, gaps, errors = [], [], []
+    def usable(obs):
+        if _stale(obs):
+            return False
+        if a["type"] == "state_seen":
+            return (obs.get("page") or {}).get("state") not in (None, "undetermined", "ambiguous", "unknown")
+        return (obs.get("tree") or {}).get("status") == "ok"
+
     if mons:
         for m in mons:
             for e in m["timeline"]:
                 obs, _ = load(e["obs"])
-                if _stale(obs):
+                error = collection_error(obs)
+                if error:
+                    errors.append(error)
+                elif not usable(obs):
                     gaps.append(e["obs"])
                 else:
                     entries.append(e)
     else:
         obs, _ = load(step["final_obs"])
-        if _stale(obs):
-            return None, {"reason": "终态观测缺失或已过时，不能判断出现或未出现"}
+        error = collection_error(obs)
+        if error:
+            return None, {"execution_error": error, "reason": "所需终态证据采集失败"}
+        if not usable(obs):
+            return None, {"reason": "终态观测缺失、不可用或已过时，不能判断出现或未出现"}
         entries = [{"t": None, "obs": obs["obs_id"], "state": obs["page"]["state"],
                     "new_texts": obs.get("texts", [])}]
     if a["type"] == "state_seen":
@@ -124,6 +207,10 @@ def _seen(a: dict, step: dict, load: Callable) -> tuple:
         seen = len({s["obs"] for s in samples}) >= int(a.get("min_count", 1))
         ev = {"pattern": a["pattern"], "seen": seen, "matches": samples[:10],
               "windows": len(mons), "source": "monitor_timeline" if mons else "final_obs"}
+    if errors:
+        ev["collection_errors"] = errors
+        if not seen:
+            return None, {**ev, "execution_error": errors[-1], "reason": "监视窗口存在采集错误，不能据缺失样本判断未出现"}
     if gaps:
         ev["stale_samples"] = gaps
         if not seen:
@@ -153,6 +240,8 @@ def evaluate_assertion(a: dict, steps: dict, load: Callable, knowledge, app) -> 
         oracle = knowledge.oracle_status(a.get("oracle_refs", []))
         out.update(evidence=ev, oracle=oracle)
         if holds is None:
+            if ev.get("execution_error"):
+                return {**out, **ev["execution_error"], "result": "error", "reason": ev["reason"]}
             return {**out, "result": "undeterminable", "reason": ev.get("reason", "证据不足以判定")}
         if oracle["status"] != "confirmed":
             return {**out, "result": "pending", "observed_holds": holds,
@@ -160,12 +249,34 @@ def evaluate_assertion(a: dict, steps: dict, load: Callable, knowledge, app) -> 
         return {**out, "result": "pass" if holds else "fail", "observed_holds": holds}
     obs, tree = load(step["final_obs"])
     if a["type"] == "visual_review":
+        shot = obs.get("screenshot") or {}
+        capture_error = {}
+        if shot.get("status") == "error":
+            capture_error = shot
+        elif shot.get("status") == "withheld":
+            capture_error = shot.get("capture_error") or {}
+        if capture_error:
+            error_class = capture_error.get("error_class") or "screenshot_capture_error"
+            return {**out, "result": "error", "attribution": error_attribution(error_class),
+                    "stage": "screenshot", "error_class": error_class, "error": capture_error.get("error"),
+                    "evidence": {"obs": obs["obs_id"], "ts": obs.get("ts"), "screenshot": shot},
+                    "reason": "视觉检查所需截图采集失败，不能完成该检查"}
+        if shot.get("status") != "ok" or _stale(obs):
+            error = collection_error(obs)
+            evidence = error.get("evidence") or {}
+            foreground = evidence.get("foreground_error")
+            if error and (evidence.get("foreground_query_errors") or
+                          foreground not in (None, "foreground_unknown", "foreground_changed")):
+                return {**out, **error, "result": "error", "reason": "前台查询失败使视觉输入缺失或失效，不能完成该检查"}
         return {**out, "result": "pending", "evidence": {"obs": obs["obs_id"], "screenshot": obs.get("screenshot", {}).get("path")},
                 "reason": "主观/视觉检查：只输出建议，需人工或经确认的规则转化为确定性断言", "prompt": a.get("prompt")}
     holds, ev = _check(a, obs, tree, app)
     oracle = knowledge.oracle_status(a.get("oracle_refs", []))
     out.update(evidence=ev, oracle=oracle)
     if holds is None:
+        error = collection_error(obs)
+        if error:
+            return {**out, **error, "result": "error", "reason": "所需观测采集失败，不能给出产品结论"}
         return {**out, "result": "undeterminable", "reason": ev.get("reason", "证据不足以判定")}
     if oracle["status"] != "confirmed":
         return {**out, "result": "pending", "observed_holds": holds,
@@ -204,7 +315,14 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
             alerts.append({"kind": "unlock", "status": status, "action_required": message,
                            "reason": unlock.get("reason")})
         bad = [c for c in preflight.get("checks", []) if not c["ok"]]
-        return _final("blocked", "environment", [{"kind": "preflight", "result": "blocked", "attribution": "environment",
+        errors = [c for c in bad if c.get("execution_error") or c.get("error_class") in {
+            "device_offline", "transport_unavailable", "tool_missing", "timeout", "command_failed", "tool_execution_error"}]
+        result = "error" if errors else "blocked"
+        attr = error_attribution((errors[0].get("execution_error") or errors[0]).get("error_class")) if errors else "environment"
+        return _final(result, attr, [{"kind": "preflight", "result": result, "attribution": attr,
+                                                  "stage": "preflight", "error_class": (errors[0].get("execution_error") or errors[0]).get("error_class") if errors else None,
+                                                  "error": (errors[0].get("execution_error") or errors[0]).get("error") if errors else None,
+                                                  "evidence": {"checks": bad},
                                                   "reason": "前置检查未通过：" + "、".join(
                                                       f"{c['check']}({c.get('error_class')})" for c in bad),
                                                   "detail": bad}], [], steps, alerts=alerts, assertions=assertions)
@@ -214,10 +332,14 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
                                                   "reason": "环境要求未满足：" + "、".join(
                                                       f"{u['key']}={u['actual']}（需 {u['required']}）" for u in env_check["unmet"]),
                                                   "detail": env_check["unmet"]}], [], steps, assertions=assertions)
+    findings.extend(_execution_findings(steps, "step"))
+    findings.extend(_execution_findings(cleanup or [], "cleanup"))
     for s in steps:
         if s["outcome"] in PASSED or s["outcome"] == "not_run":
             continue
-        if s["outcome"] == "fail_candidate":
+        if s["outcome"] == "error":
+            continue  # 已按真实失败子步骤投影，避免父子重复计数。
+        elif s["outcome"] == "fail_candidate" and s.get("attribution", "product") == "product":
             # 崩溃/异常中断由通用不变量判定，不依赖该步骤业务判据是否已确认
             refs = [GENERIC_CRASH] if s.get("final_status") == "anomaly" else list(s.get("oracle_refs", []))
             oracle = knowledge.oracle_status(refs)
@@ -233,6 +355,10 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
                              "attribution": s.get("attribution", "tool"), "reason": s.get("reason"),
                              "mode": s.get("final_status")})
     for a in assertions:
+        if a["result"] == "error":
+            findings.append({"kind": "assertion", "id": a["id"], "result": "error", "advisory": a["advisory"],
+                             **{k: a.get(k) for k in ("attribution", "reason", "stage", "error_class", "error", "evidence")}})
+            continue
         if a["advisory"]:
             if a["result"] in ("pending", "fail", "undeterminable"):
                 suggestions.append(a)
@@ -246,36 +372,40 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
                              "reason": a.get("reason")})
         elif a["result"] == "not_run" and step_ids is not None and a.get("at") not in step_ids:
             # 引用了不存在的步骤（拼写错误或步骤被删）：这是用例缺陷，不能静默忽略
-            findings.append({"kind": "assertion", "id": a["id"], "result": "blocked", "attribution": "tool",
-                             "reason": f"必需断言引用的步骤 {a.get('at')} 在用例中不存在，断言无法执行"})
+            findings.append({"kind": "assertion", "id": a["id"], "result": "error", "attribution": "tool",
+                             "stage": "assertion", "error_class": "invalid_assertion_step", "error": None,
+                             "evidence": {"at": a.get("at")}, "reason": f"必需断言引用的步骤 {a.get('at')} 在用例中不存在，断言无法执行"})
         elif a["result"] == "not_run":
             # 关联步骤因前面失败/阻塞而未执行：结论已由那一步决定，这里如实列出"尚未验证"的检查
             findings.append({"kind": "assertion", "id": a["id"], "result": "not_verified", "attribution": None,
                              "reason": a.get("reason")})
     for c in cleanup or []:
+        if c["outcome"] == "error":
+            continue  # 包含可选清理，已递归保留执行错误。
         if c["outcome"] == "not_run" and c.get("final_status") == "safety_hold":
             findings.append({"kind": "cleanup", "step": c["step_id"], "result": "not_verified",
                              "attribution": None, "reason": c.get("reason")})
             continue
         if c["outcome"] not in PASSED and c.get("required", True):
             # 清理没完成：账号/车辆数据可能没恢复，整体不能判通过
-            findings.append({"kind": "cleanup", "step": c["step_id"], "result": "blocked",
+            findings.append({"kind": "cleanup", "step": c["step_id"],
+                             "result": "blocked",
                              "attribution": c.get("attribution") or "tool",
-                             "reason": f"必需清理未完成（{c.get('reason') or c['outcome']}），测试数据可能未恢复，需人工核对"})
+                             "reason": f"{'必需' if c.get('required', True) else '可选'}清理未完成（{c.get('reason') or c['outcome']}），测试数据可能未恢复，需人工核对"})
     results = {f["result"] for f in findings}
     decided = [a for a in assertions if not a["advisory"] and a["result"] in ("pass", "fail")]
-    if not decided and not results & {"failed", "blocked"}:
+    if not decided and not results & {"error", "failed", "blocked"}:
         findings.append({"kind": "case", "result": "pending", "attribution": "requirement_unclear",
                          "reason": "没有任何非建议类断言得到确定判定，不能判通过"})
         results.add("pending")
-    if "not_verified" in results and not results & {"failed", "blocked", "pending"}:
+    if "not_verified" in results and not results & {"error", "failed", "blocked", "pending"}:
         # 理论上不会出现（没执行的断言一定对应一个未通过的步骤），兜底：有必需检查没执行就不能判通过
         findings.append({"kind": "case", "result": "pending", "attribution": "tool",
                          "reason": "存在未执行的必需断言，不能判通过"})
         results.add("pending")
     if any(a["kind"] != "step_recovery" for a in alerts):
         return _final("blocked", "environment", findings, suggestions, steps, alerts, assertions)
-    for v in ("failed", "blocked", "pending"):
+    for v in ("error", "failed", "blocked", "pending"):
         if v in results:
             attr = next(f["attribution"] for f in findings if f["result"] == v)
             return _final(v, attr, findings, suggestions, steps, alerts, assertions)
@@ -293,7 +423,15 @@ def _final(verdict: str, attribution, findings: list, suggestions: list, steps: 
                     if not a["advisory"] and a["result"] == "not_run"]
     not_verified += [{"id": f["step"], "at": f["step"], "kind": "cleanup", "reason": f.get("reason")}
                      for f in findings if f["kind"] == "cleanup" and f["result"] == "not_verified"]
-    return {"verdict": verdict, "label": LABEL[verdict], "attribution": attribution,
+    errors = [f for f in findings if f["result"] == "error"]
+    required = [a for a in assertions or [] if not a["advisory"]]
+    product_failed = any(f["result"] == "failed" and f.get("attribution") == "product" for f in findings)
+    product = "failed" if product_failed else ("passed" if required and all(a["result"] == "pass" for a in required)
+                                               and not any(f["result"] == "pending" for f in findings) else "pending")
+    return {"verdict": verdict, "label": LABEL[verdict],
+            "execution": {"status": "error" if errors else ("blocked" if alerts or any(f["result"] == "blocked" for f in findings) else "completed"),
+                          "errors": errors},
+            "product_verdict": product, "attribution": attribution,
             "attribution_label": ATTR_LABEL.get(attribution), "findings": findings,
             "suggestions": [{"id": s["id"], "desc": s["desc"], "reason": s.get("reason")} for s in suggestions],
             "recovered": any(s["outcome"] == "passed_after_recovery" for s in steps),

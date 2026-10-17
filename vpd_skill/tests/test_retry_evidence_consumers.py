@@ -24,7 +24,7 @@ def test_partial_clear_is_visible_to_session_and_step_verdict(ws, tmp_path):
     assert dispatched(result) is True
     assert effect_unknown(result) is True
     verdict = case_verdict({"ok": True}, {"ok": True}, [result], [], None)
-    assert verdict["verdict"] == "blocked"
+    assert verdict["verdict"] == "error"
     assert verdict["action_required"]
     assert [alert["trigger"] for alert in _recovery_alert(verdict)] == ["S1"]
 
@@ -129,7 +129,7 @@ def test_required_cleanup_keeps_partial_input_handover_alert(ws, tmp_path):
     result = _partial_input(ctx)
     result["required"] = True
     verdict = case_verdict({"ok": True}, {"ok": True}, [], [], None, cleanup=[result])
-    assert verdict["verdict"] == "blocked"
+    assert verdict["verdict"] == "error"
     assert verdict["action_required"]
     assert [alert["trigger"] for alert in _recovery_alert(verdict)] == ["S1"]
 
@@ -143,6 +143,6 @@ def test_flow_substep_keeps_partial_input_handover_alert(ws, tmp_path):
     assert _counts(ctx.device)["input_text"] == 1
     assert dispatched(result) is True and effect_unknown(result) is True
     verdict = case_verdict({"ok": True}, {"ok": True}, [result], [], None)
-    assert verdict["verdict"] == "blocked"
+    assert verdict["verdict"] == "error"
     assert verdict["action_required"]
     assert [alert["trigger"] for alert in _recovery_alert(verdict)] == ["F1.1"]
