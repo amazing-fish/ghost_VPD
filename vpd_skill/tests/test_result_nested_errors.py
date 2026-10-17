@@ -132,6 +132,15 @@ def test_advisory_product_failure_stays_suggestion_and_does_not_fail_case(verdic
     assert [item["id"] for item in verdict["suggestions"]] == ["A2"]
 
 
+def test_successful_cleanup_does_not_request_manual_data_recovery(verdict_ws):
+    run = run_case(verdict_ws, case=_case(verdict_ws), device_spec=world("motor_hm_base.json"), propose=False)
+    assert all(step["outcome"].startswith("passed") for step in run["cleanup"])
+    report = (Path(run["dir"]) / "report.md").read_text(encoding="utf-8")
+    cleanup = report.split("## 清理", 1)[1].split("## ", 1)[0]
+    assert "全部完成" in cleanup
+    assert "未恢复" not in cleanup and "人工核对" not in cleanup
+
+
 @pytest.mark.parametrize("parent_outcome", ["passed", "error"])
 def test_sibling_errors_are_distinct_and_parent_copy_is_not_counted_again(parent_outcome):
     children = [{"step_id": f"F.{n}", "outcome": "error", "attribution": "tool", "reason": "same error",

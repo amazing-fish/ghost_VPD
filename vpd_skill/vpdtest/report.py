@@ -77,11 +77,15 @@ def render_run(run: dict) -> str:
     bad_clean = [c for c in run.get("cleanup", []) if not str(c["outcome"]).startswith("passed")]
     cleanup_errors = [f for f in (v.get("execution") or {}).get("errors", []) if f.get("kind") == "cleanup"]
     if run.get("cleanup"):
-        out += ["", "## 清理", "", "- " + ("全部完成" if not bad_clean and not cleanup_errors else "**未完成**：" + "、".join(
-            f"`{c['step_id']}` {OUTCOME.get(c['outcome'], c['outcome'])}{'' if c.get('required', True) else '（非必需）'}"
-            f"：{_esc(c.get('reason'))}" for c in bad_clean)
-            + ("；子步骤执行错误：" + "、".join(f"`{f['step']}`" for f in cleanup_errors) if cleanup_errors else "")
-            + "。测试数据可能未恢复，请人工核对")]
+        cleanup_summary = "全部完成"
+        if bad_clean or cleanup_errors:
+            cleanup_summary = "**未完成**：" + "、".join(
+                f"`{c['step_id']}` {OUTCOME.get(c['outcome'], c['outcome'])}{'' if c.get('required', True) else '（非必需）'}"
+                f"：{_esc(c.get('reason'))}" for c in bad_clean)
+            if cleanup_errors:
+                cleanup_summary += "；子步骤执行错误：" + "、".join(f"`{f['step']}`" for f in cleanup_errors)
+            cleanup_summary += "。测试数据可能未恢复，请人工核对"
+        out += ["", "## 清理", "", "- " + cleanup_summary]
     if not run["preflight"]["ok"]:
         for ch in run["preflight"]["checks"]:
             if not ch["ok"]:
