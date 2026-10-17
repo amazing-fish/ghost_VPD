@@ -201,7 +201,7 @@ def test_foreign_foreground_without_declaration_is_recorded_not_failed(ws, tmp_p
 
 def test_declared_launcher_restoration_fails_on_foreign_foreground(ws, tmp_path):
     """用例声明 require_launcher 且停止前 APP 在前台（可靠前置事实）：前台被其他应用占据
-    → 清理不符合声明的恢复期望，判 fail_candidate（环境归因，不是产品失败）。"""
+    → 清理不符合声明的恢复期望，判 blocked（环境归因，不是产品失败）。"""
     ctx = _ctx(ws, _lab_world(tmp_path))
     real_stop = ctx.device.stop
 
@@ -216,7 +216,7 @@ def test_declared_launcher_restoration_fails_on_foreign_foreground(ws, tmp_path)
     assert att["status"] == "foreground_not_restored"
     assert att["stop_check"]["foreign_foreground"] == "com.huawei.welink.hmos"
     assert att["stop_check"]["require_launcher"] is True
-    assert res["outcome"] == "fail_candidate"
+    assert res["outcome"] == "blocked"
     assert res["first_failure"]["detail"]["stop_check"]["foreground"] == "com.huawei.welink.hmos"
 
 
@@ -264,7 +264,7 @@ def test_stop_app_fails_when_foreground_query_fails(ws, tmp_path):
     att = res["attempts"][-1]
     assert att["status"] == "foreground_unknown"
     assert att["stop_check"]["process_ended"] is True and att["stop_check"]["foreground_restored"] is False
-    assert res["outcome"] == "fail_candidate"
+    assert res["outcome"] == "error"
 
 
 def test_stop_app_fails_when_process_survives(ws, tmp_path):
@@ -275,7 +275,7 @@ def test_stop_app_fails_when_process_survives(ws, tmp_path):
     att = res["attempts"][-1]
     assert att["status"] == "stop_not_confirmed"
     assert att["stop_check"]["process_ended"] is False and att["stop_check"]["process_alive"] is True
-    assert res["outcome"] == "fail_candidate"
+    assert res["outcome"] == "error"
 
 
 def test_cleanup_stop_failure_blocks_pass_verdict(ws, tmp_path):

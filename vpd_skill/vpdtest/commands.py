@@ -368,11 +368,13 @@ def _run_brief(run: dict) -> dict:
     v = run["verdict"]
     return {"run_id": run["run_id"], "case": run["case"]["id"], "verdict": v["verdict"], "label": v["label"],
             "action_required": v.get("action_required"), "product_failed": v.get("product_failed"),
+            "product_verdict": v.get("product_verdict"), "execution": v.get("execution"),
             "not_verified": [x["id"] for x in v.get("not_verified") or []], "known_issue": v.get("known_issue"),
             "attribution": v["attribution"], "recovered": v["recovered"], "adapted": v["adapted"],
             "first_anomaly": v["first_anomaly"] and {k: v["first_anomaly"].get(k) for k in ("step", "attempt", "status")},
             # detail 是阻塞条件的结构化清单（env_requirement/preflight）：Agent 按它补参数，不必解析 reason 原文
             "findings": [{k: f.get(k) for k in ("result", "step", "id", "reason", "attribution")}
+                         | {k: f[k] for k in ("stage", "error_class", "error", "evidence") if k in f}
                          | ({"detail": f["detail"]} if f.get("detail") else {}) for f in v["findings"]],
             "experience_candidates": run["experience_candidates"], "validation_level": run["validation_level"],
             "report": str(Path(run["dir"]) / "report.md"),

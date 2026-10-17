@@ -206,7 +206,12 @@ class HdcDevice:
         except FileNotFoundError:
             return DeviceResult(op, False, False, "tool_missing", f"找不到 {self.hdc}，请确认已加入 PATH")
         except subprocess.TimeoutExpired as e:
+            raw = "".join(v.decode("utf-8", "replace") if isinstance(v, bytes) else (v or "")
+                          for v in (e.stdout, e.stderr))
             return DeviceResult(op, True, False, "timeout", f"{op} 超过 {e.timeout}s 未返回",
+                                raw=raw, duration_ms=int((time.monotonic() - t0) * 1000))
+        except OSError as e:
+            return DeviceResult(op, None, False, "tool_execution_error", str(e),
                                 duration_ms=int((time.monotonic() - t0) * 1000))
         out = (r.stdout or b"").decode("utf-8", "replace") + (r.stderr or b"").decode("utf-8", "replace")
         ms = int((time.monotonic() - t0) * 1000)
@@ -247,6 +252,7 @@ class HdcDevice:
 
     def app_version(self, bundle: str) -> Optional[str]:
         r = self._shell("bm", "dump", "-n", bundle, op="bm_dump")
+        self.version_query_error = None if r.ok else {"error_class": r.error_class, "error": r.error, "raw": r.raw}
         return parse_version(r.raw) if r.ok else None
 
     def preflight(self, bundle: str) -> dict:
@@ -260,15 +266,20 @@ class HdcDevice:
                        "error_class": power.error_class if power.error_class == "device_offline" else None,
                        "detail": (power.error or "")[:120]})
         state = parse_kv(power.raw, "Current State")
-        checks.append({"check": "screen_awake", "ok": state == "AWAKE", "value": state,
-                       "error_class": None if state == "AWAKE" else "screen_off"})
+        checks.append({"check": "screen_awake", "ok": power.ok and state == "AWAKE", "value": state,
+                       "error_class": None if state == "AWAKE" else "screen_off",
+                       **({"execution_error": {"error_class": power.error_class, "error": power.error, "raw": power.raw}}
+                          if not power.ok else {})})
         lock = self._shell("hidumper", "-s", "ScreenlockService", "-a", "-all", op="lock_state")
         locked = parse_kv(lock.raw, "screenLocked")
-        checks.append({"check": "screen_unlocked", "ok": locked == "false", "value": locked,
-                       "error_class": None if locked == "false" else "screen_locked"})
+        checks.append({"check": "screen_unlocked", "ok": lock.ok and locked == "false", "value": locked,
+                       "error_class": None if locked == "false" else "screen_locked",
+                       **({"execution_error": {"error_class": lock.error_class, "error": lock.error, "raw": lock.raw}}
+                          if not lock.ok else {})})
         ver = self.app_version(bundle)
         checks.append({"check": "app_installed", "ok": ver is not None, "value": ver,
-                       "error_class": None if ver else "app_missing"})
+                       "error_class": None if ver else "app_missing",
+                       **({"execution_error": self.version_query_error} if self.version_query_error else {})})
         return {"ok": all(c["ok"] for c in checks), "checks": checks, "device": self.info(), "app_version": ver,
                 "display": self.display_info()}
 
@@ -276,12 +287,15 @@ class HdcDevice:
         """查询失败时返回 None 并在 last_query_error 记录原因，避免把"查不到"当成"不在 APP 内"。"""
         r = self._shell("aa", "dump", "-l", op="aa_dump")
         self.last_query_error = None if r.ok else (r.error_class or "command_failed")
+        self.last_query_error_detail = None if r.ok else {"error": r.error, "raw": r.raw}
         if not r.ok:
             return None
         return foreground_from_evidence(r.raw, self.shown_windows())
 
     def process_alive(self, bundle: str) -> Optional[bool]:
         r = self._shell("pidof", bundle, op="pidof")
+        self.process_query_error = (None if r.sent and r.error_class in (None, "command_failed") else
+                                    {"error_class": r.error_class, "error": r.error, "raw": r.raw})
         return bool(r.raw.strip()) if r.sent and r.error_class in (None, "command_failed") else None
 
     def _pull(self, remote: str, local: Path, op: str) -> DeviceResult:
@@ -406,12 +420,14 @@ class HdcDevice:
 
     def _screen_locked_once(self) -> Optional[bool]:
         power = self._shell("hidumper", "-s", "3301", "-a", "-a", op="power_state")
+        self.screen_query_error = None if power.ok else {"error_class": power.error_class, "error": power.error, "raw": power.raw}
         state = parse_kv(power.raw, "Current State") if power.ok else None
         if state is None:
             return None
         if state != "AWAKE":
             return True
         lock = self._shell("hidumper", "-s", "ScreenlockService", "-a", "-all", op="lock_state")
+        self.screen_query_error = None if lock.ok else {"error_class": lock.error_class, "error": lock.error, "raw": lock.raw}
         return {"true": True, "false": False}.get(parse_kv(lock.raw, "screenLocked") if lock.ok else None)
 
     def wake(self) -> DeviceResult:

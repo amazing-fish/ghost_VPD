@@ -58,3 +58,11 @@
 raw HDC/uitest 仅保留为历史人工/探测来源，不能写成绕过 Dispatcher 的默认自动化替代。截图字节变化只说明画面变化，不独立证明视角身份、七档遍历或循环。知识入库保留观察、操作经验与待验证产品契约的区别。
 
 执行与证据纪律的唯一完整说明见 [ISSUE_COLLABORATION.md](ISSUE_COLLABORATION.md)；动作契约见 [contracts.md](../vpd_skill/references/contracts.md)。
+
+## #56 第一切片（待当前 PR 合入）
+
+本包实现 error 与 tool/environment 归因、现有判定/执行投影、run/suite/经验验证/晋级消费者兼容。
+混合产品失败与执行错误保留双方证据；正常策略拒绝、预算和输入交接维持 blocked。
+新重放依赖指纹绑定结果契约，历史 raw run/verdict 不重算。
+第二切片的断言级前置、选支记录及 not_applicable 尚未实现；#31 登录迁移随后推进。
+本包只提供离线工程验证，不增加产品覆盖，也不确认知识或批准资产。

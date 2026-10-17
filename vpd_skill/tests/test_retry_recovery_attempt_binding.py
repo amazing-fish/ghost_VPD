@@ -54,7 +54,7 @@ def test_prior_recovery_post_cannot_hide_the_final_attempt_transport_error(ws, t
     assert recovery["post"]["obs_id"] != last["obs_after"]
     checks = {
         "final transport status retained": result["final_status"] == "device_error",
-        "final tool attribution retained": result["outcome"] == "blocked" and result["attribution"] == "tool",
+        "final tool attribution retained": result["outcome"] == "error" and result["attribution"] == "tool",
         "latest observation retained": result["final_obs"] == last["obs_after"],
     }
     assert all(checks.values()), checks

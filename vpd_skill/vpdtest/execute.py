@@ -19,10 +19,11 @@ from .layout import resolve_scope
 from .locate import resolve
 from .session import swipe_options_error
 from .util import now_iso
+from .verdict import collection_error, error_attribution
 
 ENV_ERRORS = {"screen_locked", "screen_off", "device_offline", "app_missing", "tool_missing", "transport_unavailable"}
 STATUS_MAP = {
-    "observation_failed": ("blocked", "environment", "观测查询失败（设备连接/通道异常），请依据下发记录核对现场"),
+    "observation_failed": ("error", "environment", "观测查询失败，请依据采集错误及下发记录核对现场"),
     "target_unresolved": ("blocked", "tool", "目标未能可靠定位（已重新观察）"),
     "target_ambiguous": ("blocked", "tool", "目标匹配到多个元素，拒绝盲点"),
     "target_partially_visible": ("blocked", "tool", "目标只露出一小部分（被裁剪/遮挡或已滑到底），不点边缘"),
@@ -34,10 +35,10 @@ STATUS_MAP = {
     "interrupted": ("blocked", "requirement_unclear", "出现未评审或非良性的中断，未自动处理，需确认其性质"),
     "anomaly": ("fail_candidate", "product", "出现异常中断或疑似崩溃"),
     "postcondition_not_met": ("fail_candidate", "product", "动作后预期状态未出现"),
-    "stop_not_confirmed": ("fail_candidate", "tool", "stop_app 后进程仍存活（或存活状态查询失败）：停止未生效，清理不能算完成"),
-    "foreground_unknown": ("fail_candidate", "environment",
+    "stop_not_confirmed": ("error", "tool", "stop_app 后进程仍存活（或存活状态查询失败）：停止未生效，清理不能算完成"),
+    "foreground_unknown": ("blocked", "environment",
                            "用例声明 require_launcher 但 stop_app 后前台查询失败：恢复期望无法确认（区别于停止成功）"),
-    "foreground_not_restored": ("fail_candidate", "environment",
+    "foreground_not_restored": ("blocked", "environment",
                                 "用例声明 require_launcher 且停止前 APP 在前台，stop_app 后前台却不是桌面：清理不符合声明的恢复期望；"
                                 "其他应用占屏本身是环境现象（真机 S5：WeLink 接管前台），未声明时只记录不判失败"),
     "motion_timeout": ("fail_candidate", "product", "车辆运动超过用例声明的 max_motion_s 仍未观测到停止/结束"
@@ -56,11 +57,14 @@ FOREGROUND_BOUND = ("tap", "input", "swipe", "back", "home")
 
 def classify(att: dict) -> tuple:
     st = att["status"]
+    error = att.get("execution_error") or (att.get("post") or {}).get("execution_error") or (att.get("locate") or {}).get("execution_error") or {}
+    if st in ("observation_failed", "unobservable", "foreground_unknown", "state_indeterminate", "target_stale", "target_unresolved", "stop_not_confirmed") and error:
+        return "error", error["attribution"], "所需观测采集失败：" + str(error["error_class"])
     if st == "invalid_step" and att.get("reason"):
         return "blocked", "tool", att["reason"]
     if st == "device_error":
         ec = att.get("error_class")
-        return ("blocked", "environment" if ec in ENV_ERRORS else "tool",
+        return ("blocked" if ec in {"screen_locked", "screen_off"} else "error", error_attribution(ec),
                 f"设备/执行器错误 {ec}: {(att.get('dispatch') or {}).get('error') or ''}".strip())
     return STATUS_MAP.get(st, ("blocked", "tool", f"未知状态 {st}"))
 
@@ -137,9 +141,11 @@ class Executor:
                 if dismissed[-1].get("gate") in ("budget_exhausted", "motion_timeout", "safety_hold"):
                     att["status"] = dismissed[-1]["gate"]
                     return att
-        if obs["page"].get("observation_error") and kind in ("tap", "input", "swipe"):
+        error = collection_error(obs)
+        if error and kind in ("tap", "input", "swipe", "read"):
             # 观测本身失败时不定位、不下发：否则会把连接问题记成"目标找不到"
-            att.update(status="observation_failed", error_class=obs["page"]["observation_error"])
+            att.update(status="observation_failed", error_class=error["error_class"],
+                       execution_error={**error, "stage": "observe_before"})
             return att
         res = None
         if kind == "read":
@@ -279,7 +285,7 @@ class Executor:
                 if not cr.ok:
                     # 输入框已被点过、可能删了一部分：记为已下发未确认，会话/判定都按效果未知处理
                     att["dispatch"] = {"op": cr.op, "sent": cr.sent, "executor_ok": False, "error_class": cr.error_class,
-                                       "error": cr.error, "duration_ms": cr.duration_ms}
+                                       "error": cr.error, "raw": cr.raw, "duration_ms": cr.duration_ms}
                     att.update(status=cr.error_class if cr.error_class in STATUS_MAP else "device_error", error_class=cr.error_class)
                     return att
                 # 点进输入框会弹键盘、触发布局变化：清空后重新观察并定位（不滚动），按最新的树输入，不沿用清空前的坐标
@@ -305,6 +311,8 @@ class Executor:
         if res is not None:
             att["dispatch"] = {"op": res.op, "sent": res.sent, "executor_ok": res.ok, "error_class": res.error_class,
                                "error": res.error, "duration_ms": res.duration_ms}
+            if not res.ok:
+                att["dispatch"]["raw"] = res.raw
             if not res.sent and res.error_class in STATUS_MAP:
                 att.update(status=res.error_class, error_class=res.error_class)
                 return att
@@ -362,7 +370,10 @@ class Executor:
             blocking = [i["id"] for i in page.get("interrupts", []) if i["class"] == "blocking"]
             if until_gone and any(until_gone.search(x) for x in texts):
                 gone_seen = True
-            errors += 1 if page.get("observation_error") else 0
+            error = collection_error(obs)
+            errors += 1 if error else 0
+            if error:
+                att["execution_error"] = {**error, "stage": "monitor"}
             entry = {"t": t, "obs": obs["obs_id"], "state": page["state"]}
             if new:
                 entry["new_texts"] = new[:50]
@@ -409,7 +420,7 @@ class Executor:
             ctx.sleep(interval)
         if status is None:
             status, stopped_by = ("postcondition_not_met" if until_any else "ok"), "sample_cap"
-        if errors and errors == len(timeline):
+        if errors and (errors == len(timeline) or status == "postcondition_not_met"):
             status = "observation_failed"
         att.update(status=status, obs_before=first_obs, state_before=timeline[0]["state"] if timeline else None,
                    obs_after=timeline[-1]["obs"] if timeline else None,
@@ -439,7 +450,8 @@ class Executor:
             gate = {"action": "swipe", "step_id": step.get("id"), "_safety": bool(step.get("_safety"))}
             if not self._foreground_ok(gate):
                 loc = {**loc, "status": "blocked_state", "gate": {k: gate.get(k) for k in (
-                    "status", "error_class", "foreground_check", "state_check", "action_required") if k in gate}}
+                    "status", "error_class", "foreground_check", "state_check", "action_required") if k in gate},
+                       "execution_error": gate.get("execution_error")}
                 break
             swipes += 1
             before = tree.fingerprint() if (tree is not None and tree.status == "ok") else None
@@ -448,13 +460,23 @@ class Executor:
             obs, tree = ctx.observe(f"{step['id']}:scroll{swipes}")
             lay = obs.get("layout")
             after = tree.fingerprint() if (tree is not None and tree.status == "ok") else None
-            info.update(n=swipes, ok=r.ok, error=r.error, content_changed=before != after if before else None)
+            info.update(n=swipes, ok=r.ok, error=r.error, error_class=r.error_class, raw=r.raw if not r.ok else None,
+                        content_changed=before != after if before else None)
             trail.append(info)
             ctx.store.event("scroll_search", target=tid, **info)
             if r.error_class in ("budget_exhausted", "motion_timeout", "safety_hold"):
                 loc = {**loc, "status": "blocked_state", "gate": {"status": r.error_class}}
                 break
+            if not r.ok and r.error_class in STATUS_MAP and STATUS_MAP[r.error_class][0] == "blocked":
+                loc = {**loc, "status": "blocked_state", "gate": {"status": r.error_class},
+                       "execution_error": gate.get("execution_error")}
+                break
             loc = resolve(tid, target, tree, ctx.observer.screenshot_abs(obs), ctx.app.dir, pref, point, lay)
+            if not r.ok:
+                loc["execution_error"] = gate.get("execution_error") or {
+                    "stage": "locate_scroll", "error_class": r.error_class, "error": r.error,
+                    "attribution": error_attribution(r.error_class), "evidence": {"obs": obs["obs_id"], "dispatch": info}}
+                loc["status"] = "error"
             if not r.ok or (before and before == after):
                 if r.ok:
                     loc["scroll_end"] = True  # 滑动后内容没有变化：已到底或滑动未生效，不再继续
@@ -464,6 +486,8 @@ class Executor:
         if note:
             loc["point_rejected"] = note
         loc["obs"] = obs["obs_id"]
+        if loc["status"] != "found" and collection_error(obs):
+            loc["execution_error"] = {**collection_error(obs), "stage": "locate"}
         loc["layout_key"] = layout_key(lay)
         return loc, obs, tree
 
@@ -482,6 +506,8 @@ class Executor:
             l = resolve(tid, target, t, ctx.observer.screenshot_abs(o), ctx.app.dir,
                         None, step.get("point"), o.get("layout"))
             if l["status"] != "found":
+                if collection_error(o):
+                    att["execution_error"] = {**collection_error(o), "stage": "dispatch_relocate"}
                 return None
             if step.get("at") or step.get("random_point"):
                 l = {**l, "point": self._point_in(l, step, 1, t), "container_point": True}
@@ -591,6 +617,9 @@ class Executor:
         ctx.store.event("revalidate", step=step["id"], n=n, result=rec["result"], obs=obs2["obs_id"])
         if rec["result"] != "same":
             att.update(status="target_stale", obs_after=obs2["obs_id"])
+            error = collection_error(obs2)
+            if error:
+                att["execution_error"] = {**error, "stage": "revalidate"}
             return loc, obs2, tree2
         loc2["obs"], loc2["revalidated_from"] = obs2["obs_id"], loc.get("obs")
         att["locate"] = {**loc, "revalidated": loc2}
@@ -755,7 +784,9 @@ class Executor:
                 require_launcher = bool(step.get("require_launcher"))
                 stop_check = {"process_alive": alive, "foreground": fg,
                               "process_ended": ended, "foreground_restored": fg == LAUNCHER,
-                              "require_launcher": require_launcher}
+                              "require_launcher": require_launcher,
+                              "foreground_error": obs.get("foreground_error"),
+                              "process_error": obs.get("process_error")}
                 if fg not in (None, LAUNCHER):
                     stop_check["foreign_foreground"] = fg
                 if not ended:
@@ -804,6 +835,10 @@ class Executor:
                 break
             time.sleep(interval)
         return {"obs_id": obs["obs_id"], "expected": expect, "observed": page["state"], "met": status == "ok",
+                "execution_error": ({**obs["process_error"], "stage": "stop_verification",
+                                     "attribution": error_attribution(obs["process_error"].get("error_class")),
+                                     "evidence": {"obs": obs["obs_id"], "process_error": obs["process_error"]}}
+                                    if status == "stop_not_confirmed" and obs.get("process_error") else collection_error(obs)),
                 "status": status, "interrupts": page.get("interrupts", []), "suspected_crash": crash,
                 "dialogs": page.get("dialogs", []),
                 "anomalies": anomalies, "elapsed_s": elapsed, "timeout_s": timeout, "polls": polls,
@@ -983,7 +1018,12 @@ class Executor:
             out["outcome"] = "passed_after_recovery" if first_bad else ("passed_after_adaptation" if adapted else "passed")
             out["final_obs"] = last_rec["post"]["obs_id"] if (rec_ok and last["status"] != "ok") else last.get("obs_after")
         else:
-            out["outcome"], out["attribution"], out["reason"] = classify({**last, "status": final_status})
+            effective = {**last, "status": final_status,
+                         "execution_error": final_post.get("execution_error") or (last.get("post") or {}).get("execution_error")
+                         or last.get("execution_error") or (last.get("locate") or {}).get("execution_error")}
+            out["outcome"], out["attribution"], out["reason"] = classify(effective)
+            if effective.get("execution_error"):
+                out["execution_error"] = effective["execution_error"]
             out["final_obs"] = final_post.get("obs_id") or last.get("obs_after") or last.get("obs_before")
             out["final_status"] = final_status
         if first_bad:
@@ -1008,6 +1048,11 @@ class Executor:
                     "dismissed": dismissed}
         recipe = ctx.app.states.recipes.get(target)
         if not recipe:
+            error = collection_error(obs)
+            if error:
+                return {**base, "outcome": "error", "attribution": error["attribution"], "attempts": [],
+                        "reason": "到达状态所需观测采集失败", "execution_error": error,
+                        "final_status": "observation_failed", "final_obs": obs["obs_id"]}
             return {**base, "outcome": "blocked", "attribution": "tool", "attempts": [],
                     "reason": f"没有到达状态 {target} 的 recipe", "final_obs": obs["obs_id"]}
         subs = []
@@ -1076,6 +1121,8 @@ def _resolved(loc: dict, obs: dict) -> dict:
 
 
 def _unresolved(loc: dict) -> str:
+    if loc.get("execution_error"):
+        return "observation_failed"
     if loc["status"] == "blocked_state":  # 滚动查找前的锁屏/前台确认没过：沿用那次确认的状态（未滑动）
         return loc["gate"]["status"]
     return {"ambiguous": "target_ambiguous", "partially_visible": "target_partially_visible"}.get(

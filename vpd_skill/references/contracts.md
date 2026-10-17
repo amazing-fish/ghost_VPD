@@ -168,7 +168,7 @@ Agent `diagnosis.status` 消费最终 `final_status`，并以匹配最后尝试�
 
 可靠下发及成功回执后的可观测 `anomaly`、已知晚停/停止失败等确定失败保留交接，不因此标记 `effect_unknown`；该字段只取未知物理证据、部分执行或明确不可判的观测（如无可用树、查询失败、中断下业务状态不可判、停止查询未知）。可靠已知状态上的中断不因此变成未知执行。执行器三条汇总/恢复路径共用此判断，不用“不是 postcondition_not_met”代替未知性。
 
-步骤结果：`passed` / `passed_after_adaptation` / `passed_after_recovery` / `fail_candidate` / `blocked` / `not_run`。
+步骤结果：`passed` / `passed_after_adaptation` / `passed_after_recovery` / `fail_candidate` / `error` / `blocked` / `not_run`。
 关键步骤未通过，后续步骤记为 `not_run`，清理步骤仍执行。
 
 **授权与运动安全**（`run.json`）：`authorized`（本次授予的副作用）、`supervision.{supervisor, supervised_granted, safety}`、`motion[]`（看门狗事件：`armed` 附触发步骤与控件；由 `moving_states` 观测挂上的记 `step: observed`、`label: state:<状态>`；`stopped_observed` 附状态与耗时）、`safety_stops[]`（触发原因、执行的安全停止步骤、`confirmed_stopped`；未确认时 `action_required` 要求人工接管）。安全停止记录独立于步骤结果，不覆盖首次失败。
@@ -194,8 +194,9 @@ Agent `diagnosis.status` 消费最终 `final_status`，并以匹配最后尝试�
 |---|---|
 | `pass` / `fail` | 证据确定 + 判据全部 confirmed 且适用于本次运行 |
 | `pending` | 证据确定，但判据 unconfirmed / conflicted / missing / invalid / out_of_scope / applicability_unknown / not_oracle；或属主观检查 |
+| `error` | 所需观测有明确的采集/解析/查询错误；附工具或环境归因、阶段及原始证据。截图失败不影响可用的文字/状态证据 |
 | `undeterminable` | 证据不足（无 UI 树时判断"有/无"、定位多匹配等）；文字断言只认可见矩形非空的节点（被列表裁掉的不算） |
-| `not_run` | 关联步骤未成功（列入 `verdict.not_verified`）；引用的步骤不存在 → 该断言单独判阻塞 |
+| `not_run` | 关联步骤未成功（列入 `verdict.not_verified`）；引用的步骤不存在 → 用例定义错误，汇总为 error/tool |
 
 判据适用性：`knowledge_snapshot[].applicability` 把条目 `applies_to` 与 `run.json.facts`（APP、实测版本、屏幕形态、
 `--env` 声明）逐项比较。事实缺失或版本描述不可比较（如"内部debug版 phone_fc78649"）→ `applicability_unknown`；
@@ -214,11 +215,31 @@ Agent `diagnosis.status` 消费最终 `final_status`，并以匹配最后尝试�
 知识条目状态只允许 `unconfirmed` / `confirmed` / `deprecated`；未知、缺失或非字符串状态派生为
 判据 `invalid`，废弃条目的判据为 `missing`。`superseded_by` 只记录历史替代关系，不是可写入的知识状态。
 
-用例结论优先级：前置检查/环境要求不满足 → **阻塞（环境）**；未确认的安全停止 → **阻塞（环境）** 且
-`action_required`、`alerts[]` 非空（CLI 退出码 2），产品失败仍在 findings 与 `product_failed`；有失败（产品）→ **失败**；
-有阻塞（含必需清理未完成）→ **阻塞**；有待确认/不可判定，或没有任何断言得到确定判定 → **待确认**；否则 **通过**。
-`verdict.failure_signature` 是失败项的稳定特征，用于判断已知缺陷是否按同一方式复现（`known_issue.reproduced`）。
-步骤出现崩溃或异常中断时用通用不变量 `K-GEN-001` 判定，不依赖该步骤业务判据是否已确认。
+#56 第一切片新增执行错误口径：设备命令失败、明确的采集/解析/查询失败、停止能力未完成记 `error`，
+归因 `tool/environment`，保留 `stage/error_class/error/evidence`。设备回执失败保留完整 `dispatch.raw`；
+前置查询错误不伪装锁屏并触发 PIN 恢复。空树、过时、前台未知但无查询错误仍是证据不足或流程受阻；
+策略拒绝、预算耗尽、安全暂停、等待外部输入不自动变成 error。页面“加载失败”等文字仍由产品判据评价。
+已恢复的错误留在首次异常和原始 attempts，不将已成功恢复的步骤重新标为 error。
+
+`verdict` 保留兼容摘要，新增以下投影，均从现有步骤、断言与 findings 生成：
+
+- `execution.status=completed/blocked/error`；`execution.errors[]` 保留最终执行错误，包括可选清理中的工具错误。
+- `product_verdict=passed/failed/pending`；`product_failed` 与产品 `failure_signature` 继续独立保留。
+- 未确认安全停止仍优先阻塞并要求人工接管；否则 error 优先于产品 failed、blocked、pending，最后才可能 passed。
+  产品失败与执行错误并存时，摘要为 error，产品失败及两类证据均保留。无确定非建议断言不能通过。
+
+`run/suite --fail-on error` 可配置退出码 1；人工接管仍优先退出码 2，定义/程序异常仍退出码 3。
+suite 摘要及 Console 接受 error；经验验证不对 error 做产品结论排序，未解决错误、错误转 pending 或
+同为 error 但少适配都不能验证通过。可靠的 error→passed 才可计改善。晋级只计无执行错误的确定重放。
+新依赖指纹包含 `result_contract=1`，旧重放需按新口径重新积累；内容哈希不变，历史原始 run/verdict 不改写。
+探索资产现有 engine_hash 也会因引擎变更使审核失效，仍须由人重新审核，Agent 不自动批准。
+
+步骤崩溃/异常中断仅在归因为 product 时引用通用不变量 `K-GEN-001`；工具/环境候选不经产品 Oracle 转为失败。
+`knowledge.applicability` 与 confirmed 门槛保持；引用判据不适用仍 pending，不能据此把业务断言改成不涉及。
+
+**尚未实现**：断言级结构化前置、自动选支及 `not_applicable` 生产路径在 #56 第二切片。
+自由文本 preconditions 不执行，业务 `--env` 尚无独立新鲜度证据，不能声称已解决陈旧故障声明。
+未分类的存储/程序异常仍保留 CLI 堆栈并退出 3；本包不宽泛吞异常绕过安全停止和清理链。
 
 ## 4. 探索资产审核与运行准入（#30）
 
@@ -255,7 +276,7 @@ policy、layout 与 dialogs 使用本次运行准入检查时捕获的配置，O
   形态、版本、验证级别）；`sources[0]` 列出 `included` / `excluded`（带理由）/ `rejected`（均未下发）/ `incomplete` /
   `effect_unknown`。lint 对 `rejected` 里 `dispatched: true` 的记录和未写 `effect_reviewed` 的效果未知步骤报错。
 - 用例成熟度（`status`）与产品状态（`product_status`：`conforming` / `known_failure` + `issue` + `signature`）分开记录：
-  当前内容哈希下至少 2 次确定且一致的重放才能晋级；待确认/阻塞的重放不计入并列在 `ignored`；通过与失败混合 → 不稳定。
+  当前内容哈希下至少 2 次确定且一致的重放才能晋级；待确认/阻塞/执行错误的重放不计入并列在 `ignored`；通过与失败混合 → 不稳定。
   内容哈希在用例声明时包含 `authorizations` 与 `safety`。
 
 

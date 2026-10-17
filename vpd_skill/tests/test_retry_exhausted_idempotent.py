@@ -21,13 +21,13 @@ def test_exhausted_idempotent_navigation_requests_handover(ws, tmp_path, retry):
     assert all(attempt["dispatch"]["sent"] is True and attempt["dispatch"]["executor_ok"] is False
                for attempt in result["attempts"])
     assert result["final_status"] == "device_error"
-    assert result["outcome"] == "blocked" and result["attribution"] == "tool"
+    assert result["outcome"] == "error" and result["attribution"] == "tool"
     assert result["first_failure"]["status"] == "device_error"
     assert effect_unknown(result) is True
     assert result.get("effect_unknown") is True
     assert result.get("action_required")
     verdict = case_verdict({"ok": True}, {"ok": True}, [result], [], None)
-    assert verdict["verdict"] == "blocked" and verdict["attribution"] == "tool"
+    assert verdict["verdict"] == "error" and verdict["attribution"] == "tool"
     assert verdict["action_required"]
     assert [alert["trigger"] for alert in verdict["alerts"] if alert["kind"] == "step_recovery"] == ["S1"]
 

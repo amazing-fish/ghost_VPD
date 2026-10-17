@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 OUTCOME = {"passed": "通过", "passed_after_adaptation": "通过（定位适配）", "passed_after_recovery": "通过（经恢复）",
-           "fail_candidate": "失败候选", "blocked": "阻塞", "not_run": "未执行"}
+           "fail_candidate": "失败候选", "error": "执行错误", "blocked": "阻塞", "not_run": "未执行"}
 RESULT = {"pass": "通过", "fail": "失败", "pending": "待确认", "undeterminable": "不可判定", "not_run": "未执行",
-          "failed": "失败", "blocked": "阻塞", "not_verified": "未验证"}
+          "failed": "失败", "error": "执行错误", "blocked": "阻塞", "not_verified": "未验证"}
 
 
 def _esc(v) -> str:
@@ -29,7 +29,10 @@ def render_run(run: dict) -> str:
     for al in v.get("alerts") or []:
         out.append(f"> **需要人工接管：{_esc(al['action_required'])}**（{_esc(al['kind'])}，触发：{_esc(al.get('trigger'))}）\n")
     out += [f"**结论：{v['label']}**" + (f"　问题归属：{v['attribution_label']}" if v.get("attribution_label") else "")
-            + ("　（另有产品失败，见下文）" if v.get("alerts") and v.get("product_failed") else ""), ""]
+            + ("　（另有产品失败，见下文）" if v["verdict"] != "failed" and v.get("product_failed") else ""), ""]
+    if v.get("execution"):
+        out.append(f"产品结论：{RESULT.get(v.get('product_verdict'), v.get('product_verdict'))}；"
+                   f"执行状态：{v['execution']['status']}。两者独立保留。\n")
     if run.get("goal"):
         out.append(f"> 测试目标（原文）：{_esc(run['goal'])}\n")
     if v.get("product_status_stale"):
@@ -65,6 +68,9 @@ def render_run(run: dict) -> str:
             {"result": "pass", "kind": "全部断言", "reason": "非建议类断言均在已确认判据下通过"}]:
         out.append(f"- [{RESULT.get(f['result'], f['result'])}] {_esc(f.get('step') or f.get('id') or f.get('kind'))}："
                    f"{_esc(f.get('reason'))}" + (f"（归属：{f['attribution']}）" if f.get("attribution") else ""))
+        if f["result"] == "error":
+            out.append(f"  - 阶段 `{_esc(f.get('stage'))}`；原始错误 `{_esc(f.get('error_class'))}`：{_esc(f.get('error'))}；"
+                       f"证据：{_esc(f.get('evidence'))}")
     if v.get("not_verified"):
         out += ["", "## 尚未验证的检查（关联步骤没有执行到，不能据本次结论推断它们成立或不成立）", ""]
         out += [f"- `{x['id']}`（步骤 `{_esc(x.get('at'))}`）：{_esc(x.get('reason'))}" for x in v["not_verified"]]
@@ -145,7 +151,7 @@ def render_run(run: dict) -> str:
         orc = a.get("oracle", {})
         refs = ", ".join(f"{i['id']}({i['status']})" for i in orc.get("items", [])) or ", ".join(a.get("oracle_refs", []))
         ev = a.get("evidence", {})
-        out.append(f"| {a['id']}{'（建议）' if a['advisory'] else ''} {_esc(a['desc'])} | {RESULT[a['result']]} | {_esc(refs)} "
+        out.append(f"| {a['id']}{'（建议）' if a['advisory'] else ''} {_esc(a['desc'])} | {RESULT.get(a['result'], a['result'])} | {_esc(refs)} "
                    f"| {_esc(ev.get('obs'))} {_esc(ev.get('screenshot') or '')} | {_esc(a.get('reason') or '')} |")
     if run.get("ui_alerts"):
         out += ["", "## 页面内的失败/异常提示（产品问题候选，需人工确认并反馈）", "",

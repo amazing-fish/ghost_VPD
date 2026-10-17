@@ -85,7 +85,7 @@ def test_transport_error_is_environment_not_missing_target(ws):
     ctx = RunContext(ws, app, dev, store, Overlay([]), mode="regression")
     res = Executor(ctx).run_step({"id": "S", "action": "tap", "target": "tab_my", "expect_state": "my_tab",
                                   "retry": 1}, "c")
-    assert res["outcome"] == "blocked" and res["attribution"] == "environment"
+    assert res["outcome"] == "error" and res["attribution"] == "environment"
     assert [a["status"] for a in res["attempts"]] == ["observation_failed", "observation_failed"]
     assert not any("dispatch" in a for a in res["attempts"])
 

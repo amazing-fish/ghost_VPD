@@ -80,7 +80,7 @@ class Observer:
             if r.data.get("fallback_from"):  # screenCap 投屏期间失败，回退 snapshot_display 得到的截图
                 obs["screenshot"]["fallback_from"] = r.data["fallback_from"]
         else:
-            obs["screenshot"] = {"status": "error", "error_class": r.error_class, "error": r.error}
+            obs["screenshot"] = {"status": "error", "error_class": r.error_class, "error": r.error, "raw": r.raw}
 
     def observe(self, label: str = "", screenshot: bool = True) -> tuple:
         oid, d = self.store.next_obs_dir()
@@ -89,8 +89,11 @@ class Observer:
         alive = self.device.process_alive(self.bundle)
         obs = {"obs_id": oid, "ts": now_iso(), "label": label, "device": self.device.serial,
                "source": self.device.kind, "foreground": fg, "process_alive": alive}
+        if getattr(self.device, "process_query_error", None):
+            obs["process_error"] = self.device.process_query_error
         if fg_err:
             obs["foreground_error"] = fg_err
+            obs["foreground_error_detail"] = getattr(self.device, "last_query_error_detail", None)
         tree = None
         if fg == self.bundle:
             r = self.device.dump_tree(self.bundle, d / "tree.json")
@@ -103,7 +106,7 @@ class Observer:
             else:
                 # 解析失败/拉取失败：记录设备的实际采集错误
                 obs["tree"] = {"status": "unavailable" if r.error_class == "tree_unavailable" else "error",
-                               "error_class": r.error_class, "error": r.error}
+                               "error_class": r.error_class, "error": r.error, "raw": r.raw}
         else:
             obs["tree"] = {"status": "not_collected", "reason": "目标 APP 不在前台，不采集其他 APP 的布局"}
         if fg == self.bundle and (obs.get("tree") or {}).get("status") == "empty":
@@ -132,12 +135,17 @@ class Observer:
         if not obs["fresh"]:
             reason = final_error or ("foreground_unknown" if fg_after is None else "foreground_changed")
             alive = self.device.process_alive(self.bundle)
+            if getattr(self.device, "process_query_error", None):
+                obs["process_error"] = self.device.process_query_error
+            else:
+                obs.pop("process_error", None)
             obs.update(foreground=fg_after, process_alive=alive, foreground_before=fg)
             obs["tree"] = {**obs["tree"], "captured_status": obs["tree"]["status"], "status": "stale", "reason": reason}
             tree, fg = None, fg_after
             fg_err = reason if fg_after is None else None
             if fg_err:
                 obs["foreground_error"] = fg_err
+                obs["foreground_error_detail"] = getattr(self.device, "last_query_error_detail", None)
             else:
                 obs.pop("foreground_error", None)
             if not self._shot_ok(fg_after) and (d / "screen.png").exists():

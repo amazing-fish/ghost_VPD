@@ -64,7 +64,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```powershell
 .\vpdtest.ps1 doctor --device hdc:<serial>
 .\vpdtest.ps1 run TC-MOTOR-HM-001 --device hdc:<serial>
-.\vpdtest.ps1 suite motor_hm_smoke --device hdc:<serial> --fail-on failed blocked
+.\vpdtest.ps1 suite motor_hm_smoke --device hdc:<serial> --fail-on failed error blocked
 .\vpdtest.ps1 explore --start car_tab --budget 30 --device hdc:<serial>
 .\vpdtest.ps1 knowledge confirm K-MOT-001 --reviewer <你的名字>
 # 乾崑（真机运行前请先阅读 references/exploration-method.md 的校准清单）：

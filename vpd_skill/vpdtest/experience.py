@@ -11,6 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Callable, Optional
 
+from .cases import has_execution_error
 from .util import append_jsonl, new_id, now_iso, read_json, read_jsonl, write_json
 
 AUTO_ADOPTABLE = {"locator_preference", "wait_timeout"}  # 其余类型（interrupt_rule、state_signature…）adopt 须 --reviewer
@@ -114,9 +115,9 @@ class ExperienceStore:
     # ---- 验证 / 采纳 / 回滚 ----
     def validate(self, xid: str, case_ids: list, devices: list, run_case: Callable) -> dict:
         """run_case(case_id, device_spec, overlay) -> run dict。基线 = 当前已采纳 overlay；试验 = 基线 + 该候选。"""
-        from .verdict import RANK
         item = self.get(xid)
         rows, regress, improved, exercised = [], False, set(), set()
+        incomplete = False
         plan = [(dev, cid, phase) for dev in devices for cid in case_ids for phase in ("baseline", "trial")]
         handoff = None
         for index in range(0, len(plan), 2):
@@ -136,12 +137,26 @@ class ExperienceStore:
             row = {"case": cid, "device": dev, "baseline": b, "trial": t,
                    "baseline_run": base["run_id"], "trial_run": trial["run_id"],
                    "baseline_adaptations": b_ad, "trial_adaptations": t_ad}
+            b_error, t_error = has_execution_error(base["verdict"]), has_execution_error(trial["verdict"])
+            for phase, run in (("baseline", base), ("trial", trial)):
+                row.update({f"{phase}_{k}": run["verdict"][k]
+                            for k in ("execution", "product_verdict", "product_failed") if k in run["verdict"]})
             # 基线能判出的产品失败，试验组却变成阻塞/待确认：执行改动把缺陷藏到了工具问题后面，按回退处理
-            if RANK[t] < RANK[b] or (b == "failed" and t not in ("failed", "passed")):
+            # error 不参与产品结论排序；错误被隐藏为待确认也不算改进。
+            rank = {"failed": 0, "blocked": 1, "pending": 2, "passed": 3}
+            base_failure = b == "failed" or base["verdict"].get("product_failed")
+            trial_failure = t == "failed" or trial["verdict"].get("product_failed")
+            lost_failure = base_failure and not trial_failure and not (t == "passed" and not t_error)
+            if ((not b_error and t_error) or lost_failure
+                    or (not b_error and not t_error and t in rank and b in rank and rank[t] < rank[b])):
                 regress, row["regression"] = True, True
+            reliable_trial = not t_error and t in ("passed", "failed")
+            if t_error or (b_error and not reliable_trial) or t not in rank or b not in {*rank, "error"}:
+                incomplete, row["incomplete"] = True, True
             # 改进只认"试验组真的通过"或"结论不变但少用了自适应"；离开 failed 本身不算改进。
             # 按（用例，设备）分别记：改进必须出现在真正用到这条经验的运行上，不能由别处的改进顶替
-            if ((t == "passed" and b != "passed") or (t == b and t_ad < b_ad)) and (cid, dev) in exercised:
+            if reliable_trial and ((t == "passed" and (b != "passed" or b_error))
+                    or (not b_error and t == b and t_ad < b_ad)) and (cid, dev) in exercised:
                 improved.add((cid, dev))
             rows.append(row)
         gap = _coverage_gap(item, exercised)
@@ -151,6 +166,8 @@ class ExperienceStore:
                 reason += "；后续验证因需要人工接管而暂停"
         elif handoff:
             status, reason = "candidate", "验证因需要人工接管而暂停；未完成比较不计为验证通过"
+        elif incomplete:
+            status, reason = "candidate", "执行错误尚未得到可靠产品结论的复测；未完成比较不计为验证通过"
         elif gap:
             status, reason = "candidate", gap
         elif not improved:
