@@ -59,8 +59,28 @@ def test_cli_rejects_unsupported_swipe_without_observing_or_dispatching(ws, tmp_
     assert swipes == []
     assert set((directory / "obs").iterdir()) == obs_before
     assert not any(e["event"] in ("dispatch", "authorization", "agent_proposal") for e in added)
-    assert any(e["event"] == "act_rejected" for e in added)
+    assert added == []  # 参数错误在打开会话前拒绝，不制造会话请求/拒绝事件。
     assert trail(directory)["actions"] == 1  # Only the initial launch consumed budget.
+
+
+@pytest.mark.parametrize("options", [
+    ["--point", "640,1660", "--basis", "sheet handle"],
+    ["--point", ""],
+    ["--basis", "sheet handle"],
+    ["--basis", ""],
+    ["--duration", "2"],
+    ["--duration", "0"],
+])
+def test_new_session_invalid_swipe_rejected_before_device_and_session_creation(ws, monkeypatch, options):
+    def unexpected(*args, **kwargs):
+        pytest.fail("invalid CLI arguments must not construct or query a device")
+
+    monkeypatch.setattr(ws, "device", unexpected)
+    directory = ws.runs_dir / "session-unopened-swipe"
+    with pytest.raises(ValueError, match="swipe"):
+        cli(ws, "act", "swipe", "--app", "motor_hm", "--session", "unopened-swipe",
+            "--device", "hdc:never-contact", *options)
+    assert not directory.exists()
 
 
 @pytest.mark.parametrize("extra", UNSUPPORTED)

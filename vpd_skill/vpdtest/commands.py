@@ -168,6 +168,9 @@ def _last_window(store) -> Optional[list]:
 
 
 def cmd_act(ws: Workspace, a) -> dict:
+    error = swipe_options_error(vars(a))
+    if error:
+        raise ValueError(error)
     with session_lock(ws.runs_dir / f"session-{a.session}"):
         return _cmd_act(ws, a)
 
@@ -215,7 +218,7 @@ def _cmd_act(ws: Workspace, a) -> dict:
 
 
 def _act_step(ctx, store, a, step_id: str) -> dict:
-    error = swipe_options_error({"action": a.action, "point": a.point, "basis": a.basis, "duration": a.duration})
+    error = swipe_options_error(vars(a))
     if error:
         raise ValueError(error)
     # task 类沿用任务策略；其他单步授权由人给出，supervised 类仍必须写明在场监护人。
