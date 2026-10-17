@@ -190,6 +190,41 @@ def test_promote_never_restores_business_env_to_new_oracle_context(verdict_ws):
         cases.promote(verdict_ws, case["id"], "regression", kn, reviewer="pytest-synthetic", allow_offline=True)
 
 
+@pytest.mark.parametrize("earlier_contract", [1, 2, 3, None], ids=["early-1", "early-2", "early-3", "current"])
+def test_promotion_requires_current_dependency_contract_despite_complete_branch_replays(
+        verdict_ws, monkeypatch, earlier_contract):
+    # Create two isolated historical summaries through the real recording path.
+    # Only their engine-result contract differs; content, independent confirmed
+    # rules, assertion facts and verified branch coverage remain complete.
+    with monkeypatch.context() as historical_engine:
+        if earlier_contract is not None:
+            def historical_hash(payload):
+                if isinstance(payload, dict) and "result_contract" in payload:
+                    payload = {**payload, "result_contract": earlier_contract}
+                return sha256_obj(payload)
+            historical_engine.setattr(cases, "sha256_obj", historical_hash)
+        case, kn = _promotable(verdict_ws)
+
+    stored = verdict_ws.load_case(case["id"])
+    assert len(stored["replays"]) == 2
+    assert all(row["verdict"] == "passed" and row["coverage"]["verified"] == ["A1", "A2"]
+               and all(a["verified"] for a in row["coverage"]["assertions"])
+               for row in stored["replays"])
+    original = verdict_ws.case_path(case["id"]).read_bytes()
+    if earlier_contract is not None:
+        with pytest.raises(PermissionError, match="依赖指纹|定义已变"):
+            cases.promote(verdict_ws, case["id"], "regression", kn,
+                          reviewer="pytest-synthetic", allow_offline=True)
+        # Refusing stale evidence must preserve both historical summaries and
+        # the asset's previous maturity instead of silently migrating them.
+        assert verdict_ws.case_path(case["id"]).read_bytes() == original
+    else:
+        promoted = cases.promote(verdict_ws, case["id"], "regression", kn,
+                                 reviewer="pytest-synthetic", allow_offline=True)
+        assert promoted["status"] == "regression"
+        assert promoted["history"][-1]["replays"] == [row["run_id"] for row in stored["replays"]]
+
+
 def _experience(tmp_path):
     xs = ExperienceStore(tmp_path, "synthetic")
     xs.save_item({"id": "XP-condition", "kind": "locator_preference", "change": {"target": "target", "prefer_strategy_index": 1},

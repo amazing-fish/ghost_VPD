@@ -168,7 +168,7 @@ Agent `diagnosis.status` 消费最终 `final_status`，并以匹配最后尝试�
 
 可靠下发及成功回执后的可观测 `anomaly`、已知晚停/停止失败等确定失败保留交接，不因此标记 `effect_unknown`；该字段只取未知物理证据、部分执行或明确不可判的观测（如无可用树、查询失败、中断下业务状态不可判、停止查询未知）。可靠已知状态上的中断不因此变成未知执行。执行器三条汇总/恢复路径共用此判断，不用“不是 postcondition_not_met”代替未知性。
 
-步骤结果：`passed` / `passed_after_adaptation` / `passed_after_recovery` / `fail_candidate` / `error` / `blocked` / `not_run`。
+步骤结果：`passed` / `passed_after_adaptation` / `passed_after_recovery` / `fail_candidate` / `error` / `blocked` / `pending` / `skipped`（操作条件明确不满足，未触发）/ `not_run`。
 关键步骤未通过，后续步骤记为 `not_run`，清理步骤仍执行。
 
 **授权与运动安全**（`run.json`）：`authorized`（本次授予的副作用）、`supervision.{supervisor, supervised_granted, safety}`、`motion[]`（看门狗事件：`armed` 附触发步骤与控件；由 `moving_states` 观测挂上的记 `step: observed`、`label: state:<状态>`；`stopped_observed` 附状态与耗时）、`safety_stops[]`（触发原因、执行的安全停止步骤、`confirmed_stopped`；未确认时 `action_required` 要求人工接管）。安全停止记录独立于步骤结果，不覆盖首次失败。
@@ -244,7 +244,7 @@ Replay world 的 env_facts 只是标明 offline_replay 的合成环境，不代�
 `run/suite --fail-on error` 可配置退出码 1；人工接管仍优先退出码 2，定义/程序异常仍退出码 3。
 suite 摘要及 Console 接受 error；经验验证不对 error 做产品结论排序，未解决错误、错误转 pending 或
 同为 error 但少适配都不能验证通过。可靠的 error→passed 才可计改善。晋级只计无执行错误的确定重放。
-新依赖指纹包含 `result_contract=3`，旧重放需按新口径重新积累；旧无条件内容哈希不变；新 conditions 内容与外部条件定义/目标/规则前置均绑定指纹，历史原始 run/verdict 不改写。
+新依赖指纹包含 `result_contract=4`，旧重放需按新口径重新积累；旧无条件内容哈希不变；新 conditions 内容与外部条件定义/目标/规则前置均绑定指纹，历史原始 run/verdict 不改写。
 探索资产现有 engine_hash 也会因引擎变更使审核失效，仍须由人重新审核，Agent 不自动批准。
 
 步骤崩溃/异常中断仅在归因为 product 时引用通用不变量 `K-GEN-001`；工具/环境候选不经产品 Oracle 转为失败。
@@ -291,6 +291,9 @@ suite 摘要及 Console 接受 error；经验验证不对 error 做产品结论�
   多前置中任何明确采集异常→error，其次未知/冲突→pending，才可能 false→不涉及；已知 false 不掩盖另一条件的未知/错误。
   缺 provider 只保留 pending。显式互斥的条件要求也进入知识冲突/resolve 的同源作用范围，健康与故障的对立预定义规则不互相制造冲突；真正重叠的冲突仍待确认。K-QK-USR-002 将原确认文字中的故障前提机器化，没有新增生产读取器或确认健康事实。
 - `step.when` 使用同样引用，执行前自动新采样，恢复/重试继续复核。false 记录 `skipped`（未触发），不作为动作成功；unknown 记 pending，关键步骤停止后续，error 沿第一切片留归因与原错。
+  `when.at` 与 `guard.at` 都须引用 case.steps 中已定义的顶层步骤；Runner 在设备构造前拒绝未知步骤引用。已定义但尚无成功终态证据时仍为 pending。
+  原动作前的每次弹窗清理也须复核完整操作条件链，不能先关闭弹窗再选支；动作后的后置/恢复继续按原有响应契约处理。
+  条件动作的准备弹窗操作异常保留 error（`prepare_interrupt` 阶段）、原始回执和首次失败；已下发而效果未知时同时要求人工交接，不用后续选支抹去异常。
   正常策略拒绝、预算和外部输入交接仍为 blocked。flow/recipe 的每个子步骤仍走现有 Executor/Dispatcher；父条件全链继承并与子条件同时复核，父选择的车辆/任务/账户身份不能暗中更换。
   已执行部分动作但有必需子步骤未执行，或任一子步骤条件未知时，父操作保留 pending，不能从最后页面制造执行完成或分支覆盖。可选 false 子步骤可跳过，unknown 仍需补证。
   read 的定位滚动及事实有效期同样在测量前复核，辅助滚动原文保留，不用滚动后的读数冒充原分支已验证；没有第二套 Planner。
@@ -361,4 +364,4 @@ lint 共用 `iter_case_steps` 遍历主步骤、cleanup、safe_stop 和引用的
 问题字段保留来源路径，如 `cleanup.C2`、`safe_stop.X1`、`steps.F1→flow:...X1`；递归引用会报错，不无限展开。
 
 选支重试后条件变为 false/unknown 不构成原动作恢复：此前未恢复的 error 或产品失败候选及原错归因继续保留。
-结果契约版本 3 同时使早期候选版本 2 的重放失效；历史 raw run/verdict 不改写。
+结果契约版本 4 同时使早期候选版本 2/3 的重放失效，包括清理弹窗前尚未复核操作条件的运行；历史 raw run/verdict 不改写。

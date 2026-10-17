@@ -113,7 +113,7 @@ def dependency_hash(case: dict, app, knowledge) -> str:
         want_provider_targets(provider)
     return sha256_obj({"steps": steps, "targets": targets, "states": app.states.states,
                        "interrupts": app.states.interrupts, "oracles": facts, "conditions": conditions,
-                       "result_contract": 3})[:12]
+                       "result_contract": 4})[:12]
 
 
 # 审核覆盖审阅语义；成熟度/运行记录不使正常晋级或新重放自失效。

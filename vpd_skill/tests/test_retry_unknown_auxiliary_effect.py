@@ -88,11 +88,12 @@ def test_retained_first_error_keeps_latest_unknown_effect_handoff(
     run = run_case(ws, case=case, device_spec=spec, propose=False)
     step = run["steps"][1]
     assert step["outcome"] == "error"
-    assert step["attempts"][-1]["status"] == "condition_unknown"
+    assert step["attempts"][-1]["status"] == "preparation_error"
     assert step["attempts"][-1]["dismissed"][0]["sent"] is None
     assert step.get("effect_unknown"), step
     assert step.get("action_required"), step
     assert run["verdict"].get("action_required"), run["verdict"]
     assert run["verdict"]["execution"]["status"] == "error"
+    assert run["verdict"]["execution"]["errors"][0]["stage"] == "prepare_interrupt"
     assert "first original receipt" in str(run["verdict"]["execution"]["errors"])
     assert "second unknown receipt" in (Path(run["dir"]) / "events.jsonl").read_text()

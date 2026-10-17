@@ -71,7 +71,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     for child, _, where in iter_case_steps(case, app):
         if "when" in child:
             condition_issues += [{**x, "field": where + ".when." + x.get("field", "")} for x in
-                                 validate_guard(child["when"], condition_defs)]
+                                 validate_guard(child["when"], condition_defs, step_ids)]
     if condition_issues:
         raise ValueError(f"条件定义无效：{condition_issues}")
     knowledge, policy = KnowledgeStore(ws.root), ws.policy()

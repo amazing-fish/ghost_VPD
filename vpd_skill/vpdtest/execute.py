@@ -22,6 +22,7 @@ from .verdict import collection_error, error_attribution
 
 ENV_ERRORS = {"screen_locked", "screen_off", "device_offline", "app_missing", "tool_missing", "transport_unavailable"}
 STATUS_MAP = {
+    "preparation_error": ("error", "tool", "操作前弹窗处置失败"),
     "condition_false": ("skipped", "requirement_unclear", "当前独立证据明确不满足操作条件，未执行"),
     "condition_unknown": ("pending", "requirement_unclear", "操作条件未知，未执行"),
     "condition_error": ("error", "tool", "操作条件所需证据采集失败"),
@@ -60,6 +61,8 @@ FOREGROUND_BOUND = ("tap", "input", "swipe", "back", "home")
 def classify(att: dict) -> tuple:
     st = att["status"]
     error = att.get("execution_error") or (att.get("post") or {}).get("execution_error") or (att.get("locate") or {}).get("execution_error") or {}
+    if st == "preparation_error":
+        return "error", error.get("attribution", "tool"), att.get("reason", "操作前弹窗处置失败")
     if st in ("condition_false", "condition_unknown", "condition_error"):
         outcome, attribution, reason = STATUS_MAP[st]
         return outcome, error.get("attribution", attribution), att.get("reason", reason)
@@ -139,7 +142,7 @@ class Executor:
         result = self._run_step({**step, "_selected_condition": condition}, case_id)
         if condition is not None:
             result.setdefault("condition", condition)
-            if result.get("outcome") in ("pending", "error"):
+            if result.get("outcome") in ("pending", "error", "skipped"):
                 def incomplete(items):
                     for item in items:
                         if (item.get("condition") or {}).get("status") not in (None, "true"):
@@ -210,13 +213,37 @@ class Executor:
                 return att
         obs, tree = ctx.observe(f"{step['id']}#{n}:before")
         att.update(obs_before=obs["obs_id"], state_before=obs["page"]["state"])
+        if self._when_guards(step):
+            condition = self._operation_condition(step, obs, tree)
+            att["condition"] = condition
+            ctx.store.event("condition", step=step["id"], phase="before_interrupts", condition=condition)
+            if condition["status"] != "true":
+                att.update(status="condition_" + condition["status"], obs_after=obs["obs_id"], reason=condition["reason"])
+                if condition.get("execution_error"):
+                    att["execution_error"] = condition["execution_error"]
+                return att
         if kind not in ("launch", "stop_app", "wait"):
-            obs, tree, dismissed = self._clear_interrupts(obs, tree, f"{step['id']}#{n}:before", safety=safety)
+            obs, tree, dismissed = self._clear_interrupts(obs, tree, f"{step['id']}#{n}:before", safety=safety,
+                                                        condition_step=step if self._when_guards(step) else None)
             if dismissed:
                 att["dismissed"] = dismissed
                 att["state_before"] = obs["page"]["state"]
-                if dismissed[-1].get("gate") in ("budget_exhausted", "motion_timeout", "safety_hold"):
-                    att["status"] = dismissed[-1]["gate"]
+                if dismissed[-1].get("gate") == "preparation_error":
+                    error = dismissed[-1]["execution_error"]
+                    att.update(status="preparation_error", execution_error=error, error_class=error["error_class"],
+                               obs_after=obs["obs_id"], reason="操作前弹窗处置失败：" + str(error["error_class"]))
+                    return att
+                if str(dismissed[-1].get("gate", "")).startswith("condition_"):
+                    condition = dismissed[-1]["condition"]
+                    att.update(condition=condition, status=dismissed[-1]["gate"], obs_after=obs["obs_id"],
+                               reason=condition["reason"])
+                    if condition.get("execution_error"):
+                        att["execution_error"] = condition["execution_error"]
+                    return att
+                gate_status = dismissed[-1].get("gate")
+                if gate_status in ("budget_exhausted", "motion_timeout", "safety_hold") or (
+                        self._when_guards(step) and gate_status in STATUS_MAP and STATUS_MAP[gate_status][0] == "blocked"):
+                    att["status"] = gate_status
                     return att
         error = collection_error(obs)
         if error and kind in ("tap", "input", "swipe", "read"):
@@ -638,11 +665,22 @@ class Executor:
             return pack(l, o, t)
         return ctx.dispatcher.send(op, *loc["point"], *extra, preconditions={**ctx.dispatcher.app_conditions(att["action"]), "target_subtree": True}, att=att, tap=pack(loc, obs, tree), refresh=refresh)
 
-    def _clear_interrupts(self, obs: dict, tree, label: str, limit: int = 3, safety: bool = False) -> tuple:
+    def _clear_interrupts(self, obs: dict, tree, label: str, limit: int = 3, safety: bool = False,
+                          condition_step=None) -> tuple:
         """弹窗是常态（资源包下载、版本更新、权限提示……）：页面上只有"已评审的良性中断"时，
         按声明的关闭方式（dismiss_target / dismiss_text）点掉再观察，最多连关 limit 个；
         同时出现异常/阻塞/未评审中断时一个都不动，交给后续判定。每次关闭都记事件，弹窗画面的观测保留。"""
         ctx, done = self.ctx, []
+        def retain_unlock(record, gate):
+            if gate.get("unlock"):
+                record["unlock"] = gate["unlock"]
+                record["action_required"] = gate.get("action_required") or gate["unlock"].get("action_required")
+                error = gate.get("execution_error") or {}
+                evidence = error.get("evidence") or {}
+                if "sent" in evidence and evidence["sent"] is not False:
+                    record.update(dismiss_sent=record.get("sent", False), sent=evidence["sent"])
+                elif ctx.actions != obs.get("action_epoch"):
+                    record.update(dismiss_sent=record.get("sent", False), sent=True)
         for k in range(limit):
             ints = obs["page"].get("interrupts") or []
             if any(not (i["class"] == "benign" and i["review"] == "reviewed") for i in ints):
@@ -671,11 +709,38 @@ class Executor:
                 done.append({**rec, "ok": False})
                 break
             gate = {"action": "tap", "step_id": label, "_safety": safety}
+            dismiss_step = {"id": label}
+            if condition_step is not None and self._when_guards(condition_step):
+                condition = self._operation_condition(condition_step, obs, tree)
+                ctx.store.event("condition", step=condition_step["id"], phase="interrupt_dismiss", condition=condition)
+                gate["condition"] = condition
+                if condition["status"] != "true":
+                    done.append({**rec, "ok": False, "sent": False, "gate": "condition_" + condition["status"],
+                                 "condition": condition})
+                    break
+                dismiss_step.update(**self._child_condition_context(condition_step), _selected_condition=condition)
             if not self._foreground_ok(gate):
-                done.append({**rec, "ok": False, "gate": gate.get("status")})
+                failed = {**rec, "ok": False, "sent": False, "gate": gate.get("status")}
+                if condition_step is not None and gate.get("execution_error"):
+                    failed.update(gate="preparation_error", execution_error=gate["execution_error"])
+                if condition_step is not None:
+                    retain_unlock(failed, gate)
+                done.append(failed)
                 break
-            r = self._send_target("tap", loc, obs, tree, target, tid, {"id": label}, gate)
+            r = self._send_target("tap", loc, obs, tree, target, tid, dismiss_step, gate)
             rec.update(ok=r.ok, sent=r.sent, point=list(loc["point"]), gate=gate.get("status"))
+            if gate.get("condition"):
+                rec["condition"] = gate["condition"]
+            if condition_step is not None and not r.ok:
+                receipt = {"op": r.op, "sent": r.sent, "executor_ok": r.ok, "error_class": r.error_class,
+                           "error": r.error, "raw": r.raw, "duration_ms": r.duration_ms}
+                rec["dispatch"] = receipt
+                if gate.get("execution_error") or gate.get("status") in (None, "device_error"):
+                    error = gate.get("execution_error") or {
+                        "stage": "prepare_interrupt", "error_class": r.error_class, "error": r.error,
+                        "attribution": error_attribution(r.error_class), "evidence": {"obs": obs["obs_id"], "dispatch": receipt}}
+                    rec.update(gate="preparation_error", execution_error=error)
+                retain_unlock(rec, gate)
             ctx.store.event("interrupt_dismissed", at=label, **rec)
             done.append(rec)
             if not r.ok:
@@ -1159,6 +1224,9 @@ class Executor:
                          "execution_error": final_post.get("execution_error") or (last.get("post") or {}).get("execution_error")
                          or last.get("execution_error") or (last.get("locate") or {}).get("execution_error")}
             out["outcome"], out["attribution"], out["reason"] = classify(effective)
+            if out["outcome"] == "skipped" and any(item["sent"] is not False for item in auxiliary_dispatches(effective)):
+                out.update(outcome="pending", attribution="tool",
+                           reason="后续操作条件不满足；辅助动作已经或可能执行，保留部分执行并交接")
             if out["outcome"] == "skipped" and effective.get("clear") and (effective["clear"].get("sent") is not False):
                 out.update(outcome="pending", attribution="tool",
                            reason="后续操作条件不满足；清空已经或可能执行，保留部分执行并交接")
@@ -1170,6 +1238,12 @@ class Executor:
             out["first_failure"] = {"attempt": first_bad["n"], "status": first_bad["status"],
                                     "obs_before": first_bad.get("obs_before"), "obs_after": first_bad.get("obs_after"),
                                     "detail": _failure_detail(first_bad)}
+        if last["status"] == "preparation_error" and len(attempts) > 1 and out.get("execution_error"):
+            error = out["execution_error"]
+            out["execution_error"] = {**error, "evidence": {
+                **(error.get("evidence") or {}), "prior_attempt_failures": [
+                    {"attempt": a["n"], "status": a["status"], "detail": _failure_detail(a)}
+                    for a in attempts[:-1] if a["status"] != "ok"]}}
         if retained:
             # 原错不能被选支清除；最新尝试的不明副作用、交接和辅助动作仍须完整汇总。
             out = {**retained, **out, **{key: retained[key] for key in
@@ -1183,23 +1257,47 @@ class Executor:
         base = {"step_id": step["id"], "action": "ensure_state", "critical": True, "oracle_refs": [],
                 "recoveries": [], "adapted": False}
         obs, tree = ctx.observe(f"{step['id']}:check")
-        obs, tree, dismissed = self._clear_interrupts(obs, tree, f"{step['id']}:check", safety=bool(step.get("_safety")))
-        if dismissed and dismissed[-1].get("gate") in ("budget_exhausted", "motion_timeout", "safety_hold"):
+        def rejected(condition, dismissed=()):
+            error = condition.get("execution_error") or {}
+            outcome = {"false": "skipped", "unknown": "pending", "error": "error"}[condition["status"]]
+            if outcome == "skipped" and any(item.get("sent") is not False for item in dismissed):
+                outcome = "pending"
+            result = {**base, "outcome": outcome, "attribution": error.get("attribution", "requirement_unclear"),
+                    "attempts": [], "reason": condition["reason"], "condition": condition,
+                    "execution_error": error, "final_status": "condition_" + condition["status"],
+                    "final_obs": obs["obs_id"], "dismissed": list(dismissed)}
+            if dispatch_effect_unknown({"dismissed": list(dismissed)}):
+                result.update(effect_unknown=True, action_required="辅助弹窗动作已经或可能下发，效果未确认；请核对现场后人工接管")
+            return result
+        if self._when_guards(step):
+            condition = self._operation_condition(step, obs, tree)
+            ctx.store.event("condition", step=step["id"], phase="before_interrupts", condition=condition)
+            if condition["status"] != "true":
+                return rejected(condition)
+        obs, tree, dismissed = self._clear_interrupts(obs, tree, f"{step['id']}:check", safety=bool(step.get("_safety")),
+                                                    condition_step=step if self._when_guards(step) else None)
+        if dismissed and dismissed[-1].get("gate") == "preparation_error":
+            error = dismissed[-1]["execution_error"]
+            result = {**base, "outcome": "error", "attribution": error["attribution"], "attempts": [],
+                      "reason": "操作前弹窗处置失败：" + str(error["error_class"]), "execution_error": error,
+                      "final_status": "preparation_error", "final_obs": obs["obs_id"], "dismissed": dismissed,
+                      "first_failure": {"attempt": 1, "status": "preparation_error", "obs_before": obs["obs_id"],
+                                        "detail": {"execution_error": error}}}
+            if dispatch_effect_unknown({"dismissed": dismissed}):
+                result.update(effect_unknown=True, action_required="辅助弹窗动作已经或可能下发，效果未确认；请核对现场后人工接管")
+            return result
+        if dismissed and str(dismissed[-1].get("gate", "")).startswith("condition_"):
+            return rejected(dismissed[-1]["condition"], dismissed)
+        if dismissed and (dismissed[-1].get("gate") in ("budget_exhausted", "motion_timeout", "safety_hold") or (
+                self._when_guards(step) and dismissed[-1].get("gate") in STATUS_MAP and STATUS_MAP[dismissed[-1]["gate"]][0] == "blocked")):
             status = dismissed[-1]["gate"]
-            return {**base, "outcome": "blocked", "attribution": "tool", "attempts": [],
+            return {**base, "outcome": "blocked", "attribution": STATUS_MAP[status][1], "attempts": [],
                     "reason": STATUS_MAP[status][2], "final_status": status, "final_obs": obs["obs_id"], "dismissed": dismissed}
         if self._when_guards(step):
             condition = self._operation_condition(step, obs, tree)
             ctx.store.event("condition", step=step["id"], phase="ensure_state", condition=condition)
             if condition["status"] != "true":
-                error = condition.get("execution_error") or {}
-                outcome = {"false": "skipped", "unknown": "pending", "error": "error"}[condition["status"]]
-                if outcome == "skipped" and dismissed:
-                    outcome = "pending"
-                return {**base, "outcome": outcome, "attribution": error.get("attribution", "requirement_unclear"),
-                        "attempts": [], "reason": condition["reason"], "condition": condition,
-                        "execution_error": error, "final_status": "condition_" + condition["status"],
-                        "final_obs": obs["obs_id"], "dismissed": dismissed}
+                return rejected(condition, dismissed)
         if ctx.app.states.is_state(obs["page"], target) and not obs["page"].get("interrupts"):
             return {**base, "outcome": "passed", "attempts": [], "note": "已处于目标状态", "final_obs": obs["obs_id"],
                     "dismissed": dismissed}
