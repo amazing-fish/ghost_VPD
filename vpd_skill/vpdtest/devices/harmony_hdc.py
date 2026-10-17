@@ -278,6 +278,8 @@ class HdcDevice:
 
     def app_version(self, bundle: str) -> Optional[str]:
         r = self._shell("bm", "dump", "-n", bundle, op="bm_dump")
+        # bm 的通用空结果错误同时覆盖缺包、权限及服务失败，不能凭这条文案证明 APP 不存在。
+        # 保留查询错误；独立缺包证据与官方返回来源见 tests/test_result_app_query_ambiguity.py。
         self.version_query_error = None if r.ok else {"error_class": r.error_class, "error": r.error, "raw": r.raw}
         return parse_version(r.raw) if r.ok else None
 
