@@ -193,3 +193,23 @@ def test_conditional_read_cannot_measure_after_locator_scroll_invalidates_its_wh
     assert _assertions(run)["A-read"]["result"] not in ("pass", "not_applicable")
     assert run["verdict"]["verdict"] == "pending"
     _coverage(run, verified=("A-common",), unverified=("A-read",))
+
+
+def test_ensure_state_fastpath_cannot_use_counterproved_entry_when(condition_rig):
+    ws, case, world=condition_rig
+    case=deepcopy(case)
+    spec=world()
+    path=Path(spec.split(':',1)[1])
+    data=read_json(path)
+    data['screens']['counter']=deepcopy(data['screens']['dashboard'])
+    data['screens']['counter']['root']['children'][1]['text']=HEALTHY
+    data['screens']['dashboard']['after_obs']={'n':2,'go':'counter','replace':True}
+    write_json(path,data)
+    case['steps'].append({'id':'F1','action':'ensure_state','state':'dashboard','when':{'condition':'fault','equals':True}})
+    case['assertions']=[case['assertions'][0],{'id':'A-ensure','at':'F1','type':'state_is','state':'dashboard','oracle_refs':[COMMON_RULE]}]
+    run=run_case(ws,case=case,device_spec=spec,propose=False)
+    step=run['steps'][1]
+    assert not step['outcome'].startswith('passed'),step
+    assert step['condition']['status'] != 'true',step
+    assert next(a for a in run['assertions'] if a['id']=='A-ensure')['result'] != 'pass'
+    assert run['verdict']['verdict']!='passed'

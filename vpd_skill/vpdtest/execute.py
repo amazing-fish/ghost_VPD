@@ -95,10 +95,14 @@ class Executor:
             return observed, UiTree(read_json(path)) if usable and path.exists() else None
         record = select_applicability(self._when_guards(step), ctx.conditions, ctx.step_results, load, ctx.app, obs, tree)
         if record.get("status") != "error":
-            for binding in step.get("_condition_bindings", []):
+            bindings = list(step.get("_condition_bindings", []))
+            selected = step.get("_selected_condition") or {}
+            bindings += [{"condition": r.get("condition"), "scope": r.get("scope"), "parent": step["id"]}
+                         for r in selected.get("records", []) if r.get("scope")]
+            for binding in bindings:
                 matching = [r for r in record.get("records", []) if r.get("condition") == binding["condition"]]
                 if any(r.get("scope") != binding["scope"] for r in matching):
-                    record = {**record, "status": "unknown", "reason": "复合操作的父条件身份范围已变化，不能自动切换车辆/任务/账户",
+                    record = {**record, "status": "unknown", "reason": "操作选择的身份范围已变化，不能自动切换车辆/任务/账户",
                               "parent_scope": binding}
         return record
 
@@ -1174,11 +1178,23 @@ class Executor:
         base = {"step_id": step["id"], "action": "ensure_state", "critical": True, "oracle_refs": [],
                 "recoveries": [], "adapted": False}
         obs, tree = ctx.observe(f"{step['id']}:check")
-        obs, _, dismissed = self._clear_interrupts(obs, tree, f"{step['id']}:check", safety=bool(step.get("_safety")))
+        obs, tree, dismissed = self._clear_interrupts(obs, tree, f"{step['id']}:check", safety=bool(step.get("_safety")))
         if dismissed and dismissed[-1].get("gate") in ("budget_exhausted", "motion_timeout", "safety_hold"):
             status = dismissed[-1]["gate"]
             return {**base, "outcome": "blocked", "attribution": "tool", "attempts": [],
                     "reason": STATUS_MAP[status][2], "final_status": status, "final_obs": obs["obs_id"], "dismissed": dismissed}
+        if self._when_guards(step):
+            condition = self._operation_condition(step, obs, tree)
+            ctx.store.event("condition", step=step["id"], phase="ensure_state", condition=condition)
+            if condition["status"] != "true":
+                error = condition.get("execution_error") or {}
+                outcome = {"false": "skipped", "unknown": "pending", "error": "error"}[condition["status"]]
+                if outcome == "skipped" and dismissed:
+                    outcome = "pending"
+                return {**base, "outcome": outcome, "attribution": error.get("attribution", "requirement_unclear"),
+                        "attempts": [], "reason": condition["reason"], "condition": condition,
+                        "execution_error": error, "final_status": "condition_" + condition["status"],
+                        "final_obs": obs["obs_id"], "dismissed": dismissed}
         if ctx.app.states.is_state(obs["page"], target) and not obs["page"].get("interrupts"):
             return {**base, "outcome": "passed", "attempts": [], "note": "已处于目标状态", "final_obs": obs["obs_id"],
                     "dismissed": dismissed}
