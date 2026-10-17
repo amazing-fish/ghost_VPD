@@ -20,7 +20,7 @@ from .util import now_iso, read_json, sha256_file, sha256_obj, write_json
 REQUIRED = ("purpose", "preconditions", "test_data", "steps", "assertions", "cleanup", "sources")
 CONTENT_KEYS = ("app", "preconditions", "env_requirements", "test_data", "steps", "assertions", "cleanup")
 # 只在声明时计入，避免改变既有用例的内容哈希。授权与安全停止决定实际会产生哪些物理副作用，改了就要重新重放
-OPTIONAL_CONTENT_KEYS = ("layout_requirements", "authorizations", "safety")
+OPTIONAL_CONTENT_KEYS = ("layout_requirements", "authorizations", "safety", "conditions")
 # Issue #14：obs 编号属于单次运行（重放后编号会变）。裸引用会让判定证据链指向不存在的观测
 # （真机上出现过：rationale 引 obs-0010/0012，而本 run 实际是 obs-0007/0008）。
 # 但「run 目录名/会话名 + obs 编号」是可解析引用：锚点目录确实留存了该观测时证据链可追溯，允许。
@@ -64,27 +64,56 @@ def dependency_hash(case: dict, app, knowledge) -> str:
     页面状态/打断定义、判据条目的陈述和预期改了，同一份用例就测了另一件事，旧重放不再作数。
     有效判据的确认状态、历史不计入（确认之后不必重新重放）；废弃/无效使旧重放失效。
     result_contract 绑定结果语义，旧引擎的阻塞/产品候选不能充当新契约的确定重放。"""
-    steps, targets, oracles = [], {}, set()
+    from .conditions import definitions
+
+    steps, targets, oracles, used_conditions = [], {}, set(), set()
 
     def want(t):
         if isinstance(t, str) and t in app.targets:
             targets[t] = app.targets[t]
 
+    def want_guard(guard):
+        if isinstance(guard, dict) and isinstance(guard.get("condition"), str):
+            used_conditions.add(guard["condition"])
+
+    def want_provider_targets(value):
+        if isinstance(value, dict):
+            want(value.get("target"))
+            # Scope values are target references (vehicle/task/account identity).
+            if isinstance(value.get("scope"), dict):
+                for target in value["scope"].values():
+                    want(target)
+            for child in value.values():
+                want_provider_targets(child)
+        elif isinstance(value, list):
+            for child in value:
+                want_provider_targets(child)
+
     for s, _, where in iter_case_steps(case, app):
         steps.append([where, {k: v for k, v in s.items() if k != "_lint_cycle"}])
         want(s.get("target"))
+        want_guard(s.get("when"))
         oracles.update(s.get("oracle_refs") or [])
     for a in case.get("assertions", []):
         want(a.get("target"))
+        want_guard(a.get("guard"))
         oracles.update(a.get("oracle_refs") or [])
     facts = {}
     for kid in sorted(oracles):
         item = knowledge.get(kid) or {}
-        facts[kid] = {k: item.get(k) for k in ("statement", "expected", "applies_to")}
+        facts[kid] = {k: item.get(k) for k in ("statement", "expected", "applies_to", "condition_requirements")}
+        requirements = item.get("condition_requirements")
+        if isinstance(requirements, dict):
+            used_conditions.update(requirements)
         if item_status(item) not in ACTIVE:
             facts[kid]["inactive"] = True
+    providers = definitions(case, app)
+    conditions = {name: providers.get(name) for name in sorted(used_conditions)} if isinstance(providers, dict) else providers
+    for provider in conditions.values() if isinstance(conditions, dict) else []:
+        want_provider_targets(provider)
     return sha256_obj({"steps": steps, "targets": targets, "states": app.states.states,
-                       "interrupts": app.states.interrupts, "oracles": facts, "result_contract": 1})[:12]
+                       "interrupts": app.states.interrupts, "oracles": facts, "conditions": conditions,
+                       "result_contract": 5})[:12]
 
 
 # 审核覆盖审阅语义；成熟度/运行记录不使正常晋级或新重放自失效。
@@ -301,12 +330,23 @@ def _lint_effects(case: dict, app, policy) -> list:
 
 def lint(case: dict, app, knowledge, policy=None, runs_dir: Optional[Path] = None) -> list:
     """runs_dir 用于 check-refs：核对 rationale 里「run/会话 + obs」引用是否真的可解析到留存证据。"""
+    from .conditions import definitions, validate_definitions, validate_guard
+
     issues = []
     for k in REQUIRED:
         v = case.get(k)
         if v is None or v == [] or v == "" or (k == "test_data" and v == {} and not case.get("test_data_none")):
             issues.append({"field": k, "problem": "缺失或为空" + ("（无测试数据请写 test_data_none: true）" if k == "test_data" else "")})
     step_ids = {s.get("id") for s in case.get("steps", [])}
+    condition_defs = definitions(case, app)
+    issues += validate_definitions(condition_defs, app)
+    if not isinstance(condition_defs, dict):
+        condition_defs = {}  # 结构问题已保留；继续检查该资产及后续资产的其他字段。
+    for s, _, where in iter_case_steps(case, app):
+        if "when" in s:
+            issues += [{"field": f"{where}.when" + (f".{p['field'].removeprefix('guard.')}" if p.get("field") else ""),
+                        "problem": p["problem"]}
+                       for p in validate_guard(s["when"], condition_defs, step_ids)]
     for k, v in (case.get("test_data") or {}).items():
         if isinstance(v, dict) and v.get("missing_from_session"):
             issues.append({"field": f"test_data.{k}", "problem": "会话没有保留这次输入的原文（不允许输入/敏感框/疑似密钥）："
@@ -359,6 +399,10 @@ def lint(case: dict, app, knowledge, policy=None, runs_dir: Optional[Path] = Non
     for a in case.get("assertions", []):
         if a.get("at") not in step_ids:
             issues.append({"field": f"assertions.{a.get('id')}", "problem": f"at={a.get('at')} 不是用例中的步骤 ID"})
+        if "guard" in a:
+            issues += [{"field": f"assertions.{a.get('id')}.guard" + (f".{p['field'].removeprefix('guard.')}" if p.get("field") else ""),
+                        "problem": p["problem"]}
+                       for p in validate_guard(a["guard"], condition_defs, step_ids)]
     for src in case.get("sources", []):
         for r in src.get("rejected") or []:
             if r.get("dispatched"):
@@ -399,6 +443,17 @@ def lint(case: dict, app, knowledge, policy=None, runs_dir: Optional[Path] = Non
             elif it["source"].get("type") == "observation" and it["source"].get("run") in {
                     s.get("run") for s in case.get("sources", [])}:
                 issues.append({"field": f"assertions.{a.get('id')}", "problem": f"判据 {r} 来自本用例的探索观察，不独立"})
+            if it and it.get("condition_requirements") is not None:
+                requirements = it["condition_requirements"]
+                if not isinstance(requirements, dict) or any(not isinstance(cid, str) or type(value) is not bool
+                                                              for cid, value in requirements.items()):
+                    issues.append({"field": f"assertions.{a.get('id')}.oracle_refs",
+                                   "problem": f"判据 {r} 的 condition_requirements 须为条件 ID 到布尔值的映射"})
+                else:
+                    for cid in requirements:
+                        if cid not in condition_defs:
+                            issues.append({"field": f"assertions.{a.get('id')}.oracle_refs",
+                                           "problem": f"判据 {r} 的条件 {cid} 没有当前事实 provider，不能用于确定判定"})
     return issues
 
 
@@ -435,7 +490,10 @@ def record_replay(ws, case_id: str, run: dict) -> dict:
         "validation_level": run["validation_level"], "device": run["device_spec"], "ts": now_iso(),
         "failure_signature": v.get("failure_signature", []), "alerts": len(v.get("alerts") or []),
         "not_verified": len(v.get("not_verified") or []), "facts": run.get("facts"),
-        **{k: v[k] for k in ("execution", "product_verdict", "product_failed") if k in v}})
+        "oracle_facts": run.get("oracle_facts"),
+        "assertions": [{k: a[k] for k in ("id", "result", "advisory", "oracle_refs", "oracle", "facts", "guard", "verified")
+                        if k in a} for a in run.get("assertions", [])],
+        **{k: v[k] for k in ("execution", "product_verdict", "product_failed", "coverage") if k in v}})
     write_json(ws.case_path(case_id), case)
     return case
 
@@ -446,6 +504,44 @@ def has_execution_error(summary: dict) -> bool:
     return (summary.get("verdict") == "error" or execution.get("status") == "error"
             or bool(execution.get("errors"))
             or any(f.get("result") == "error" for f in summary.get("findings") or []))
+
+
+def _assertion_replay_coverage(case: dict, rows: list) -> dict:
+    """Every branch must have its own current, decisive evidence; aggregate pass is insufficient.
+
+    Historical unconditional assets without assertion summaries retain their original
+    interpretation. Matching dependency hashes remain mandatory at the caller.
+    Explicit N/A adds no evidence, while an unknown/error/not-run occurrence resets
+    that assertion's consecutive verified evidence without changing stored history.
+    """
+    required = [a for a in case.get("assertions", []) if not a.get("advisory")]
+    conditional = bool(case.get("conditions")) or any(a.get("guard") for a in required)
+    conditional = conditional or any(s.get("when") for s in case.get("steps", []))
+    recorded = any("coverage" in row for row in rows)
+    if not conditional and not recorded:
+        return {"ok": True, "coverage": {}}
+    evidence, gaps = {}, []
+    for assertion in required:
+        aid, verified = assertion["id"], []
+        all_results = set()
+        for row in rows:
+            coverage = row.get("coverage") or {}
+            actual = next((a for a in coverage.get("assertions") or [] if a.get("id") == aid), None)
+            if (actual and actual.get("verified") is True and actual.get("applicable") is True
+                    and actual.get("result") in ("pass", "fail") and not has_execution_error(row)):
+                verified.append({"run_id": row["run_id"], **actual})
+                all_results.add(actual["result"])
+            elif actual and actual.get("result") == "not_applicable" and actual.get("applicable") is False:
+                continue
+            else:
+                verified = []
+        evidence[aid] = {"count": len(verified), "runs": [a["run_id"] for a in verified],
+                         "results": sorted(all_results)}
+        if len(verified) < 2:
+            gaps.append(f"{aid} 仅 {len(verified)} 次适用且 verified 的确定重放（需至少 2 次；不涉及/未知/异常/未执行不计覆盖）")
+        elif len(all_results) != 1:
+            gaps.append(f"{aid} 的确定断言结果不一致 {sorted(all_results)}")
+    return {"ok": not gaps, "coverage": evidence, "why": "；".join(gaps)}
 
 
 def replay_basis(case: dict, deps: Optional[str] = None) -> dict:
@@ -482,6 +578,10 @@ def replay_basis(case: dict, deps: Optional[str] = None) -> dict:
                    f"之后给出确定结论的重放只有 {len(rows)} 次：重放不足，需在它之后至少 2 次")
         return {**out, "ok": False, "why": why}
     out["replays"] = [r["run_id"] for r in rows]
+    coverage = _assertion_replay_coverage(case, rows)
+    out["coverage"] = coverage["coverage"]
+    if not coverage["ok"]:
+        return {**out, "ok": False, "why": "断言分支重放不足或不一致：" + coverage["why"]}
     verdicts = {r["verdict"] for r in decisive}  # 早于不确定运行的确定结论也要一致，否则说明不稳定
     if verdicts == {"passed"}:
         return {**out, "ok": True, "product": "conforming", "rows": rows}
@@ -522,10 +622,32 @@ def promote(ws, case_id: str, to: str, knowledge, reviewer: Optional[str] = None
             raise PermissionError("晋级正式回归用例需要评审人 --reviewer")
         # 判据适用性按计入晋级的重放里实际测到的事实判断（优先真机）
         rows = sorted(basis["rows"], key=lambda r: (r["validation_level"] == "real_device", r["ts"]))
-        refs = [r for a in case["assertions"] if not a.get("advisory") for r in a["oracle_refs"]]
-        st = knowledge.oracle_status(refs, facts=rows[-1].get("facts") or {})
-        if st["status"] != "confirmed":
-            raise PermissionError(f"判据未全部确认：{st['reason']}")
+        for assertion in [a for a in case["assertions"] if not a.get("advisory")]:
+            aid = assertion["id"]
+            candidates = []
+            for row in rows:
+                actual = next((a for a in (row.get("coverage") or {}).get("assertions") or [] if a.get("id") == aid), None)
+                if actual and not (actual.get("verified") is True and actual.get("applicable") is True):
+                    continue
+                snapshot = next((a for a in row.get("assertions") or [] if a.get("id") == aid), {})
+                # New runs bind Oracle facts at assertion time. Never restore a
+                # business --env declaration from the legacy flat run facts.
+                facts = snapshot.get("facts")
+                if facts is None:
+                    facts = row.get("oracle_facts")
+                if facts is None and "coverage" not in row:
+                    facts = row.get("facts")
+                candidates.append((row, snapshot, facts or {}))
+            if not candidates:
+                raise PermissionError(f"断言 {aid} 没有适用且已验证的判据上下文")
+            _, snapshot, facts = candidates[-1]
+            st = knowledge.oracle_status(assertion["oracle_refs"], facts=facts)
+            if st["status"] != "confirmed":
+                raise PermissionError(f"断言 {aid} 判据未全部确认：{st['reason']}")
+            # The runtime snapshot also records conditional scope and conflicts;
+            # a coarse app/build fact map cannot replace that evidence.
+            if snapshot.get("oracle") and snapshot["oracle"].get("status") != "confirmed":
+                raise PermissionError(f"断言 {aid} 重放时的判据未确认或不适用")
         if not allow_offline and not any(r["validation_level"] == "real_device" for r in rows):
             raise PermissionError("没有真机重放；如确需仅凭离线回放晋级，请显式 --allow-offline 并在评审中说明")
     case["history"] = case.get("history", []) + [{"ts": now_iso(), "from": cur, "to": to, "by": reviewer,

@@ -11,7 +11,7 @@ from typing import Callable, Optional
 from .tree import UiTree
 
 RANK = {"error": 0, "failed": 1, "blocked": 2, "pending": 3, "passed": 4}
-LABEL = {"passed": "通过", "failed": "失败", "error": "执行错误", "blocked": "阻塞", "pending": "待确认"}
+LABEL = {"passed": "通过", "not_applicable": "不涉及", "failed": "失败", "error": "执行错误", "blocked": "阻塞", "pending": "待确认"}
 ATTR_LABEL = {"product": "产品", "tool": "工具", "environment": "环境", "requirement_unclear": "需求不明确"}
 PASSED = ("passed", "passed_after_adaptation", "passed_after_recovery")
 GENERIC_CRASH = "K-GEN-001"
@@ -218,7 +218,74 @@ def _seen(a: dict, step: dict, load: Callable) -> tuple:
     return seen == expected, ev
 
 
-def evaluate_assertion(a: dict, steps: dict, load: Callable, knowledge, app) -> dict:
+def select_applicability(guards, definitions, steps, load, app, obs, tree) -> dict:
+    from .conditions import evaluate_guard
+    records = []
+    for guard in guards:
+        record = evaluate_guard(guard, definitions, steps, load, app, obs, tree)
+        if record not in records:
+            records.append(record)
+    if not records:
+        return {}
+    expectations = {}
+    for record in records:
+        if isinstance(record.get("condition"), str) and type(record.get("equals")) is bool:
+            expectations.setdefault(record["condition"], set()).add(record["equals"])
+    if any(len(values) > 1 for values in expectations.values()) and not any(r["status"] == "error" for r in records):
+        return {"status": "unknown", "records": records, "reason": "同一条件的声明要求互相矛盾，不能据此选择不涉及"}
+    statuses = {r["status"] for r in records}
+    status = next((x for x in ("error", "unknown", "false") if x in statuses), "true")
+    primary = next((r for r in records if r["status"] == status), records[0])
+    return {**primary, "status": status, "records": records,
+            "reason": "；".join(str(r.get("reason", "")) for r in records)}
+
+
+def oracle_guards(refs, knowledge) -> list:
+    guards = []
+    for ref in refs:
+        requirements = (knowledge.get(ref) or {}).get("condition_requirements") or {}
+        if not isinstance(requirements, dict) or any(not isinstance(name, str) or type(value) is not bool
+                                                     for name, value in requirements.items()):
+            raise ValueError(f"判据 {ref} 的 condition_requirements 须为条件名到布尔值的映射")
+        guards.extend({"condition": name, "equals": value} for name, value in requirements.items())
+    return guards
+
+
+def evaluate_assertion(a: dict, steps: dict, load: Callable, knowledge, app, conditions=None) -> dict:
+    """先选择适用断言，再评价预先声明的响应；不从响应反推前置。"""
+    definitions = conditions if conditions is not None else getattr(app, "meta", {}).get("conditions", {})
+    out = {"id": a["id"], "type": a["type"], "desc": a.get("desc", ""),
+           "advisory": bool(a.get("advisory")), "oracle_refs": a.get("oracle_refs", []),
+           "severity": a.get("severity", "major"), "at": a.get("at"), "verified": False,
+           "applicable": None, "facts": dict(knowledge.facts or {})}
+    step = steps.get(a.get("at"))
+    guards = ([a["guard"]] if "guard" in a else []) + oracle_guards(a.get("oracle_refs", []), knowledge)
+    # 旧 read 资产以 measurement 为独立证据，不强加从未需要的 UI 观测。
+    if not guards and a["type"] == "value_present" and step is not None and step["outcome"] in PASSED:
+        result = _evaluate_applicable(a, steps, load, knowledge, app)
+        return {**out, **result, "applicable": True, "verified": not out["advisory"] and result["result"] in ("pass", "fail")}
+    if step is None or step["outcome"] not in (*PASSED, "skipped", "pending") or not step.get("final_obs"):
+        return {**out, "result": "not_run", "reason": f"关联步骤 {a.get('at')} 未成功执行"}
+    obs, tree = load(step["final_obs"])
+    selected = select_applicability(guards, definitions, steps, load, app, obs, tree)
+    if selected:
+        records, status = selected["records"], selected["status"]
+        out["guard"] = selected
+        if status == "error":
+            error = next(r for r in records if r["status"] == "error")
+            return {**out, **{k: error.get(k) for k in ("attribution", "stage", "error_class", "error", "evidence")},
+                    "result": "error", "reason": selected["reason"]}
+        if status == "unknown":
+            return {**out, "result": "pending", "reason": selected["reason"]}
+        if status == "false":
+            return {**out, "applicable": False, "result": "not_applicable", "reason": selected["reason"]}
+    if step["outcome"] not in PASSED:
+        return {**out, "result": "not_run", "reason": f"关联步骤 {a.get('at')} 未成功执行，操作选支不代替产品断言"}
+    result = _evaluate_applicable(a, steps, load, knowledge, app)
+    return {**out, **result, "applicable": True, "verified": not out["advisory"] and result["result"] in ("pass", "fail")}
+
+
+def _evaluate_applicable(a: dict, steps: dict, load: Callable, knowledge, app) -> dict:
     out = {"id": a["id"], "type": a["type"], "desc": a.get("desc", ""), "advisory": bool(a.get("advisory")),
            "oracle_refs": a.get("oracle_refs", []), "severity": a.get("severity", "major"), "at": a.get("at")}
     step = steps.get(a.get("at"))
@@ -335,7 +402,17 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
     findings.extend(_execution_findings(steps, "step"))
     findings.extend(_execution_findings(cleanup or [], "cleanup"))
     for s in steps:
-        if s["outcome"] in PASSED or s["outcome"] == "not_run":
+        if s["outcome"] == "not_run" and s.get("final_status") == "required_step_skipped":
+            findings.append({"kind": "step", "step": s["step_id"], "result": "pending",
+                             "attribution": "requirement_unclear", "reason": s.get("reason"),
+                             "evidence": {"blocked_by": s.get("blocked_by")}})
+            continue
+        if s["outcome"] in PASSED or s["outcome"] in ("not_run", "skipped"):
+            continue
+        if s["outcome"] == "pending":
+            findings.append({"kind": "step", "step": s["step_id"], "result": "pending",
+                             "attribution": "requirement_unclear", "reason": s.get("reason"),
+                             "evidence": s.get("condition")})
             continue
         if s["outcome"] == "error":
             continue  # 已按真实失败子步骤投影，避免父子重复计数。
@@ -343,6 +420,18 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
             # 崩溃/异常中断由通用不变量判定，不依赖该步骤业务判据是否已确认
             refs = [GENERIC_CRASH] if s.get("final_status") == "anomaly" else list(s.get("oracle_refs", []))
             oracle = knowledge.oracle_status(refs)
+            selected = s.get("oracle_guard") or {}
+            if oracle_guards(refs, knowledge) and selected.get("status") != "true":
+                if selected.get("status") == "error":
+                    error = next(x for x in selected.get("records", []) if x["status"] == "error")
+                    findings.append({"kind": "step", "step": s["step_id"], "result": "error",
+                                     **{k: error.get(k) for k in ("attribution", "stage", "error_class", "error", "evidence")},
+                                     "reason": selected.get("reason")})
+                else:
+                    findings.append({"kind": "step", "step": s["step_id"], "result": "pending",
+                                     "attribution": "requirement_unclear", "evidence": selected,
+                                     "reason": selected.get("reason") or "产品步骤判据的场景前置缺少当前独立证据"})
+                continue
             if oracle["status"] == "confirmed":
                 findings.append({"kind": "step", "step": s["step_id"], "result": "failed", "attribution": "product",
                                  "reason": s["reason"], "oracle": oracle, "mode": s.get("final_status")})
@@ -354,7 +443,21 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
             findings.append({"kind": "step", "step": s["step_id"], "result": "blocked",
                              "attribution": s.get("attribution", "tool"), "reason": s.get("reason"),
                              "mode": s.get("final_status")})
+    # 非关键嵌套条件未知也必须保留，父流程成功不掩盖未执行的分支。
+    def condition_gaps(items):
+        for item in items:
+            for sub in item.get("sub_steps") or []:
+                if sub.get("outcome") == "pending":
+                    yield {"kind": "step", "step": sub["step_id"], "result": "pending",
+                           "attribution": "requirement_unclear", "reason": sub.get("reason"),
+                           "evidence": sub.get("condition")}
+                yield from condition_gaps([sub])
+    findings.extend(condition_gaps(steps + (cleanup or [])))
     for a in assertions:
+        if a["result"] == "not_applicable" and not a["advisory"]:
+            findings.append({"kind": "assertion", "id": a["id"], "result": "not_applicable", "attribution": None,
+                             "reason": a.get("reason"), "evidence": a.get("guard")})
+            continue
         if a["result"] == "error":
             findings.append({"kind": "assertion", "id": a["id"], "result": "error", "advisory": a["advisory"],
                              **{k: a.get(k) for k in ("attribution", "reason", "stage", "error_class", "error", "evidence")}})
@@ -394,7 +497,9 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
                              "reason": f"{'必需' if c.get('required', True) else '可选'}清理未完成（{c.get('reason') or c['outcome']}），测试数据可能未恢复，需人工核对"})
     results = {f["result"] for f in findings}
     decided = [a for a in assertions if not a["advisory"] and a["result"] in ("pass", "fail")]
-    if not decided and not results & {"error", "failed", "blocked"}:
+    required = [a for a in assertions if not a["advisory"]]
+    all_inapplicable = bool(required) and all(a["result"] == "not_applicable" for a in required)
+    if not decided and not all_inapplicable and not results & {"error", "failed", "blocked"}:
         findings.append({"kind": "case", "result": "pending", "attribution": "requirement_unclear",
                          "reason": "没有任何非建议类断言得到确定判定，不能判通过"})
         results.add("pending")
@@ -412,7 +517,7 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
     if alerts:
         # 恢复交接不改写已有产品/工具/需求归因，但没有其它结论时也不能冒充通过。
         return _final("blocked", "tool", findings, suggestions, steps, alerts, assertions)
-    return _final("passed", None, findings, suggestions, steps, alerts, assertions)
+    return _final("not_applicable" if all_inapplicable else "passed", None, findings, suggestions, steps, alerts, assertions)
 
 
 def _final(verdict: str, attribution, findings: list, suggestions: list, steps: list,
@@ -426,9 +531,20 @@ def _final(verdict: str, attribution, findings: list, suggestions: list, steps: 
     errors = [f for f in findings if f["result"] == "error"]
     required = [a for a in assertions or [] if not a["advisory"]]
     product_failed = any(f["result"] == "failed" and f.get("attribution") == "product" for f in findings)
-    product = "failed" if product_failed else ("passed" if required and all(a["result"] == "pass" for a in required)
-                                               and not any(f["result"] == "pending" for f in findings) else "pending")
-    return {"verdict": verdict, "label": LABEL[verdict],
+    applicable = [a for a in required if a["result"] != "not_applicable"]
+    product = ("failed" if product_failed else
+               "not_applicable" if required and not applicable else
+               "passed" if applicable and all(a["result"] == "pass" for a in applicable)
+               and not any(f["result"] == "pending" for f in findings) else "pending")
+    coverage_rows = [{"id": a["id"], "result": a["result"], "applicable": a.get("applicable"),
+                      "verified": bool(a.get("verified", a["result"] in ("pass", "fail"))),
+                      "guard": a.get("guard"), "oracle": a.get("oracle"), "facts": a.get("facts")}
+                     for a in required]
+    coverage = {"assertions": coverage_rows,
+                "verified": [a["id"] for a in coverage_rows if a["verified"]],
+                "not_applicable": [a["id"] for a in coverage_rows if a["result"] == "not_applicable"],
+                "unverified": [a["id"] for a in coverage_rows if not a["verified"] and a["result"] != "not_applicable"]}
+    return {"verdict": verdict, "label": LABEL[verdict], "coverage": coverage,
             "execution": {"status": "error" if errors else ("blocked" if alerts or any(f["result"] == "blocked" for f in findings) else "completed"),
                           "errors": errors},
             "product_verdict": product, "attribution": attribution,

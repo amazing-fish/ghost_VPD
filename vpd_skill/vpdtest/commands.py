@@ -369,6 +369,12 @@ def _run_brief(run: dict) -> dict:
     return {"run_id": run["run_id"], "case": run["case"]["id"], "verdict": v["verdict"], "label": v["label"],
             "action_required": v.get("action_required"), "product_failed": v.get("product_failed"),
             "product_verdict": v.get("product_verdict"), "execution": v.get("execution"),
+            "coverage": v.get("coverage"),
+            "assertions": [{k: a[k] for k in ("id", "at", "type", "result", "advisory", "verified", "guard",
+                                              "oracle_refs", "reason", "evidence") if k in a}
+                           for a in run.get("assertions", [])],
+            "operation_conditions": _operation_conditions(run.get("steps", []))
+                                    + _operation_conditions(run.get("cleanup", []), phase="cleanup"),
             "not_verified": [x["id"] for x in v.get("not_verified") or []], "known_issue": v.get("known_issue"),
             "attribution": v["attribution"], "recovered": v["recovered"], "adapted": v["adapted"],
             "first_anomaly": v["first_anomaly"] and {k: v["first_anomaly"].get(k) for k in ("step", "attempt", "status")},
@@ -380,6 +386,17 @@ def _run_brief(run: dict) -> dict:
             "report": str(Path(run["dir"]) / "report.md"),
             "informal": run.get("informal", run["case"].get("status") != "regression"),
             "asset_review": run.get("asset_review")}
+
+
+def _operation_conditions(steps: list, phase: str = "steps") -> list:
+    """只读投影操作选支证据；不从结果反推条件或重新判定适用性。"""
+    rows = []
+    for step in steps:
+        if step.get("condition") is not None:
+            rows.append({"step": step.get("step_id"), "phase": phase, "outcome": step.get("outcome"),
+                         "condition": step["condition"]})
+        rows.extend(_operation_conditions(step.get("sub_steps", []), phase=phase))
+    return rows
 
 
 def cmd_suite(ws: Workspace, a) -> dict:

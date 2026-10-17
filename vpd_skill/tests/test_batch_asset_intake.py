@@ -113,7 +113,10 @@ def test_unavailable_evidence_does_not_create_fake_obs_or_lint_success(ws):
         assert not [i for i in issues if i["field"] == "knowledge_used"]
         if issues:
             problems[cid] = issues
-    assert set(problems) == {"TC-QK-218"}
+    assert set(problems) == {"TC-QK-218", "TC-QK-214", "TC-QK-216", "TC-QK-219", "TC-QK-227"}
+    for cid in ("TC-QK-214", "TC-QK-216", "TC-QK-219", "TC-QK-227"):
+        assert all(i["field"].endswith(".oracle_refs") and "vehicle_fault" in i["problem"]
+                   and "provider" in i["problem"] for i in problems[cid])
     assert problems["TC-QK-218"][0]["field"] == "assertions"
     assert not list(ws.runs_dir.rglob("obs-*"))
 

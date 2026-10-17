@@ -96,7 +96,7 @@ def build_parser() -> argparse.ArgumentParser:
                         "或 supervised（vehicle_motion/vehicle_control，须同时 --supervisor）；VPD进入/算路随任务许可；"
                         "不可逆账号变更/升级/支付/清数据不可授予")
     r.add_argument("--supervisor", help="在场监护人（姓名或工号）：授予 vehicle_motion/vehicle_control 时必填，记入报告")
-    r.add_argument("--fail-on", nargs="*", default=[], choices=["failed", "error", "blocked", "pending"])
+    r.add_argument("--fail-on", nargs="*", default=[], choices=["failed", "error", "blocked", "pending", "not_applicable"])
 
     s = sub.add_parser("suite", help="执行用例集")
     s.add_argument("suite")
@@ -104,7 +104,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--authorize", nargs="*", default=[],
                    help="同 run：授予的副作用对集合内每条用例生效，但每条用例只拿到自己申请的那部分")
     s.add_argument("--supervisor", help="同 run：授予 vehicle_motion/vehicle_control 时必填")
-    s.add_argument("--fail-on", nargs="*", default=[], choices=["failed", "error", "blocked", "pending"])
+    s.add_argument("--fail-on", nargs="*", default=[], choices=["failed", "error", "blocked", "pending", "not_applicable"])
 
     e = sub.add_parser("explore", help="在允许的页面、动作和预算内探索")
     e.add_argument("--app", default="motor_hm")

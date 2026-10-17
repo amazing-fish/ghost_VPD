@@ -132,15 +132,17 @@ class ExperienceStore:
                 break
             b, t = base["verdict"]["verdict"], trial["verdict"]["verdict"]
             b_ad, t_ad = _adaptations(base), _adaptations(trial)
-            if _exercised(item, trial, cid):
-                exercised.add((cid, dev))
             row = {"case": cid, "device": dev, "baseline": b, "trial": t,
                    "baseline_run": base["run_id"], "trial_run": trial["run_id"],
                    "baseline_adaptations": b_ad, "trial_adaptations": t_ad}
             b_error, t_error = has_execution_error(base["verdict"]), has_execution_error(trial["verdict"])
             for phase, run in (("baseline", base), ("trial", trial)):
                 row.update({f"{phase}_{k}": run["verdict"][k]
-                            for k in ("execution", "product_verdict", "product_failed") if k in run["verdict"]})
+                            for k in ("execution", "product_verdict", "product_failed", "coverage") if k in run["verdict"]})
+            comparable, coverage_reason = _comparable_coverage(base["verdict"], trial["verdict"])
+            if not comparable:
+                incomplete, row["incomplete"] = True, True
+                row["coverage_reason"] = coverage_reason
             # 基线能判出的产品失败，试验组却变成阻塞/待确认：执行改动把缺陷藏到了工具问题后面，按回退处理
             # error 不参与产品结论排序；错误被隐藏为待确认也不算改进。
             rank = {"failed": 0, "blocked": 1, "pending": 2, "passed": 3}
@@ -150,7 +152,9 @@ class ExperienceStore:
             if ((not b_error and t_error) or lost_failure
                     or (not b_error and not t_error and t in rank and b in rank and rank[t] < rank[b])):
                 regress, row["regression"] = True, True
-            reliable_trial = not t_error and t in ("passed", "failed")
+            reliable_trial = not t_error and t in ("passed", "failed") and comparable
+            if reliable_trial and _exercised(item, trial, cid):
+                exercised.add((cid, dev))
             if t_error or (b_error and not reliable_trial) or t not in rank or b not in {*rank, "error"}:
                 incomplete, row["incomplete"] = True, True
             # 改进只认"试验组真的通过"或"结论不变但少用了自适应"；离开 failed 本身不算改进。
@@ -167,7 +171,7 @@ class ExperienceStore:
         elif handoff:
             status, reason = "candidate", "验证因需要人工接管而暂停；未完成比较不计为验证通过"
         elif incomplete:
-            status, reason = "candidate", "执行错误尚未得到可靠产品结论的复测；未完成比较不计为验证通过"
+            status, reason = "candidate", "执行或适用分支证据尚未完成可比的可靠复测；未完成比较不计为验证通过"
         elif gap:
             status, reason = "candidate", gap
         elif not improved:
@@ -239,6 +243,39 @@ class ExperienceStore:
 
 def _adaptations(run: dict) -> int:
     return sum(1 for s in run.get("steps", []) for a in s.get("attempts", []) if (a.get("locate") or {}).get("adapted"))
+
+
+def _comparable_coverage(baseline: dict, trial: dict) -> tuple:
+    """An optimization cannot improve by selecting a different or unverified branch.
+
+    Coverage-free historical unconditional examples keep their existing contract;
+    once either run records branch evidence both sides must record comparable,
+    verified applicable assertions. N/A is preserved but never counts as exercise.
+    """
+    if "coverage" not in baseline and "coverage" not in trial:
+        return True, None
+    if not isinstance(baseline.get("coverage"), dict) or not isinstance(trial.get("coverage"), dict):
+        return False, "基线与试验组缺少同契约的断言分支证据"
+
+    def branch_sets(verdict):
+        rows = verdict["coverage"].get("assertions") or []
+        identities = {a.get("id") for a in rows}
+        applicable = {a.get("id") for a in rows if a.get("applicable") is True}
+        verified = {a.get("id") for a in rows if a.get("verified") is True and a.get("applicable") is True
+                    and a.get("result") in ("pass", "fail")}
+        unresolved = {a.get("id") for a in rows if not (a.get("applicable") is False and a.get("result") == "not_applicable")
+                      and a.get("id") not in verified}
+        return identities, applicable, verified, unresolved
+
+    b_ids, b_app, b_verified, b_unresolved = branch_sets(baseline)
+    t_ids, t_app, t_verified, t_unresolved = branch_sets(trial)
+    if not t_verified:
+        return False, "试验组没有适用且已验证的确定断言；不涉及不计改进"
+    if (b_ids, b_app, b_verified) != (t_ids, t_app, t_verified):
+        return False, "基线与试验组的适用/已验证断言集合不同；分支消失不能计改进"
+    if b_unresolved or t_unresolved:
+        return False, "存在未知、执行异常或未执行的断言；未完成分支不能计改进"
+    return True, None
 
 
 def _exercised(item: dict, run: dict, case_id: str) -> bool:

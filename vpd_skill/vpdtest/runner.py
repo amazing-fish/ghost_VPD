@@ -14,6 +14,7 @@ from .cases import (
     review_context,
     review_status,
 )
+from .conditions import definitions, validate_definitions, validate_guard
 from .execute import Executor
 from .experience import ExperienceStore
 from .knowledge import KnowledgeStore
@@ -23,7 +24,13 @@ from .report import render_run
 from .session import swipe_options_error
 from .tree import UiTree
 from .util import now_iso, read_json, read_jsonl, write_json
-from .verdict import PASSED, case_verdict, evaluate_assertion
+from .verdict import (
+    PASSED,
+    case_verdict,
+    evaluate_assertion,
+    oracle_guards,
+    select_applicability,
+)
 from .workspace import RunContext, Workspace
 
 
@@ -36,8 +43,8 @@ def _env_check(case: dict, facts: dict, pre_layout: dict) -> dict:
 
 
 def run_facts(app, pre: dict, declared: dict) -> dict:
-    """前置与判据共用的事实：APP身份、版本和形态只取实测，未知也不能用声明替代。
-    --env 仅补充执行器无法测量的业务条件（如账号、车辆及园区状态）。"""
+    """调度环境投影：身份、版本、形态必须实测；业务声明只参与既有整例门禁。
+    产品判据另绑定 oracle_facts，不能把 --env 当当前观测。"""
     disp = pre.get("display") or {}
     measured = {"app": app.id, "app_version": pre.get("app_version"), "device_form": disp.get("device_form")}
     out = {k: v for k, v in (declared or {}).items() if v not in (None, "")}
@@ -55,7 +62,21 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
         error = swipe_options_error(step)
         if error:
             raise ValueError(f"{where}: {error}")
+    condition_defs = definitions(case, app)
+    condition_issues = validate_definitions(condition_defs, app)
+    step_ids = {s["id"] for s in case.get("steps", [])}
+    for assertion in case.get("assertions", []):
+        if "guard" in assertion:
+            condition_issues += validate_guard(assertion["guard"], condition_defs, step_ids)
+    for child, _, where in iter_case_steps(case, app):
+        if "when" in child:
+            condition_issues += [{**x, "field": where + ".when." + x.get("field", "")} for x in
+                                 validate_guard(child["when"], condition_defs, step_ids)]
+    if condition_issues:
+        raise ValueError(f"条件定义无效：{condition_issues}")
     knowledge, policy = KnowledgeStore(ws.root), ws.policy()
+    for item in case.get("assertions", []) + [s for s, _, _ in iter_case_steps(case, app)]:
+        oracle_guards(item.get("oracle_refs", []), knowledge)  # 定义错误在任何设备操作之前拒绝。
     context = review_context(ws, app)
     asset_review = (require_review if require_asset_review else review_status)(ws, case, knowledge, app, policy, context)
     store = RunStore(ws.runs_dir, run_id, kind="run")
@@ -65,6 +86,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     overlay = overlay or xstore.overlay()
     ctx = RunContext(ws, app, device, store, overlay, mode="regression", policy=policy,
                      layout_cfg=context["layout"], dialogs=context["system_dialogs"].get("dialogs") or {})
+    ctx.conditions = condition_defs
     # 使用审核检查的同一输入快照；前置检查后再绑定实测事实
     started = now_iso()
     # steps/title 供控制台进度面板显示总步数与标题；只记步骤 id 与动作名，不含目标/文字等内容
@@ -73,7 +95,8 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                 steps=[{"id": s["id"], "action": s["action"]} for s in case.get("steps", [])])
 
     pre = device.preflight(app.bundle)
-    declared = {**device.env_facts(), **(env or {})}
+    device_facts = device.env_facts()
+    declared = {**device_facts, **(env or {})}
     facts = run_facts(app, pre, declared)
     pre_layout = layout_mod.profile(None, pre.get("display"), ctx.observer.layout_cfg)
     envc = _env_check(case, facts, pre_layout)
@@ -105,7 +128,11 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
 
     store.event("preflight", ok=pre["ok"], checks=pre["checks"])
     ctx.observer.display = pre.get("display")  # 复用前置检查读到的显示参数，不重复查询
-    knowledge.bind(facts)
+    # 调度兼容声明与判据事实分开。CLI --env 无时间、观测和身份，不能升级成实测。
+    # Replay world 的环境仅是显式标记的合成设备事实，绝不冒充真机。
+    oracle_facts = run_facts(app, pre, device_facts if device.kind == "replay" else {})
+    ctx.facts = oracle_facts
+    knowledge.bind(oracle_facts)
     # 参数与密钥：密钥只从环境变量/本地配置读取；缺失时判环境阻塞，不向输入框写空值
     params = Params(case.get("test_data"), ws.config.get("secrets"), store.run_id)
     ctx.params = params
@@ -133,19 +160,23 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     steps, cleanup, safety_stops = [], [], []
     if pre["ok"] and envc["ok"]:
         ex = Executor(ctx)
-        halted = False
+        halted = None
         for st in case["steps"]:
             if halted:
-                steps.append({"step_id": st["id"], "action": st["action"], "outcome": "not_run",
+                blocked = {"step_id": st["id"], "action": st["action"], "outcome": "not_run",
                               "critical": st.get("critical", True), "attempts": [], "recoveries": [], "adapted": False,
-                              "oracle_refs": st.get("oracle_refs", [])})
+                              "oracle_refs": st.get("oracle_refs", [])}
+                if halted["outcome"] == "skipped":
+                    blocked.update(final_status="required_step_skipped", blocked_by=halted["step_id"],
+                                   reason="必需前置步骤因操作条件未满足而未执行，后继步骤停止")
+                steps.append(blocked)
                 continue
             store.event("step_start", step=st["id"], action=st["action"])
             res = ex.run_step(st, case["id"])
             steps.append(res)
             store.event("step_done", step=st["id"], outcome=res["outcome"])
             if res["outcome"] not in PASSED and res["critical"]:
-                halted = True
+                halted = res
                 if ctx.motion.armed or ctx.motion.locked():
                     # 运动中出现首次关键失败：先安全停止，再清理。首次失败原样保留在该步骤记录里
                     safety_stops.append(safety_mod.safe_stop(ex, "critical_step_failed",
@@ -175,7 +206,20 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
         return obs, (UiTree(read_json(tp)) if usable and tp.exists() else None)
 
     by_id = {s["step_id"]: s for s in steps}
-    assertions = [evaluate_assertion(a, by_id, load, knowledge, app) for a in case.get("assertions", [])]
+    def bind_step_scenes(items):
+        for result in items:
+            guards = oracle_guards(result.get("oracle_refs", []), knowledge)
+            if guards and result.get("final_obs"):
+                observed, tree = load(result["final_obs"])
+                result["oracle_guard"] = select_applicability(guards, condition_defs, by_id, load, app, observed, tree)
+            bind_step_scenes(result.get("sub_steps") or [])
+    bind_step_scenes(steps)
+
+    assertions = [evaluate_assertion(a, by_id, load, knowledge, app, condition_defs) for a in case.get("assertions", [])]
+    for assertion in assertions:
+        if assertion.get("guard"):
+            store.event("assertion_selected", assertion=assertion["id"], guard=assertion["guard"],
+                        result=assertion["result"], verified=assertion["verified"])
     verdict = case_verdict(pre, envc, steps, assertions, knowledge, safety_stops, cleanup,
                            step_ids={s["id"] for s in case["steps"]})
     known = case.get("product_status") or {}
@@ -205,7 +249,9 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                       "seen": ctx.observer.layouts_seen},
            "env": envc, "preflight": pre, "steps": steps, "cleanup": cleanup, "assertions": assertions,
            "knowledge_snapshot": knowledge.oracle_status(refs)["items"] if refs else [],
-           "facts": knowledge.facts, "knowledge_used": case.get("knowledge_used", []), "goal": case.get("goal"),
+           "facts": facts, "oracle_facts": knowledge.facts,
+           "declarations": {"source": "cli_env", "values": env or {}, "measured": False},
+           "condition_definitions": condition_defs, "knowledge_used": case.get("knowledge_used", []), "goal": case.get("goal"),
            "verdict": verdict, "actions": ctx.actions, "seed": ctx.seed,
            "test_data": params.public(), "authorized": sorted(ctx.authorized), "authorization_sources": grant_sources,
            "supervision": {"supervisor": supervisor,

@@ -1,14 +1,50 @@
 """把 run.json / exploration.json 渲染为人可读的 Markdown 报告。报告只读取记录，不重新判定。"""
 from __future__ import annotations
 
+import json
+
 OUTCOME = {"passed": "通过", "passed_after_adaptation": "通过（定位适配）", "passed_after_recovery": "通过（经恢复）",
-           "fail_candidate": "失败候选", "error": "执行错误", "blocked": "阻塞", "not_run": "未执行"}
+           "fail_candidate": "失败候选", "error": "执行错误", "blocked": "阻塞", "not_run": "未执行",
+           "skipped": "未执行（操作条件不满足）", "pending": "待确认"}
 RESULT = {"pass": "通过", "fail": "失败", "pending": "待确认", "undeterminable": "不可判定", "not_run": "未执行",
-          "failed": "失败", "error": "执行错误", "blocked": "阻塞", "not_verified": "未验证"}
+          "passed": "通过", "failed": "失败", "error": "执行错误", "blocked": "阻塞", "not_verified": "未验证",
+          "not_applicable": "不涉及"}
+CONDITION = {"true": "满足", "false": "明确不满足", "unknown": "未知", "error": "取证异常"}
 
 
 def _esc(v) -> str:
     return str(v if v is not None else "").replace("|", "\\|").replace("\n", " ")
+
+
+def _json(value) -> str:
+    return _esc(json.dumps(value, ensure_ascii=False, separators=(",", ":")))
+
+
+def _steps(steps: list):
+    for step in steps:
+        yield step
+        yield from _steps(step.get("sub_steps", []))
+
+
+def _cleanup_steps(steps: list, required: bool = True):
+    for step in steps:
+        item_required = required and step.get("required", True)
+        yield {**step, "required": item_required}
+        yield from _cleanup_steps(step.get("sub_steps", []), required=item_required)
+
+
+def _condition_rows(owner: str, use: str, record: dict) -> list:
+    """渲染原始选支记录，不按终态重新评价前置。聚合 guard 保留每个来源。"""
+    records = record.get("records") if "records" in record else [record]
+    out = []
+    for item in records or [record]:
+        source = f"{_esc(item.get('source'))} / {_esc(item.get('obs'))} / {_esc(item.get('ts'))}"
+        detail = {k: value for k, value in item.items()
+                  if k not in ("source", "obs", "ts", "scope", "status", "condition", "reason")}
+        out.append(f"| {_esc(owner)} | {use} | {CONDITION.get(item.get('status'), _esc(item.get('status')))} "
+                   f"| {_esc(item.get('condition'))} | {source} | {_json(item.get('scope') or {})} "
+                   f"| {_esc(item.get('reason'))}；{_json(detail)} |")
+    return out
 
 
 def _layout_line(lay: dict) -> str:
@@ -64,17 +100,20 @@ def render_run(run: dict) -> str:
             f"| 动作数 | {run['actions']} |", ""]
 
     out += ["## 判定依据与发现", ""]
-    for f in [f for f in v["findings"] if f["result"] != "not_verified"] or [
-            {"result": "pass", "kind": "全部断言", "reason": "非建议类断言均在已确认判据下通过"}]:
+    findings = [f for f in v["findings"] if f["result"] != "not_verified"]
+    if not findings:
+        # 无 findings 不是全通过证据；全部不适用、未知与历史记录都保留原结论。
+        out.append(f"- 无附加发现；结论 `{_esc(v['verdict'])}`，逐项断言与覆盖见下文。")
+    for f in findings:
         out.append(f"- [{RESULT.get(f['result'], f['result'])}] {_esc(f.get('step') or f.get('id') or f.get('kind'))}："
                    f"{_esc(f.get('reason'))}" + (f"（归属：{f['attribution']}）" if f.get("attribution") else ""))
         if f["result"] == "error":
             out.append(f"  - 阶段 `{_esc(f.get('stage'))}`；原始错误 `{_esc(f.get('error_class'))}`：{_esc(f.get('error'))}；"
                        f"证据：{_esc(f.get('evidence'))}")
     if v.get("not_verified"):
-        out += ["", "## 尚未验证的检查（关联步骤没有执行到，不能据本次结论推断它们成立或不成立）", ""]
+        out += ["", "## 尚未验证的检查（证据不足或步骤未执行，不能推断检查成立或不成立）", ""]
         out += [f"- `{x['id']}`（步骤 `{_esc(x.get('at'))}`）：{_esc(x.get('reason'))}" for x in v["not_verified"]]
-    bad_clean = [c for c in run.get("cleanup", []) if not str(c["outcome"]).startswith("passed")]
+    bad_clean = [c for c in _cleanup_steps(run.get("cleanup", [])) if not str(c["outcome"]).startswith("passed")]
     cleanup_errors = [f for f in (v.get("execution") or {}).get("errors", []) if f.get("kind") == "cleanup"]
     if run.get("cleanup"):
         cleanup_summary = "全部完成"
@@ -153,13 +192,33 @@ def render_run(run: dict) -> str:
         out.append(f"| {s['step_id']} | {s['action']} | {OUTCOME.get(s['outcome'], s['outcome'])} | {len(s.get('attempts', []))} "
                    f"| {_esc(recs)} | {_esc(how)} | {_esc(s.get('final_obs'))} |")
 
-    out += ["", "## 断言", "", "| 断言 | 结果 | 判据 | 证据 | 说明 |", "|---|---|---|---|---|"]
+    out += ["", "## 断言", "", "| 断言 | 结果 | 验证覆盖 | 判据 | 证据 | 说明 |", "|---|---|---|---|---|---|"]
     for a in run["assertions"]:
         orc = a.get("oracle", {})
         refs = ", ".join(f"{i['id']}({i['status']})" for i in orc.get("items", [])) or ", ".join(a.get("oracle_refs", []))
         ev = a.get("evidence", {})
-        out.append(f"| {a['id']}{'（建议）' if a['advisory'] else ''} {_esc(a['desc'])} | {RESULT.get(a['result'], a['result'])} | {_esc(refs)} "
+        verified = "已验证" if a.get("verified") is True else ("未验证覆盖" if "verified" in a else "历史记录未提供")
+        out.append(f"| {a['id']}{'（建议）' if a['advisory'] else ''} {_esc(a['desc'])} | {RESULT.get(a['result'], a['result'])} | {verified} | {_esc(refs)} "
                    f"| {_esc(ev.get('obs'))} {_esc(ev.get('screenshot') or '')} | {_esc(a.get('reason') or '')} |")
+    coverage = v.get("coverage")
+    if coverage is not None:
+        out += ["", "## 断言覆盖", "",
+                (f"- 已验证：{_esc(', '.join(coverage.get('verified') or [])) or '无'}；"
+                f"不涉及：{_esc(', '.join(coverage.get('not_applicable') or [])) or '无'}；"
+                f"未验证覆盖：{_esc(', '.join(coverage.get('unverified') or [])) or '无'}。"),
+                "- 不涉及、未知、执行异常与未执行均不能作为该分支已验证的证据。"]
+    selection_rows = []
+    for s in _steps(run["steps"] + run.get("cleanup", [])):
+        if s.get("condition") is not None:
+            selection_rows += _condition_rows(s["step_id"], "操作条件", s["condition"])
+    for a in run["assertions"]:
+        if a.get("guard") is not None:
+            selection_rows += _condition_rows(a["id"], "断言前置", a["guard"])
+    if selection_rows:
+        out += ["", "## 选支证据", "",
+                "操作条件决定下一步动作；断言前置决定产品断言是否适用。结果仍按预先定义的断言评价。", "",
+                "| 对象 | 用途 | 条件状态 | 条件 | 来源 / 观测 / 时间 | 作用范围 | 原因与检查证据 |",
+                "|---|---|---|---|---|---|---|"] + selection_rows
     if run.get("ui_alerts"):
         out += ["", "## 页面内的失败/异常提示（产品问题候选，需人工确认并反馈）", "",
                 "| 时间 | 观测 | 文字 |", "|---|---|---|"]

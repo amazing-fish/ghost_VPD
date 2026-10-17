@@ -43,7 +43,7 @@ class RunStore:
 
 class Observer:
     def __init__(self, device, bundle: str, policy, states, store: RunStore, layout_cfg: Optional[dict] = None,
-                 display: Optional[dict] = None, dialogs: Optional[dict] = None):
+                 display: Optional[dict] = None, dialogs: Optional[dict] = None, evidence_context=None):
         self.device, self.bundle, self.policy, self.states, self.store = device, bundle, policy, states, store
         self.layout_cfg = layout_mod.config(layout_cfg)
         self.display = display          # 显示参数（像素密度、折叠状态）；窗口尺寸变化时重新读取
@@ -52,6 +52,7 @@ class Observer:
         self.last_layout_key = None
         self.layouts_seen: dict = {}    # layout key -> 首次出现的 obs_id
         self.dialogs = dialogs or {}    # 已登记的系统弹窗注册表（system_dialogs.json）
+        self.evidence_context = evidence_context  # 运行上下文在独占写盘前附加作用范围与动作/时间截面
 
     def _display_for(self, tree: Optional[UiTree]) -> Optional[dict]:
         win = tree.window_rect() if (tree is not None and tree.status == "ok") else None
@@ -200,6 +201,8 @@ class Observer:
                                 "procedure": "先记录时间与截图，点右上角「反馈」填写（时间/页面/原文/前一步/车辆/版本）并提交，"
                                              "再决定是否重试；首次异常保留在报告里"}
             self.store.event("ui_alert", obs_id=oid, texts=hits[:10])
+        if self.evidence_context is not None:
+            obs.update(self.evidence_context())
         write_json(d / "observation.json", obs, exclusive=True)
         self.store.event("observe", obs_id=oid, label=label, state=obs["page"]["state"],
                          tree=obs["tree"]["status"], screenshot=obs["screenshot"]["status"], layout=lk,

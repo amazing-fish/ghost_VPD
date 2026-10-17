@@ -81,6 +81,10 @@ def _scope_values(k: str, want) -> set:
 
 def _scopes_overlap(a: dict, b: dict) -> bool:
     """两条知识的 applies_to 是否可能同时适用：共同限定的每一项取值都有交集（未限定 = 适用于所有取值）。"""
+    ca, cb = a.get("condition_requirements") or {}, b.get("condition_requirements") or {}
+    if (isinstance(ca, dict) and isinstance(cb, dict)
+            and any(type(ca[k]) is bool and type(cb[k]) is bool and ca[k] is not cb[k] for k in set(ca) & set(cb))):
+        return False  # 互斥场景的预定义规则不互相制造冲突。
     sa, sb = a.get("applies_to") or {}, b.get("applies_to") or {}
     for k in set(sa) & set(sb):
         if sa[k] in ("*", None, "") or sb[k] in ("*", None, ""):
@@ -92,6 +96,11 @@ def _scopes_overlap(a: dict, b: dict) -> bool:
 
 def _scope_within(a: dict, b: dict) -> bool:
     """a 的适用范围是否完全落在 b 的范围内（任一维度：未限定 = 适用于所有取值）。"""
+    ca, cb = a.get("condition_requirements") or {}, b.get("condition_requirements") or {}
+    if not isinstance(ca, dict) or not isinstance(cb, dict):
+        return False
+    if any(type(value) is not bool or ca.get(key) is not value for key, value in cb.items()):
+        return False
     sa, sb = a.get("applies_to") or {}, b.get("applies_to") or {}
     for k in set(sa) | set(sb):
         a_want, b_want = sa.get(k), sb.get(k)
@@ -167,7 +176,8 @@ class KnowledgeStore:
             else:
                 st = it["status"]
             snap.append({"id": r, "status": st, "statement": it["statement"], "source": it.get("source", {}).get("ref"),
-                         "applies_to": it.get("applies_to"), "applicability": app})
+                         "applies_to": it.get("applies_to"), "applicability": app,
+                         "condition_requirements": it.get("condition_requirements", {})})
             statuses.add(st)
         for st in ORACLE_ORDER:
             if st in statuses:

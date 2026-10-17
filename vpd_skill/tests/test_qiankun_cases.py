@@ -62,9 +62,11 @@ def test_101_fault_blocks_activation_without_touching_start(ws, secrets, tmp_pat
     run = run_case(ws, "TC-QK-101", device_spec=_classified_task_world(tmp_path, "qiankun_hm_base.json"), propose=False, authorize=AUTH_101)
     assert all(s["outcome"] == "passed" for s in run["steps"]), _outcomes(run)
     a = {x["id"]: x for x in run["assertions"]}
-    # 判据未确认 → pending；观测本身成立：「开始」置灰且 10 秒后仍有不可用提示
-    assert a["A1"]["result"] == "pending" and a["A1"]["observed_holds"] is True
-    assert a["A2"]["observed_holds"] is True and a["A3"]["observed_holds"] is True
+    # 故障专属规则缺少当前独立 provider，不能用结果提示/旧 world 故障声明反推前置。
+    for aid in ("A1", "A2"):
+        assert a[aid]["result"] == "pending" and a[aid]["guard"]["status"] == "unknown"
+        assert a[aid]["verified"] is False and "observed_holds" not in a[aid]
+    assert a["A3"]["observed_holds"] is True
     assert run["verdict"]["verdict"] == "pending"
     meas = {m["step"]: m["value"] for m in run["measurements"]}
     assert meas["S3"] == "问界M5（占位）" and meas["S7"] == "泊车代驾辅助暂不可用"
@@ -202,7 +204,9 @@ def test_qiankun_lint_and_explore_boundary(ws):
     app, kn, pol = ws.app("qiankun_hm"), KnowledgeStore(ws.root), ws.policy()
     # 101 的登录流程已被 auto-vpd 真机校准证伪（C8）：lint 如实指出，不再是"无问题"
     issues101 = lint(ws.load_case("TC-QK-101"), app, kn, pol)
-    assert len(issues101) == 1 and "login_password" in issues101[0]["problem"] and "证伪" in issues101[0]["problem"]
+    assert len(issues101) == 3 and "login_password" in issues101[0]["problem"] and "证伪" in issues101[0]["problem"]
+    assert {i["field"] for i in issues101[1:]} == {"assertions.A1.oracle_refs", "assertions.A2.oracle_refs"}
+    assert all("vehicle_fault" in i["problem"] and "provider" in i["problem"] for i in issues101[1:])
     assert lint(ws.load_case("TC-QK-103"), app, kn, pol) == []
     issues = lint(ws.load_case("TC-QK-102"), app, kn, pol)
     assert len(issues) == 1 and "qk_map" in issues[0]["problem"] and "hypothesis" in issues[0]["problem"]

@@ -62,6 +62,8 @@ def explore(ws: Workspace, app_id: str, start: str, device_spec: Optional[str], 
            "states": {}, "transitions": [], "skipped": [], "anomalies": [], "exit": {}}
     store.event("explore_start", app=app_id, start=start, goal=goal, budget=budget, device=device.spec)
     pre = device.preflight(app.bundle)
+    ctx.facts = {"app": app.id, "app_version": pre.get("app_version"),
+                 "device_form": (pre.get("display") or {}).get("device_form")}
     tried, frontier, n = set(), [start], 0
     if not pre["ok"]:
         exp["exit"] = {"reason": "preflight_blocked", "detail": [c for c in pre["checks"] if not c["ok"]]}

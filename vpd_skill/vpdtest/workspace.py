@@ -83,13 +83,21 @@ class RunContext:
     def __init__(self, ws: Workspace, app: App, device, store, overlay, mode: str = "regression",
                  display: Optional[dict] = None, policy=None, layout_cfg=None, dialogs=None):
         self.ws, self.app, self.device, self.store, self.overlay, self.mode = ws, app, device, store, overlay, mode
+        self.facts = {}  # Runner 在实测 preflight 后绑定；--env 声明不成为条件证据
+        from .conditions import definitions
+        self.conditions = definitions({}, app)
+        if not isinstance(self.conditions, dict):
+            raise ValueError("conditions 须为命名条件定义对象")  # noqa: TRY004 - invalid asset
+        self.step_results = {}  # 完整步骤 ID → 本次执行结果，供 when 引用已执行的来源
         self.policy = policy or ws.policy()
         from .dispatch import Dispatcher
         self.dispatcher = Dispatcher(device, store, self)
         from .sysdialog import load_dialogs
         self.observer = Observer(device, app.bundle, self.policy, app.states, store,
                                  ws.layout_config() if layout_cfg is None else layout_cfg, display,
-                                 dialogs=load_dialogs(ws.root) if dialogs is None else dialogs)
+                                 dialogs=load_dialogs(ws.root) if dialogs is None else dialogs,
+                                 evidence_context=lambda: {"action_epoch": self.actions, "clock_s": self.clock(),
+                                                           "scope": {"app": app.id, "app_version": self.facts.get("app_version")}})
         self.params = None        # 用例参数（含密钥引用），由 runner 设置
         self.authorized = self.policy.effective_grants(set())  # 任务许可；gated/supervised 仍需显式授予
         self.supervisor = None    # 在场监护人（supervised 类授权的前提），记入证据

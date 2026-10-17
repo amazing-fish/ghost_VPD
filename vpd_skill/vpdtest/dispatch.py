@@ -87,7 +87,7 @@ class Dispatcher:
             if att.get("unlock") and refresh is not None:
                 tap = refresh()
                 if tap is None:
-                    att["status"] = "target_unresolved"
+                    att.setdefault("status", "target_unresolved")
                     return self._reject(op, preconditions, checks, att)
                 ok, state_checks = self._state(preconditions, att)
                 checks.update(state_checks)
@@ -104,7 +104,7 @@ class Dispatcher:
                     return self._reject(op, preconditions, checks, att)
                 tap = refresh()
                 if tap is None:
-                    att["status"] = "target_unresolved"
+                    att.setdefault("status", "target_unresolved")
                     return self._reject(op, preconditions, checks, att)
                 # 新观测后再确认锁屏与前台，不能沿用重新定位前的状态。
                 ok, state_checks = self._state(preconditions, att)
@@ -116,6 +116,23 @@ class Dispatcher:
             att["policy"] = check.get("policy")
         # 解锁、重新定位等嵌套操作可能已消耗预算或时间，紧邻设备调用再次复核。
         if not self._limits(att, checks):
+            return self._reject(op, preconditions, checks, att)
+        condition = att.get("condition")
+        records = (condition.get("records") or [condition]) if condition else []
+        invalid = []
+        if self.ctx is not None:
+            for record in records:
+                age = self.ctx.clock() - record["clock_s"] if isinstance(record.get("clock_s"), (int, float)) else None
+                expired = age is not None and record.get("max_age_s") is not None and age > record["max_age_s"]
+                if record.get("action_epoch") != self.ctx.actions or expired:
+                    invalid.append({**record, "dispatch_age_s": age, "expired": expired})
+        if invalid:
+            # 恢复、滚动及事实有效期在最末关口复核每个父/子条件。
+            att["condition"] = {**condition, "status": "unknown", "value": None,
+                                "reason": "条件已超过事实定义的有效期，须重新取证" if any(r["expired"] for r in invalid)
+                                else "选支后发生可能下发的动作，条件须重新取证", "invalidated": invalid}
+            att.update(status="condition_unknown", reason=att["condition"]["reason"])
+            checks["condition"] = att["condition"]
             return self._reject(op, preconditions, checks, att)
         dev = self.device
         if op == "tap":
