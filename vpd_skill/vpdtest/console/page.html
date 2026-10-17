@@ -66,8 +66,9 @@ input[type=text] { flex: 1; min-width: 120px; }
 .chip { font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
 .s-running, .s-active { color: var(--accent); } .s-stale { color: var(--warn); } .s-idle, .s-finished { color: var(--muted); }
 .v-passed { color: var(--ok); } .v-failed, .v-error { color: var(--bad); } .v-blocked { color: var(--warn); } .v-pending, .v-not_applicable { color: var(--info); }
-#detail { margin-top: 12px; }
-#detail table { width: 100%; border-collapse: collapse; font-size: 12px; }
+#detail { margin-top: 12px; overflow-wrap: anywhere; }
+#detail .table-scroll { max-width: 100%; overflow-x: auto; }
+#detail table { width: 100%; min-width: 520px; border-collapse: collapse; font-size: 12px; }
 #detail th, #detail td { text-align: left; border-bottom: 1px solid var(--line); padding: 4px 6px; vertical-align: top; }
 #detail pre { font: 12px/1.4 ui-monospace, Consolas, monospace; background: var(--bg); border: 1px solid var(--line);
   border-radius: 6px; padding: 8px; max-height: 32vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -263,9 +264,11 @@ input[type=text] { flex: 1; min-width: 120px; }
     } catch (e) { $("runs-at").textContent = "· 读取失败"; }
   }
   function table(cols, rows) {
-    return el("table", {}, el("thead", {}, el("tr", {}, ...cols.map((c) => el("th", { scope: "col" }, c[1])))),
-      el("tbody", {}, ...rows.map((r) => el("tr", {}, ...cols.map((c) => el("td", {}, r[c[0]] == null ? "" : String(r[c[0]])))))));
+    return el("div", { class: "table-scroll" }, el("table", {},
+      el("thead", {}, el("tr", {}, ...cols.map((c) => el("th", { scope: "col" }, c[1])))),
+      el("tbody", {}, ...rows.map((r) => el("tr", {}, ...cols.map((c) => el("td", {}, r[c[0]] == null ? "" : String(r[c[0]]))))))));
   }
+
   const valueText = (v) => v == null ? "" : (typeof v === "object" ? JSON.stringify(v) : String(v));
   function conditionText(record) {
     if (!record) return "无条件 / 历史未记录";
