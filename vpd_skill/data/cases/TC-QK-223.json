@@ -1,6 +1,6 @@
 {
   "id": "TC-QK-223",
-  "version": 3,
+  "version": 4,
   "status": "draft",
   "app": "qiankun_hm",
   "title": "乾崑已声明恢复联网场景的VPD首页进入",
@@ -49,9 +49,30 @@
       "desc": "复用当前登录态；只在实际页面选择密码或短信路径"
     },
     {
-      "id": "S3",
-      "action": "flow",
-      "flow": "leave_login_identity_prod"
+      "action": "back",
+      "expect_text": "密码管理",
+      "retry": 0,
+      "id": "S3_ACCOUNT"
+    },
+    {
+      "action": "back",
+      "expect_text": "设置",
+      "retry": 0,
+      "id": "S3_SETTINGS"
+    },
+    {
+      "action": "back",
+      "expect_text": "我的车辆",
+      "retry": 0,
+      "id": "S3_MY"
+    },
+    {
+      "action": "tap",
+      "target": "qk_tab_car",
+      "retry": 0,
+      "expect_state": "qk_car_tab",
+      "timeout_s": 10,
+      "id": "S3"
     },
     {
       "id": "S4",

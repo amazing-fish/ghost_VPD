@@ -31,135 +31,33 @@
   "conditions": {
     "login_navigate_my": {
       "kind": "page",
-      "true": {
-        "type": "target_present",
-        "target": "qk_login_navigate_my_here"
-      },
-      "false": {
-        "type": "target_present",
-        "target": "qk_login_navigate_my_else"
-      }
+      "true": {"type": "target_present", "target": "qk_login_navigate_my_here"},
+      "false": {"type": "target_present", "target": "qk_login_navigate_my_else"}
     },
     "login_logged_out": {
       "kind": "page",
-      "true": {
-        "type": "target_present",
-        "target": "qk_login_logged_out_here"
-      },
-      "false": {
-        "type": "target_present",
-        "target": "qk_login_logged_out_else"
-      }
-    },
-    "login_quick": {
-      "kind": "page",
-      "true": {
-        "type": "target_present",
-        "target": "qk_login_quick_here"
-      },
-      "false": {
-        "type": "target_present",
-        "target": "qk_login_quick_else"
-      }
-    },
-    "login_method": {
-      "kind": "page",
-      "true": {
-        "type": "target_present",
-        "target": "qk_login_method_here"
-      },
-      "false": {
-        "type": "target_present",
-        "target": "qk_login_method_else"
-      }
+      "true": {"type": "target_present", "target": "qk_login_logged_out_here"},
+      "false": {"type": "target_present", "target": "qk_login_logged_out_else"}
     },
     "login_password": {
       "kind": "page",
-      "true": {
-        "type": "target_present",
-        "target": "qk_login_password_here"
-      },
-      "false": {
-        "type": "target_present",
-        "target": "qk_login_password_else"
-      }
-    },
-    "login_consent": {
-      "kind": "page",
-      "true": {
-        "type": "target_present",
-        "target": "qk_login_consent_here"
-      },
-      "false": {
-        "type": "target_present",
-        "target": "qk_login_consent_else"
-      }
+      "true": {"type": "target_present", "target": "qk_login_password_here"},
+      "false": {"type": "target_present", "target": "qk_login_password_else"}
     },
     "login_sms": {
       "kind": "page",
-      "true": {
-        "type": "target_present",
-        "target": "qk_login_sms_here"
-      },
-      "false": {
-        "type": "target_present",
-        "target": "qk_login_sms_else"
-      }
-    },
-    "login_my_account": {
-      "kind": "page",
-      "true": {
-        "type": "target_present",
-        "target": "qk_login_my_account_here"
-      },
-      "false": {
-        "type": "target_present",
-        "target": "qk_login_my_account_else"
-      }
-    },
-    "login_settings": {
-      "kind": "page",
-      "true": {
-        "type": "target_present",
-        "target": "qk_login_settings_here"
-      },
-      "false": {
-        "type": "target_present",
-        "target": "qk_login_settings_else"
-      }
-    },
-    "login_account_menu": {
-      "kind": "page",
-      "true": {
-        "type": "target_present",
-        "target": "qk_login_account_menu_here"
-      },
-      "false": {
-        "type": "target_present",
-        "target": "qk_login_account_menu_else"
-      }
+      "true": {"type": "target_present", "target": "qk_login_sms_here"},
+      "false": {"type": "target_present", "target": "qk_login_sms_else"}
     },
     "login_protocol": {
       "kind": "page",
-      "true": {
-        "type": "target_present",
-        "target": "qk_login_protocol_here"
-      },
-      "false": {
-        "type": "target_present",
-        "target": "qk_login_protocol_else"
-      }
+      "true": {"type": "target_present", "target": "qk_protocol_unchecked"},
+      "false": {"type": "target_present", "target": "qk_login_protocol_else"}
     },
     "login_business_home": {
       "kind": "page",
-      "true": {
-        "type": "state_is",
-        "state": "qk_vpd_home"
-      },
-      "false": {
-        "type": "target_present",
-        "target": "qk_login_sms_here"
-      }
+      "true": {"type": "state_is", "state": "qk_vpd_home"},
+      "false": {"type": "target_present", "target": "qk_login_sms_here"}
     }
   }
 }

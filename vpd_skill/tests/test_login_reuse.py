@@ -29,11 +29,16 @@ def login_rig(ws, tmp_path, monkeypatch):
                        node("", 130, t="TextInput", click=True, bind="phone", attrs={"hint": "请输入手机号"}),
                        node("", 180, t="TextInput", click=True, bind="pw", attrs={"hint": "请输入密码"}),
                        node("userProtocol", 230, t="Checkbox", attrs={"checked": "true"}),
+                       node("我已阅读并同意用户协议", 270),
                        node("登录", 300, "my")])
     sms = screen([node("身份验证", 30), node("验证码已发至151****3183", 80),
                   node("", 130, t="TextInput", id="sms", click=True, bind="code"), node("提交验证码", 230, "my")])
     identity = screen([node("输入验证码", 30), node("为了确保你的账号安全，请先进行手机号验证", 80), node("151****3183", 130)])
     screens = {"my": my, "password": password, "sms": sms, "identity": identity,
+               "logged_out": screen([node("我的车辆", 30), node("登录/注册", 80, "quick")]),
+               "quick": screen([node("本机号码一键登录", 30), node("其他登录方式", 80, "method")]),
+               "method": screen([node("欢迎登录华为乾崑", 30), node("密码登录", 80, "password"),
+                                 node("", 130, t="TextInput", attrs={"hint":"请输入手机号"})]),
                "settings": screen([node("设置", 30), node("个人信息", 80), node("乾崑账号", 130, "account")]),
                "account": screen([node("乾崑账号", 30), node("账号注销", 80), node("密码管理", 130, "identity")]),
                "unknown": screen([node("未登记页面", 30)]),
@@ -52,6 +57,9 @@ def login_rig(ws, tmp_path, monkeypatch):
                 "display": {"density": 1, "device_form": "bar", "fold_status": "unknown"},
                 "initial": {"installed": True, "foreground": "com.ohos.sceneboard"}, "launch_screen": start,
                 "screens": deepcopy(screens)}
+        for page in ("quick", "method", "password", "sms"):
+            data["screens"][page]["root"]["children"].extend([
+                node("我的车辆", 500), node("登录/注册", 550), node("社区", 600)])
         if missing_phone:
             data["screens"]["identity"]["root"]["children"][-1]["text"] = "199****0000"
         if load_error:
@@ -82,10 +90,11 @@ def test_logged_in_without_credentials_reuses_and_runs_independent_consumer(logi
     assert all(s["outcome"].startswith("passed") for s in run["cleanup"])
 
 
-def test_password_login_does_not_require_untriggered_sms(login_rig):
+@pytest.mark.parametrize("start", ["logged_out", "quick", "method", "password"])
+def test_password_login_does_not_require_untriggered_sms(login_rig, start):
     ws, _ = login_rig
     ws.config["secrets"] = {"QIANKUN_PHONE": "synthetic-phone", "QIANKUN_PASSWORD": "synthetic-password"}
-    run = execute(login_rig, "password")
+    run = execute(login_rig, start)
     assert all(s["outcome"].startswith("passed") for s in run["steps"]), run["steps"]
     sms = run["steps"][1]["sub_steps"][7]
     assert sms["outcome"] == "skipped" and not sms["attempts"]
@@ -116,7 +125,7 @@ def test_missing_terminal_identity_stops_before_business(login_rig):
     assert all(s["outcome"] == "not_run" for s in run["steps"][2:])
 
 
-def test_consumer_requires_current_review_and_flow_changes_invalidate_it(login_rig):
+def test_consumer_requires_current_review_and_recipe_changes_invalidate_it(login_rig):
     ws, build = login_rig
     with pytest.raises(PermissionError):
         run_case(ws,"TC-QK-223", device_spec=build(), require_asset_review=True)
@@ -125,12 +134,26 @@ def test_consumer_requires_current_review_and_flow_changes_invalidate_it(login_r
     assert cases.review_status(ws,ws.load_case("TC-QK-223"))["valid"]
     app = ws.app("qiankun_hm")
     before = cases.dependency_hash(ws.load_case("TC-QK-223"),app,KnowledgeStore(ws.root))
-    path = app.dir / "flows.json"
+    path = app.dir / "states.json"
     data=read_json(path)
-    data["flows"]["login_identity_prod"]["steps"][0]["timeout_s"] += 1
+    data["recipes"]["qk_target_account_ready"][-1]["timeout_s"] += 1
     write_json(path,data)
     assert not cases.review_status(ws,ws.load_case("TC-QK-223"))["valid"]
     assert cases.dependency_hash(ws.load_case("TC-QK-223"),ws.app("qiankun_hm"),KnowledgeStore(ws.root)) != before
+
+
+def test_selected_inline_navigation_failure_stops_before_next_action(login_rig):
+    ws, _ = login_rig
+    path = ws.app("qiankun_hm").dir / "targets.json"
+    data = read_json(path)
+    data["targets"]["qk_personal_settings"]["strategies"] = [{"kind":"text", "value":"missing-settings"}]
+    write_json(path, data)
+    run = execute(login_rig)
+    failed = run["steps"][1]["sub_steps"][-1]
+    assert failed["action"] == "tap" and failed["critical"] is True
+    assert not failed["outcome"].startswith("passed")
+    assert all(step["outcome"] == "not_run" for step in run["steps"][2:])
+
 
 
 def test_sms_code_is_not_sent_to_another_accounts_challenge(login_rig):
@@ -183,8 +206,8 @@ def test_submission_waits_for_delayed_next_stage(login_rig,start):
     path=Path(spec.split(":",1)[1])
     data=read_json(path)
     data["screens"]["pending"]=deepcopy(data["screens"][start])
-    data["screens"]["pending"]["after_obs"]={"n":4,"go":"my","replace":True}
-    data["screens"][start]["root"]["children"][-1]["go"]="pending"
+    data["screens"]["pending"]["after_obs"]={"n":12,"go":"my","replace":True}
+    next(n for n in data["screens"][start]["root"]["children"] if n.get("text") in ("登录", "提交验证码"))["go"]="pending"
     write_json(path,data)
     run=run_case(ws,"TC-QK-223",device_spec=spec,env={"network":"on","vpd_task_state":"none","parking_area":"华为练秋湖研发中心"},authorize=["account_state"],propose=False)
     assert all(s["outcome"].startswith("passed") for s in run["steps"]),run["steps"]
@@ -198,8 +221,9 @@ def test_submission_without_next_stage_times_out_before_business(login_rig):
     spec=build("password")
     path=Path(spec.split(":",1)[1])
     data=read_json(path)
-    data["screens"]["password"]["root"]["children"][-1].pop("go")
-    data["screens"]["password"]["root"]["children"][-1]["click"]=True
+    submit = next(n for n in data["screens"]["password"]["root"]["children"] if n.get("text") == "登录")
+    submit.pop("go")
+    submit["click"]=True
     write_json(path,data)
     run=run_case(ws,"TC-QK-223",device_spec=spec,env={"network":"on","vpd_task_state":"none","parking_area":"华为练秋湖研发中心"},authorize=["account_state"],propose=False)
     assert run["steps"][1]["outcome"]=="fail_candidate"

@@ -298,129 +298,21 @@
       }
     ],
     "qk_target_account_ready": [
-      {
-        "action": "flow",
-        "flow": "login_open_my_prod",
-        "when": {
-          "condition": "login_navigate_my",
-          "equals": true
-        },
-        "critical": false
-      },
-      {
-        "action": "flow",
-        "flow": "login_open_form_prod",
-        "when": {
-          "condition": "login_logged_out",
-          "equals": true
-        },
-        "critical": false
-      },
-      {
-        "action": "flow",
-        "flow": "login_other_method_prod",
-        "when": {
-          "condition": "login_quick",
-          "equals": true
-        },
-        "critical": false
-      },
-      {
-        "action": "flow",
-        "flow": "login_choose_password_prod",
-        "when": {
-          "condition": "login_method",
-          "equals": true
-        },
-        "critical": false
-      },
-      {
-        "action": "flow",
-        "flow": "login_password_prod",
-        "when": {
-          "condition": "login_password",
-          "equals": true
-        },
-        "critical": false
-      },
-      {
-        "action": "monitor",
-        "duration_s": 15,
-        "interval_s": 1,
-        "screenshots": false,
-        "until_text": "^身份验证$|^爱车$|^设置$|^乾崑账号$|^输入验证码$",
-        "desc": "提交密码后等待当前下一阶段正证；不是登录终态判定，不固定sleep"
-      },
-      {
-        "action": "flow",
-        "flow": "login_consent_prod",
-        "when": {
-          "condition": "login_consent",
-          "equals": true
-        },
-        "critical": false
-      },
-      {
-        "action": "flow",
-        "flow": "login_sms_prod",
-        "when": {
-          "condition": "login_sms",
-          "equals": true
-        },
-        "critical": false
-      },
-      {
-        "action": "monitor",
-        "duration_s": 15,
-        "interval_s": 1,
-        "screenshots": false,
-        "until_text": "^爱车$|^设置$|^乾崑账号$|^输入验证码$",
-        "desc": "短信提交后等待已离开登录挑战的下一阶段正证；目标账户仍由末尾严格检查"
-      },
-      {
-        "action": "flow",
-        "flow": "login_open_my_prod",
-        "when": {
-          "condition": "login_navigate_my",
-          "equals": true
-        },
-        "critical": false
-      },
-      {
-        "action": "flow",
-        "flow": "login_settings_prod",
-        "when": {
-          "condition": "login_my_account",
-          "equals": true
-        },
-        "critical": false
-      },
-      {
-        "action": "flow",
-        "flow": "login_account_menu_prod",
-        "when": {
-          "condition": "login_settings",
-          "equals": true
-        },
-        "critical": false
-      },
-      {
-        "action": "flow",
-        "flow": "login_identity_prod",
-        "when": {
-          "condition": "login_account_menu",
-          "equals": true
-        },
-        "critical": false
-      },
-      {
-        "action": "wait",
-        "duration_s": 0,
-        "expect_state": "qk_target_account_ready",
-        "timeout_s": 0,
-        "retry": 0,
-        "desc": "recipe只汇总子步，必须独立严格验证目标账户终态"
-      }
+      {"action": "tap", "target": "qk_tab_my_prod", "retry": 0, "expect_state": "@in_app", "when": {"condition": "login_navigate_my", "equals": true}, "critical": false},
+      {"action": "tap", "target": "qk_login_register", "retry": 0, "expect_state": "@in_app", "when": {"condition": "login_logged_out", "equals": true}, "critical": false},
+      {"action": "tap", "target": "qk_login_other_method", "retry": 0, "expect_text": "密码登录", "timeout_s": 12, "skip_if_absent": "^其他登录方式$"},
+      {"action": "tap", "target": "qk_login_choose_password", "retry": 0, "expect_text": "验证码登录", "timeout_s": 12, "skip_if_absent": "^密码登录$"},
+      {"action": "flow", "flow": "login_password_prod", "when": {"condition": "login_password", "equals": true}, "critical": false},
+      {"action": "monitor", "duration_s": 15, "interval_s": 1, "screenshots": false, "until_text": "^身份验证$|^爱车$|^设置$|^乾崑账号$|^输入验证码$", "desc": "提交密码后等待当前下一阶段正证；不是登录终态判定，不固定sleep"},
+      {"action": "tap", "target": "qk_login_consent_action", "retry": 0, "expect_text": "验证码已发至", "timeout_s": 15, "skip_if_absent": "^同意$"},
+      {"action": "input", "target": "qk_sms_code_input", "text": "${var:sms_code}", "clear": true, "retry": 0, "when": {"condition": "login_sms", "equals": true}, "critical": false},
+      {"action": "tap", "target": "qk_verify_login", "retry": 0, "expect_state": "@in_app", "timeout_s": 15, "when": {"condition": "login_sms", "equals": true}, "critical": false},
+      {"action": "monitor", "duration_s": 15, "interval_s": 1, "screenshots": false, "until_text": "^爱车$|^设置$|^乾崑账号$|^输入验证码$", "desc": "短信提交后等待已离开登录挑战的下一阶段正证；目标账户仍由末尾严格检查"},
+      {"action": "tap", "target": "qk_tab_my_prod", "retry": 0, "expect_state": "@in_app", "when": {"condition": "login_navigate_my", "equals": true}, "critical": false},
+      {"action": "tap", "target": "qk_personal_settings", "retry": 0, "expect_text": "设置"},
+      {"action": "tap", "target": "qk_account_menu", "retry": 0, "expect_text": "密码管理"},
+      {"action": "tap", "target": "qk_password_management", "retry": 0, "expect_state": "qk_target_account_ready", "timeout_s": 12},
+      {"action": "wait", "duration_s": 0, "expect_state": "qk_target_account_ready", "timeout_s": 0, "retry": 0, "desc": "recipe只汇总子步，必须独立严格验证目标账户终态"}
     ]
   },
   "dialog_policy": {
