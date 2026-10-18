@@ -50,7 +50,7 @@
 
 - `--select`：`text=` 精确、`text~=` 包含、`id=`、`xpath=`，`--within type=|id=|pane=` 限定范围。只覆盖有 UI 树的页面。
 - 每次 `--select` 下发前会重新取一次 UI 树复核目标（`revalidate`）：节点变了/移动了 → `target_stale`，不下发。
-  下发前还会确认前台仍是被测 APP，否则 `foreground_changed`（不会拉起 APP 抢前台）。
+  下发前还会确认前台仍是被测 APP，否则 `foreground_changed`；可经受控 launch/resume 主动拉起被测 APP，再重新观察，不能把触摸/输入下发给其他 APP。
 - `act` 返回 `diagnosis`：多匹配的候选、被裁剪的数量、部分可见比例、复核前后的节点。
 - `--allow-input` 的文字会原样记入会话（用于复测），**只用于非敏感测试数据**；账号密码只能走用例的 `{"secret": NAME}`。
 - `knowledge_used` 每项：`{"id": "K-AV-010", "use": "操作经验：常去地点里找收藏", "applicability": "unknown",

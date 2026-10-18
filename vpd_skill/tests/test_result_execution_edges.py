@@ -30,6 +30,8 @@ def test_last_dispatch_foreground_check_distinguishes_query_error_from_unknown(
     marker = "RAW_LAST_FOREGROUND_CHECK_E000004"
 
     def check(self, conditions, attempt):
+        if attempt["action"] == "launch":
+            return original(self, conditions, attempt)
         with monkeypatch.context() as scoped:
             scoped.setattr(self.device, "foreground", lambda: None)
             scoped.setattr(self.device, "last_query_error", query_error)
@@ -40,7 +42,8 @@ def test_last_dispatch_foreground_check_distinguishes_query_error_from_unknown(
 
     monkeypatch.setattr(Dispatcher, "_state", check)
     case = _case(verdict_ws, [{"id": "S1", "action": "launch", "retry": 0,
-                              "expect_state": "@in_app"}])
+                              "expect_state": "@in_app"},
+                             {"id": "S2", "action": "tap", "target": "tab_my", "retry": 0}])
     run = run_case(verdict_ws, case=case, device_spec=world("motor_hm_base.json"), propose=False)
     result = run["verdict"]
     assert result["verdict"] == expected
@@ -51,7 +54,7 @@ def test_last_dispatch_foreground_check_distinguishes_query_error_from_unknown(
         assert query_error in json.dumps(errors, ensure_ascii=False)
     else:
         assert not errors
-    assert run["actions"] == 0
+    assert run["actions"] == 1  # launch is explicit; the foreground-bound tap is never sent.
 
 
 def test_revalidation_tree_collection_failure_is_error_not_target_movement(verdict_ws, monkeypatch):

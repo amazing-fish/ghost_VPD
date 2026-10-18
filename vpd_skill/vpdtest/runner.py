@@ -136,7 +136,8 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     # 参数与密钥：密钥只从环境变量/本地配置读取；缺失时判环境阻塞，不向输入框写空值
     params = Params(case.get("test_data"), ws.config.get("secrets"), store.run_id)
     ctx.params = params
-    unmet = [{"key": f"secret.{n}", "required": f"环境变量 VPD_SECRET_{n}", "actual": "未设置"} for n in params.missing]
+    unmet = [{"key": f"secret.{n}", "required": f"环境变量 VPD_SECRET_{n}", "actual": "未设置"}
+             for n in params.preflight_missing(case, app)]
     # task 类来自任务策略；其他 gated/supervised 类必须显式授予，硬禁止类无法授予。
     # supervised 类（车辆运动/车控）还要有在场监护人，vehicle_motion 还要有安全停止声明
     requested = [a["effect"] if isinstance(a, dict) else a for a in case.get("authorizations", [])]

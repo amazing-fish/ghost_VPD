@@ -26,7 +26,7 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
    找不到独立判据时用 `knowledge add` 记一条 `source.type=test_goal` 的 unconfirmed 条目，结论会是待确认。
 3. **前置**：`doctor --device <spec>` 只读检查。解锁是执行器自动调用的原子能力：`run` 的前置检查与动作下发前
    发现熄屏/锁屏时，先观察状态，再唤醒、上滑，必要时读取该设备映射的 PIN 输入一次；已解锁直接返回。
-   查询失败、缺少 PIN 或 PIN 被拒时，按能力返回的证据与原因阻塞。离线/未安装、账号未登录、车辆未选好仍报告具体条件。**前台不是被测 APP（用户正在用手机）时不要 launch 抢前台**，报告等待。
+   查询失败、缺少 PIN 或 PIN 被拒时，按能力返回的证据与原因阻塞。离线/未安装、账号未登录、车辆未选好仍报告具体条件。已委派测试任务可经 `vpdtest act launch` / `act resume` 主动拉起被测 APP，无需因前台是其他 APP 再次确认；拉起后重新观察，触摸和输入仍须确认当前前台属于目标 APP。
 4. **观察与探索**：每次 observe 先看关键 UI：`ui_alerts`（页面内的「加载失败」「解析失败」「请重试」等）非空就是异常，
    **先记录时间（obs 的 ts/obs_id）与截图，点右上角「反馈」填写时间、页面、异常原文、前一步操作、车辆、APP 版本并提交，
    再决定是否重试**；首次异常保留在会话和报告里，作为产品问题候选。
@@ -109,7 +109,7 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
 | 无 UI 树 / 定位失败 | `--select` 只覆盖有 UI 树的页面，地图等自绘区域（XComponent）不在树里。先考虑已有模板；可用 `template-crop` 从观测裁剪模板并提议登记。只有确有把握时才用 `act tap --point x,y --basis "<看到了什么>"`，且执行器仍会按 policy 拦截 |
 | 定点拖动 / swipe 参数拒绝 | `act swipe` 只按 `direction` 和可选 `within` 做容器上下滚动；`--point`、`--basis`、`--duration` 明确拒绝，不会退化为普通滚动。历史含这些参数的动作不能直接固化，可重新采样或用 `--drop A序号=理由` 留痕排除。定点/AVM 手势能力仍待实现，按当前受控入口或人工交接处理。 |
 | `target_ambiguous` | 不要挑一个点；`diagnosis.candidates` 列出了各候选，用 `--within` 限定容器/分栏或改用 `id=`/`xpath=` |
-| `target_stale` / `foreground_changed` | 观察与下发之间页面变了 / 前台被切走：重新 observe 再决定；前台是其他应用时停止并报告 |
+| `target_stale` / `foreground_changed` | 观察与下发之间页面变了 / 前台被切走：重新 observe 再决定；触摸/输入时前台是其他应用则停止该动作；可受控 launch/resume 后重新观察 |
 | `state_indeterminate` / unlock `indeterminate` | 下发前查不到锁屏/前台状态，停止后续动作（此前已下发的动作保留证据，`action_required`）：确认手机状态后重新 observe，不要改用 `--point` 绕过 |
 | `target_partially_visible` | 目标被列表裁剪或被底部导航挡住；为目标补 `scroll` 声明，而不是改成点边缘 |
 | 只在宽屏/折叠屏上成立的用例 | 在用例上写 `layout_requirements`（如 `{"wide": true}`）；形态不符时判环境阻塞，不判失败 |

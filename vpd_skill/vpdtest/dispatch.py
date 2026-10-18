@@ -10,9 +10,12 @@ class Dispatcher:
         self.device, self.store, self.ctx = device, store, ctx
 
     def app_conditions(self, action):
+        # 显式启动/拉回作用于指定 bundle，可在已委派任务中切换前台。
+        # 触摸、输入等仍必须在目标 APP 内复核。
+        if action in ("launch", "resume"):
+            return {"screen_locked": False, "recover_unlock": True}
         allowed = [self.ctx.app.bundle]
-        # 返回/回桌面会落到桌面；启动/拉回只能从桌面或本 APP 发起，前台是别的 APP（用户正在用手机）时不抢
-        if action in ("back", "home", "launch", "resume"):
+        if action in ("back", "home"):
             allowed.append(LAUNCHER)
         return {"screen_locked": False, "foreground": allowed, "recover_unlock": True}
 

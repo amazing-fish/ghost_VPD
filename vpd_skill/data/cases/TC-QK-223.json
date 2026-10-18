@@ -1,50 +1,57 @@
 {
   "id": "TC-QK-223",
-  "version": 2,
+  "version": 3,
   "status": "draft",
   "app": "qiankun_hm",
   "title": "乾崑已声明恢复联网场景的VPD首页进入",
   "purpose": "在人工声明联网且无任务前提下检查搜索入口及已知停车数据失败；园区与网络提示只作观察，不用断网规则推导联网恢复、切网转换或刷新已验收。",
   "preconditions": [
-    "乾崑 APP 已登录（测试账号 151****3183）",
-    "设备网络已恢复：执行者在 run 前经系统控制中心重新开启 WLAN（方法与验证留档 session-wk-qk5：ifconfig wlan0 inet addr 恢复）",
+    "登录能力按当前页面复用/执行；目标账户终态未确认时不得进入业务；本例的网络/任务/园区仍须独立核实",
+    "本次单条诊断的联网/无任务/园区由执行者按当前现场声明；不证明恢复网络转换；当前园区为华为练秋湖研发中心，目标车辆7885由用户本轮授权选择",
     "设备已解锁、亮屏",
     "本候选限原作者声明的 APP 1.0.26.100 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准",
     "新增任务/车辆/园区范围均须执行前人工核实；声明不是自动采集事实，实测事实与独立判据另核"
   ],
   "env_requirements": {
-    "account_state": "logged_in",
     "network": "on",
     "app_version": "1.0.26.100",
     "device_form": "bar",
     "vpd_task_state": "none",
-    "parking_area": "金桥出口加工区"
+    "parking_area": "华为练秋湖研发中心"
   },
-  "test_data": {},
-  "test_data_none": true,
+  "test_data": {
+    "account": {
+      "secret": "QIANKUN_PHONE"
+    },
+    "password": {
+      "secret": "QIANKUN_PASSWORD"
+    },
+    "sms_code": {
+      "secret": "QIANKUN_SMS_CODE"
+    }
+  },
   "authorizations": [
-    "vpd_entry"
+    "vpd_entry",
+    "account_state"
   ],
   "steps": [
     {
       "id": "S1",
-      "action": "stop_app",
-      "desc": "冷启动前置"
-    },
-    {
-      "id": "S2",
       "action": "launch",
       "expect_state": "@in_app",
       "timeout_s": 15,
-      "desc": "拉起乾崑 APP"
+      "desc": "拉起当前实例，不冷启动或登出"
+    },
+    {
+      "id": "S2",
+      "action": "ensure_state",
+      "state": "qk_target_account_ready",
+      "desc": "复用当前登录态；只在实际页面选择密码或短信路径"
     },
     {
       "id": "S3",
-      "action": "tap",
-      "target": "qk_tab_car",
-      "timeout_s": 10,
-      "critical": true,
-      "desc": "进「爱车」页"
+      "action": "flow",
+      "flow": "leave_login_identity_prod"
     },
     {
       "id": "S4",
@@ -58,8 +65,10 @@
     {
       "id": "S5",
       "action": "wait",
-      "duration_s": 6,
-      "desc": "等待 VPD 首页加载"
+      "duration_s": 0,
+      "expect_state": "qk_vpd_home",
+      "timeout_s": 12,
+      "desc": "独立业务观测；不以登录完成代替VPD断言"
     }
   ],
   "assertions": [
@@ -78,7 +87,7 @@
       "id": "A2",
       "at": "S5",
       "type": "text_present",
-      "text": "金桥出口加工区",
+      "text": "华为练秋湖研发中心",
       "exact": false,
       "desc": "园区/网络提示只读取证；缺独立联网恢复判据，不证明转换或刷新",
       "oracle_refs": [],
@@ -116,12 +125,14 @@
   ],
   "cleanup": [
     {
-      "action": "back",
-      "desc": "退出 VPD 页（不点任何算路/任务操作）"
-    },
-    {
+      "id": "C1",
       "action": "stop_app",
-      "desc": "结束 APP"
+      "when": {
+        "condition": "login_business_home",
+        "equals": true
+      },
+      "retry": 0,
+      "desc": "本例仅页面导航，无任务/数据副作用；从当前VPD页结束目标APP，独立核验process_ended；短信/未知页保留现场"
     }
   ],
   "knowledge_used": [
@@ -156,6 +167,51 @@
     {
       "type": "device_observation",
       "ref": "session-wk-qk5/obs-0018、obs-0028"
+    },
+    {
+      "type": "exploration",
+      "ref": "#31 login flows/state migration",
+      "cases": [
+        "TC-QK-211",
+        "TC-QK-212"
+      ],
+      "source_sha": "78d01a275c189708fd8b248de31caa91ddff0728",
+      "runs": [
+        "run-20261013-103454-9658",
+        "run-20261013-104123-90c6"
+      ],
+      "observations": [
+        "run-20261013-104123-90c6/obs-0024",
+        "run-20261013-104123-90c6/obs-0028"
+      ],
+      "review": "pending",
+      "reviewer": null,
+      "basis": "原始材料未提供；2026-10-18当前设备补证不代替人审",
+      "evidence": "reference_only",
+      "current_evidence": [
+        "session-issue31-calibration",
+        "run-20261018-093635-c590"
+      ],
+      "scope": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100",
+        "device_form": "bar",
+        "account": "151****3183"
+      }
+    },
+    {
+      "type": "device_observation",
+      "ref": "session-issue31-calibration/obs-0059",
+      "validation_level": "real_device",
+      "scope": {
+        "app_version": "1.0.26.100",
+        "device": "5MT0225B05000904",
+        "vehicle_tail": "7885",
+        "parking_area": "华为练秋湖研发中心"
+      },
+      "review": "pending",
+      "reviewer": null,
+      "basis": "本轮现场scope，保留原金桥来源，不确认产品规则"
     }
   ],
   "history": [
@@ -191,7 +247,8 @@
       "独立产品判据确认及适用范围",
       "Cleanup后置核验；不能从定义推断verified",
       "断网前后基线、真实网络事实和外部恢复网络未验证；env声明不等于采集证据",
-      "入口可见和已知错误排除不证明完整地图/车位数据就绪；场景条件须人工核实"
+      "入口可见和已知错误排除不证明完整地图/车位数据就绪；场景条件须人工核实",
+      "登录归位来源与新依赖须case review/approve；安全页只读身份、不请求验证码；真实登录短信分支仍待现场"
     ]
   },
   "reported_definition": {

@@ -159,6 +159,27 @@
         "evidence": "reference_only",
         "independent_check": "pending"
       }
+    },
+    "qk_target_account_ready": {
+      "desc": "当前已认证账户的密码管理入口显示目标绑定手机号；只读取，不请求安全验证码",
+      "require_text": [
+        "输入验证码",
+        "为了确保你的账号安全，请先进行手机号验证",
+        "151****3183"
+      ],
+      "forbid_text": [
+        "身份验证",
+        "验证码已发至",
+        "登录/注册"
+      ],
+      "review": "pending",
+      "source": "session-issue31-calibration obs-0046；登录后 设置→乾崑账号→密码管理。该页的安全验证不是登录短信挑战。",
+      "scope": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100",
+        "device_form": "bar",
+        "account": "151****3183"
+      }
     }
   },
   "interrupts": {
@@ -274,6 +295,115 @@
         },
         "screenshots": false,
         "desc": "等待 VPD 首页（原工程最多等 120s：constant.py VPD_WAIT_MAP_TIME）"
+      }
+    ],
+    "qk_target_account_ready": [
+      {
+        "action": "flow",
+        "flow": "login_open_my_prod",
+        "when": {
+          "condition": "login_navigate_my",
+          "equals": true
+        },
+        "critical": false
+      },
+      {
+        "action": "flow",
+        "flow": "login_open_form_prod",
+        "when": {
+          "condition": "login_logged_out",
+          "equals": true
+        },
+        "critical": false
+      },
+      {
+        "action": "flow",
+        "flow": "login_other_method_prod",
+        "when": {
+          "condition": "login_quick",
+          "equals": true
+        },
+        "critical": false
+      },
+      {
+        "action": "flow",
+        "flow": "login_choose_password_prod",
+        "when": {
+          "condition": "login_method",
+          "equals": true
+        },
+        "critical": false
+      },
+      {
+        "action": "flow",
+        "flow": "login_password_prod",
+        "when": {
+          "condition": "login_password",
+          "equals": true
+        },
+        "critical": false
+      },
+      {
+        "action": "flow",
+        "flow": "login_consent_prod",
+        "when": {
+          "condition": "login_consent",
+          "equals": true
+        },
+        "critical": false
+      },
+      {
+        "action": "flow",
+        "flow": "login_sms_prod",
+        "when": {
+          "condition": "login_sms",
+          "equals": true
+        },
+        "critical": false
+      },
+      {
+        "action": "flow",
+        "flow": "login_open_my_prod",
+        "when": {
+          "condition": "login_navigate_my",
+          "equals": true
+        },
+        "critical": false
+      },
+      {
+        "action": "flow",
+        "flow": "login_settings_prod",
+        "when": {
+          "condition": "login_my_account",
+          "equals": true
+        },
+        "critical": false
+      },
+      {
+        "action": "flow",
+        "flow": "login_account_menu_prod",
+        "when": {
+          "condition": "login_settings",
+          "equals": true
+        },
+        "critical": false
+      },
+      {
+        "action": "flow",
+        "flow": "login_identity_prod",
+        "when": {
+          "condition": "login_account_menu",
+          "equals": true
+        },
+        "critical": false
+      },
+      {
+        "action": "wait",
+        "duration_s": 0,
+        "expect_state": "qk_target_account_ready",
+        "timeout_s": 0,
+        "retry": 0,
+        "desc": "recipe只汇总子步，必须独立严格验证目标账户终态"
       }
     ]
   },
