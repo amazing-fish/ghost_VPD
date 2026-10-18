@@ -71,6 +71,47 @@ def test_required_skipped_child_stops_parent_before_the_next_child(verdict_ws, k
     assert executor.ctx.actions == 0
 
 
+@pytest.mark.parametrize("kind", ["flow", "ensure_state"])
+@pytest.mark.parametrize("scenario", ["read", "all_skipped", "error"])
+def test_composite_results_preserve_evidence_and_stop_at_required_error(verdict_ws, monkeypatch, kind, scenario):
+    executor = _executor(verdict_ws)
+    children = [{"action": "read", "read_scope": "page", "measure": "navigation", "pattern": "爱车"},
+                {"action": "wait", "duration_s": 0}]
+    if scenario == "all_skipped":
+        children = [{**child, "critical": False, "when": {"condition": "car_visible", "equals": False}}
+                    for child in children]
+    elif scenario == "error":
+        children[0] = {"action": "tap", "target": "tab_my", "retry": 0}
+        monkeypatch.setattr(executor.ctx.device, "tap", lambda *args: DeviceResult(
+            "tap", False, False, "command_failed", "synthetic command failure", raw="original receipt"))
+    if kind == "flow":
+        executor.ctx.app.flows["synthetic"] = {"steps": children}
+        step = {"id": "F1", "action": "flow", "flow": "synthetic"}
+    else:
+        executor.ctx.app.states.recipes["synthetic"] = children
+        step = {"id": "F1", "action": "ensure_state", "state": "synthetic"}
+    result = executor.run_step(step, "synthetic")
+    subs = result["sub_steps"]
+    assert result["outcome"] == {"read": "passed", "all_skipped": "skipped", "error": "error"}[scenario]
+    assert result["attempts"] == [attempt for child in subs for attempt in child["attempts"]]
+    assert result["final_obs"] == subs[-1]["final_obs"]
+    assert result["adapted"] is False and result["recoveries"] == []
+    assert ("measurement" in result) is (kind == "flow")
+    if scenario == "read":
+        assert subs[0]["measurement"]["value"] and len(subs) == 2
+        if kind == "flow":
+            assert result["measurement"] == subs[0]["measurement"]
+        assert result["first_failure"] is None
+    elif scenario == "all_skipped":
+        assert len(subs) == 2 and not result["attempts"]
+    else:
+        assert len(subs) == 1 and result["first_failure"] == subs[0]["first_failure"]
+        assert "original receipt" in str(result["first_failure"])
+        if kind == "flow":
+            assert result["measurement"] is None
+    assert executor.ctx.actions == 0
+
+
 def test_optional_unknown_child_remains_visible_in_flow(verdict_ws):
     executor = _executor(verdict_ws)
     executor.ctx.conditions["unknown"] = {"kind": "page", "true": {"type": "text_present", "text": "A"},
