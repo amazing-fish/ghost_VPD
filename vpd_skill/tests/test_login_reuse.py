@@ -125,6 +125,18 @@ def test_missing_terminal_identity_stops_before_business(login_rig):
     assert all(s["outcome"] == "not_run" for s in run["steps"][2:])
 
 
+@pytest.mark.parametrize("start", ["settings", "account"])
+def test_reentry_from_known_account_page_still_confirms_account(login_rig, start):
+    ws, build = login_rig
+    case = deepcopy(ws.load_case("TC-QK-223"))
+    case.update(steps=case["steps"][:2], assertions=[], cleanup=[])
+    run = run_case(ws, case=case, device_spec=build(start),
+                   env={"network":"on", "vpd_task_state":"none", "parking_area":"华为练秋湖研发中心"},
+                   authorize=["account_state"], propose=False)
+    assert run["steps"][1]["outcome"].startswith("passed")
+    assert not [e for e in events(run) if e["event"] == "dispatch" and e.get("op") == "input_text"]
+
+
 def test_consumer_requires_current_review_and_recipe_changes_invalidate_it(login_rig):
     ws, build = login_rig
     with pytest.raises(PermissionError):
@@ -150,12 +162,11 @@ def test_selected_inline_navigation_failure_stops_before_next_action(login_rig):
     write_json(path, data)
     run = execute(login_rig)
     failed = run["steps"][1]["sub_steps"][-1]
+    while failed.get("sub_steps"):
+        failed = failed["sub_steps"][-1]
     assert failed["action"] == "tap" and failed["critical"] is True
     assert not failed["outcome"].startswith("passed")
     assert all(step["outcome"] == "not_run" for step in run["steps"][2:])
-
-
-
 def test_sms_code_is_not_sent_to_another_accounts_challenge(login_rig):
     ws, build = login_rig
     ws.config["secrets"] = {"QIANKUN_SMS_CODE": "123456"}
@@ -196,6 +207,22 @@ def test_hidden_password_cache_does_not_select_password_branch(login_rig):
     run=run_case(ws,"TC-QK-223",device_spec=spec,env={"network":"on","vpd_task_state":"none","parking_area":"华为练秋湖研发中心"},authorize=["account_state"],propose=False)
     assert run["steps"][1]["sub_steps"][4]["outcome"] == "skipped"
     assert not [e for e in events(run) if e["event"] == "dispatch" and e.get("op") == "input_text"]
+
+
+def test_hidden_unchecked_protocol_does_not_block_current_checked_form(login_rig):
+    ws, build = login_rig
+    ws.config["secrets"] = {"QIANKUN_PHONE":"synthetic-phone", "QIANKUN_PASSWORD":"synthetic-password"}
+    spec = build("password")
+    path = Path(spec.split(":", 1)[1])
+    data = read_json(path)
+    data["screens"]["password"]["root"]["children"].append(
+        {"t":"Column", "attrs":{"visible":"false"}, "b":[0,0,400,400], "children":[
+            {"t":"Checkbox", "text":"userProtocol", "attrs":{"checked":"false"}, "b":[30,230,330,265]}]})
+    write_json(path, data)
+    run = run_case(ws, "TC-QK-223", device_spec=spec,
+                   env={"network":"on", "vpd_task_state":"none", "parking_area":"华为练秋湖研发中心"},
+                   authorize=["account_state"], propose=False)
+    assert all(step["outcome"].startswith("passed") for step in run["steps"])
 
 
 @pytest.mark.parametrize("start",["password","sms"])

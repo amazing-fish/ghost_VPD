@@ -186,6 +186,36 @@
         }
       ],
       "source": "#31 login_provenance；消费者TC-QK-223 sources显式绑定同一来源，审核pending"
+    },
+    "login_confirm_account_prod": {
+      "desc": "登录入口内部固定账户确认；从当前已知层级继续，未知页不执行",
+      "status": "unverified",
+      "params": {},
+      "steps": [
+        {
+          "action": "tap",
+          "target": "qk_personal_settings",
+          "retry": 0,
+          "expect_text": "设置",
+          "skip_if_absent": "^我的车辆$"
+        },
+        {
+          "action": "tap",
+          "target": "qk_account_menu",
+          "retry": 0,
+          "expect_text": "密码管理",
+          "skip_if_absent": "^个人信息$"
+        },
+        {
+          "action": "tap",
+          "target": "qk_password_management",
+          "retry": 0,
+          "expect_state": "qk_target_account_ready",
+          "timeout_s": 12,
+          "skip_if_absent": "^账号注销$"
+        }
+      ],
+      "source": "#31 login_provenance；同一已登录页条件持续约束子步，最终账户终态在入口末尾严格检查"
     }
   }
 ,

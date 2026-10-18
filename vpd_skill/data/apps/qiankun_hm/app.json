@@ -58,6 +58,11 @@
       "kind": "page",
       "true": {"type": "state_is", "state": "qk_vpd_home"},
       "false": {"type": "target_present", "target": "qk_login_sms_here"}
+    },
+    "login_account_navigation": {
+      "kind": "page",
+      "true": {"type": "target_present", "target": "qk_login_account_navigation"},
+      "false": {"type": "target_present", "target": "qk_login_sms_here"}
     }
   }
 }

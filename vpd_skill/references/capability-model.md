@@ -40,4 +40,4 @@ flow/state 只提供操作路径；子步骤 `when` 可按当前独立条件自�
 
 ## 量产登录复用（#31）
 
-TC-QK-223只通过ensure_state qk_target_account_ready复用登录；固定步骤直接在recipe，密码输入保留一个内部多步分支，不为单次点击建立flow。211/212保留来源，旧login_password的debug证伪不变。互斥条件步骤只允许明确未选中跳过；内联动作与复合能力选中后的必需失败/未知都须传播，末尾显式验证目标账户终态。条件input缺值在定位/清空/输入前交接，短信页保留；补值后重新观察重入。来源、scope与审核见[试点说明](../../docs/LOGIN_REUSE_PILOT.md)。登录完成不等于VPD产品断言通过。
+TC-QK-223只通过ensure_state qk_target_account_ready复用登录；固定步骤直接在recipe，密码输入及账户确认各保留一个内部多步分支，不为单次点击建立flow。211/212保留来源，旧login_password的debug证伪不变。互斥条件步骤只允许明确未选中跳过；内联动作与复合能力选中后的必需失败/未知都须传播，末尾显式验证目标账户终态。条件input缺值在定位/清空/输入前交接，短信页保留；补值后重新观察重入。来源、scope与审核见[试点说明](../../docs/LOGIN_REUSE_PILOT.md)。登录完成不等于VPD产品断言通过。
