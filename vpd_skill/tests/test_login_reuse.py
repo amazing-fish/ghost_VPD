@@ -87,7 +87,7 @@ def test_password_login_does_not_require_untriggered_sms(login_rig):
     ws.config["secrets"] = {"QIANKUN_PHONE": "synthetic-phone", "QIANKUN_PASSWORD": "synthetic-password"}
     run = execute(login_rig, "password")
     assert all(s["outcome"].startswith("passed") for s in run["steps"]), run["steps"]
-    sms = run["steps"][1]["sub_steps"][6]
+    sms = run["steps"][1]["sub_steps"][7]
     assert sms["outcome"] == "skipped" and not sms["attempts"]
 
 
@@ -173,3 +173,34 @@ def test_hidden_password_cache_does_not_select_password_branch(login_rig):
     run=run_case(ws,"TC-QK-223",device_spec=spec,env={"network":"on","vpd_task_state":"none","parking_area":"华为练秋湖研发中心"},authorize=["account_state"],propose=False)
     assert run["steps"][1]["sub_steps"][4]["outcome"] == "skipped"
     assert not [e for e in events(run) if e["event"] == "dispatch" and e.get("op") == "input_text"]
+
+
+@pytest.mark.parametrize("start",["password","sms"])
+def test_submission_waits_for_delayed_next_stage(login_rig,start):
+    ws,build=login_rig
+    ws.config["secrets"]={"QIANKUN_PHONE":"synthetic-phone","QIANKUN_PASSWORD":"synthetic-password","QIANKUN_SMS_CODE":"123456"}
+    spec=build(start)
+    path=Path(spec.split(":",1)[1])
+    data=read_json(path)
+    data["screens"]["pending"]=deepcopy(data["screens"][start])
+    data["screens"]["pending"]["after_obs"]={"n":4,"go":"my","replace":True}
+    data["screens"][start]["root"]["children"][-1]["go"]="pending"
+    write_json(path,data)
+    run=run_case(ws,"TC-QK-223",device_spec=spec,env={"network":"on","vpd_task_state":"none","parking_area":"华为练秋湖研发中心"},authorize=["account_state"],propose=False)
+    assert all(s["outcome"].startswith("passed") for s in run["steps"]),run["steps"]
+    monitors=[s for s in run["steps"][1]["sub_steps"] if s["action"]=="monitor"]
+    assert any(s["monitor"]["samples"]>1 for s in monitors)
+
+
+def test_submission_without_next_stage_times_out_before_business(login_rig):
+    ws,build=login_rig
+    ws.config["secrets"]={"QIANKUN_PHONE":"synthetic-phone","QIANKUN_PASSWORD":"synthetic-password"}
+    spec=build("password")
+    path=Path(spec.split(":",1)[1])
+    data=read_json(path)
+    data["screens"]["password"]["root"]["children"][-1].pop("go")
+    data["screens"]["password"]["root"]["children"][-1]["click"]=True
+    write_json(path,data)
+    run=run_case(ws,"TC-QK-223",device_spec=spec,env={"network":"on","vpd_task_state":"none","parking_area":"华为练秋湖研发中心"},authorize=["account_state"],propose=False)
+    assert run["steps"][1]["outcome"]=="fail_candidate"
+    assert all(s["outcome"]=="not_run" for s in run["steps"][2:])
