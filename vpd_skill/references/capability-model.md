@@ -37,3 +37,7 @@ flow/state 只提供操作路径；子步骤 `when` 可按当前独立条件自�
 用例的 `guard` 与规则 `condition_requirements` 另行决定产品断言适用性，不能把 flow 到终态视为产品通过。
 条件定义、证据范围及生命周期见 [contracts](contracts.md#断言前置与操作选支56-第二切片)。
 211/212 的来源和真实登录路径迁移仍归 #31，本轮仅提供公共能力。
+
+## 量产登录复用（#31）
+
+TC-QK-223通过ensure_state qk_target_account_ready复用当前登录能力。211/212只作有来源的操作经验；旧login_password的debug证伪不变。互斥条件复合能力允许未选中跳过，选中后内部必需失败/未知必须传播；末尾显式验证目标账户终态。条件input缺值在定位/清空/输入前交接，短信页保留；补值后重新观察重入。来源、scope与审核见[试点说明](../../docs/LOGIN_REUSE_PILOT.md)。登录完成不等于VPD产品断言通过。

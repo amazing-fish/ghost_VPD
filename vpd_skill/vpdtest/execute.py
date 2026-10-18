@@ -22,6 +22,7 @@ from .verdict import collection_error, error_attribution
 
 ENV_ERRORS = {"screen_locked", "screen_off", "device_offline", "app_missing", "tool_missing", "transport_unavailable"}
 STATUS_MAP = {
+    "input_required": ("blocked", "environment", "所选输入缺少有效外部值，未定位或输入"),
     "preparation_error": ("error", "tool", "操作前弹窗处置失败"),
     "condition_false": ("skipped", "requirement_unclear", "当前独立证据明确不满足操作条件，未执行"),
     "condition_unknown": ("pending", "requirement_unclear", "操作条件未知，未执行"),
@@ -68,6 +69,8 @@ def classify(att: dict) -> tuple:
         return outcome, error.get("attribution", attribution), att.get("reason", reason)
     if st in ("observation_failed", "unobservable", "foreground_unknown", "state_indeterminate", "target_stale", "target_unresolved", "stop_not_confirmed") and error:
         return "error", error["attribution"], "所需观测采集失败：" + str(error["error_class"])
+    if st == "input_required":
+        return "blocked", "environment", att["reason"]
     if st == "invalid_step" and att.get("reason"):
         return "blocked", "tool", att["reason"]
     if st == "device_error":
@@ -134,6 +137,7 @@ class Executor:
     def run_step(self, step: dict, case_id: str) -> dict:
         """Operation selection never substitutes for an executed product check."""
         ctx, condition = self.ctx, None
+        conditional_capability = step["action"] in ("flow", "ensure_state") and bool(self._when_guards(step))
         # 保留既有暂停关口的优先级：未知条件不能触发取证或绕过安全停止。
         if self._when_guards(step) and not (ctx.safety_hold and not step.get("_safety")):
             obs, tree = ctx.observe(f"{step['id']}:when")
@@ -141,7 +145,8 @@ class Executor:
             ctx.store.event("condition", step=step["id"], phase="when", condition=condition)
             if condition["status"] != "true":
                 error = condition.get("execution_error") or {}
-                result = {"step_id": step["id"], "action": step["action"], "critical": bool(step.get("critical", True)),
+                result = {"step_id": step["id"], "action": step["action"],
+                          "critical": True if conditional_capability and condition["status"] != "false" else bool(step.get("critical", True)),
                           "oracle_refs": step.get("oracle_refs", []), "attempts": [], "recoveries": [], "adapted": False,
                           "outcome": {"false": "skipped", "unknown": "pending", "error": "error"}[condition["status"]],
                           "final_status": "condition_" + condition["status"], "final_obs": obs["obs_id"],
@@ -151,7 +156,11 @@ class Executor:
                     result["execution_error"] = error
                 ctx.step_results[step["id"]] = result
                 return result
-        result = self._run_step({**step, "_selected_condition": condition}, case_id)
+        # 可选的是互斥分支的选择；被选择的能力及内部必需步骤不能因此降为可忽略。
+        selected = {**step, "_selected_condition": condition}
+        if conditional_capability:
+            selected["critical"] = True
+        result = self._run_step(selected, case_id)
         if condition is not None:
             result.setdefault("condition", condition)
             if result.get("outcome") in ("pending", "error", "skipped"):
@@ -394,6 +403,12 @@ class Executor:
         elif kind == "input":
             tid, target = self._target(step)
             raw = step.get("text", "")
+            text = ctx.params.subst(raw, step.get("_flow_params")) if ctx.params else raw
+            if not isinstance(text, str) or not text.strip() or re.search(r"\$\{(?:var|param|secret):[^}]*\}", text):
+                att.update(status="input_required", reason="所选输入缺值或引用未解析；保留当前页面，补齐外部输入后重新观察重入",
+                           input={"ref": raw, "available": False},
+                           action_required=f"请补齐外部输入 {raw}，然后重新运行并观察当前页面；不要从历史步骤号续发")
+                return att
             # 流程内 ${param:x}：看调用方传入的原始值是不是密钥引用（${var:secret}），是则按密钥处理
             m = re.fullmatch(r"\$\{param:([A-Za-z0-9_.-]+)\}", str(raw))
             origin = (step.get("_flow_raw") or {}).get(m.group(1)) if m else raw
@@ -416,7 +431,6 @@ class Executor:
                     return att
             if not self._inline_input_ok(tid, target, loc, obs, tree, att):
                 return att
-            text = ctx.params.subst(raw, step.get("_flow_params")) if ctx.params else raw
             att["input"] = {"ref": raw, "secret": is_ref, "length": len(text)}  # 只记引用与长度，不记值
             att["resolved"] = _resolved(loc, obs)
             if not self._foreground_ok(att, step.get("revalidate")):
@@ -1237,7 +1251,9 @@ class Executor:
         if any(a.get("effect_unknown") for a in attempts):
             out["effect_unknown"] = True
         if not ok and any(a.get("action_required") for a in attempts):
-            out["action_required"] = "原步骤已下发或部分执行，恢复未重放原动作；请核对现场后人工接管"
+            out["action_required"] = next((a["action_required"] for a in reversed(attempts)
+                                           if isinstance(a.get("action_required"), str)),
+                                          "原步骤已下发或部分执行，恢复未重放原动作；请核对现场后人工接管")
         dismissed = [d for a in attempts for d in (a.get("dismissed") or []) + ((a.get("post") or {}).get("dismissed") or [])]
         if dismissed:
             out["dismissed"] = dismissed

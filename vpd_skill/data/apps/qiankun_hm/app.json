@@ -5,9 +5,17 @@
   "bundle": "com.yinwang.qiankunapp.hm",
   "ability": "EntryAbility",
   "sources": [
-    {"ref": "app/service/vpd/vpd.py:51 '#08': (MHERO_CONFIG_MAP, '乾崑')", "commit": "90545b9"},
-    {"ref": "app/config/mhero_config.py:258-259 MHERO_HARMONY_CONFIG.package", "commit": "90545b9"},
-    {"ref": "设备探测 2026-09-29（只读 bm dump -n，未启动 APP）：mainAbility=EntryAbility, entryModuleName=phone, versionName=1.0.26.100"}
+    {
+      "ref": "app/service/vpd/vpd.py:51 '#08': (MHERO_CONFIG_MAP, '乾崑')",
+      "commit": "90545b9"
+    },
+    {
+      "ref": "app/config/mhero_config.py:258-259 MHERO_HARMONY_CONFIG.package",
+      "commit": "90545b9"
+    },
+    {
+      "ref": "设备探测 2026-09-29（只读 bm dump -n，未启动 APP）：mainAbility=EntryAbility, entryModuleName=phone, versionName=1.0.26.100"
+    }
   ],
   "status_legend": {
     "unverified": "来自原工程代码（选择器/流程原样引用），未在本 Skill 的真机运行中核对",
@@ -19,5 +27,139 @@
     "原工程乾崑流程只覆盖：登录、按车架号后 6 位切车、ADS 进入 VPD、输入车位号 → 去这里 → 算路、开始/确定激活、暂停/继续/退出。",
     "地图选点、收藏、重命名、标签、按收藏名搜索、算路距离读取：原工程中没有（not found in repo），对应目标全部是 hypothesis。",
     "#08 没有安全码步骤（vpd.py 只对 #01/#06/#10 输入安全码）；出现安全码输入框时本 Skill 不处理（安全码属于 account_destructive）。"
-  ]
+  ],
+  "conditions": {
+    "login_navigate_my": {
+      "kind": "page",
+      "true": {
+        "type": "target_present",
+        "target": "qk_login_navigate_my_here"
+      },
+      "false": {
+        "type": "target_present",
+        "target": "qk_login_navigate_my_else"
+      }
+    },
+    "login_logged_out": {
+      "kind": "page",
+      "true": {
+        "type": "target_present",
+        "target": "qk_login_logged_out_here"
+      },
+      "false": {
+        "type": "target_present",
+        "target": "qk_login_logged_out_else"
+      }
+    },
+    "login_quick": {
+      "kind": "page",
+      "true": {
+        "type": "target_present",
+        "target": "qk_login_quick_here"
+      },
+      "false": {
+        "type": "target_present",
+        "target": "qk_login_quick_else"
+      }
+    },
+    "login_method": {
+      "kind": "page",
+      "true": {
+        "type": "target_present",
+        "target": "qk_login_method_here"
+      },
+      "false": {
+        "type": "target_present",
+        "target": "qk_login_method_else"
+      }
+    },
+    "login_password": {
+      "kind": "page",
+      "true": {
+        "type": "target_present",
+        "target": "qk_login_password_here"
+      },
+      "false": {
+        "type": "target_present",
+        "target": "qk_login_password_else"
+      }
+    },
+    "login_consent": {
+      "kind": "page",
+      "true": {
+        "type": "target_present",
+        "target": "qk_login_consent_here"
+      },
+      "false": {
+        "type": "target_present",
+        "target": "qk_login_consent_else"
+      }
+    },
+    "login_sms": {
+      "kind": "page",
+      "true": {
+        "type": "target_present",
+        "target": "qk_login_sms_here"
+      },
+      "false": {
+        "type": "target_present",
+        "target": "qk_login_sms_else"
+      }
+    },
+    "login_my_account": {
+      "kind": "page",
+      "true": {
+        "type": "target_present",
+        "target": "qk_login_my_account_here"
+      },
+      "false": {
+        "type": "target_present",
+        "target": "qk_login_my_account_else"
+      }
+    },
+    "login_settings": {
+      "kind": "page",
+      "true": {
+        "type": "target_present",
+        "target": "qk_login_settings_here"
+      },
+      "false": {
+        "type": "target_present",
+        "target": "qk_login_settings_else"
+      }
+    },
+    "login_account_menu": {
+      "kind": "page",
+      "true": {
+        "type": "target_present",
+        "target": "qk_login_account_menu_here"
+      },
+      "false": {
+        "type": "target_present",
+        "target": "qk_login_account_menu_else"
+      }
+    },
+    "login_protocol": {
+      "kind": "page",
+      "true": {
+        "type": "target_present",
+        "target": "qk_login_protocol_here"
+      },
+      "false": {
+        "type": "target_present",
+        "target": "qk_login_protocol_else"
+      }
+    },
+    "login_business_home": {
+      "kind": "page",
+      "true": {
+        "type": "state_is",
+        "state": "qk_vpd_home"
+      },
+      "false": {
+        "type": "target_present",
+        "target": "qk_login_sms_here"
+      }
+    }
+  }
 }

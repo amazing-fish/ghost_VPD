@@ -24,12 +24,12 @@ class Params:
         for k, v in (test_data or {}).items():
             if isinstance(v, dict) and "secret" in v:
                 name = v["secret"]
+                self.secret_vars.add(k)  # 声明身份不因本次缺值而消失。
                 val = os.environ.get(f"VPD_SECRET_{name}") or (secrets_cfg or {}).get(name)
                 if not val:
                     self.missing.append(name)
                     continue
                 self.vars[k] = str(val)
-                self.secret_vars.add(k)
                 self._secret_values.add(str(val))
             elif isinstance(v, dict) and "template" in v:
                 self.vars[k] = v["template"].format(run=short)
@@ -50,15 +50,57 @@ class Params:
         if isinstance(obj, str):
             def rep(m):
                 kind, name = m.group(1), m.group(2)
-                if kind == "param":
-                    return str(local.get(name, m.group(0)))
-                return str(self.vars.get(name, m.group(0)))
+                value = local.get(name) if kind == "param" else self.vars.get(name)
+                return m.group(0) if value is None else str(value)
             return _REF.sub(rep, obj)
         if isinstance(obj, list):
             return [self.subst(x, local) for x in obj]
         if isinstance(obj, dict):
             return {k: self.subst(v, local) for k, v in obj.items()}
         return obj
+
+    def preflight_missing(self, case, app) -> list:
+        """只延期所有用途均为条件 input 的密钥；旧未使用声明仍保持预检。"""
+        uses = {key: [] for key in self.secret_vars}
+
+        def refs(value):
+            if isinstance(value, str):
+                return {m.group(2) for m in _REF.finditer(value) if m.group(1) in ("var", "secret")}
+            if isinstance(value, dict):
+                return set().union(*(refs(v) for v in value.values())) if value else set()
+            if isinstance(value, list):
+                return set().union(*(refs(v) for v in value)) if value else set()
+            return set()
+
+        def walk(step, guarded=False, local=None, ancestry=()):
+            guarded = guarded or step.get("when") is not None
+            # 这里只保留符号引用，不装载值，也不改变现有 flow 的参数解析语义。
+            symbolic = Params({}, {}, "preflight").subst(step, local)
+            action = step.get("action")
+            if action == "flow":
+                key = (action, step.get("flow"))
+                children = (app.flows.get(key[1]) or {}).get("steps", [])
+                child_local = symbolic.get("params", {})
+            elif action == "ensure_state":
+                key = (action, step.get("state"))
+                children, child_local = app.states.recipes.get(key[1], []), None
+            else:
+                key, children, child_local = None, [], None
+            fields = {k: v for k, v in symbolic.items() if k != "params" or key is None}
+            other_refs = refs({k: v for k, v in fields.items() if k != "text"})
+            for name in refs(fields):
+                if name in uses:
+                    uses[name].append(guarded and action == "input" and name in refs(symbolic.get("text"))
+                                      and name not in other_refs)
+            if key is not None and key not in ancestry:
+                for child in children:
+                    walk(child, guarded, child_local, ancestry + (key,))
+
+        for step in [*case.get("steps", []), *case.get("cleanup", []), *((case.get("safety") or {}).get("safe_stop", []))]:
+            walk(step)
+        deferred = {case["test_data"][key]["secret"] for key, paths in uses.items() if paths and all(paths)}
+        required = {case["test_data"][key]["secret"] for key, paths in uses.items() if not paths or not all(paths)}
+        return [name for name in self.missing if name not in deferred or name in required]
 
     def add_secret_values(self, values) -> None:
         """只参与可复用输入分类，不成为可引用变量，也不改写现场证据。"""

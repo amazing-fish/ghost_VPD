@@ -187,13 +187,6 @@ def test_preflight_unlock_replays_initial_states(ws, tmp_path, initial):
     assert run["preflight"]["ok"]
     events = read_jsonl(Path(run["dir"]) / "events.jsonl")
     launches = [e for e in events if e["event"] == "dispatch" and e.get("op") == "launch"]
-    if initial == "other_app":
-        # 用户正在用别的 APP：不 launch 抢前台，报告环境阻塞等待
-        assert run["verdict"]["verdict"] == "blocked"
-        assert run["steps"][0]["final_status"] == "foreground_changed"
-        assert launches and not any(e["sent"] for e in launches)
-        assert launches[0]["checks"]["foreground"]["actual"] == "com.example.other"
-        return
     assert all(s["outcome"].startswith("passed") for s in run["steps"])
     assert launches and all(e["sent"] for e in launches)
     calls = [e for e in events if e["event"] == "capability_result" and e.get("capability") == "unlock"]

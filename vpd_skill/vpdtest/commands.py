@@ -336,7 +336,7 @@ def diagnose(res: dict) -> Optional[dict]:
         out["hint"] = "观察与下发之间页面变了：重新 observe 后再决定"
     elif st == "foreground_changed":
         out["foreground"] = last.get("foreground_check")
-        out["hint"] = "前台不是被测 APP：可能用户正在用手机，停止操作并报告，不要拉起 APP 抢前台"
+        out["hint"] = "当前触摸/输入未下发；可经受控 launch/resume 拉起被测 APP，重新观察后再操作"
     elif st == "policy_denied":
         out["policy"] = last.get("policy") or last.get("policy_context")
     elif st == "postcondition_not_met":

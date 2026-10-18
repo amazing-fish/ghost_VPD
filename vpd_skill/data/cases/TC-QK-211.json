@@ -3,7 +3,7 @@
   "version": 2,
   "status": "draft",
   "app": "qiankun_hm",
-  "title": "乾崑测试账号密码登录至短信验证码页（VPD 链路前置 Phase1）",
+  "title": "[历史登录来源] 乾崑测试账号密码登录至短信验证码页（VPD 链路前置 Phase1）",
   "purpose": "用测试账号（151****3183）通过密码登录乾崑 APP，走完：密码表单填写→登录→新设备身份验证同意→到达短信验证码页。验证码输入与登录完成在 TC-QK-212（Phase2）。本用例结束时不停止 APP（保持验证码页供 Phase2 续走）。",
   "preconditions": [
     "乾崑 APP 已安装（本机 1.0.26.100）",
@@ -335,5 +335,12 @@
       "S13": "新设备身份验证弹窗点「同意」（登录安全门，account_state 授权范围内）",
       "S14": "等待验证方式页面（短信/人脸等）"
     }
+  },
+  "coverage_role": "operation_reference_only",
+  "superseded_by": {
+    "state": "qk_target_account_ready",
+    "consumer": "TC-QK-223",
+    "review": "pending",
+    "note": "保留历史定义与原始run/verdict；不计VPD业务覆盖"
   }
 }

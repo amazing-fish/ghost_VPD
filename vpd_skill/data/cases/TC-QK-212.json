@@ -3,7 +3,7 @@
   "version": 2,
   "status": "draft",
   "app": "qiankun_hm",
-  "title": "乾崑短信验证码输入与新设备登录完成（VPD 链路前置 Phase2）",
+  "title": "[历史登录来源] 乾崑短信验证码输入与新设备登录完成（VPD 链路前置 Phase2）",
   "purpose": "在人工提供有效验证码后，经本次授权入口输入并提交验证码，再检查登录态展示标签；未测试设备信任状态或再次登录是否仍需短信验证。",
   "preconditions": [
     "APP 停在新设备短信验证码页（qk_sms_verify 状态，TC-QK-211 Phase1 结束时保持）",
@@ -247,5 +247,12 @@
       "S3": "点身份验证页「登录」提交验证码",
       "S4": "等待验证与服务端确认（可能有人脸/后续引导页）"
     }
+  },
+  "coverage_role": "operation_reference_only",
+  "superseded_by": {
+    "state": "qk_target_account_ready",
+    "consumer": "TC-QK-223",
+    "review": "pending",
+    "note": "保留历史定义与原始run/verdict；不计VPD业务覆盖"
   }
 }

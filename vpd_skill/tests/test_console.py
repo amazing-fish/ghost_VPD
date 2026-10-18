@@ -113,6 +113,10 @@ def test_progress_run_suite_explore_and_stale(tmp_path):
     os.utime(co, (old, old))
 
     (runs / "mirror-probe").mkdir()  # 非运行目录不列出
+    # 文件系统可能合并紧邻写入的mtime；显式建立本测试所要求的先后顺序。
+    stamp = time.time()
+    for offset, directory in enumerate((r1, su, ex)):
+        os.utime(directory / "events.jsonl", (stamp + offset, stamp + offset))
     ids = [r["run_id"] for r in progress.list_runs(runs)]
     assert ids[0] == "explore-20260929-030303-cccc" and "mirror-probe" not in ids and len(ids) == 4
     assert ids[-1] == co.name  # 按事件文件更新时间倒序
