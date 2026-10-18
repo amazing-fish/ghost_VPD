@@ -58,6 +58,24 @@ def test_missing_input_stops_before_locator_scroll_clear_or_dispatch(ws, monkeyp
     assert not result.get("effect_unknown")
 
 
+@pytest.mark.parametrize("selected", [True, False])
+def test_inline_optional_tap_is_required_only_when_selected(condition_rig, selected):
+    ws, template, make_world = condition_rig
+    case = deepcopy(template)
+    case["cleanup"] = []
+    case["steps"] += [
+        {"id":"S2", "action":"tap", "critical":False, "retry":0,
+         "when":{"condition":"fault", "equals":selected},
+         "target":{"side_effect":"navigation", "strategies":[{"kind":"text", "value":"missing-control"}]}},
+        {"id":"S3", "action":"tap", "target":"advance", "expect_state":"details", "retry":0}]
+    run = run_case(ws, case=case, device_spec=make_world(), propose=False)
+    assert run["steps"][1]["critical"] is selected
+    assert (run["steps"][2]["outcome"] == "not_run") is selected
+    if not selected:
+        assert run["steps"][1]["outcome"] == "skipped"
+        assert run["steps"][2]["outcome"].startswith("passed")
+
+
 @pytest.mark.parametrize("kind", ["flow", "ensure_state"])
 @pytest.mark.parametrize("failure", ["missing", "skipped", "terminal", "unknown"])
 def test_selected_optional_capability_propagates_required_failure(condition_rig, kind, failure):

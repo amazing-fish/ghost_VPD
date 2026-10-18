@@ -116,80 +116,8 @@
         {"action": "back", "expect_state": "qk_vpd_home", "desc": "回到首页"}
       ]
     },
-    "login_open_my_prod": {
-      "desc": "login_open_my_prod",
-      "status": "unverified",
-      "params": {},
-      "steps": [
-        {
-          "action": "tap",
-          "target": "qk_tab_my_prod",
-          "retry": 0,
-          "expect_state": "@in_app"
-        }
-      ],
-      "source": "#31 login_provenance；消费者TC-QK-223 sources显式绑定同一来源，审核pending"
-    },
-    "login_open_form_prod": {
-      "desc": "login_open_form_prod",
-      "status": "unverified",
-      "params": {},
-      "steps": [
-        {
-          "action": "tap",
-          "target": "qk_login_register",
-          "retry": 0,
-          "expect_state": "@in_app"
-        }
-      ],
-      "source": "#31 login_provenance；消费者TC-QK-223 sources显式绑定同一来源，审核pending"
-    },
-    "login_other_method_prod": {
-      "desc": "login_other_method_prod",
-      "status": "unverified",
-      "params": {},
-      "steps": [
-        {
-          "action": "tap",
-          "target": "qk_other_login",
-          "retry": 0,
-          "expect_text": "密码登录",
-          "timeout_s": 12
-        }
-      ],
-      "source": "#31 login_provenance；消费者TC-QK-223 sources显式绑定同一来源，审核pending"
-    },
-    "login_choose_password_prod": {
-      "desc": "login_choose_password_prod",
-      "status": "unverified",
-      "params": {},
-      "steps": [
-        {
-          "action": "tap",
-          "target": "qk_pwd_login",
-          "retry": 0,
-          "expect_text": "验证码登录",
-          "timeout_s": 12
-        }
-      ],
-      "source": "#31 login_provenance；消费者TC-QK-223 sources显式绑定同一来源，审核pending"
-    },
-    "login_protocol_prod": {
-      "desc": "login_protocol_prod",
-      "status": "unverified",
-      "params": {},
-      "steps": [
-        {
-          "action": "tap",
-          "target": "qk_protocol_unchecked",
-          "retry": 0,
-          "expect_state": "@in_app"
-        }
-      ],
-      "source": "#31 login_provenance；消费者TC-QK-223 sources显式绑定同一来源，审核pending"
-    },
     "login_password_prod": {
-      "desc": "login_password_prod",
+      "desc": "登录入口内部密码分支；仅密码表单期间执行，不跨页持有父条件",
       "status": "unverified",
       "params": {},
       "steps": [
@@ -239,8 +167,10 @@
           "retry": 0
         },
         {
-          "action": "flow",
-          "flow": "login_protocol_prod",
+          "action": "tap",
+          "target": "qk_protocol_unchecked",
+          "retry": 0,
+          "expect_state": "@in_app",
           "when": {
             "condition": "login_protocol",
             "equals": true
@@ -257,45 +187,8 @@
       ],
       "source": "#31 login_provenance；消费者TC-QK-223 sources显式绑定同一来源，审核pending"
     },
-    "login_consent_prod": {
-      "desc": "login_consent_prod",
-      "status": "unverified",
-      "params": {},
-      "steps": [
-        {
-          "action": "tap",
-          "target": "qk_verify_agree",
-          "retry": 0,
-          "expect_text": "验证码已发至",
-          "timeout_s": 15
-        }
-      ],
-      "source": "#31 login_provenance；消费者TC-QK-223 sources显式绑定同一来源，审核pending"
-    },
-    "login_sms_prod": {
-      "desc": "login_sms_prod",
-      "status": "unverified",
-      "params": {},
-      "steps": [
-        {
-          "action": "input",
-          "target": "qk_sms_code_input",
-          "text": "${var:sms_code}",
-          "clear": true,
-          "retry": 0
-        },
-        {
-          "action": "tap",
-          "target": "qk_verify_login",
-          "retry": 0,
-          "expect_state": "@in_app",
-          "timeout_s": 15
-        }
-      ],
-      "source": "#31 login_provenance；消费者TC-QK-223 sources显式绑定同一来源，审核pending"
-    },
-    "login_settings_prod": {
-      "desc": "login_settings_prod",
+    "login_confirm_account_prod": {
+      "desc": "登录入口内部固定账户确认；从当前已知层级继续，未知页不执行",
       "status": "unverified",
       "params": {},
       "steps": [
@@ -303,69 +196,26 @@
           "action": "tap",
           "target": "qk_personal_settings",
           "retry": 0,
-          "expect_text": "设置"
-        }
-      ],
-      "source": "#31 login_provenance；消费者TC-QK-223 sources显式绑定同一来源，审核pending"
-    },
-    "login_account_menu_prod": {
-      "desc": "login_account_menu_prod",
-      "status": "unverified",
-      "params": {},
-      "steps": [
+          "expect_text": "设置",
+          "skip_if_absent": "^我的车辆$"
+        },
         {
           "action": "tap",
           "target": "qk_account_menu",
           "retry": 0,
-          "expect_text": "密码管理"
-        }
-      ],
-      "source": "#31 login_provenance；消费者TC-QK-223 sources显式绑定同一来源，审核pending"
-    },
-    "login_identity_prod": {
-      "desc": "login_identity_prod",
-      "status": "unverified",
-      "params": {},
-      "steps": [
+          "expect_text": "密码管理",
+          "skip_if_absent": "^个人信息$"
+        },
         {
           "action": "tap",
           "target": "qk_password_management",
           "retry": 0,
           "expect_state": "qk_target_account_ready",
-          "timeout_s": 12
+          "timeout_s": 12,
+          "skip_if_absent": "^账号注销$"
         }
       ],
-      "source": "#31 login_provenance；消费者TC-QK-223 sources显式绑定同一来源，审核pending"
-    },
-    "leave_login_identity_prod": {
-      "desc": "leave_login_identity_prod",
-      "status": "unverified",
-      "params": {},
-      "steps": [
-        {
-          "action": "back",
-          "expect_text": "密码管理",
-          "retry": 0
-        },
-        {
-          "action": "back",
-          "expect_text": "设置",
-          "retry": 0
-        },
-        {
-          "action": "back",
-          "expect_text": "我的车辆",
-          "retry": 0
-        },
-        {
-          "action": "tap",
-          "target": "qk_tab_car",
-          "retry": 0,
-          "expect_state": "qk_car_tab",
-          "timeout_s": 10
-        }
-      ],
-      "source": "#31 login_provenance；消费者TC-QK-223 sources显式绑定同一来源，审核pending"
+      "source": "#31 login_provenance；同一已登录页条件持续约束子步，最终账户终态在入口末尾严格检查"
     }
   }
 ,

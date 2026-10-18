@@ -137,7 +137,7 @@ class Executor:
     def run_step(self, step: dict, case_id: str) -> dict:
         """Operation selection never substitutes for an executed product check."""
         ctx, condition = self.ctx, None
-        conditional_capability = step["action"] in ("flow", "ensure_state") and bool(self._when_guards(step))
+        conditional_step = bool(self._when_guards(step))
         # 保留既有暂停关口的优先级：未知条件不能触发取证或绕过安全停止。
         if self._when_guards(step) and not (ctx.safety_hold and not step.get("_safety")):
             obs, tree = ctx.observe(f"{step['id']}:when")
@@ -146,7 +146,7 @@ class Executor:
             if condition["status"] != "true":
                 error = condition.get("execution_error") or {}
                 result = {"step_id": step["id"], "action": step["action"],
-                          "critical": True if conditional_capability and condition["status"] != "false" else bool(step.get("critical", True)),
+                          "critical": True if conditional_step and condition["status"] != "false" else bool(step.get("critical", True)),
                           "oracle_refs": step.get("oracle_refs", []), "attempts": [], "recoveries": [], "adapted": False,
                           "outcome": {"false": "skipped", "unknown": "pending", "error": "error"}[condition["status"]],
                           "final_status": "condition_" + condition["status"], "final_obs": obs["obs_id"],
@@ -156,9 +156,9 @@ class Executor:
                     result["execution_error"] = error
                 ctx.step_results[step["id"]] = result
                 return result
-        # 可选的是互斥分支的选择；被选择的能力及内部必需步骤不能因此降为可忽略。
+        # 可选的是分支选择；内联动作与复合能力一旦选中，都必须完成。
         selected = {**step, "_selected_condition": condition}
-        if conditional_capability:
+        if conditional_step:
             selected["critical"] = True
         result = self._run_step(selected, case_id)
         if condition is not None:

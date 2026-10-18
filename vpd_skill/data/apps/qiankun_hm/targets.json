@@ -878,58 +878,6 @@
         }
       ]
     },
-    "qk_login_quick_here": {
-      "desc": "登录选路只读证据：quick/here",
-      "side_effect": "read_only",
-      "forbid_tap": true,
-      "status": "unverified",
-      "strategies": [
-        {
-          "kind": "xpath",
-          "value": "//root[.//*[@text='本机号码一键登录'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='其他登录方式'][not(ancestor-or-self::*[@visible='false'])]]",
-          "source": "#31 量产页面经验；session-issue31-calibration，受APP/build与消费者审核约束"
-        }
-      ]
-    },
-    "qk_login_quick_else": {
-      "desc": "登录选路只读证据：quick/else",
-      "side_effect": "read_only",
-      "forbid_tap": true,
-      "status": "unverified",
-      "strategies": [
-        {
-          "kind": "xpath",
-          "value": "//root[(.//*[@text='我的车辆' or @text='社区' or @text='欢迎登录华为乾崑' or @text='本机号码一键登录' or @text='身份验证' or @text='设置' or @text='乾崑账号' or @text='输入验证码'][not(ancestor-or-self::*[@visible='false'])]) and not(.//*[@text='本机号码一键登录'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='其他登录方式'][not(ancestor-or-self::*[@visible='false'])])]",
-          "source": "#31 量产页面经验；session-issue31-calibration，受APP/build与消费者审核约束"
-        }
-      ]
-    },
-    "qk_login_method_here": {
-      "desc": "登录选路只读证据：method/here",
-      "side_effect": "read_only",
-      "forbid_tap": true,
-      "status": "unverified",
-      "strategies": [
-        {
-          "kind": "xpath",
-          "value": "//root[.//*[@text='密码登录'][not(ancestor-or-self::*[@visible='false'])] and .//*[@hint='请输入手机号'][not(ancestor-or-self::*[@visible='false'])] and not(.//*[@hint='请输入密码'][not(ancestor-or-self::*[@visible='false'])])]",
-          "source": "#31 量产页面经验；session-issue31-calibration，受APP/build与消费者审核约束"
-        }
-      ]
-    },
-    "qk_login_method_else": {
-      "desc": "登录选路只读证据：method/else",
-      "side_effect": "read_only",
-      "forbid_tap": true,
-      "status": "unverified",
-      "strategies": [
-        {
-          "kind": "xpath",
-          "value": "//root[(.//*[@text='我的车辆' or @text='社区' or @text='欢迎登录华为乾崑' or @text='本机号码一键登录' or @text='身份验证' or @text='设置' or @text='乾崑账号' or @text='输入验证码'][not(ancestor-or-self::*[@visible='false'])]) and not(.//*[@text='密码登录'][not(ancestor-or-self::*[@visible='false'])] and .//*[@hint='请输入手机号'][not(ancestor-or-self::*[@visible='false'])] and not(.//*[@hint='请输入密码'][not(ancestor-or-self::*[@visible='false'])]))]",
-          "source": "#31 量产页面经验；session-issue31-calibration，受APP/build与消费者审核约束"
-        }
-      ]
-    },
     "qk_login_password_here": {
       "desc": "登录选路只读证据：password/here",
       "side_effect": "read_only",
@@ -952,32 +900,6 @@
         {
           "kind": "xpath",
           "value": "//root[(.//*[@text='我的车辆' or @text='社区' or @text='欢迎登录华为乾崑' or @text='本机号码一键登录' or @text='身份验证' or @text='设置' or @text='乾崑账号' or @text='输入验证码'][not(ancestor-or-self::*[@visible='false'])]) and not(.//*[@hint='请输入密码'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='验证码登录'][not(ancestor-or-self::*[@visible='false'])])]",
-          "source": "#31 量产页面经验；session-issue31-calibration，受APP/build与消费者审核约束"
-        }
-      ]
-    },
-    "qk_login_consent_here": {
-      "desc": "登录选路只读证据：consent/here",
-      "side_effect": "read_only",
-      "forbid_tap": true,
-      "status": "unverified",
-      "strategies": [
-        {
-          "kind": "xpath",
-          "value": "//root[.//*[@text='身份验证'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='同意'][not(ancestor-or-self::*[@visible='false'])] and not(.//*[contains(@text,'验证码已发至')][not(ancestor-or-self::*[@visible='false'])])]",
-          "source": "#31 量产页面经验；session-issue31-calibration，受APP/build与消费者审核约束"
-        }
-      ]
-    },
-    "qk_login_consent_else": {
-      "desc": "登录选路只读证据：consent/else",
-      "side_effect": "read_only",
-      "forbid_tap": true,
-      "status": "unverified",
-      "strategies": [
-        {
-          "kind": "xpath",
-          "value": "//root[(.//*[@text='我的车辆' or @text='社区' or @text='欢迎登录华为乾崑' or @text='本机号码一键登录' or @text='身份验证' or @text='设置' or @text='乾崑账号' or @text='输入验证码'][not(ancestor-or-self::*[@visible='false'])]) and not(.//*[@text='身份验证'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='同意'][not(ancestor-or-self::*[@visible='false'])] and not(.//*[contains(@text,'验证码已发至')][not(ancestor-or-self::*[@visible='false'])]))]",
           "source": "#31 量产页面经验；session-issue31-calibration，受APP/build与消费者审核约束"
         }
       ]
@@ -1008,97 +930,6 @@
         }
       ]
     },
-    "qk_login_my_account_here": {
-      "desc": "登录选路只读证据：my_account/here",
-      "side_effect": "read_only",
-      "forbid_tap": true,
-      "status": "unverified",
-      "strategies": [
-        {
-          "kind": "xpath",
-          "value": "//root[.//*[@text='我的车辆'][not(ancestor-or-self::*[@visible='false'])] and not(.//*[@text='欢迎登录华为乾崑'][not(ancestor-or-self::*[@visible='false'])] or .//*[@text='本机号码一键登录'][not(ancestor-or-self::*[@visible='false'])] or .//*[@text='身份验证'][not(ancestor-or-self::*[@visible='false'])]) and not(.//*[@text='登录/注册'][not(ancestor-or-self::*[@visible='false'])])]",
-          "source": "#31 量产页面经验；session-issue31-calibration，受APP/build与消费者审核约束"
-        }
-      ]
-    },
-    "qk_login_my_account_else": {
-      "desc": "登录选路只读证据：my_account/else",
-      "side_effect": "read_only",
-      "forbid_tap": true,
-      "status": "unverified",
-      "strategies": [
-        {
-          "kind": "xpath",
-          "value": "//root[(.//*[@text='我的车辆' or @text='社区' or @text='欢迎登录华为乾崑' or @text='本机号码一键登录' or @text='身份验证' or @text='设置' or @text='乾崑账号' or @text='输入验证码'][not(ancestor-or-self::*[@visible='false'])]) and not(.//*[@text='我的车辆'][not(ancestor-or-self::*[@visible='false'])] and not(.//*[@text='欢迎登录华为乾崑'][not(ancestor-or-self::*[@visible='false'])] or .//*[@text='本机号码一键登录'][not(ancestor-or-self::*[@visible='false'])] or .//*[@text='身份验证'][not(ancestor-or-self::*[@visible='false'])]) and not(.//*[@text='登录/注册'][not(ancestor-or-self::*[@visible='false'])]))]",
-          "source": "#31 量产页面经验；session-issue31-calibration，受APP/build与消费者审核约束"
-        }
-      ]
-    },
-    "qk_login_settings_here": {
-      "desc": "登录选路只读证据：settings/here",
-      "side_effect": "read_only",
-      "forbid_tap": true,
-      "status": "unverified",
-      "strategies": [
-        {
-          "kind": "xpath",
-          "value": "//root[.//*[@text='设置'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='个人信息'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='乾崑账号'][not(ancestor-or-self::*[@visible='false'])]]",
-          "source": "#31 量产页面经验；session-issue31-calibration，受APP/build与消费者审核约束"
-        }
-      ]
-    },
-    "qk_login_settings_else": {
-      "desc": "登录选路只读证据：settings/else",
-      "side_effect": "read_only",
-      "forbid_tap": true,
-      "status": "unverified",
-      "strategies": [
-        {
-          "kind": "xpath",
-          "value": "//root[(.//*[@text='我的车辆' or @text='社区' or @text='欢迎登录华为乾崑' or @text='本机号码一键登录' or @text='身份验证' or @text='设置' or @text='乾崑账号' or @text='输入验证码'][not(ancestor-or-self::*[@visible='false'])]) and not(.//*[@text='设置'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='个人信息'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='乾崑账号'][not(ancestor-or-self::*[@visible='false'])])]",
-          "source": "#31 量产页面经验；session-issue31-calibration，受APP/build与消费者审核约束"
-        }
-      ]
-    },
-    "qk_login_account_menu_here": {
-      "desc": "登录选路只读证据：account_menu/here",
-      "side_effect": "read_only",
-      "forbid_tap": true,
-      "status": "unverified",
-      "strategies": [
-        {
-          "kind": "xpath",
-          "value": "//root[.//*[@text='乾崑账号'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='密码管理'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='账号注销'][not(ancestor-or-self::*[@visible='false'])]]",
-          "source": "#31 量产页面经验；session-issue31-calibration，受APP/build与消费者审核约束"
-        }
-      ]
-    },
-    "qk_login_account_menu_else": {
-      "desc": "登录选路只读证据：account_menu/else",
-      "side_effect": "read_only",
-      "forbid_tap": true,
-      "status": "unverified",
-      "strategies": [
-        {
-          "kind": "xpath",
-          "value": "//root[(.//*[@text='我的车辆' or @text='社区' or @text='欢迎登录华为乾崑' or @text='本机号码一键登录' or @text='身份验证' or @text='设置' or @text='乾崑账号' or @text='输入验证码'][not(ancestor-or-self::*[@visible='false'])]) and not(.//*[@text='乾崑账号'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='密码管理'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='账号注销'][not(ancestor-or-self::*[@visible='false'])])]",
-          "source": "#31 量产页面经验；session-issue31-calibration，受APP/build与消费者审核约束"
-        }
-      ]
-    },
-    "qk_login_protocol_here": {
-      "desc": "登录选路只读证据：protocol/here",
-      "side_effect": "read_only",
-      "forbid_tap": true,
-      "status": "unverified",
-      "strategies": [
-        {
-          "kind": "xpath",
-          "value": "//root[.//Checkbox[@text='userProtocol' and @checked='false'][not(ancestor-or-self::*[@visible='false'])]]",
-          "source": "#31 量产页面经验；session-issue31-calibration，受APP/build与消费者审核约束"
-        }
-      ]
-    },
     "qk_login_protocol_else": {
       "desc": "登录选路只读证据：protocol/else",
       "side_effect": "read_only",
@@ -1109,18 +940,6 @@
           "kind": "xpath",
           "value": "//root[.//Checkbox[@text='userProtocol' and @checked='true'][not(ancestor-or-self::*[@visible='false'])]]",
           "source": "#31 量产页面经验；session-issue31-calibration，受APP/build与消费者审核约束"
-        }
-      ]
-    },
-    "qk_other_login": {
-      "desc": "其他登录方式",
-      "side_effect": "account_state",
-      "status": "unverified",
-      "strategies": [
-        {
-          "kind": "text",
-          "value": "其他登录方式",
-          "source": "session-issue31-calibration 2026-10-18 APP1.0.26.100/bar；原始观测本地保留，人工审核pending"
         }
       ]
     },
@@ -1167,11 +986,61 @@
       "strategies": [
         {
           "kind": "xpath",
-          "value": "//Checkbox[@text=\"userProtocol\" and @checked=\"false\"]",
+          "value": "//Checkbox[@text=\"userProtocol\" and @checked=\"false\"][not(ancestor-or-self::*[@visible=\"false\"])]",
           "source": "session-issue31-calibration 2026-10-18 APP1.0.26.100/bar；原始观测本地保留，人工审核pending"
         }
       ],
       "allow_node_type": true
+    },
+    "qk_login_other_method": {
+      "desc": "其他登录方式",
+      "side_effect": "account_state",
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//root[.//*[@text='本机号码一键登录'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='其他登录方式'][not(ancestor-or-self::*[@visible='false'])]]//*[@text=\"其他登录方式\"][not(ancestor-or-self::*[@visible=\"false\"])]",
+          "source": "#31 原登录页与控件签名；login_provenance及消费者人审继续适用"
+        }
+      ]
+    },
+    "qk_login_choose_password": {
+      "desc": "「密码登录」",
+      "side_effect": "account_state",
+      "status": "unverified",
+      "source_flow": "app/service/vpd/vpd.py:2315-2316",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//root[.//*[@text='密码登录'][not(ancestor-or-self::*[@visible='false'])] and .//*[@hint='请输入手机号'][not(ancestor-or-self::*[@visible='false'])] and not(.//*[@hint='请输入密码'][not(ancestor-or-self::*[@visible='false'])])]//*[@text=\"密码登录\"][not(ancestor-or-self::*[@visible=\"false\"])]",
+          "source": "#31 原登录页与控件签名；login_provenance及消费者人审继续适用"
+        }
+      ]
+    },
+    "qk_login_consent_action": {
+      "desc": "新设备登录身份验证弹窗「同意」按钮",
+      "side_effect": "account_state",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//root[.//*[@text='身份验证'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='同意'][not(ancestor-or-self::*[@visible='false'])] and not(.//*[contains(@text,'验证码已发至')][not(ancestor-or-self::*[@visible='false'])])]//*[@text=\"同意\"][not(ancestor-or-self::*[@visible=\"false\"])]",
+          "source": "#31 原登录页与控件签名；login_provenance及消费者人审继续适用"
+        }
+      ],
+      "status": "unverified"
+    },
+    "qk_login_account_navigation": {
+      "desc": "当前已登录我的/设置/账号/目标身份页；只允许固定账户确认导航",
+      "side_effect": "read_only",
+      "forbid_tap": true,
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//root[(.//*[@text='我的车辆'][not(ancestor-or-self::*[@visible='false'])] and not(.//*[@text='欢迎登录华为乾崑'][not(ancestor-or-self::*[@visible='false'])] or .//*[@text='本机号码一键登录'][not(ancestor-or-self::*[@visible='false'])] or .//*[@text='身份验证'][not(ancestor-or-self::*[@visible='false'])]) and not(.//*[@text='登录/注册'][not(ancestor-or-self::*[@visible='false'])])) or (.//*[@text='设置'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='个人信息'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='乾崑账号'][not(ancestor-or-self::*[@visible='false'])]) or (.//*[@text='乾崑账号'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='密码管理'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='账号注销'][not(ancestor-or-self::*[@visible='false'])]) or (.//*[@text='输入验证码'] and .//*[@text='为了确保你的账号安全，请先进行手机号验证'] and .//*[@text='151****3183'] and not(.//*[@text='身份验证' or @text='验证码已发至' or @text='登录/注册']))]",
+          "source": "#31原已登录页面签名与目标账户终态；login_provenance及消费者审核仍pending"
+        }
+      ]
     }
   }
 }
