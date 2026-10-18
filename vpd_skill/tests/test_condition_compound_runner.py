@@ -145,8 +145,9 @@ def test_parent_true_does_not_override_child_false(condition_rig, kind):
     _coverage(run, verified=("A-common",), unverified=("A-flow",))
 
 
-def test_noncritical_unknown_child_cannot_make_parent_assertion_verified(condition_rig):
-    ws, case, spec = _compound(condition_rig, "flow", optional_unknown=True)
+@pytest.mark.parametrize("kind", ["flow", "ensure_state"])
+def test_noncritical_unknown_child_cannot_make_parent_assertion_verified(condition_rig, kind):
+    ws, case, spec = _compound(condition_rig, kind, optional_unknown=True)
     run = run_case(ws, case=case, device_spec=spec, propose=False)
     parent = run["steps"][1]
     assert len(_sent_taps(run)) == 1
