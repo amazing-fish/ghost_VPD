@@ -1353,7 +1353,11 @@ class Executor:
                         "final_status": "observation_failed", "final_obs": obs["obs_id"]}
             return {**base, "outcome": "blocked", "attribution": "tool", "attempts": [],
                     "reason": f"没有到达状态 {target} 的 recipe", "final_obs": obs["obs_id"]}
-        return self._run_children(step, case_id, recipe, base)
+        # 到达目标是 ensure_state 的保证，不要求每个 recipe 手写末尾检查。
+        # 复用普通步骤的条件、观测和结果契约；必需子步骤未完成时不会执行此检查。
+        terminal = {"action": "wait", "duration_s": 0, "expect_state": target,
+                    "timeout_s": 0, "retry": 0, "critical": True}
+        return self._run_children(step, case_id, [*recipe, terminal], base)
 
 
 def _measure(tree, loc: dict, step: dict) -> dict:

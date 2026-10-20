@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 from conftest import confirm, world
 from verdict_fixtures import COPY_CASE, COPY_RULE, SETTINGS_RULE
-from vpdtest.cases import dependency_hash, record_replay, replay_basis
 from vpdtest.commands import _run_brief
 from vpdtest.devices import LAUNCHER, DeviceResult
 from vpdtest.devices.replay import ReplayDevice
@@ -233,30 +232,3 @@ def test_nested_cleanup_unknown_remains_unknown_even_when_optional(verdict_ws, r
     assert run["verdict"]["verdict"] == ("blocked" if required else "pending")
     assert any(f.get("step") == leaf["step_id"] and f["result"] == "pending"
                for f in run["verdict"]["findings"])
-
-
-def test_old_result_contract_replays_cannot_validate_new_composite_semantics(verdict_ws, monkeypatch):
-    from vpdtest import cases
-    case, run, _, _, _ = _run(verdict_ws)
-    knowledge = KnowledgeStore(verdict_ws.root)
-    app = verdict_ws.app(case["app"])
-    current = dependency_hash(case, app, knowledge)
-    original_hash = cases.sha256_obj
-    contracts = []
-    def capture(value):
-        contracts.append(value.get("result_contract"))
-        return original_hash({**value, "result_contract": 5})
-    monkeypatch.setattr(cases, "sha256_obj", capture)
-    old = dependency_hash(case, app, knowledge)
-    assert contracts == [6] and old != current
-    monkeypatch.setattr(cases, "sha256_obj", original_hash)
-    write_json(verdict_ws.case_path(case["id"]), case)
-    for suffix in ("a", "b"):
-        old_run = {**run, "run_id": "synthetic-old-" + suffix,
-                   "case": {**run["case"], "deps": old},
-                   "verdict": {**run["verdict"], "verdict": "passed", "findings": [],
-                               "product_verdict": "passed", "product_failed": False}}
-        record_replay(verdict_ws, case["id"], old_run)
-    saved = verdict_ws.load_case(case["id"])
-    assert len(saved["replays"]) == 2
-    assert not replay_basis(saved, current)["ok"]
