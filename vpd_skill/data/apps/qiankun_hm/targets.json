@@ -847,8 +847,8 @@
       "strategies": [
         {
           "kind": "xpath",
-          "value": "//root[(.//*[@text='我的车辆' or @text='社区' or @text='欢迎登录华为乾崑' or @text='本机号码一键登录' or @text='身份验证' or @text='设置' or @text='乾崑账号' or @text='输入验证码'][not(ancestor-or-self::*[@visible='false'])]) and not(.//*[@text='社区'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='ADS'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='我的'][not(ancestor-or-self::*[@visible='false'])] and not(.//*[@text='欢迎登录华为乾崑'][not(ancestor-or-self::*[@visible='false'])] or .//*[@text='本机号码一键登录'][not(ancestor-or-self::*[@visible='false'])] or .//*[@text='身份验证'][not(ancestor-or-self::*[@visible='false'])]) and not(.//*[@text='我的车辆'][not(ancestor-or-self::*[@visible='false'])]))]",
-          "source": "#31 量产页面经验；session-issue31-calibration，受APP/build与消费者审核约束"
+          "value": "//root[((.//*[@text='我的车辆'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='登录/注册'][not(ancestor-or-self::*[@visible='false'])]) or .//*[@text='社区' or @text='欢迎登录华为乾崑' or @text='本机号码一键登录' or @text='身份验证' or @text='设置' or @text='乾崑账号' or @text='输入验证码'][not(ancestor-or-self::*[@visible='false'])]) and not(.//*[@text='社区'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='ADS'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='我的'][not(ancestor-or-self::*[@visible='false'])] and not(.//*[@text='欢迎登录华为乾崑'][not(ancestor-or-self::*[@visible='false'])] or .//*[@text='本机号码一键登录'][not(ancestor-or-self::*[@visible='false'])] or .//*[@text='身份验证'][not(ancestor-or-self::*[@visible='false'])]) and not(.//*[@text='我的车辆'][not(ancestor-or-self::*[@visible='false'])]))]",
+          "source": "#31已知复合页签名；#64仅“我的车辆”标题不足以识别主tab，未校准二级页保留unknown"
         }
       ]
     },
@@ -1039,6 +1039,32 @@
           "kind": "xpath",
           "value": "//root[(.//*[@text='我的车辆'][not(ancestor-or-self::*[@visible='false'])] and not(.//*[@text='欢迎登录华为乾崑'][not(ancestor-or-self::*[@visible='false'])] or .//*[@text='本机号码一键登录'][not(ancestor-or-self::*[@visible='false'])] or .//*[@text='身份验证'][not(ancestor-or-self::*[@visible='false'])]) and not(.//*[@text='登录/注册'][not(ancestor-or-self::*[@visible='false'])])) or (.//*[@text='设置'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='个人信息'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='乾崑账号'][not(ancestor-or-self::*[@visible='false'])]) or (.//*[@text='乾崑账号'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='密码管理'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='账号注销'][not(ancestor-or-self::*[@visible='false'])]) or (.//*[@text='输入验证码'] and .//*[@text='为了确保你的账号安全，请先进行手机号验证'] and .//*[@text='151****3183'] and not(.//*[@text='身份验证' or @text='验证码已发至' or @text='登录/注册']))]",
           "source": "#31原已登录页面签名与目标账户终态；login_provenance及消费者审核仍pending"
+        }
+      ]
+    },
+    "qk_login_system_selection_here": {
+      "desc": "当前密码表单上的系统文本选择菜单；只识别已报告的SelectOverlay/SelectMenu及两项文案",
+      "side_effect": "read_only",
+      "forbid_tap": true,
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//root[count(.//SelectOverlay[not(ancestor-or-self::*[@visible='false'])])=1][.//*[@hint='请输入密码'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='验证码登录'][not(ancestor-or-self::*[@visible='false'])]]//SelectOverlay[not(ancestor-or-self::*[@visible='false'])][.//SelectMenu[.//*[@text='自动填充'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='拍摄输入'][not(ancestor-or-self::*[@visible='false'])]]]",
+          "source": "#64 run-20261019-114221-43e0及run-20261019-120308-b425报告；完整原始树未随仓库提供，独立真机核验pending"
+        }
+      ]
+    },
+    "qk_login_system_selection_else": {
+      "desc": "当前已知密码表单且无可见SelectOverlay；未知覆盖层不当作已识别菜单关闭",
+      "side_effect": "read_only",
+      "forbid_tap": true,
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//root[.//*[@hint='请输入密码'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='验证码登录'][not(ancestor-or-self::*[@visible='false'])] and not(.//SelectOverlay[not(ancestor-or-self::*[@visible='false'])])]",
+          "source": "#64密码表单正证与当前SelectOverlay互斥；缺表单或未登记SelectOverlay保持unknown"
         }
       ]
     }

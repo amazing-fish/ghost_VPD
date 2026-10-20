@@ -110,6 +110,8 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
 | 定点拖动 / swipe 参数拒绝 | `act swipe` 只按 `direction` 和可选 `within` 做容器上下滚动；`--point`、`--basis`、`--duration` 明确拒绝，不会退化为普通滚动。历史含这些参数的动作不能直接固化，可重新采样或用 `--drop A序号=理由` 留痕排除。定点/AVM 手势能力仍待实现，按当前受控入口或人工交接处理。 |
 | `target_ambiguous` | 不要挑一个点；`diagnosis.candidates` 列出了各候选，用 `--within` 限定容器/分栏或改用 `id=`/`xpath=` |
 | `target_stale` / `foreground_changed` | 观察与下发之间页面变了 / 前台被切走：重新 observe 再决定；触摸/输入时前台是其他应用则停止该动作；可受控 launch/resume 后重新观察 |
+| `target_obscured` | 读取诊断的 `blocker`（遮挡节点类型/文字/边界）、`expected` 与 `obs_id`，核对当前树。仅执行当前已登记流程，不因覆盖物名为 SelectOverlay 或看起来透明就穿透触摸检查；未知覆盖物保留阻塞。 |
+| 更新弹窗与近黑截图（#64） | 先保留首次 run/obs、树、截图状态、窗口与电源证据，再核对独立截图及现场可见画面。`screenshot=skipped` 只表示调用方本次关闭截图，不表示系统输入窗口抑制取证；两源近黑不能独立证明弹窗与渲染问题同根因。未评审更新弹窗继续阻塞，不自动关闭或升级；需要恢复时另记原异常与恢复后的新运行，不能自动冷启动清掉短信挑战或未知副作用。 |
 | `state_indeterminate` / unlock `indeterminate` | 下发前查不到锁屏/前台状态，停止后续动作（此前已下发的动作保留证据，`action_required`）：确认手机状态后重新 observe，不要改用 `--point` 绕过 |
 | `target_partially_visible` | 目标被列表裁剪或被底部导航挡住；为目标补 `scroll` 声明，而不是改成点边缘 |
 | 只在宽屏/折叠屏上成立的用例 | 在用例上写 `layout_requirements`（如 `{"wide": true}`）；形态不符时判环境阻塞，不判失败 |

@@ -44,6 +44,11 @@
       "true": {"type": "target_present", "target": "qk_login_password_here"},
       "false": {"type": "target_present", "target": "qk_login_password_else"}
     },
+    "login_system_selection": {
+      "kind": "page",
+      "true": {"type": "target_present", "target": "qk_login_system_selection_here"},
+      "false": {"type": "target_present", "target": "qk_login_system_selection_else"}
+    },
     "login_sms": {
       "kind": "page",
       "true": {"type": "target_present", "target": "qk_login_sms_here"},
