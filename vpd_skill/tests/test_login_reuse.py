@@ -148,7 +148,9 @@ def test_consumer_requires_current_review_and_recipe_changes_invalidate_it(login
     before = cases.dependency_hash(ws.load_case("TC-QK-223"),app,KnowledgeStore(ws.root))
     path = app.dir / "states.json"
     data=read_json(path)
-    data["recipes"]["qk_target_account_ready"][-1]["timeout_s"] += 1
+    navigation = next(step for step in data["recipes"]["qk_target_account_ready"]
+                      if step.get("target") == "qk_login_other_method")
+    navigation["timeout_s"] += 1
     write_json(path,data)
     assert not cases.review_status(ws,ws.load_case("TC-QK-223"))["valid"]
     assert cases.dependency_hash(ws.load_case("TC-QK-223"),ws.app("qiankun_hm"),KnowledgeStore(ws.root)) != before

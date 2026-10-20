@@ -309,8 +309,7 @@
       {"action": "tap", "target": "qk_verify_login", "retry": 0, "expect_state": "@in_app", "timeout_s": 15, "when": {"condition": "login_sms", "equals": true}, "critical": false},
       {"action": "monitor", "duration_s": 15, "interval_s": 1, "screenshots": false, "until_text": "^爱车$|^设置$|^乾崑账号$|^输入验证码$", "desc": "短信提交后等待已离开登录挑战的下一阶段正证；目标账户仍由末尾严格检查"},
       {"action": "tap", "target": "qk_tab_my_prod", "retry": 0, "expect_state": "@in_app", "when": {"condition": "login_navigate_my", "equals": true}, "critical": false},
-      {"action": "flow", "flow": "login_confirm_account_prod", "when": {"condition": "login_account_navigation", "equals": true}},
-      {"action": "wait", "duration_s": 0, "expect_state": "qk_target_account_ready", "timeout_s": 0, "retry": 0, "desc": "recipe只汇总子步，必须独立严格验证目标账户终态"}
+      {"action": "flow", "flow": "login_confirm_account_prod", "when": {"condition": "login_account_navigation", "equals": true}}
     ]
   },
   "dialog_policy": {

@@ -78,6 +78,11 @@
 | `monitor` | — | `duration_s`、`interval_s`、`watch{名: 正则}`、`until_state` / `until_text` / `until_text_gone`、`stop_on`、`abort_on` | 见下方「监视」 | `duration_s`（上限 `max_monitor_s`） | 不重试 | 无（只观测） |
 | `flow` | `flows.json` 中存在 | `flow`、`params` | 每个子步骤各自的后置条件 | 子步骤各自 | 子步骤默认 1 | 子步骤的副作用 |
 
+`ensure_state` 已处于目标且无中断时直接复用；否则执行 recipe，并自动追加一次
+`wait(duration_s=0, expect_state=目标, timeout_s=0, retry=0)` 验证。recipe 作者只声明到达路径，
+无需手写这条末尾检查；动作自身的后置等待仍保留。验证复用既有条件、观测、中断处置和结果契约，
+关键子步骤失败、未知或交接时不继续。目标未到达不能完成，操作完成也不代替独立产品断言。
+
 `act swipe` 不是定点拖动：当前明确拒绝 `--point`、`--basis`、`--duration`。
 `act` 的 `target_obscured` 诊断回传最后一次下发复核中的 `blocker`、`expected` 和关联 `obs_id`；无该次证据时字段为空，不从旧尝试补造遮挡结论。诊断仅解释拒发，不改变触摸归属或授权检查。
 CLI 参数错误在会话锁、设备初始化和信息查询前拒绝，不创建会话，也不追加请求/拒绝事件。
@@ -245,7 +250,7 @@ Replay world 的 env_facts 只是标明 offline_replay 的合成环境，不代�
 `run/suite --fail-on error` 可配置退出码 1；人工接管仍优先退出码 2，定义/程序异常仍退出码 3。
 suite 摘要及 Console 接受 error；经验验证不对 error 做产品结论排序，未解决错误、错误转 pending 或
 同为 error 但少适配都不能验证通过。可靠的 error→passed 才可计改善。晋级只计无执行错误的确定重放。
-新依赖指纹包含 `result_contract=6`，旧重放需按新口径重新积累；旧无条件内容哈希不变；新 conditions 内容与外部条件定义/目标/规则前置均绑定指纹，历史原始 run/verdict 不改写。
+新依赖指纹包含 `result_contract=7`，旧重放需按新口径重新积累；旧无条件内容哈希不变；新 conditions 内容与外部条件定义/目标/规则前置均绑定指纹，历史原始 run/verdict 不改写。
 探索资产现有 engine_hash 也会因引擎变更使审核失效，仍须由人重新审核，Agent 不自动批准。
 
 复合步骤按真实子结果判定：`critical` 只决定失败后是否继续执行，不抑制已发生的产品失败候选、待确认或阻塞。
@@ -258,6 +263,7 @@ flow/recipe 汇总完成不能消除非关键子步骤的未恢复结果；已�
 明确执行错误始终独立保留，既有嵌套未知分支也保留 pending，不因清理可选而消除。
 通用崩溃不变量仅用于真正发生 anomaly 的节点，不能传播为同一流程其他子步骤的产品判据。
 结果契约 6 使早期因复合包装丢失失败或错用父判据的通过记录不能用于新依赖晋级；
+契约 7 进一步要求 `ensure_state` 实际到达目标，不能沿用仅完成 recipe 的旧通过记录。
 历史报告继续按原始记录展示，不重新计算或改写既有 raw run/verdict。
 
 步骤崩溃/异常中断仅在归因为 product 时引用通用不变量 `K-GEN-001`；工具/环境候选不经产品 Oracle 转为失败。
