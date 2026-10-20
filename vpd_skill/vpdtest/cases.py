@@ -253,6 +253,43 @@ def iter_case_steps(case: dict, app):
             yield from walk(step, None, f"{source}.{step.get('id', f'{prefix}{i + 1}')}")
 
 
+def execution_structure_issues(case: dict, app) -> list:
+    """lint、Runner 与选中的复合步骤共用；只核执行结构，不代替资产审核。"""
+    issues, seen, runtime_ids, child_counts, root_counts = [], {}, {}, {}, {}
+
+    def reserve(step_id, where):
+        if not isinstance(step_id, str) or not step_id:
+            issues.append({"field": where, "problem": "步骤 ID 必须为非空字符串"})
+        elif step_id in seen:
+            issues.append({"field": where, "problem": f"运行步骤 ID {step_id!r} 重复，与 {seen[step_id]} 冲突"})
+        else:
+            seen[step_id] = where
+
+    for step, parent, where in iter_case_steps(case, app):
+        if parent is None:
+            source = where.split(".", 1)[0]
+            root_counts[source] = root_counts.get(source, 0) + 1
+            number = root_counts[source]
+            step_id = (f"SAFE{number}" if source == "safe_stop" else
+                       step.get("id", f"C{number}" if source == "cleanup" else None))
+        else:
+            child_counts[id(parent)] += 1
+            step_id = f"{runtime_ids[id(parent)]}.{child_counts[id(parent)]}"
+        runtime_ids[id(step)], child_counts[id(step)] = step_id, 0
+        reserve(step_id, where)
+        error = swipe_options_error(step)
+        if error:
+            issues.append({"field": where, "problem": error})
+        if step.get("_lint_cycle"):
+            issues.append({"field": where, "problem": "flow/recipe 存在递归引用，不能展开执行"})
+        # ensure_state 自动添加的终态检查也写入同一 step_results 命名空间。
+        if step.get("action") == "ensure_state" and not step.get("_lint_cycle"):
+            recipe = app.states.recipes.get(step.get("state"))
+            if recipe:
+                reserve(f"{step_id}.{len(recipe) + 1}", f"{where}→终态检查")
+    return issues
+
+
 def hypothesis_targets(case: dict, app) -> list:
     """用例（含流程/recipe 展开）会用到的 status=hypothesis 目标：原工程没有、未经真机校准的控件。"""
     used = []
@@ -332,7 +369,7 @@ def lint(case: dict, app, knowledge, policy=None, runs_dir: Optional[Path] = Non
     """runs_dir 用于 check-refs：核对 rationale 里「run/会话 + obs」引用是否真的可解析到留存证据。"""
     from .conditions import definitions, validate_definitions, validate_guard
 
-    issues = []
+    issues = execution_structure_issues(case, app)
     for k in REQUIRED:
         v = case.get(k)
         if v is None or v == [] or v == "" or (k == "test_data" and v == {} and not case.get("test_data_none")):
@@ -352,11 +389,6 @@ def lint(case: dict, app, knowledge, policy=None, runs_dir: Optional[Path] = Non
             issues.append({"field": f"test_data.{k}", "problem": "会话没有保留这次输入的原文（不允许输入/敏感框/疑似密钥）："
                                                                  "非敏感数据请直接填值，账号密码改写为 {\"secret\": NAME}"})
     for s, _, where in iter_case_steps(case, app):
-        error = swipe_options_error(s)
-        if error:
-            issues.append({"field": where, "problem": error})
-        if s.get("_lint_cycle"):
-            issues.append({"field": where, "problem": "flow/recipe 存在递归引用，不能展开执行"})
         if s["action"] in ("tap", "input"):
             t = s.get("target")
             if isinstance(t, dict):
