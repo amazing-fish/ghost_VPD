@@ -43,7 +43,10 @@ skill_policy / model_inference / observation / test_goal（测试目标里的期
 
 修改步骤/断言/前置/清理会改变 `content_hash`，旧重放不再计数。
 外部判据退役或状态无效会改变 `dependency_hash`，旧重放不再支撑晋级；
-有效条目的 unconfirmed → confirmed 及历史追加不改变该指纹。仅修改 `knowledge_used`
+有效条目的 unconfirmed → confirmed 及历史追加不改变该指纹。显式判据的 kind/subject、实际冲突的直接条目（沿用既有范围比较），以及所引用的模板字节均绑定；无关主题、不重叠范围或同预期条目不影响重放。
+动作模板的文件路径与策略类型只支持固定值或普通静态参数；不支持 secret、`test_data.template` 生成值（包括常量模板）或未知引用，无法绑定时在创建设备前明确拒绝。普通动作的动态输入文字不受影响。
+模板绑定覆盖动作、内联目标、条件/断言及中断处置各自引用的模板文件；创建、删除或变更文件后须重新积累重放。资产人审既有的执行引擎及全模板上下文绑定保持原有更宽范围。历史记录不改写。
+仅修改 `knowledge_used`
 中的历史说明不改变既有重放内容/依赖指纹，但会改变资产审核指纹，探索资产须重审。
 
 `case review` 只读，`case approve --reviewer <人> --basis <依据>` 记录资产人审，操作步骤与版本范围见

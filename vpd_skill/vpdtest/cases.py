@@ -61,16 +61,34 @@ def content_hash(case: dict) -> str:
 
 def dependency_hash(case: dict, app, knowledge) -> str:
     """用例引用的外部定义的指纹：content_hash 只覆盖用例文件本身，但目标选择器、展开后的 flow/recipe 步骤、
-    页面状态/打断定义、判据条目的陈述和预期改了，同一份用例就测了另一件事，旧重放不再作数。
+    页面状态/打断定义、判据语义或其直接冲突项、被引用模板字节改了，旧重放不再作数。
     有效判据的确认状态、历史不计入（确认之后不必重新重放）；废弃/无效使旧重放失效。
     result_contract 绑定结果语义，旧引擎的阻塞/产品候选不能充当新契约的确定重放。"""
     from .conditions import definitions
+    from .params import Params
 
-    steps, targets, oracles, used_conditions = [], {}, set(), set()
+    steps, targets, oracles, used_conditions, templates = [], {}, set(), set(), {}
+    # Never load secrets or evaluate run-generated data just to fingerprint files.
+    data = {k: v for k, v in (case.get("test_data") or {}).items()
+            if not (isinstance(v, dict) and ("secret" in v or "template" in v))}
+    params = Params(data, {}, "dependency")
 
-    def want(t):
+    def want(t, local=None, substitute=False):
         if isinstance(t, str) and t in app.targets:
             targets[t] = app.targets[t]
+            t = app.targets[t]
+        if isinstance(t, dict):
+            if substitute:
+                t = params.subst(t, local)  # same single substitution as Executor._target
+            for strategy in t.get("strategies", []):
+                if substitute and "${" in str(strategy.get("kind", "")):
+                    raise ValueError("模板定位策略无法静态绑定：请使用固定策略类型或普通静态参数")
+                if strategy.get("kind") == "template" and isinstance(strategy.get("file"), str):
+                    file = strategy["file"]
+                    if substitute and "${" in file:
+                        raise ValueError("模板路径无法静态绑定：请使用固定文件名或普通静态参数，不支持 secret/template 生成值")
+                    path = (app.dir / file).resolve()
+                    templates[file] = sha256_file(path) if path.is_file() else None
 
     def want_guard(guard):
         if isinstance(guard, dict) and isinstance(guard.get("condition"), str):
@@ -89,9 +107,11 @@ def dependency_hash(case: dict, app, knowledge) -> str:
             for child in value:
                 want_provider_targets(child)
 
-    for s, _, where in iter_case_steps(case, app):
+    for s, parent, where in iter_case_steps(case, app):
         steps.append([where, {k: v for k, v in s.items() if k != "_lint_cycle"}])
-        want(s.get("target"))
+        local = (params.subst(parent.get("params", {})) if parent and parent.get("action") == "flow"
+                 else s.get("_flow_params"))
+        want(s.get("target"), local, substitute=True)
         want_guard(s.get("when"))
         oracles.update(s.get("oracle_refs") or [])
     for a in case.get("assertions", []):
@@ -99,11 +119,13 @@ def dependency_hash(case: dict, app, knowledge) -> str:
         want_guard(a.get("guard"))
         oracles.update(a.get("oracle_refs") or [])
     facts = {}
-    for kid in sorted(oracles):
-        item = knowledge.get(kid) or {}
-        facts[kid] = {k: item.get(k) for k in ("statement", "expected", "applies_to", "condition_requirements")}
+    for kid, item in sorted(knowledge.dependency_items(oracles).items()):
+        keys = ("expected", "applies_to", "condition_requirements")
+        if kid in oracles:
+            keys += ("statement", "kind", "subject")
+        facts[kid] = {k: item.get(k) for k in keys}
         requirements = item.get("condition_requirements")
-        if isinstance(requirements, dict):
+        if kid in oracles and isinstance(requirements, dict):
             used_conditions.update(requirements)
         if item_status(item) not in ACTIVE:
             facts[kid]["inactive"] = True
@@ -111,9 +133,12 @@ def dependency_hash(case: dict, app, knowledge) -> str:
     conditions = {name: providers.get(name) for name in sorted(used_conditions)} if isinstance(providers, dict) else providers
     for provider in conditions.values() if isinstance(conditions, dict) else []:
         want_provider_targets(provider)
+    for interrupt in app.states.interrupts.values():
+        want(interrupt.get("dismiss_target"))
+        want(interrupt.get("dismiss_target"), substitute=True)  # recovery uses _attempt → _target
     return sha256_obj({"steps": steps, "targets": targets, "states": app.states.states,
                        "interrupts": app.states.interrupts, "oracles": facts, "conditions": conditions,
-                       "result_contract": 7})[:12]
+                       **({"templates": templates} if templates else {}), "result_contract": 7})[:12]
 
 
 # 审核覆盖审阅语义；成熟度/运行记录不使正常晋级或新重放自失效。

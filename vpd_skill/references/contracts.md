@@ -344,7 +344,7 @@ N/A、未知、error、未触发操作与未执行均不计分支覆盖。逐断
 
 - 用例 `asset_review`：schema=1、非空 reviewer/basis、带时区 ISO ts、binding。
 - binding：case_id、原 content_hash/dependency_hash、review_hash、policy_hash、engine_hash、context_hash。
-  review_hash 排除 status/history/replays/product_status/asset_review，其他字段均绑定；原重放指纹算法保持。
+  review_hash 排除 status/history/replays/product_status/asset_review，其他字段均绑定；重放资格仍按当前内容/依赖指纹核对。
 - `run.json.asset_review`：required、valid、state（approved/stale/pending/not_required）、origin_signals、
   current、record、use（single/batch）。这是执行前快照，历史运行不按未来配置重算；CLI 与报告展示审核状态。
 - `require_review`：探索来源未有效审核、或批量用例状态不在合法生命周期中时，以 PermissionError 拒绝。
