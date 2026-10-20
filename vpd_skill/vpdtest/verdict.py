@@ -87,6 +87,75 @@ def _execution_findings(results: list, kind: str, ancestors: tuple = (), cleanup
     return findings
 
 
+def step_oracle_refs(step: dict, inherited=()) -> list:
+    """An explicit child rule owns its result; otherwise retain caller context."""
+    if step.get("final_status") == "anomaly":
+        return [GENERIC_CRASH]
+    return list(step.get("oracle_refs") or inherited)
+
+
+def _result_nodes(results, ancestors=(), inherited=(), oracle_source=None, required=None):
+    """Project real results, omitting only explicitly identified propagation copies."""
+    for step in results:
+        declared = step.get("oracle_refs") or inherited
+        source = step["step_id"] if step.get("oracle_refs") else oracle_source
+        item_required = step.get("required", True) if not ancestors else required
+        children = list(_result_nodes(step.get("sub_steps") or [], ancestors + (step["step_id"],),
+                                      declared, source, item_required))
+        yield from children
+        origin = step.get("failure_source")
+        copied = origin and any(child["step_id"] == origin and all(
+            child.get(key) == step.get(key) for key in ("outcome", "final_status", "final_obs"))
+            for child, *_ in children)
+        if not copied:
+            refs = step_oracle_refs(step, inherited)
+            yield step, ancestors, refs, step["step_id"] if step.get("final_status") == "anomaly" else source, item_required
+
+
+def _step_findings(steps, knowledge):
+    findings = []
+    for step, ancestors, refs, source, _ in _result_nodes(steps):
+        outcome = step["outcome"]
+        base = {"kind": "step", "step": step["step_id"],
+                "evidence": {"step": step["step_id"], "obs_after": step.get("final_obs"),
+                             "oracle_source": source}}
+        if ancestors:
+            base.update(parent_step=ancestors[-1], ancestors=list(ancestors))
+            base["evidence"].update(parent_step=ancestors[-1], ancestors=list(ancestors))
+        if outcome == "not_run" and step.get("final_status") == "required_step_skipped":
+            base["evidence"]["blocked_by"] = step.get("blocked_by")
+            finding = {"result": "pending", "attribution": "requirement_unclear", "reason": step.get("reason")}
+        elif outcome in (*PASSED, "not_run", "skipped", "error"):
+            continue  # Errors have their own recursive projection and priority.
+        elif outcome == "pending":
+            base["evidence"]["condition"] = step.get("condition")
+            finding = {"result": "pending", "attribution": "requirement_unclear", "reason": step.get("reason")}
+        elif outcome == "fail_candidate" and step.get("attribution", "product") == "product":
+            oracle = knowledge.oracle_status(refs)
+            selected = step.get("oracle_guard") or {}
+            if oracle_guards(refs, knowledge) and selected.get("status") != "true":
+                base["evidence"]["guard"] = selected
+                if selected.get("status") == "error":
+                    error = next(x for x in selected.get("records", []) if x["status"] == "error")
+                    base["evidence"]["condition_error"] = error.get("evidence")
+                    finding = {"result": "error", **{k: error.get(k) for k in
+                               ("attribution", "stage", "error_class", "error")}, "reason": selected.get("reason")}
+                else:
+                    finding = {"result": "pending", "attribution": "requirement_unclear",
+                               "reason": selected.get("reason") or "产品步骤判据的场景前置缺少当前独立证据"}
+            elif oracle["status"] == "confirmed":
+                finding = {"result": "failed", "attribution": "product", "reason": step["reason"],
+                           "oracle": oracle, "mode": step.get("final_status")}
+            else:
+                finding = {"result": "pending", "attribution": "requirement_unclear", "oracle": oracle,
+                           "reason": f"{step['reason']}；{oracle['reason']}"}
+        else:
+            finding = {"result": "blocked", "attribution": step.get("attribution", "tool"),
+                       "reason": step.get("reason"), "mode": step.get("final_status")}
+        findings.append({**base, **finding})
+    return findings
+
+
 def _stale(obs) -> bool:
     return not obs or obs.get("fresh") is False or (obs.get("tree") or {}).get("status") == "stale"
 
@@ -401,58 +470,7 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
                                                   "detail": env_check["unmet"]}], [], steps, assertions=assertions)
     findings.extend(_execution_findings(steps, "step"))
     findings.extend(_execution_findings(cleanup or [], "cleanup"))
-    for s in steps:
-        if s["outcome"] == "not_run" and s.get("final_status") == "required_step_skipped":
-            findings.append({"kind": "step", "step": s["step_id"], "result": "pending",
-                             "attribution": "requirement_unclear", "reason": s.get("reason"),
-                             "evidence": {"blocked_by": s.get("blocked_by")}})
-            continue
-        if s["outcome"] in PASSED or s["outcome"] in ("not_run", "skipped"):
-            continue
-        if s["outcome"] == "pending":
-            findings.append({"kind": "step", "step": s["step_id"], "result": "pending",
-                             "attribution": "requirement_unclear", "reason": s.get("reason"),
-                             "evidence": s.get("condition")})
-            continue
-        if s["outcome"] == "error":
-            continue  # 已按真实失败子步骤投影，避免父子重复计数。
-        elif s["outcome"] == "fail_candidate" and s.get("attribution", "product") == "product":
-            # 崩溃/异常中断由通用不变量判定，不依赖该步骤业务判据是否已确认
-            refs = [GENERIC_CRASH] if s.get("final_status") == "anomaly" else list(s.get("oracle_refs", []))
-            oracle = knowledge.oracle_status(refs)
-            selected = s.get("oracle_guard") or {}
-            if oracle_guards(refs, knowledge) and selected.get("status") != "true":
-                if selected.get("status") == "error":
-                    error = next(x for x in selected.get("records", []) if x["status"] == "error")
-                    findings.append({"kind": "step", "step": s["step_id"], "result": "error",
-                                     **{k: error.get(k) for k in ("attribution", "stage", "error_class", "error", "evidence")},
-                                     "reason": selected.get("reason")})
-                else:
-                    findings.append({"kind": "step", "step": s["step_id"], "result": "pending",
-                                     "attribution": "requirement_unclear", "evidence": selected,
-                                     "reason": selected.get("reason") or "产品步骤判据的场景前置缺少当前独立证据"})
-                continue
-            if oracle["status"] == "confirmed":
-                findings.append({"kind": "step", "step": s["step_id"], "result": "failed", "attribution": "product",
-                                 "reason": s["reason"], "oracle": oracle, "mode": s.get("final_status")})
-            else:
-                findings.append({"kind": "step", "step": s["step_id"], "result": "pending",
-                                 "attribution": "requirement_unclear", "reason": f"{s['reason']}；{oracle['reason']}",
-                                 "oracle": oracle})
-        else:
-            findings.append({"kind": "step", "step": s["step_id"], "result": "blocked",
-                             "attribution": s.get("attribution", "tool"), "reason": s.get("reason"),
-                             "mode": s.get("final_status")})
-    # 非关键嵌套条件未知也必须保留，父流程成功不掩盖未执行的分支。
-    def condition_gaps(items):
-        for item in items:
-            for sub in item.get("sub_steps") or []:
-                if sub.get("outcome") == "pending":
-                    yield {"kind": "step", "step": sub["step_id"], "result": "pending",
-                           "attribution": "requirement_unclear", "reason": sub.get("reason"),
-                           "evidence": sub.get("condition")}
-                yield from condition_gaps([sub])
-    findings.extend(condition_gaps(steps + (cleanup or [])))
+    findings.extend(_step_findings(steps, knowledge))
     for a in assertions:
         if a["result"] == "not_applicable" and not a["advisory"]:
             findings.append({"kind": "assertion", "id": a["id"], "result": "not_applicable", "attribution": None,
@@ -482,19 +500,23 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
             # 关联步骤因前面失败/阻塞而未执行：结论已由那一步决定，这里如实列出"尚未验证"的检查
             findings.append({"kind": "assertion", "id": a["id"], "result": "not_verified", "attribution": None,
                              "reason": a.get("reason")})
-    for c in cleanup or []:
+    for c, ancestors, _, _, required in _result_nodes(cleanup or []):
         if c["outcome"] == "error":
-            continue  # 包含可选清理，已递归保留执行错误。
+            continue  # Includes optional cleanup; errors remain independent.
+        finding = {"kind": "cleanup", "step": c["step_id"], "cleanup_required": required,
+                   "evidence": {"step": c["step_id"], "obs_after": c.get("final_obs")}}
+        if ancestors:
+            finding.update(parent_step=ancestors[-1], ancestors=list(ancestors))
+            finding["evidence"].update(parent_step=ancestors[-1], ancestors=list(ancestors))
+        if c["outcome"] == "pending" and ancestors:
+            # Preserve existing unknown-branch evidence even in optional cleanup.
+            findings.append({**finding, "kind": "step", "result": "pending", "attribution": "requirement_unclear",
+                             "reason": c.get("reason"), "evidence": {**finding["evidence"], "condition": c.get("condition")}})
         if c["outcome"] == "not_run" and c.get("final_status") == "safety_hold":
-            findings.append({"kind": "cleanup", "step": c["step_id"], "result": "not_verified",
-                             "attribution": None, "reason": c.get("reason")})
-            continue
-        if c["outcome"] not in PASSED and c.get("required", True):
-            # 清理没完成：账号/车辆数据可能没恢复，整体不能判通过
-            findings.append({"kind": "cleanup", "step": c["step_id"],
-                             "result": "blocked",
-                             "attribution": c.get("attribution") or "tool",
-                             "reason": f"{'必需' if c.get('required', True) else '可选'}清理未完成（{c.get('reason') or c['outcome']}），测试数据可能未恢复，需人工核对"})
+            findings.append({**finding, "result": "not_verified", "attribution": None, "reason": c.get("reason")})
+        elif c["outcome"] not in PASSED and required:
+            findings.append({**finding, "result": "blocked", "attribution": c.get("attribution") or "tool",
+                             "reason": f"必需清理未完成（{c.get('reason') or c['outcome']}），测试数据可能未恢复，需人工核对"})
     results = {f["result"] for f in findings}
     decided = [a for a in assertions if not a["advisory"] and a["result"] in ("pass", "fail")]
     required = [a for a in assertions if not a["advisory"]]
