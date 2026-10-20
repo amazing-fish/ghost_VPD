@@ -2,7 +2,7 @@
 .SYNOPSIS
   Install vpd_skill on a Windows workstation (Windows PowerShell 5.1 or PowerShell 7+).
 .PARAMETER Python
-  Python 3.9+ executable used to create .venv (default: python on PATH).
+  Python 3.12+ executable used to create .venv (default: python on PATH).
 .PARAMETER LinkSkill
   Create a directory junction so the host agent can load SKILL.md.
 .PARAMETER SkillDir
@@ -23,16 +23,28 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 
+function Get-SupportedPythonVersion([string]$Executable) {
+    $ver = & $Executable -c "import sys; print('%d.%d' % sys.version_info[:2])"
+    if ($LASTEXITCODE -ne 0) { throw "Python version check failed: $Executable" }
+    if ($ver -notmatch '^([0-9]+)\.([0-9]+)$') { throw "Invalid Python version from ${Executable}: $ver" }
+    if ([int]$Matches[1] -lt 3 -or ([int]$Matches[1] -eq 3 -and [int]$Matches[2] -lt 12)) {
+        throw "Python 3.12+ required by pinned requirements; got $ver from $Executable. Select a supported Python with -Python. If this is .venv, preserve it elsewhere and rerun install.ps1 to recreate it."
+    }
+    return $ver
+}
+
 Write-Host '[1/5] Checking Python...'
-$ver = & $Python -c "import sys; print('%d.%d' % sys.version_info[:2])"
-if ($LASTEXITCODE -ne 0) { throw "Python not found: $Python" }
-$parts = $ver.Split('.')
-if ([int]$parts[0] -lt 3 -or ([int]$parts[0] -eq 3 -and [int]$parts[1] -lt 9)) { throw "Python 3.9+ required, got $ver" }
+$ver = Get-SupportedPythonVersion $Python
 Write-Host "      Python $ver"
 
 Write-Host '[2/5] Creating .venv and installing pinned requirements...'
 $venvPy = Join-Path $root '.venv\Scripts\python.exe'
-if (-not (Test-Path $venvPy)) { & $Python -m venv (Join-Path $root '.venv') }
+if (-not (Test-Path $venvPy)) {
+    & $Python -m venv (Join-Path $root '.venv')
+    if ($LASTEXITCODE -ne 0) { throw 'Creating .venv failed' }
+}
+$venvVer = Get-SupportedPythonVersion $venvPy
+Write-Host "      .venv Python $venvVer"
 $pipArgs = @('-m', 'pip', 'install', '--disable-pip-version-check', '-r', (Join-Path $root 'requirements.txt'))
 if ($IndexUrl) { $pipArgs += @('-i', $IndexUrl) }
 & $venvPy @pipArgs

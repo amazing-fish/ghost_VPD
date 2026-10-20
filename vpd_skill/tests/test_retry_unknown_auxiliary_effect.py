@@ -96,4 +96,4 @@ def test_retained_first_error_keeps_latest_unknown_effect_handoff(
     assert run["verdict"]["execution"]["status"] == "error"
     assert run["verdict"]["execution"]["errors"][0]["stage"] == "prepare_interrupt"
     assert "first original receipt" in str(run["verdict"]["execution"]["errors"])
-    assert "second unknown receipt" in (Path(run["dir"]) / "events.jsonl").read_text()
+    assert "second unknown receipt" in (Path(run["dir"]) / "events.jsonl").read_text(encoding="utf-8")
