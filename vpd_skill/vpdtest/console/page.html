@@ -228,6 +228,14 @@ input[type=text] { flex: 1; min-width: 120px; }
   }
   // ---- 运行进度 ----
   const hhmmss = (sec) => new Date(sec * 1000).toLocaleTimeString("zh-CN", { hour12: false });
+  function runContext(r) {
+    const level = { offline_replay: "离线回放（不代表真机）", real_device: "真机运行" }[r.validation_level]
+      || "验证级别未记录";
+    const use = r.informal === true ? "非正式运行" : (r.informal === false ? "回归资产运行" : "运行性质未记录");
+    const review = { approved: "审核有效", stale: "审核已失效", pending: "尚未审核", not_required: "本次未要求资产审核" }
+      [(r.asset_review || {}).state] || "审核状态未记录";
+    return `${level} · ${use} · ${review}（运行时记录）`;
+  }
   function runItem(r) {
     const title = r.title || r.run_id;
     const chips = [el("span", { class: "chip s-" + r.state }, STATE[r.state] || r.state)];
@@ -241,6 +249,7 @@ input[type=text] { flex: 1; min-width: 120px; }
                              "data-id": r.run_id },
       el("span", { class: "top" }, el("span", { class: "t" }, title), ...chips),
       el("span", { class: "m" }, meta));
+    if (r.kind === "run" && r.finished) b.append(el("span", { class: "m" }, runContext(r)));
     if (r.total) {
       const pr = el("progress", { max: String(r.total), value: String(r.done || 0),
                                   "aria-label": `${title} 进度 ${r.done || 0}/${r.total}` });
@@ -290,8 +299,10 @@ input[type=text] { flex: 1; min-width: 120px; }
       const box = $("detail"), kids = [el("h2", {}, (d.title || d.run_id) + (d.case_title ? " · " + d.case_title : ""))];
       if (d.verdict_detail) kids.push(el("p", {}, `结论：${d.verdict_detail.label || d.verdict_detail.verdict}` +
         (d.verdict_detail.attribution_label ? `（归因：${d.verdict_detail.attribution_label}）` : "")));
-      if (d.coverage) kids.push(el("p", {}, `断言覆盖：已验证 ${(d.coverage.verified || []).length}；` +
+      if (d.kind === "run" && d.finished) kids.push(el("p", {}, runContext(d)));
+      if (d.coverage) kids.push(el("p", {}, `本次运行断言：已验证 ${(d.coverage.verified || []).length}；` +
         `不涉及 ${(d.coverage.not_applicable || []).length}；未验证覆盖 ${(d.coverage.unverified || []).length}`));
+      if (d.coverage) kids.push(el("p", { class: "muted" }, "以上是本次运行的断言结果，不代表正式用例覆盖。"));
       const operationRows = [...flatSteps(d.steps), ...flatSteps(d.cleanup)].map((s) =>
         ({ ...s, condition_text: conditionText(s.condition) }));
       if (operationRows.length) kids.push(table([["step_id", "步骤"], ["action", "动作"], ["outcome", "结果"],

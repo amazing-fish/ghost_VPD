@@ -127,8 +127,10 @@ def summarize(run_dir: Path, now: Optional[float] = None, stale_s: float = 120.0
     run_json = run_dir / "run.json"
     if kind == "run" and out.get("finished") and run_json.exists():
         try:
-            v = json.loads(run_json.read_text(encoding="utf-8")).get("verdict") or {}
+            run = json.loads(run_json.read_text(encoding="utf-8"))
+            v = run.get("verdict") or {}
             out.update(verdict=v.get("verdict"), verdict_label=v.get("label"), attribution=v.get("attribution"))
+            out.update({key: run[key] for key in ("validation_level", "informal", "asset_review") if key in run})
         except (ValueError, OSError):
             pass
     now = now or time.time()
