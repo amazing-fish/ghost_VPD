@@ -73,11 +73,9 @@
 ```powershell
 .\vpdtest.ps1 case from-exploration --run explore-XXXX --transitions T3 T5 --new-id TC-EXP-001
 .\vpdtest.ps1 case lint TC-EXP-001                         # 列出缺失的目的/判据/清理等
-# 编辑 data/cases/TC-EXP-001.json 补齐，并由人审查后：
-.\vpdtest.ps1 case review TC-EXP-001
-.\vpdtest.ps1 case approve TC-EXP-001 --reviewer "<实际审核人>" --basis "<已核对的目标、来源、步骤、判据和清理依据>"
+# 编辑 data/cases/TC-EXP-001.json 补齐，并按下方“探索资产人工审核”取得有效审核后：
 .\vpdtest.ps1 case promote TC-EXP-001 --to candidate
-.\vpdtest.ps1 run TC-EXP-001 --device $D --record-replay   # 新运行中重放；至少两次通过
+.\vpdtest.ps1 run TC-EXP-001 --device $D --record-replay   # 不同新运行中取得至少两次确定、一致的结果
 .\vpdtest.ps1 case promote TC-EXP-001 --to replay_verified
 .\vpdtest.ps1 case promote TC-EXP-001 --to regression --reviewer <评审人>
 ```
@@ -104,8 +102,8 @@
 | 单条 `run` / `--record-replay` | 可保留非正式诊断；未有效审核的探索资产即使写成 regression 也仍标 informal |
 | 人工文字/repo_code/reviewer 来源 draft | 保留现有路径；发现探索 origin/sources/步骤/历史则仍要求审核 |
 
-审核记录在 `asset_review`，另追加 history：schema、reviewer、带时区时间 ts、非空 basis，以及 case ID、
-内容/依赖/审阅语义/policy/执行引擎/上下文指纹。修改目的、来源、knowledge_used、步骤、断言、
+审核记录在 `asset_review`，另追加 history；字段与绑定定义见[审核契约](contracts.md#4-探索资产审核与运行准入30)。
+修改目的、来源、knowledge_used、步骤、断言、
 目标定义、判据陈述或执行配置后，旧审核失效，须重新审查。正常晋级、追加重放与历史，以及有效知识
 unconfirmed → confirmed 不使审核失效；产品知识退役仍使依赖失效。
 
@@ -116,6 +114,24 @@ unconfirmed → confirmed 不使审核失效；产品知识退役仍使依赖失
 
 这是本地审计记录，reviewer 是声明身份，不能认证操作者或防止恶意改写文件。审核不提升成熟度、
 不 confirm Oracle、不替代本次 `--authorize/--supervisor`，也不构成真机或产品通过证据。
+
+### 晋级条件
+
+每一级均须 `case lint` 无问题；有探索/会话来源时，还须上述当前有效的人工审核。
+候选用例须补齐目的、前置、测试数据（或 `test_data_none: true`）、步骤（目标已登记、终点为已声明状态）、
+至少一条非建议断言且每条有独立 `oracle_refs`、清理和来源；
+假设目标未校准、流程已被证伪或判据来自本次探索观察时，不能靠人审绕过 lint。
+
+| 晋级 | 额外条件 |
+| --- | --- |
+| exploration_record / draft → candidate | 补齐上述内容 |
+| candidate → replay_verified | 当前内容与依赖下，至少两次不同运行给出确定、一致的重放结果；稳定失败须 `--known-issue` |
+| replay_verified → regression | 重新核对当前重放资格；终态评审人、全部必需判据 confirmed 且适用，至少一次计入的真机重放；仅离线时须显式 `--allow-offline` 并说明依据 |
+
+整例重放结论为不涉及、待确认、阻塞，或包含执行异常时，不计为确定重放，其后须重新积累至少两次；
+失败保持原预期并登记缺陷。在可计入的整例重放中，单条断言明确不涉及不增加覆盖，也不清空它已积累的有效证据。
+含条件的资产还须满足[逐断言分支覆盖](contracts.md#断言前置与操作选支56-第二切片)，未触发分支不能凭其他断言通过来补足。
+内容或依赖变动后的旧记录不再支撑晋级，具体指纹边界见[知识与重放依赖](knowledge-rsi.md#探索路径--候选用例)。
 
 ## 把已有文字用例接进来
 
