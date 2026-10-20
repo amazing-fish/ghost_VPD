@@ -49,8 +49,19 @@ def test_required_child_skip_halts_before_later_physical_child(condition_rig, ki
     parent = run["steps"][1]
     sent = [e for e in _events(run, "tap") if e.get("sent") is not False]
     if critical is False:
-        assert len(sent) == 1 and len(parent["sub_steps"]) == 2
-        assert parent["outcome"] == "passed"
+        assert len(sent) == 1 and len(parent["sub_steps"]) == (3 if kind == "ensure" else 2)
+        assert parent["sub_steps"][0]["outcome"] == "skipped"
+        if kind == "ensure":
+            terminal = parent["sub_steps"][-1]
+            if parent_guard:
+                # The source-page condition is unknown after leaving the dashboard.
+                assert terminal["outcome"] == "pending" and not terminal["attempts"]
+                assert terminal["condition"]["status"] == "unknown"
+                assert run["verdict"]["verdict"] == "pending"
+            else:
+                assert terminal["attempts"][-1]["post"]["met"] is True
+                assert terminal["attempts"][-1]["post"]["expected"] == "details"
+        assert parent["outcome"] == ("pending" if kind == "ensure" and parent_guard else "passed")
     else:
         assert not sent, (parent, sent)
         assert parent["outcome"] == "pending" and len(parent["sub_steps"]) == 1
