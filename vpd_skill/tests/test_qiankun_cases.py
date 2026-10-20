@@ -82,7 +82,7 @@ def test_101_keeps_raw_observation_and_secret_parameter_references(ws, secrets):
     raw = [o for o in observed if PHONE in str(o.get("texts"))]
     assert raw and all(o["screenshot"]["status"] == "ok" for o in raw)
     assert not any("redacted" in o for o in observed)
-    assert PHONE in "".join(p.read_text() for p in d.glob("obs/*/tree.json"))
+    assert PHONE in "".join(p.read_text(encoding="utf-8") for p in d.glob("obs/*/tree.json"))
     inputs = [x["input"] for s in run["steps"] for x in s["attempts"] if x.get("input")]
     assert {i["secret"] for i in inputs} == {True} and all("ref" in i and "length" in i for i in inputs)
     assert "clipboard_may_hold_secret" not in run

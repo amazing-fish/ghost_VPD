@@ -120,7 +120,7 @@ def test_device_error_keeps_original_value_in_events_run_and_report(ws, monkeypa
     monkeypatch.setattr(ReplayDevice, "input_text", lambda *a: DeviceResult("input_text", True, False, "command_failed", error))
     run = run_case(ws, "TC-QK-101", device_spec=world("qiankun_hm_base.json"), propose=False, authorize=AUTH_101)
     d = ws.runs_dir / run["run_id"]
-    assert error in (d / "events.jsonl").read_text()
-    assert error in (d / "run.json").read_text()
-    assert error in (d / "report.md").read_text()
+    assert error in (d / "events.jsonl").read_text(encoding="utf-8")
+    assert error in (d / "run.json").read_text(encoding="utf-8")
+    assert error in (d / "report.md").read_text(encoding="utf-8")
     assert "clipboard_may_hold_secret" not in run and "system_overlays" not in run
