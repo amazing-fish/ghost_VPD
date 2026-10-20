@@ -2,7 +2,7 @@
 
 审计基线：[`main@3273f27`](https://github.com/amazing-fish/ghost_VPD/commit/3273f27ee5bc7d129ceff8357b15c720a42648e2)，#66/#67 已合入。证据为实际代码阅读与隔离工作区的合成 Replay；没有操作真机、确认生产知识或批准资产。
 
-后续对账：#68 复合判定、#69 ensure_state 终态保证、#70 共用执行结构校验已合入 `main@8c14e29`。本候选只补齐 Python 3.12 安装基线及 Linux/Windows 离线 CI；运行结果以对应提交的实际检查为准。依赖指纹、Console 等债务仍保留。完整语义统一见[执行契约](../vpd_skill/references/contracts.md)。下文保留原审计时点的证据与工作包范围。
+后续对账：#68/#69/#70/#71 已合入 `main@53579d6`：复合判定、ensure_state 终态、共用结构检查及两平台安装/离线 CI 已补齐。本候选只补直接冲突判据和引用模板字节的依赖绑定；Console 与说明收拢另包处理。完整语义见[执行契约](../vpd_skill/references/contracts.md)。下文保留原审计时点的证据与工作包范围。
 
 ## 整体判断
 

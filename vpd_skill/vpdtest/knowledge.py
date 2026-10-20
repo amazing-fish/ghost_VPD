@@ -113,6 +113,10 @@ def _scope_within(a: dict, b: dict) -> bool:
     return True
 
 
+def _conflicting_expectations(a: dict, b: dict) -> bool:
+    return repr(a.get("expected")) != repr(b.get("expected")) and _scopes_overlap(a, b)
+
+
 class KnowledgeStore:
     def __init__(self, root: Path, facts: Optional[dict] = None):
         self.path = root / "knowledge" / "items.json"
@@ -131,6 +135,21 @@ class KnowledgeStore:
     def get(self, kid: str) -> Optional[dict]:
         return next((i for i in self.items() if i["id"] == kid), None)
 
+    def dependency_items(self, refs: list) -> dict:
+        """Referenced rules and direct peers that can make those rules conflicted.
+
+        Use definition scopes, not one run's facts: a replay fingerprint must be
+        stable before and after binding the current device facts.
+        """
+        items = {item["id"]: item for item in self.items()}
+        selected = {kid: items.get(kid, {}) for kid in refs}
+        active = [item for item in selected.values() if item_status(item) in ACTIVE and item.get("subject")]
+        for kid, item in items.items():
+            if item_status(item) in ACTIVE and any(
+                    item.get("subject") == ref["subject"] and _conflicting_expectations(item, ref) for ref in active):
+                selected[kid] = item
+        return selected
+
     def conflicts(self, facts: Optional[dict] = None) -> dict:
         """同一主题、期望不同、且适用范围有交集的条目才算冲突：按版本/形态分别规定的期望不是冲突。
         给出 facts 时只比较不排除本次运行的条目（out_of_scope 的那条对本次运行不存在）。"""
@@ -141,8 +160,8 @@ class KnowledgeStore:
                 groups.setdefault(it["subject"], []).append(it)
         out = {}
         for s, g in groups.items():
-            ids = {x["id"] for a in g for b in g if a["id"] < b["id"] and repr(a.get("expected")) != repr(b.get("expected"))
-                   and _scopes_overlap(a, b) for x in (a, b)}
+            ids = {x["id"] for a in g for b in g if a["id"] < b["id"] and _conflicting_expectations(a, b)
+                   for x in (a, b)}
             if ids:
                 out[s] = [i["id"] for i in g if i["id"] in ids]
         return out
