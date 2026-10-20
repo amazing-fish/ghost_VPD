@@ -31,15 +31,9 @@ skill_policy / model_inference / observation / test_goal（测试目标里的期
 
 ## 探索路径 → 候选用例
 
-`case from-exploration` 只生成**探索记录**（步骤 + 来源证据）。晋级为候选前 `case lint` 必须为空，要求补齐：
-目的、前置条件、测试数据（或 `test_data_none: true`）、步骤（目标已登记、终点为已声明状态）、
-至少一条非建议断言且每条有 `oracle_refs`、清理、来源。判据不能引用"本次探索观察"类知识（不独立）。
-
-| 晋级 | 条件 |
-|---|---|
-| exploration_record / draft → candidate | lint 无问题；有探索/会话来源时另需当前有效 asset_review |
-| candidate → replay_verified | 有探索/会话来源时另需当前有效 asset_review；当前内容与依赖版本下 ≥2 次不同运行的确定、一致重放（`run --record-replay`）；稳定失败须 `--known-issue`，待确认/阻塞不计入 |
-| replay_verified → regression | 有探索/会话来源时另需当前有效 asset_review；终态评审人 + 全部判据 confirmed 且适用 + 至少 1 次计入的真机重放（仅离线时须显式 `--allow-offline`）；known_failure 保持失败，不改预期 |
+`case from-exploration` / `case from-session` 只生成探索资产。人审操作与各级门槛统一见
+[探索资产人工审核](workflows.md#探索资产人工审核30)及[晋级条件](workflows.md#晋级条件)；
+资产审核不确认知识，不授予设备动作。以下只说明重放与审核的依赖边界。
 
 修改步骤/断言/前置/清理会改变 `content_hash`，旧重放不再计数。
 外部判据退役或状态无效会改变 `dependency_hash`，旧重放不再支撑晋级；
@@ -48,11 +42,6 @@ skill_policy / model_inference / observation / test_goal（测试目标里的期
 模板绑定覆盖动作、内联目标、条件/断言及中断处置各自引用的模板文件；创建、删除或变更文件后须重新积累重放。资产人审既有的执行引擎及全模板上下文绑定保持原有更宽范围。历史记录不改写。
 仅修改 `knowledge_used`
 中的历史说明不改变既有重放内容/依赖指纹，但会改变资产审核指纹，探索资产须重审。
-
-`case review` 只读，`case approve --reviewer <人> --basis <依据>` 记录资产人审，操作步骤与版本范围见
-[workflows.md](workflows.md#探索资产人工审核30)。人工确认不会自动晋级、确认知识或授予设备动作；
-原有 regression 终态 reviewer、判据适用性、真机或显式 allow_offline 门槛保持。suite 与经验验证都要求
-探索资产先有效审核；单条 run 可非正式取证，重放记录本身不构成人工确认。
 
 ## 经验候选（RSI v0.1 的范围）
 

@@ -34,8 +34,7 @@
    中断的顺序（`session <name>` 查看）；选择器的多匹配/不可见/部分可见/执行前失效都会给出诊断而不是盲点。
 3. **固化**：`case from-session` 从会话提炼候选用例：步骤用选择器（证据里保留解析出的节点、点击点与形态），
    每一步关联到原始事件与观测；排除动作必须写理由。补齐目的、前置、数据、独立判据、清理、`knowledge_used`。
-   晋级或批量使用前，`case review` 展示当前审核状态，由人审查后明确 `case approve --reviewer --basis`；
-   Agent 补字段、lint 通过、录入重放或手改 draft 均不代替人审。单条诊断仍可非正式取证。
+   晋级或批量使用前须[人工审核](workflows.md#探索资产人工审核30)，Agent 不得自行批准；单条诊断可先非正式取证。
 4. **新运行中验证**：`run` 候选用例得到判定（产品结论与工具/环境/知识限制分开）；`--record-replay` 记入重放。
    稳定复现产品失败的用例用 `--known-issue` 固化，不改预期。
 5. **沉淀可继承的知识**：真机上确认过的选择器可登记到 targets.json（附 run/obs）；某次看到的现象用
@@ -44,8 +43,8 @@
    需要证明执行器/判定逻辑时再搭合成回放世界（文案标「占位」）。这两步**都不证明产品行为**。
    `explore` 只在已声明状态上枚举可点元素，适合回归覆盖检查，不是目标驱动的探索。
 7. **准入与维护**：知识 `knowledge confirm`；经验走 candidate → validate → adopt，可 `rollback`；
-   用例走 exploration_record → candidate → replay_verified → regression，探索来源每级及批量入口均要求有效 asset_review。
-   审核不替代 Oracle confirm、成熟度或运行授权；修改绑定内容/依赖须重审。假设目标未校准前 `case lint` 阻止晋级；
+   用例按[晋级条件](workflows.md#晋级条件)逐级验证，不能用资产审核代替产品判据确认或动作授权。
+   假设目标未校准前 `case lint` 阻止晋级；
    已被真机证伪的流程（如 `login_password`，C8）标 `falsified_on_device`，lint 会指出引用它的用例。
 
 ## 3. 与自进化 Skill 实践的对应
