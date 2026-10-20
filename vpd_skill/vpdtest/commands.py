@@ -334,6 +334,12 @@ def diagnose(res: dict) -> Optional[dict]:
     elif st == "target_stale":
         out["revalidate"] = last.get("revalidate")
         out["hint"] = "观察与下发之间页面变了：重新 observe 后再决定"
+    elif st == "target_obscured":
+        tap = ((last.get("dispatch_recheck") or {}).get("checks") or {}).get("tap") or {}
+        out.update(blocker=tap.get("blocker"), expected=tap.get("expected"),
+                   obs_id=(last.get("resolved") or {}).get("obs") or res.get("final_obs")
+                   or last.get("obs_after") or last.get("obs_before"),
+                   hint="当前触摸被覆盖物拦截，未下发：先 observe 核对遮挡节点；仅按已登记流程处理，不穿透覆盖物或盲点")
     elif st == "foreground_changed":
         out["foreground"] = last.get("foreground_check")
         out["hint"] = "当前触摸/输入未下发；可经受控 launch/resume 拉起被测 APP，重新观察后再操作"

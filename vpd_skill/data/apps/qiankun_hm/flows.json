@@ -135,6 +135,14 @@
           "expect_state": "@in_app"
         },
         {
+          "action": "back",
+          "retry": 0,
+          "expect_state": "@in_app",
+          "when": {"condition": "login_system_selection", "equals": true},
+          "critical": false,
+          "desc": "仅关闭当前密码表单内已识别的系统文本选择菜单；未知覆盖物交接，不穿透"
+        },
+        {
           "action": "input",
           "target": "qk_number_input",
           "text": "${var:account}",
@@ -153,6 +161,14 @@
           "retry": 0,
           "skip_if_absent": "^手动输入$",
           "expect_state": "@in_app"
+        },
+        {
+          "action": "back",
+          "retry": 0,
+          "expect_state": "@in_app",
+          "when": {"condition": "login_system_selection", "equals": true},
+          "critical": false,
+          "desc": "仅关闭当前密码表单内已识别的系统文本选择菜单；未知覆盖物交接，不穿透"
         },
         {
           "action": "input",

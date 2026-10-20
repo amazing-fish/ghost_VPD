@@ -79,6 +79,7 @@
 | `flow` | `flows.json` 中存在 | `flow`、`params` | 每个子步骤各自的后置条件 | 子步骤各自 | 子步骤默认 1 | 子步骤的副作用 |
 
 `act swipe` 不是定点拖动：当前明确拒绝 `--point`、`--basis`、`--duration`。
+`act` 的 `target_obscured` 诊断回传最后一次下发复核中的 `blocker`、`expected` 和关联 `obs_id`；无该次证据时字段为空，不从旧尝试补造遮挡结论。诊断仅解释拒发，不改变触摸归属或授权检查。
 CLI 参数错误在会话锁、设备初始化和信息查询前拒绝，不创建会话，也不追加请求/拒绝事件。
 直接 step/flow 中的 `point`、`basis`、`point_window`、`point_basis`、`duration`、`duration_s` 同样在观测、解锁和动作前拒绝为
 `invalid_step`（工具阻塞），lint 也报告定义错误。旧会话曾接受这些参数并不证明手势按提议执行，
