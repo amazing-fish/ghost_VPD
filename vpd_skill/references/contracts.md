@@ -383,7 +383,13 @@ policy、layout 与 dialogs 使用本次运行准入检查时捕获的配置，O
 清理步骤记为 `not_run`，原因为“安全停止未确认，清理暂停，需人工接管”；`cleanup_done` 仍写入。
 判定及报告将这些清理列为尚未验证，而不是清理失败，安全停止 alert 保留人工接管信号。
 
-lint 共用 `iter_case_steps` 遍历主步骤、cleanup、safe_stop 和引用的 flow/recipe 子步骤。
+lint、Runner 与选中的 Executor 步骤共用 `execution_structure_issues`，沿 `iter_case_steps` 展开
+主步骤、cleanup、safe_stop 和引用的 flow/recipe。递归引用、运行 ID 冲突及不支持的 swipe 参数属于定义错误：
+Runner 在创建设备、解锁或关闭系统弹窗前拒绝；直接 Executor 沿用 `invalid_step` 工具阻塞，既有 Safety Hold 优先。
+ID 按实际运行名称核对：flow/recipe 的子步骤为 `父ID.序号`，ensure_state 的自动尾检也占一个 ID；
+cleanup 默认 `C序号`，safe_stop 固定 `SAFE序号`。声明的 flow 子 ID 可局部重复，同一合法 flow 可多次复用。
+已声明的递归 recipe 是无效定义，不能用当前已达目标绕过；缺少 recipe 但当前已达目标仍可直接复用。
+此检查不强制完整资产 lint、人审或成熟度；未选中的参数输入交接仍沿原条件执行契约。
 `tap` 与 `input` 都必须引用已登记目标，内联目标仍须满足现场选择器来源要求；像素坐标、未声明终点及缺失 recipe 的检查适用于全部来源。
 问题字段保留来源路径，如 `cleanup.C2`、`safe_stop.X1`、`steps.F1→flow:...X1`；递归引用会报错，不无限展开。
 
