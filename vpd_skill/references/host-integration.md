@@ -34,6 +34,22 @@
 
 CI 或无人值守执行时不需要 Agent：`.\vpdtest.ps1 suite motor_hm_smoke --device hdc:<serial> --fail-on failed error blocked`。
 
+## 单步会话预算
+
+`act` 的正常执行结果（包括定位、策略和预算拒绝）在顶层返回 `budget: {used, max, remaining}`。
+`used` 是同一 session 已下发或发送事实未知的物理动作累计数，`remaining` 最低为 0；
+默认上限仍为 60，observe、wait 和 monitor 本身不消耗动作额度。输入清空、定位滚动、恢复和自动解锁的实际物理动作继续按原规则计数。
+本次采用 #55 的“维持计费 + 80% 提前告警”，避免新增解锁豁免或逻辑动作计费旁路。
+
+达到 80% 时顶层追加 `budget_warning`；额度耗尽时追加恢复 `hint`。
+若本步因预算拒绝，还会有顶层 `reason`，`result.final_status=budget_exhausted`；
+刚好用完额度的成功动作仍保留原 `result.outcome`，不因为剩余为 0 改成失败。
+宿主读取结构化预算与原执行结果，不靠告警文字判断动作是否下发；参数或工具异常仍沿原退出码 3 契约处理。
+
+耗尽后先核对当前现场、副作用和待处理交接，确认可继续后再显式使用新的 `--session <名称>`；
+上调上限须人工修改 policy。新会话额度不授予动作权限，也不能解除未确认的安全暂停。
+这些字段仅回显现有计数，没有新增预算状态文件、自动重置或跨会话预算池。
+
 ## 自动选支的消费
 
 宿主直接消费 `assertions[].guard`、`verdict.coverage` 和 `execution`，无需逐步向 LLM 请求选支。

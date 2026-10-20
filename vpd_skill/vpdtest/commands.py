@@ -167,6 +167,21 @@ def _last_window(store) -> Optional[list]:
     return None
 
 
+def _budget_status(ctx, result: dict) -> dict:
+    """Project the existing physical-action count; never reset or exempt it."""
+    used, maximum = ctx.actions, ctx.policy.max_actions_per_run
+    out = {"budget": {"used": used, "max": maximum, "remaining": max(0, maximum - used)}}
+    if used >= maximum:
+        out["budget_warning"] = f"会话动作预算已用尽（{used}/{maximum}）；本步执行结果见 result"
+        out["hint"] = ("先核对当前现场、未完成副作用及人工交接；确认可继续后使用新的 --session <名称> 获得新会话预算。"
+                       "上调上限须人工修改 policy；新预算不授予动作权限，也不能解除安全暂停。")
+        if result.get("final_status") == "budget_exhausted":
+            out["reason"] = "会话动作预算已用尽，后续物理动作已停止；此前已执行部分见 result 与原始事件"
+    elif used * 5 >= maximum * 4:
+        out["budget_warning"] = f"会话动作预算已使用至少 80%（{used}/{maximum}），剩余 {maximum - used} 个物理动作"
+    return out
+
+
 def cmd_act(ws: Workspace, a) -> dict:
     error = swipe_options_error(vars(a))
     if error:
@@ -213,6 +228,7 @@ def _cmd_act(ws: Workspace, a) -> dict:
     # cli 只看顶层 action_required 决定退出码 2：诊断里要求人工接管的，提到顶层
     return {"session": store.run_id, "seq": seq, "step_id": step_id, "result": _scrub_input(res),
             "input_value_recorded": keep if step.get("action") == "input" else None, "diagnosis": diag,
+            **_budget_status(ctx, res),
             **({"action_required": (diag or {}).get("action_required") or res["action_required"]}
                if res.get("action_required") or (diag or {}).get("action_required") else {})}
 
