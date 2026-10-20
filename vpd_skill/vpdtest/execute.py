@@ -934,6 +934,7 @@ class Executor:
                         "reason": (f"流程 {step['flow']} 第 {i + 1} 步（{sub.get('desc', sub['action'])}）未通过：{s.get('reason')}" if flow
                                    else f"前置状态 {step['state']} 未到达：{s.get('reason')}"),
                         "sub_steps": subs, "attempts": [a for x in subs for a in x["attempts"]],
+                        "failure_source": s.get("failure_source") or s["step_id"],
                         "first_failure": s.get("first_failure"), "final_obs": s.get("final_obs"),
                         "final_status": s.get("final_status"), **({"measurement": s.get("measurement")} if flow else {})}
         order = ["passed", "passed_after_adaptation", "passed_after_recovery"]
@@ -1296,7 +1297,7 @@ class Executor:
     # ---- 到达已知状态 ----
     def _ensure_state(self, step: dict, case_id: str) -> dict:
         ctx, target = self.ctx, step["state"]
-        base = {"step_id": step["id"], "action": "ensure_state", "critical": True, "oracle_refs": [],
+        base = {"step_id": step["id"], "action": "ensure_state", "critical": True, "oracle_refs": step.get("oracle_refs", []),
                 "recoveries": [], "adapted": False}
         obs, tree = ctx.observe(f"{step['id']}:check")
         def rejected(condition, dismissed=()):

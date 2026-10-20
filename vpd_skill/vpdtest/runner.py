@@ -30,6 +30,7 @@ from .verdict import (
     evaluate_assertion,
     oracle_guards,
     select_applicability,
+    step_oracle_refs,
 )
 from .workspace import RunContext, Workspace
 
@@ -207,13 +208,14 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
         return obs, (UiTree(read_json(tp)) if usable and tp.exists() else None)
 
     by_id = {s["step_id"]: s for s in steps}
-    def bind_step_scenes(items):
+    def bind_step_scenes(items, inherited=()):
         for result in items:
-            guards = oracle_guards(result.get("oracle_refs", []), knowledge)
+            refs = step_oracle_refs(result, inherited)
+            guards = oracle_guards(refs, knowledge)
             if guards and result.get("final_obs"):
                 observed, tree = load(result["final_obs"])
                 result["oracle_guard"] = select_applicability(guards, condition_defs, by_id, load, app, observed, tree)
-            bind_step_scenes(result.get("sub_steps") or [])
+            bind_step_scenes(result.get("sub_steps") or [], result.get("oracle_refs") or inherited)
     bind_step_scenes(steps)
 
     assertions = [evaluate_assertion(a, by_id, load, knowledge, app, condition_defs) for a in case.get("assertions", [])]
@@ -235,7 +237,8 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                                   "reproduced": reproduced,
                                   "note": "产品失败仍按同一特征复现（执行结果另列）" if reproduced
                                   else "未按已知特征复现：可能已修复、路径变化或本次被其他问题挡住，需人工核对"}
-    refs = sorted({r for x in case.get("assertions", []) + case["steps"] for r in x.get("oracle_refs", [])})
+    refs = sorted({r for x in case.get("assertions", []) + [s for s, _, _ in iter_case_steps(case, app)]
+                   for r in x.get("oracle_refs", [])})
     run = {"run_id": store.run_id, "skill_version": __version__, "started": started, "finished": now_iso(),
            "validation_level": "offline_replay" if device.kind == "replay" else "real_device",
            "case": {"id": case["id"], "title": case.get("title"), "version": case.get("version"),

@@ -245,8 +245,20 @@ Replay world 的 env_facts 只是标明 offline_replay 的合成环境，不代�
 `run/suite --fail-on error` 可配置退出码 1；人工接管仍优先退出码 2，定义/程序异常仍退出码 3。
 suite 摘要及 Console 接受 error；经验验证不对 error 做产品结论排序，未解决错误、错误转 pending 或
 同为 error 但少适配都不能验证通过。可靠的 error→passed 才可计改善。晋级只计无执行错误的确定重放。
-新依赖指纹包含 `result_contract=5`，旧重放需按新口径重新积累；旧无条件内容哈希不变；新 conditions 内容与外部条件定义/目标/规则前置均绑定指纹，历史原始 run/verdict 不改写。
+新依赖指纹包含 `result_contract=6`，旧重放需按新口径重新积累；旧无条件内容哈希不变；新 conditions 内容与外部条件定义/目标/规则前置均绑定指纹，历史原始 run/verdict 不改写。
 探索资产现有 engine_hash 也会因引擎变更使审核失效，仍须由人重新审核，Agent 不自动批准。
+
+复合步骤按真实子结果判定：`critical` 只决定失败后是否继续执行，不抑制已发生的产品失败候选、待确认或阻塞。
+flow/recipe 汇总完成不能消除非关键子步骤的未恢复结果；已恢复的历史失败仍只留在 attempts/first_failure。
+子步骤显式 `oracle_refs` 优先；没有子判据时保留最近父调用的判据上下文，无任何判据仍 pending。
+继承规则的条件也绑定子步骤自己的 `final_obs`，不能借父流程后续成功的观测证明先前场景成立。
+父级直接传播失败时记录 `failure_source`；只有该来源确为后代且 outcome/final_status/final_obs 一致时去重，
+父级独立终态失败仍单独保留。findings 记录真实子步骤、观测、父级路径与判据来源，知识快照包含嵌套步骤引用。
+必需清理内的未恢复子失败阻止整体通过；外层 `required=false` 仍表示可选清理，内部缺省值不将其变为必需，
+明确执行错误始终独立保留，既有嵌套未知分支也保留 pending，不因清理可选而消除。
+通用崩溃不变量仅用于真正发生 anomaly 的节点，不能传播为同一流程其他子步骤的产品判据。
+结果契约 6 使早期因复合包装丢失失败或错用父判据的通过记录不能用于新依赖晋级；
+历史报告继续按原始记录展示，不重新计算或改写既有 raw run/verdict。
 
 步骤崩溃/异常中断仅在归因为 product 时引用通用不变量 `K-GEN-001`；工具/环境候选不经产品 Oracle 转为失败。
 `knowledge.applicability` 与 confirmed 门槛保持；引用判据不适用仍 pending，不能据此把业务断言改成不涉及。
