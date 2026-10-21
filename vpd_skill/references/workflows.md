@@ -37,9 +37,9 @@
 ```powershell
 .\vpdtest.ps1 knowledge search 收藏 重命名 搜索 --app qiankun_hm --device $D   # 产品要求 / 操作经验 / 现场观察
 .\vpdtest.ps1 observe --app qiankun_hm --session g1 --device $D                  # clickable 带 label/type/id
-.\vpdtest.ps1 act tap --select "text=收藏" --side-effect user_data --authorize user_data --app qiankun_hm --session g1 --device $D
-.\vpdtest.ps1 act input --select "xpath=//TextInput" --allow-input --text 新名字 --side-effect user_data --authorize user_data --app qiankun_hm --session g1 --device $D
-.\vpdtest.ps1 act tap --select "text=确定" --expect-text "新名字" --side-effect user_data --authorize user_data --app qiankun_hm --session g1 --device $D
+.\vpdtest.ps1 act tap --select "text=收藏" --side-effect user_data --authorize user_data --session g1 --device $D
+.\vpdtest.ps1 act input --select "xpath=//TextInput" --allow-input --text 新名字 --side-effect user_data --authorize user_data --session g1 --device $D
+.\vpdtest.ps1 act tap --select "text=确定" --expect-text "新名字" --side-effect user_data --authorize user_data --session g1 --device $D
 .\vpdtest.ps1 session g1                                                         # 完整轨迹：观察/请求/被拒/失败/中断
 .\vpdtest.ps1 case from-session --session g1 --new-id TC-QK-201 --app qiankun_hm --goal "<目标原文>" --drop A4=与目标无关的试探
 # 补齐 purpose / preconditions / assertions（独立 oracle_refs）/ cleanup / knowledge_used 后：

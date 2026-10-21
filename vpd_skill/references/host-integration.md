@@ -36,6 +36,10 @@ CI 或无人值守执行时不需要 Agent：`.\vpdtest.ps1 suite motor_hm_smoke
 
 ## 单步会话预算
 
+`observe` / `act` 省略 `--app` 时，复用同一 `--session` 已记录的 APP（兼容旧 `session_facts`）；
+新会话仍默认 `motor_hm`。显式 `--app` 优先，但不能更改已有会话身份：APP、设备或验证级别冲突仍拒绝。
+`--device` 仍须显式提供或在配置中指定，不从会话自动选择设备。`case from-session --app` 仍须明确填写并与来源一致。
+
 `act` 的正常执行结果（包括定位、策略和预算拒绝）在顶层返回 `budget: {used, max, remaining}`。
 `used` 是同一 session 已下发或发送事实未知的物理动作累计数，`remaining` 最低为 0；
 默认上限仍为 60，observe、wait 和 monitor 本身不消耗动作额度。输入清空、定位滚动、恢复和自动解锁的实际物理动作继续按原规则计数。
