@@ -472,9 +472,10 @@ class Executor:
                 att["resolved"] = _resolved(loc, obs)
             res = self._send_target("input_text", loc, obs, tree, target, tid, step, att, text)
             if att.get("status"):
-                att["dispatch"] = {"op": res.op, "sent": res.sent, "executor_ok": res.ok,
-                                   "error_class": res.error_class, "error": res.error,
-                                   "duration_ms": res.duration_ms}
+                if att["status"] == "target_obscured":
+                    att["dispatch"] = {"op": res.op, "sent": res.sent, "executor_ok": res.ok,
+                                       "error_class": res.error_class, "error": res.error,
+                                       "duration_ms": res.duration_ms}
                 return att
         elif kind != "wait":
             att["status"] = "invalid_step"
