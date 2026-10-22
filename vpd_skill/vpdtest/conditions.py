@@ -102,6 +102,25 @@ def validate_guard(guard: dict, defs: dict, step_ids: set | None = None) -> list
     return issues
 
 
+def validate_input_obstruction(step: dict, defs: dict) -> list:
+    """One current, positively identified container may authorize one input-only back recovery."""
+    field = "dismiss_obstruction_when"
+    if field not in step:
+        return []
+    guard = step[field]
+    issues = [{**item, "field": field + "." + item["field"]} for item in validate_guard(guard, defs)]
+    if step.get("action") != "input":
+        issues.append({"field": field, "problem": "仅 input 支持遮挡恢复"})
+    if not isinstance(guard, dict) or guard.get("equals") is not True or "at" in guard:
+        issues.append({"field": field, "problem": "须为当前观测的 equals:true 条件，不支持历史 at"})
+    name = guard.get("condition") if isinstance(guard, dict) else None
+    spec = defs.get(name, {}) if isinstance(defs, dict) and isinstance(name, str) else {}
+    positive = spec.get("true") if isinstance(spec, dict) else None
+    if not isinstance(positive, dict) or positive.get("type") != "target_present":
+        issues.append({"field": field, "problem": "正证须以 target_present 标识实际遮挡容器"})
+    return issues
+
+
 def _identity(spec: dict, obs: dict, tree, app) -> tuple:
     from .locate import resolve
     scope = dict(obs.get("scope") or {})

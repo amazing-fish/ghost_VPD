@@ -15,7 +15,12 @@ from .cases import (
     review_context,
     review_status,
 )
-from .conditions import definitions, validate_definitions, validate_guard
+from .conditions import (
+    definitions,
+    validate_definitions,
+    validate_guard,
+    validate_input_obstruction,
+)
 from .execute import Executor
 from .experience import ExperienceStore
 from .knowledge import KnowledgeStore
@@ -69,6 +74,8 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
         if "guard" in assertion:
             condition_issues += validate_guard(assertion["guard"], condition_defs, step_ids)
     for child, _, where in iter_case_steps(case, app):
+        condition_issues += [{**x, "field": where + "." + x["field"]}
+                            for x in validate_input_obstruction(child, condition_defs)]
         if "when" in child:
             condition_issues += [{**x, "field": where + ".when." + x.get("field", "")} for x in
                                  validate_guard(child["when"], condition_defs, step_ids)]

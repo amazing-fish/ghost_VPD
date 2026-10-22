@@ -10,7 +10,7 @@ import re
 import time
 from typing import Optional
 
-from .cases import execution_structure_issues
+from .cases import execution_structure_issues, iter_case_steps
 from .devices import LAUNCHER, DeviceResult
 from .dispatch import auxiliary_dispatches, dispatch_effect_unknown
 from .layout import key as layout_key
@@ -74,9 +74,9 @@ def classify(att: dict) -> tuple:
     if st == "invalid_step" and att.get("reason"):
         return "blocked", "tool", att["reason"]
     if st == "device_error":
-        ec = att.get("error_class")
+        ec = error.get("error_class") or att.get("error_class")
         return ("blocked" if ec in {"screen_locked", "screen_off"} else "error", error_attribution(ec),
-                f"设备/执行器错误 {ec}: {(att.get('dispatch') or {}).get('error') or ''}".strip())
+                f"设备/执行器错误 {ec}: {error.get('error') or (att.get('dispatch') or {}).get('error') or ''}".strip())
     return STATUS_MAP.get(st, ("blocked", "tool", f"未知状态 {st}"))
 
 
@@ -190,6 +190,7 @@ class Executor:
         return result
 
     def _run_step(self, step: dict, case_id: str) -> dict:
+        from .conditions import validate_input_obstruction
         att = {"n": 1, "action": step["action"], "step_id": step["id"], "_safety": bool(step.get("_safety"))}
         held = self.ctx.dispatcher.held_step(att)
         if held is not None:
@@ -197,6 +198,9 @@ class Executor:
             return self._summarize(step, [att], [])
         # 直接执行 flow/recipe 的调用方也先检查整段定义，不能先执行有效子步骤再发现后面的错误。
         issues = execution_structure_issues({"steps": [step]}, self.ctx.app)
+        for child, _, where in iter_case_steps({"steps": [step]}, self.ctx.app):
+            issues += [{**x, "field": where + "." + x["field"]}
+                       for x in validate_input_obstruction(child, self.ctx.conditions)]
         if issues:
             att.update(status="invalid_step", reason=f"执行结构无效：{issues}")
             return self._summarize(step, [att], [])
@@ -206,16 +210,22 @@ class Executor:
             return self._flow(step, case_id)
         # 监视是一段连续观测，整体重跑会重复计时，不重试
         max_retry = 0 if step["action"] == "monitor" else min(int(step.get("retry", 1)), 2)
-        attempts, recoveries, n = [], [], 0
+        attempts, recoveries, n, obstruction_used = [], [], 0, False
         while True:
             n += 1
             att = self._attempt(step, n, case_id)
             att["step_id"] = step["id"]
             attempts.append(att)
             self.ctx.store.event("attempt", step=step["id"], n=n, status=att["status"])
-            if att["status"] == "ok" or n > max_retry:
+            if att["status"] == "ok":
                 break
-            rec = self._recover(step, att, case_id)
+            if step.get("dismiss_obstruction_when") and att["status"] == "target_obscured" and not obstruction_used:
+                obstruction_used = True
+                rec = self._recover_input_obstruction(step, att, case_id)
+            elif n <= max_retry and not obstruction_used:
+                rec = self._recover(step, att, case_id)
+            else:
+                break
             rec["after_attempt"] = n
             recoveries.append(rec)
             self.ctx.store.event("recovery", step=step["id"], after_attempt=n,
@@ -380,6 +390,10 @@ class Executor:
                 waited += min(1.0, dur - waited)
             att["waited_s"] = round(waited, 2)
         elif kind in ("back", "home"):
+            if step.get("_obstructed_input") and not self._obstruction_matches(step["_obstructed_input"],
+                    step["when"], obs, tree):
+                att.update(status="target_obscured", reason="当前接收者不是已声明的遮挡容器，未返回")
+                return att
             if not self._foreground_ok(att):
                 return att
             res = ctx.dispatcher.send("key", kind, preconditions=ctx.dispatcher.app_conditions(kind), att=att)
@@ -458,6 +472,9 @@ class Executor:
                 att["resolved"] = _resolved(loc, obs)
             res = self._send_target("input_text", loc, obs, tree, target, tid, step, att, text)
             if att.get("status"):
+                att["dispatch"] = {"op": res.op, "sent": res.sent, "executor_ok": res.ok,
+                                   "error_class": res.error_class, "error": res.error,
+                                   "duration_ms": res.duration_ms}
                 return att
         elif kind != "wait":
             att["status"] = "invalid_step"
@@ -1189,6 +1206,70 @@ class Executor:
         if st == "postcondition_not_met" and step.get("idempotent") is True:
             return {"action": "redispatch", "performed": True, "reason": "步骤声明为幂等，允许重发一次"}
         return {"action": "none", "performed": False, "reason": f"{st} 不属于允许的恢复范围"}
+
+    def _obstruction_matches(self, input_step, guard, obs, tree) -> bool:
+        """The named positive target must own the actual receiver, not merely coexist with it."""
+        if tree is None or tree.status != "ok" or collection_error(obs):
+            return False
+        provider = self.ctx.conditions[guard["condition"]]["true"]
+        tid, target = self.ctx.app.target(provider["target"])
+        menu = resolve(tid, target, tree, None, self.ctx.app.dir, layout=obs.get("layout"))
+        tid, target = self._target(input_step)
+        field = resolve(tid, target, tree, None, self.ctx.app.dir, layout=obs.get("layout"))
+        owner, expected = _tree_node(tree, menu), _tree_node(tree, field)
+        if menu.get("status") != "found" or field.get("status") != "found" or owner is None or expected is None:
+            return False
+        touch = tree.touch_check(*field["point"], expected)
+        receiver = touch.get("receiver") or {}
+        idx = receiver.get("idx")
+        return touch.get("allowed") is False and idx == owner.idx
+
+    def _recover_input_obstruction(self, step, att, case_id):
+        """One explicit menu dismissal, only before either clear or input has been sent."""
+        rec = {"action": "dismiss_input_obstruction", "performed": False, "retry_original": False,
+               "reason": "原输入并非可靠零下发，或当前遮挡不满足显式恢复条件"}
+        receipt = att.get("dispatch") or {}
+        if receipt.get("sent") is not False or not self._repeat_allowed(step, att):
+            return rec
+        ctx, guard = self.ctx, step["dismiss_obstruction_when"]
+        back = {"id": step["id"] + ".dismiss_obstruction", "action": "back", "retry": 0,
+                "expect_state": "@in_app", "timeout_s": 0, "when": guard,
+                "_obstructed_input": step, **self._child_condition_context(step)}
+        # Internal recovery is retained under its parent attempt, not registered as a
+        # user-referenceable step which could collide with a caller's step ID.
+        result = self._run_step(back, case_id)
+        rec.update(attempt=result, performed=any(a.get("dispatch", {}).get("sent") is not False
+                                               for a in result.get("attempts", []) if "dispatch" in a),
+                   reason="仅关闭当前命中显式条件且实际遮挡输入框的容器；关闭后独立复核")
+        dispatches = [d for a in result.get("attempts", []) for d in auxiliary_dispatches(a)]
+        dispatches += [{**a["dispatch"], "ok": a["dispatch"].get("executor_ok")}
+                       for a in result.get("attempts", []) if a.get("dispatch")]
+        verified = False
+        if result.get("outcome") in ("passed", "passed_after_recovery", "passed_after_adaptation"):
+            obs, tree = ctx.observe(back["id"] + ":verify", screenshot=False)
+            after = {**back, "when": {**guard, "equals": False}, "_selected_condition": result.get("condition")}
+            condition = self._operation_condition(after, obs, tree)
+            ctx.store.event("condition", step=back["id"], phase="obstruction_gone", condition=condition)
+            rec["condition_after"] = condition
+            verified = condition["status"] == "true"
+            if verified:
+                rec.update(retry_original=True, status="dismissed", reason="已确认声明菜单消失；重新观测和定位后仅重试原输入一次")
+            else:
+                rec["post"] = {"status": "target_obscured" if condition["status"] == "false" else "condition_" + condition["status"], "obs_id": obs["obs_id"],
+                               "execution_error": condition.get("execution_error")}
+                att["reason"] = "遮挡关闭后的独立反证未成立，停止原输入"
+        else:
+            final = (result.get("attempts") or [{}])[-1]
+            status = result.get("final_status") or final.get("status") or "condition_unknown"
+            error = result.get("execution_error")
+            if status == "device_error" and not error:
+                error = {"stage": "input_obstruction_recovery", "attribution": error_attribution(final.get("error_class")),
+                         "error_class": final.get("error_class"), "error": (final.get("dispatch") or {}).get("error"),
+                         "evidence": {"attempt": final}}
+            rec["post"] = {"status": "target_obscured" if status == "condition_false" else status,
+                           "obs_id": result.get("final_obs"), "execution_error": error}
+        self._retain_recovery_dispatches(att, rec, dispatches, verified=verified)
+        return rec
 
     def _retain_recovery_dispatches(self, att: dict, rec: dict, dispatches: list, *, verified: bool):
         """恢复手势属于同一步；原步骤没有dispatch也不能丢掉恢复的未知效果。"""

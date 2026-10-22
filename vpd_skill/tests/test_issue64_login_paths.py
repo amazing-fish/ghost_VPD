@@ -69,9 +69,9 @@ def test_known_selection_menu_is_dismissed_before_both_secret_inputs(login_rig):
     run = _run_world(login_rig, _password_world(login_rig))
     assert all(s["outcome"].startswith("passed") for s in run["steps"]), run["steps"]
     flow = _password_flow(run)
-    dismissals = [s for s in flow["sub_steps"]
-                  if (s.get("condition") or {}).get("records", [{}])[-1].get("condition") == "login_system_selection"]
-    assert len(dismissals) == 2 and all(s["critical"] and s["outcome"].startswith("passed") for s in dismissals)
+    inputs = [s for s in flow["sub_steps"] if s["action"] == "input"]
+    assert len(inputs) == 2 and all(s["outcome"] == "passed_after_recovery" for s in inputs)
+    assert all(len(s["recoveries"]) == 1 and s["recoveries"][0]["status"] == "dismissed" for s in inputs)
     assert len(_sent(run, "input_text")) == 2
     assert run["verdict"]["verdict"] == "pending"  # No production Oracle confirmation.
     assert run["informal"] and not run["asset_review"]["valid"]
@@ -84,8 +84,7 @@ def test_password_form_without_selection_menu_does_not_gain_extra_back(login_rig
     assert all(s["outcome"].startswith("passed") for s in run["steps"])
     flow = _password_flow(run)
     backs = [s for s in flow["sub_steps"] if s["action"] == "back"]
-    assert sum(s["outcome"] == "skipped" for s in backs) == 2
-    assert sum(s["outcome"].startswith("passed") for s in backs) == 1  # Existing secure-keyboard dismissal.
+    assert len(backs) == 1 and backs[0]["outcome"].startswith("passed")  # Existing secure-keyboard dismissal.
 
 
 def test_unregistered_selection_overlay_is_unknown_and_never_backed_through(login_rig):
@@ -119,7 +118,7 @@ def test_selection_menu_that_does_not_close_still_blocks_input(login_rig):
     assert flow["outcome"] == "blocked" and flow["final_status"] == "target_obscured"
     assert not _sent(run, "input_text")
     assert all(s["outcome"] == "not_run" for s in run["steps"][2:])
-    assert len([s for s in flow["sub_steps"] if s["action"] == "back"]) == 1
+    assert len([e for e in _sent(run, "key") if ".dismiss_obstruction" in e.get("step", "")]) == 1
 
 
 @pytest.mark.parametrize("legacy_row_markers", [False, True])
