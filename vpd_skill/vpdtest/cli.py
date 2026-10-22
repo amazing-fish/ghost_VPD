@@ -51,7 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="命中已登记且已评审的良性系统弹窗时，用原子能力关闭（默认只诊断不动作）")
 
     o = sub.add_parser("observe", help="采集一次观测（Agent 单步探索用）")
-    o.add_argument("--app", default="motor_hm")
+    o.add_argument("--app", help="省略时沿用会话 APP；新会话默认 motor_hm")
     o.add_argument("--device")
     o.add_argument("--session", default="default")
     o.add_argument("--label")
@@ -59,7 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
     a = sub.add_parser("act", help="执行一个受约束的动作并观测结果")
     a.add_argument("action", choices=["tap", "back", "home", "swipe", "launch", "resume", "stop_app", "input", "wait",
                                       "monitor"])
-    a.add_argument("--app", default="motor_hm")
+    a.add_argument("--app", help="省略时沿用会话 APP；新会话默认 motor_hm")
     a.add_argument("--device")
     a.add_argument("--session", default="default")
     a.add_argument("--target", help="targets.json 中的目标 ID")

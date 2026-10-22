@@ -96,11 +96,11 @@ REQUEST_FIELDS = ("action", "select", "within", "target", "point", "basis", "sid
 
 def _open_session(ws, a):
     """observe/act 的共同入口：取会话、设备、上下文，写入或核对会话头，加载参数。"""
-    app = ws.app(a.app)
     store = _session(ws, a.session)
+    # 只从既有会话头补 APP 默认值；显式选择仍须通过下面的完整身份核对。
+    identity = trail(store.dir)["identity"] or {}
+    app = ws.app(a.app if a.app is not None else identity.get("app") or "motor_hm")
     dev = ws.device(a.device, state_path=store.dir / "replay_state.json")
-    ctx = RunContext(ws, app, dev, store, ExperienceStore(ws.root, app.id).overlay(), mode="agent")
-    _session_params(ws, ctx, store)
     ident = {"app": app.id, "bundle": app.bundle, "device": dev.spec,
              "validation_level": "offline_replay" if dev.kind == "replay" else "real_device"}
     # 会话只从 trail() 读：身份核对（旧格式按第一条 session_facts）、没有会话头的旧会话拒绝续写都在里面
@@ -109,6 +109,8 @@ def _open_session(ws, a):
     except SessionMismatch as e:
         store.event("session_mismatch_rejected", diff=e.diff)
         raise
+    ctx = RunContext(ws, app, dev, store, ExperienceStore(ws.root, app.id).overlay(), mode="agent")
+    _session_params(ws, ctx, store)
     # 动作预算按会话累计：否则每条 act 从 0 计数，max_actions_per_run 永远拦不住
     ctx.actions = tr["actions"]
     if tr["identity"] is None:

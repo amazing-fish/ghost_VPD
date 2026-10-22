@@ -10,7 +10,7 @@ from test_goal_loop import cli
 
 from vpdtest import workspace as workspace_mod
 from vpdtest.cli import build_parser, main
-from vpdtest.util import SKILL_ROOT, read_json
+from vpdtest.util import SKILL_ROOT, append_jsonl, read_json, read_jsonl
 
 
 def _main(capsys, *argv):
@@ -67,6 +67,80 @@ def test_experience_app_accepted_after_subcommand():
     assert p.parse_args(["experience", "--app", "qiankun_hm", "ledger"]).app == "qiankun_hm"
     assert p.parse_args(["experience", "list"]).app == "motor_hm"
     assert p.parse_args(["experience", "adopt", "XP-1", "--app", "qiankun_hm"]).app == "qiankun_hm"
+
+
+@pytest.mark.parametrize("command", [["observe"], ["act", "resume", "--expect", "@in_app"]])
+@pytest.mark.parametrize("legacy", [False, True])
+def test_session_reuses_app_when_omitted(ws, command, legacy):
+    device = "replay:qiankun_hm_ready.json"
+    cli(ws, "act", "launch", "--app", "qiankun_hm", "--session", "qk", "--device", device)
+    events_path = ws.runs_dir / "session-qk" / "events.jsonl"
+    if legacy:
+        events = read_jsonl(events_path)
+        for event in events:
+            if event["event"] == "session_open":
+                event["event"] = "session_facts"
+                event.pop("identity")
+        events_path.write_text("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in events), encoding="utf-8")
+    out = cli(ws, *command, "--session", "qk", "--device", device)
+    if command[0] == "observe":
+        assert out["observation"]["foreground"] == ws.app("qiankun_hm").bundle
+    else:
+        assert out["result"]["outcome"] == "passed"
+        assert out["seq"] == 2 and out["budget"]["used"] >= 1
+    session = cli(ws, "session", "qk")
+    assert session["identity"]["app"] == "qiankun_hm"
+    assert len([e for e in read_jsonl(events_path) if e["event"] in ("session_open", "session_facts")]) == 1
+
+
+@pytest.mark.parametrize("command", [["observe"], ["act", "launch"]])
+def test_new_session_keeps_motor_app_default(ws, command):
+    cli(ws, *command, "--session", "new", "--device", "replay:motor_hm_base.json")
+    assert cli(ws, "session", "new")["identity"]["app"] == "motor_hm"
+
+
+@pytest.mark.parametrize("mismatch", ["app", "device", "validation_level", "missing_app"])
+def test_inferred_session_app_does_not_weaken_identity_checks(ws, capsys, mismatch):
+    device = "replay:qiankun_hm_ready.json"
+    cli(ws, "act", "launch", "--app", "qiankun_hm", "--session", "qk", "--device", device)
+    session_dir = ws.runs_dir / "session-qk"
+    events_path = session_dir / "events.jsonl"
+    args = ["--workspace", str(ws.root), "act", "resume", "--session", "qk", "--device", device]
+    if mismatch == "app":
+        args.extend(["--app", "motor_hm"])
+    elif mismatch == "device":
+        args[-1] = "replay:qiankun_hm_base.json"
+    else:
+        events = read_jsonl(events_path)
+        identity = events[0]["identity"]
+        if mismatch == "missing_app":
+            identity.pop("app")
+        else:
+            identity["validation_level"] = "real_device"
+        events_path.write_text("".join(json.dumps(e) + "\n" for e in events), encoding="utf-8")
+    before = read_jsonl(events_path)
+    state = (session_dir / "replay_state.json").read_bytes()
+    observations = list((session_dir / "obs").iterdir())
+    code, out = _main(capsys, *args)
+    assert code == 3 and out["error"] == "SessionMismatch"
+    assert read_jsonl(events_path)[:-1] == before
+    assert read_jsonl(events_path)[-1]["event"] == "session_mismatch_rejected"
+    assert (session_dir / "replay_state.json").read_bytes() == state
+    assert list((session_dir / "obs").iterdir()) == observations
+
+
+def test_inferred_app_requires_device_and_known_session_identity(ws):
+    device = "replay:qiankun_hm_ready.json"
+    cli(ws, "observe", "--app", "qiankun_hm", "--session", "qk", "--device", device)
+    with pytest.raises(ValueError, match="未指定设备"):
+        cli(ws, "observe", "--session", "qk")
+    with pytest.raises((ValueError, FileNotFoundError)):
+        cli(ws, "observe", "--app", "", "--session", "qk", "--device", device)
+    bare = ws.runs_dir / "session-bare"
+    bare.mkdir()
+    append_jsonl(bare / "events.jsonl", {"event": "agent_observe", "ts": "t", "obs_id": "old"})
+    with pytest.raises(PermissionError, match="没有会话头"):
+        cli(ws, "observe", "--session", "bare", "--device", device)
 
 
 def test_report_header_without_review_record(ws):
