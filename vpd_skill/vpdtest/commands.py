@@ -81,6 +81,8 @@ def cmd_sysdiag(ws: Workspace, a) -> dict:
     out.update(foreground=fg, foreground_after=fg_after)
     if a.dismiss and diag.get("matched"):
         out["dismiss"] = resolve_screen_cover(ws, dev, store)
+        if out["dismiss"].get("action_required"):
+            out.update(action_required=True, effect_unknown=True)
     write_json(d / "observation.json", {k: v for k, v in out.items() if not k.startswith("_")})
     store.event("sysdiag_end", matched=diag.get("matched"), screenshot=out["screenshot"]["status"])
     return out
