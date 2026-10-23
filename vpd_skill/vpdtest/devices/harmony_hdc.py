@@ -124,6 +124,56 @@ def find_pin_pad(tree_raw: dict) -> Optional[dict]:
     return {d: (cx[d], cy[d]) for d in keys} if grid_ok else None
 
 
+BLANK_PIN_LAYOUT = "standard_3x4_blank"
+
+
+def find_blank_pin_pad(tree_raw: dict) -> Optional[dict]:
+    """仅供逐设备显式配置使用：完整无标签 3×4 等大格；不从部分标签推断数字。"""
+    from ..tree import UiTree
+    t = UiTree(tree_raw)
+    cells = [n for n in t.nodes if n.clickable]
+    # 不过滤坏格后挑选 12 个，也不把重叠/嵌套按钮按 bounds 去重。
+    if len(cells) != 12 or not t.nodes or t.nodes[0].bounds != t.window_rect():
+        return None
+    # 标签路径没形成完整键盘，不代表当前界面无标签；独立数字也可能属于另一套布局。
+    for node in t.nodes:
+        if t.shown(node) and any(re.fullmatch(r"[0-9]", str(node.attrs.get(field, "")).strip())
+                                 for field in ("text", "originalText")):
+            return None
+    for cell in cells:
+        current = cell
+        while current is not None:
+            if not current.visible or not current.enabled:
+                return None
+            current = t.nodes[current.parent] if current.parent is not None else None
+        if cell.bounds[0] < 0 or cell.bounds[1] < 0 or t.visible_rect(cell) != cell.bounds:
+            return None  # 越界、裁剪或模态遮挡均不得按完整格处理。
+        pending = [cell.idx]
+        while pending:
+            node = t.nodes[pending.pop()]
+            values = (node.attrs.get(field) for field in ("text", "originalText", "description", "id"))
+            if any(value is not None and (not isinstance(value, str) or value.strip()) for value in values):
+                return None
+            pending.extend(node.children)
+        receiver = t.touch_target(*cell.center)
+        if receiver is None or not t.is_within(receiver, cell):
+            return None
+    boxes = [n.bounds for n in cells]
+    sizes = {(b[2] - b[0], b[3] - b[1]) for b in boxes}
+    xs, ys = sorted({b[0] for b in boxes}), sorted({b[1] for b in boxes})
+    if len(sizes) != 1 or len(xs) != 3 or len(ys) != 4:
+        return None
+    width, height = next(iter(sizes))
+    if xs[1] - xs[0] != xs[2] - xs[1] or xs[1] - xs[0] < width \
+            or len({ys[i + 1] - ys[i] for i in range(3)}) != 1 or ys[1] - ys[0] < height:
+        return None
+    positions = {(n.bounds[0], n.bounds[1]): n for n in cells}
+    if len(positions) != 12 or set(positions) != {(x, y) for x in xs for y in ys}:
+        return None
+    ordered = [positions[(x, y)].center for y in ys[:3] for x in xs]
+    return {**dict(zip("123456789", ordered)), "0": positions[(xs[1], ys[3])].center}
+
+
 _SECTION_RE = re.compile(r"^-+\s*(Screen|Display) ID:\s*(\d+)\s*-+$")
 _KV_RE = re.compile(r"^([A-Za-z][\w<>, ]*?):?\s{2,}(.+?)\s*,?\s*$")
 _FOLD_MAP = {"EXPAND": "expanded", "FOLDED": "folded", "HALF_FOLD": "half_folded", "UNKNOWN": "unknown"}
@@ -189,8 +239,14 @@ def infer_device_form(fold_param: Optional[str], fold_status: Optional[str]) -> 
 class HdcDevice:
     kind = "hdc"
 
-    def __init__(self, serial: Optional[str] = None, hdc: str = "hdc", timeout_s: float = 20.0):
+    def __init__(self, serial: Optional[str] = None, hdc: str = "hdc", timeout_s: float = 20.0,
+                 pin_pad_layout: Optional[str] = None):
         self.hdc, self.timeout_s = hdc, timeout_s
+        # 自动发现首设备不能继承显式设备的几何配置。
+        explicit_serial = bool(serial and serial.strip() and serial == serial.strip()
+                               and not any(ch in serial for ch in "*?[]"))
+        self.pin_pad_layout = pin_pad_layout if explicit_serial and pin_pad_layout == BLANK_PIN_LAYOUT else None
+        self.pin_pad_source = None
         self.target_discovery_error = None
         self.serial = serial or self._first_target()
         self.poll_interval = 1.0
@@ -500,6 +556,7 @@ class HdcDevice:
     def lock_pin_pad(self):
         remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.json"
         self.pin_pad_query_error = None
+        self.pin_pad_source = None
         r = self._shell("uitest", "dumpLayout", "-p", remote, op="lock_dump", timeout=30)
         if r.ok:
             r = self._shell("cat", remote, op="lock_dump_read")
@@ -514,7 +571,14 @@ class HdcDevice:
             self.pin_pad_query_error = {"op": r.op, "error_class": "tree_parse_error",
                                         "error": str(error), "raw": r.raw}
             return None
-        return find_pin_pad(tree)
+        pad = find_pin_pad(tree)
+        if pad is not None:
+            self.pin_pad_source = "labels"
+        elif self.pin_pad_layout == BLANK_PIN_LAYOUT:
+            pad = find_blank_pin_pad(tree)
+            if pad is not None:
+                self.pin_pad_source = "configured_geometry"
+        return pad
 
     def wake_unlock(self, pin, dispatcher=None):
         from ..unlock import wake_unlock

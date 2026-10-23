@@ -72,9 +72,12 @@ class Workspace:
         spec = spec or self.config.get("device")
         if not spec:
             raise ValueError("未指定设备：--device hdc:<serial> 或 replay:<world.json>")
+        layouts = self.config.get("unlock_pin_layouts")
+        layout = (layouts.get(spec) if isinstance(layouts, dict) and spec.startswith("hdc:")
+                  and spec.split(":", 1)[1].strip() else None)
         if spec.startswith("replay:"):
             spec = "replay:" + str(self.resolve_world(spec.split(":", 1)[1]))
-        return create_device(spec, state_path=state_path)
+        return create_device(spec, state_path=state_path, pin_pad_layout=layout)
 
 
 class RunContext:

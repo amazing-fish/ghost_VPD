@@ -1,6 +1,7 @@
 {
-  "_note": "复制为 config.local.json 后按本机修改（config.local.json 已在 .gitignore 中）。可加 \"device\": \"hdc:<serial>\" 作为默认设备，命令行 --device 优先；本示例不设默认设备，没传 --device 时命令报错而不是静默跑回放。 unlock_secrets 按设备映射 PIN 的 secret 键名；不默认使用 LOCK_PIN。",
+  "_note": "复制为 config.local.json 后按本机修改（config.local.json 已在 .gitignore 中）。可加 \"device\": \"hdc:<serial>\" 作为默认设备，命令行 --device 优先；本示例不设默认设备，没传 --device 时命令报错而不是静默跑回放。 unlock_secrets 按设备映射 PIN 的 secret 键名；不默认使用 LOCK_PIN。unlock_pin_layouts 默认空，仅在已核对标准3×4空白键盘的本机配置精确 \"hdc:<serial>\": \"standard_3x4_blank\"；不支持通配符或 hdc: 自动发现。",
   "app": "motor_hm",
+  "unlock_pin_layouts": {},
   "unlock_secrets": {
     "hdc:<serial>": "LOCK_PIN_TEST"
   }
