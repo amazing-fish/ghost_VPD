@@ -83,8 +83,21 @@ def diagnose_cover(device, store, d: Path, dialogs: dict) -> dict:
 
     整屏原文树落在 d/screen_tree.json；_tree 仅内部用于选择已登记弹窗按钮，
     不代替目标 bundle 树参与业务状态识别或产品断言。"""
+    # A failed query owns its error; a previous query's metadata cannot explain
+    # an unrecognized but otherwise successful window listing.
+    if hasattr(device, "window_query_error"):
+        device.window_query_error = None
     windows = device.shown_windows() if hasattr(device, "shown_windows") else None
-    dump_ok, error_class, tree, query_error = False, "unsupported", None, None
+    detail = getattr(device, "window_query_error", None)
+    window_error = dict(detail) if windows is None and isinstance(detail, dict) else None
+    query_error = None
+    if window_error and window_error.get("error_class") in EXECUTION_ERRORS:
+        query_error = {"stage": "system_dialog_windows", "error_class": window_error["error_class"],
+                       "error": window_error.get("error"),
+                       "attribution": error_attribution(window_error["error_class"]),
+                       "evidence": {"query": "shown_windows", "raw": window_error.get("raw"),
+                                    "detail": window_error}}
+    dump_ok, error_class, tree = False, "unsupported", None
     if hasattr(device, "dump_screen"):
         d.mkdir(parents=True, exist_ok=True)
         r = device.dump_screen(d / "screen_tree.json")
@@ -152,9 +165,9 @@ def _back_after_selection(device, dispatcher, spec, did, window, windows, next_d
     """One declared back, only while the same registered window remains present."""
     before = next_diag()
     res["back_recheck"] = _public(before)
-    if not before["dump_ok"]:
+    if not before["dump_ok"] or before.get("windows") is None:
         _retain_query_error(res, before, "system_dialog_back_recheck")
-        return "indeterminate", "后退前整屏复核失败，不后退"
+        return "indeterminate", "后退前整屏或窗口复核失败，不后退"
     if (before.get("matched") != did or _dialog_window(spec, before) != window
             or set(before.get("windows") or []) != windows):
         return "dismiss_failed", "后退前弹窗或窗口身份已变化，不后退"
@@ -245,12 +258,16 @@ def resolve_screen_cover(ws, device, store, dispatcher=None, dialogs=None) -> di
                         status, reason = "dismiss_failed", f"点击后弹窗 {did} 仍在显示"
                         spec = dialogs[did]
                         window = _dialog_window(spec, fresh)
-                        if ((spec.get("dismiss") or {}).get("back_if_still_present") is True
-                                and r.sent is True and window is not None
-                                and _dialog_window(spec, again) == window
-                                and set(again.get("windows") or []) == set(fresh["windows"])):
-                            status, reason = _back_after_selection(
-                                device, dispatcher, spec, did, window, set(fresh["windows"]), next_diag, res)
+                        if (spec.get("dismiss") or {}).get("back_if_still_present") is True and r.sent is True:
+                            if again.get("execution_error") or fresh.get("execution_error"):
+                                failed = again if again.get("execution_error") else fresh
+                                stage = "system_dialog_tap_verification" if failed is again else "system_dialog_tap_recheck"
+                                _retain_query_error(res, failed, stage)
+                                status, reason = "indeterminate", "窗口查询明确失败，不继续后退"
+                            elif (window is not None and _dialog_window(spec, again) == window
+                                  and set(again.get("windows") or []) == set(fresh["windows"])):
+                                status, reason = _back_after_selection(
+                                    device, dispatcher, spec, did, window, set(fresh["windows"]), next_diag, res)
                     else:
                         status, reason = "dismissed", f"已关闭弹窗 {did}（按钮「{btn['text']}」）并复核消失"
     res.update(status=status, reason=reason)

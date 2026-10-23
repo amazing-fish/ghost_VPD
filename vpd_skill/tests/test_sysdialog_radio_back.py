@@ -38,7 +38,8 @@ def _radio(ws, tmp_path, monkeypatch):
     write_json(ws.root / "system_dialogs.json", {"dialogs": {"usb_mode": spec}})
     control = SimpleNamespace(tap_result=None, back_result=None, tap_closes=False, back_closes=True,
                               after_tap=None, windows={}, dump_fail_at=set(), title_change_at=set(),
-                              lock_after_tap=False, calls=[], window_queries=0, dumps=0)
+                              lock_after_tap=False, calls=[], window_queries=0, dumps=0,
+                              window_errors={}, clear_window_error_on_dump=False)
     real_tap, real_key = ReplayDevice.tap, ReplayDevice.key
     real_windows, real_dump, real_locked = ReplayDevice.shown_windows, ReplayDevice.dump_screen, ReplayDevice.screen_locked
 
@@ -63,10 +64,15 @@ def _radio(ws, tmp_path, monkeypatch):
 
     def windows(device):
         control.window_queries += 1
+        device.window_query_error = control.window_errors.get(control.window_queries)
+        if device.window_query_error:
+            return None
         return control.windows.get(control.window_queries, real_windows(device))
 
     def dump(device, destination):
         control.dumps += 1
+        if control.clear_window_error_on_dump:
+            device.window_query_error = None
         if control.dumps in control.dump_fail_at:
             return DeviceResult("dump_screen", True, False, "timeout", "synthetic dump failure", "DUMP_RAW")
         if control.dumps in control.title_change_at:
@@ -139,6 +145,8 @@ def test_changed_unknown_or_ambiguous_window_never_backs(ws, tmp_path, monkeypat
     setup[0].windows[query] = windows
     result = _resolve(ws, setup)
     assert result["status"] != "dismissed" and setup[0].calls == ["tap"]
+    if windows is None:
+        assert "execution_error" not in result
 
 
 def test_changed_dialog_before_back_never_uses_old_identity(ws, tmp_path, monkeypatch):
@@ -197,6 +205,8 @@ def test_back_success_requires_independent_absence_proof(ws, tmp_path, monkeypat
         control.windows[5] = None
     result = _resolve(ws, setup)
     assert result["status"] != "dismissed" and control.calls == ["tap", "back"]
+    if cause == "window_unknown":
+        assert result["status"] == "indeterminate" and "execution_error" not in result
 
 
 def test_unknown_preflight_back_stops_before_launch_and_preserves_raw_error(ws, tmp_path, monkeypatch):
@@ -233,6 +243,57 @@ def test_back_post_dump_failure_is_tool_error_with_original_raw(ws, tmp_path, mo
     assert error["stage"] == "system_dialog_back_verification"
     assert error["error_class"] == "timeout" and error["attribution"] == "tool"
     assert error["evidence"]["query"] == "dump_screen" and error["evidence"]["raw"] == "DUMP_RAW"
+
+
+@pytest.mark.parametrize("phase", ["preflight", "recovery"])
+@pytest.mark.parametrize("moment,offset", [("before", 2), ("after", 3)])
+def test_back_window_query_failure_is_tool_error_even_when_dump_succeeds(
+        ws, tmp_path, monkeypatch, phase, moment, offset):
+    setup = _radio(ws, tmp_path, monkeypatch)
+    control, _, _, _, _, device_spec = setup
+    if phase == "recovery":
+        control.windows[1] = ["app0"]
+    detail = {"op": "window_list", "error_class": "timeout", "error": "synthetic window query timeout",
+              "raw": "WINDOW_TIMEOUT_RAW"}
+    control.after_tap = lambda dev: control.window_errors.update({control.window_queries + offset: detail})
+    control.clear_window_error_on_dump = True
+    run = run_case(ws, "TC-MOTOR-HM-001", device_spec=device_spec)
+    assert control.calls == (["tap"] if moment == "before" else ["tap", "back"])
+    assert run["verdict"]["verdict"] == "error" and run["verdict"]["action_required"]
+    if phase == "preflight":
+        error = run["preflight"]["checks"][-1]["execution_error"]
+    else:
+        error = next(step["execution_error"] for parent in run["steps"]
+                     for step in parent.get("sub_steps", [parent]) if step.get("recoveries"))
+    assert error["stage"] == ("system_dialog_back_recheck" if moment == "before"
+                              else "system_dialog_back_verification")
+    assert error["error_class"] == "timeout" and error["attribution"] == "tool"
+    assert error["error"] == detail["error"]
+    assert error["evidence"]["query"] == "shown_windows" and error["evidence"]["raw"] == detail["raw"]
+
+
+def test_unrecognized_window_output_does_not_reuse_old_query_failure(ws, tmp_path, monkeypatch):
+    from vpdtest.sysdialog import diagnose_cover
+    setup = _radio(ws, tmp_path, monkeypatch)
+    _, spec, device, store, _, _ = setup
+    device.window_query_error = {"error_class": "timeout", "error": "old timeout", "raw": "OLD_WINDOW_RAW"}
+    monkeypatch.setattr(device, "shown_windows", lambda: None)
+    result = diagnose_cover(device, store, store.dir / "unknown-window", {"usb_mode": spec})
+    assert result["windows"] is None and result["dump_ok"]
+    assert "execution_error" not in result
+
+
+@pytest.mark.parametrize("query", [2, 3], ids=["tap-baseline", "after-tap"])
+def test_known_window_failure_during_tap_prevents_back_and_preserves_error(ws, tmp_path, monkeypatch, query):
+    setup = _radio(ws, tmp_path, monkeypatch)
+    setup[0].window_errors[query] = {"error_class": "timeout", "error": "window query failed",
+                                     "raw": "TAP_WINDOW_RAW"}
+    setup[0].clear_window_error_on_dump = True
+    result = _resolve(ws, setup)
+    assert setup[0].calls == ["tap"] and result["action_required"]
+    assert result["execution_error"]["error_class"] == "timeout"
+    assert result["execution_error"]["evidence"]["query"] == "shown_windows"
+    assert result["execution_error"]["evidence"]["raw"] == "TAP_WINDOW_RAW"
 
 
 @pytest.mark.parametrize("command", ["sysdiag", "run", "suite"])
