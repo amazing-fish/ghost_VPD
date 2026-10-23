@@ -120,6 +120,8 @@ CLI 参数错误在会话锁、设备初始化和信息查询前拒绝，不创�
 
 `input` 的 `text` 可写 `${var:x}`（用例数据）/ `${param:x}`（流程参数）；来自 `{"secret": ...}` 的值只能输入 `secret: true` 的目标，尝试记录里只有 `input.{ref, secret, length}`，没有值。
 
+`input.dismiss_obstruction_when` 可显式声明 `{"condition": "已登记菜单条件", "equals": true}`，仅支持当前观测，禁止历史 `at`；条件正证须为指向实际遮挡容器的 `target_present`，反证仍须独立定义。仅在 `target_obscured` 且 clear/input 可靠未下发、其余辅助动作无未知效果时，执行一次继承父条件及身份范围的受控 back。关闭前核对当前真实接收者恰为该容器；关闭后条件明确为 false 才重新观察、定位并重试原输入一次。`retry:0` 保持普通重试关闭，显式菜单恢复有独立的一次额度；该恢复用后不会再普通重试。无菜单不额外动作；未知菜单、父条件变化、清空已下发、关闭未证实或任一发送未知均停止，不以 `@in_app` 当作输入完成。首次失败、`recoveries[].attempt/condition_after` 与 `attempt.recovery_dispatches` 保留，只有重试原输入成功才 `passed_after_recovery`。lint、Runner 前置定义检查和依赖指纹共用该字段。
+
 **监视**：不下发动作，按间隔连续观测，`monitor.timeline[]` 记录每次采样的 `t`、状态、新出现的文字、`watch` 命中、中断、运动计时。结束条件依次为：进程退出/异常中断（`anomaly`）、阻塞类中断（`interrupted`）、`abort_on` 命中（`monitor_abort`）、运动超时、`until_state` / `until_text` / `until_text_gone`（须先出现过再消失）、`stop_on` 命中、到达时长。有 until 条件却到时仍未满足 → `postcondition_not_met`。
 
 每次尝试记录三层结果，互不替代：

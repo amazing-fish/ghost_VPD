@@ -113,6 +113,7 @@ def dependency_hash(case: dict, app, knowledge) -> str:
                  else s.get("_flow_params"))
         want(s.get("target"), local, substitute=True)
         want_guard(s.get("when"))
+        want_guard(s.get("dismiss_obstruction_when"))
         oracles.update(s.get("oracle_refs") or [])
     for a in case.get("assertions", []):
         want(a.get("target"))
@@ -392,7 +393,12 @@ def _lint_effects(case: dict, app, policy) -> list:
 
 def lint(case: dict, app, knowledge, policy=None, runs_dir: Optional[Path] = None) -> list:
     """runs_dir 用于 check-refs：核对 rationale 里「run/会话 + obs」引用是否真的可解析到留存证据。"""
-    from .conditions import definitions, validate_definitions, validate_guard
+    from .conditions import (
+        definitions,
+        validate_definitions,
+        validate_guard,
+        validate_input_obstruction,
+    )
 
     issues = execution_structure_issues(case, app)
     for k in REQUIRED:
@@ -405,6 +411,8 @@ def lint(case: dict, app, knowledge, policy=None, runs_dir: Optional[Path] = Non
     if not isinstance(condition_defs, dict):
         condition_defs = {}  # 结构问题已保留；继续检查该资产及后续资产的其他字段。
     for s, _, where in iter_case_steps(case, app):
+        issues += [{**p, "field": where + "." + p["field"]}
+                   for p in validate_input_obstruction(s, condition_defs)]
         if "when" in s:
             issues += [{"field": f"{where}.when" + (f".{p['field'].removeprefix('guard.')}" if p.get("field") else ""),
                         "problem": p["problem"]}
