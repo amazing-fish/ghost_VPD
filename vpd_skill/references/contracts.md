@@ -187,6 +187,8 @@ Agent 不自动确认产品知识或批准生产资产。
 
 恢复手势在 `attempt.recovery_dispatches[]` 保留原始 `sent`、`ok` 及 `verified`；`verified=false` 且可能下发时，记录未知效果和人工交接并停止原动作重放。系统弹窗能力的 `dismiss.sent` 同样保留三态，不将未知压成 false。已确认良性关闭后，若原业务后置仍未成立，重新按原步骤的幂等与副作用规则判断剩余重试资格。
 
+系统弹窗的 `dismiss.back_if_still_present=true` 显式允许安全按钮可靠完成后的一次受控后退；默认不启用。点击后及紧邻后退前均须确认同一标题与唯一登记窗口，且点击前、点击后、后退前完整窗口集合稳定；后退仍经 Dispatcher 的预算、Hold 与已解锁检查。独立整屏树和原窗口消失证据不足时不报关闭成功。`dismiss` 保留首按钮兼容回执，`dispatches[]` 按顺序保留按钮和后退的三态回执及原始错误；Runner 前置发生处置尝试但未确认关闭时停止，不启动业务后再次处置。未确认关闭且可能下发时，`action_required` / `effect_unknown` 沿 sysdiag、run、suite 传播，CLI 退出码为 2；明确采集/执行错误保留阶段与原始错误，归入 error。
+
 clear 与 input 均有可靠成功回执、只在可靠观测下原业务后置未成立时，保留产品失败和禁止重放，但不标记 `effect_unknown`；未完成序列或缺可靠下发/回执仍标记未知效果。执行器与会话共用同一物理证据判定。
 
 恢复以 `after_attempt` 绑定原尝试；仅属于最后一次尝试的可靠原步骤后置可用于最终 `outcome/attribution/final_status/final_obs`，旧恢复不能覆盖后续新错误或观测。原始异常继续保存在 `attempt.status` 和 `first_failure`。例如覆盖物消失后原业务后置未成立，最终为产品 `fail_candidate`，而不是恢复前的工具 `unobservable` 阻塞。

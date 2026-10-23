@@ -1193,12 +1193,15 @@ class Executor:
             from .sysdialog import resolve_screen_cover
             res = resolve_screen_cover(ctx.ws, ctx.device, ctx.store, dispatcher=ctx.dispatcher,
                                        dialogs=ctx.observer.dialogs)
+            dispatches = res.get("dispatches", [res["dismiss"]] if "dismiss" in res else [])
             rec = {"action": "dismiss_system_dialog" if "dismiss" in res else "none",
-                   "performed": "dismiss" in res and res["dismiss"].get("sent") is not False,
+                   "performed": any(d.get("sent") is not False for d in dispatches),
                    "dialog": res["diagnosis"]["matched"], "capability": res,
                    "reason": f"unobservable：整屏覆盖诊断 {res['status']}（{res['reason']}）",
                    "retry_original": False}
-            self._retain_recovery_dispatches(att, rec, [res["dismiss"]] if "dismiss" in res else [],
+            if res.get("execution_error"):
+                att["execution_error"] = res["execution_error"]
+            self._retain_recovery_dispatches(att, rec, dispatches,
                                              verified=res["status"] == "dismissed")
             if res["status"] == "dismissed":
                 rec["reason"] = f"关闭已评审的良性系统弹窗 {res['diagnosis']['matched']}，重新判定原步骤后置条件"

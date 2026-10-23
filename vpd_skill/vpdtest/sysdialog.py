@@ -19,8 +19,11 @@ from typing import Optional
 
 from .tree import UiTree
 from .util import read_json, write_json
+from .verdict import error_attribution
 
 DIALOGS_FILE = "system_dialogs.json"
+EXECUTION_ERRORS = {"timeout", "command_failed", "transport_unavailable", "device_offline",
+                    "tool_missing", "tool_execution_error", "tree_parse_error", "tree_collection_error"}
 
 
 def load_dialogs(ws) -> dict:
@@ -80,12 +83,30 @@ def diagnose_cover(device, store, d: Path, dialogs: dict) -> dict:
 
     整屏原文树落在 d/screen_tree.json；_tree 仅内部用于选择已登记弹窗按钮，
     不代替目标 bundle 树参与业务状态识别或产品断言。"""
+    # A failed query owns its error; a previous query's metadata cannot explain
+    # an unrecognized but otherwise successful window listing.
+    if hasattr(device, "window_query_error"):
+        device.window_query_error = None
     windows = device.shown_windows() if hasattr(device, "shown_windows") else None
+    detail = getattr(device, "window_query_error", None)
+    window_error = dict(detail) if windows is None and isinstance(detail, dict) else None
+    query_error = None
+    if window_error and window_error.get("error_class") in EXECUTION_ERRORS:
+        query_error = {"stage": "system_dialog_windows", "error_class": window_error["error_class"],
+                       "error": window_error.get("error"),
+                       "attribution": error_attribution(window_error["error_class"]),
+                       "evidence": {"query": "shown_windows", "raw": window_error.get("raw"),
+                                    "detail": window_error}}
     dump_ok, error_class, tree = False, "unsupported", None
     if hasattr(device, "dump_screen"):
         d.mkdir(parents=True, exist_ok=True)
         r = device.dump_screen(d / "screen_tree.json")
         dump_ok, error_class = bool(r.ok), r.error_class
+        if not r.ok and error_class in EXECUTION_ERRORS:
+            query_error = {"stage": "system_dialog_dump", "error_class": error_class, "error": r.error,
+                           "attribution": error_attribution(error_class),
+                           "evidence": {"query": "dump_screen", "sent": r.sent,
+                                        "executor_ok": r.ok, "raw": r.raw}}
         if dump_ok:
             raw = r.data.get("tree")
             write_json(d / "screen_tree.json", raw)
@@ -95,6 +116,8 @@ def diagnose_cover(device, store, d: Path, dialogs: dict) -> dict:
     out = {"windows": windows, "dump_ok": dump_ok, "dump_error": None if dump_ok else error_class,
            "texts": texts, "matched": did,
            "screen_tree": store.rel(d / "screen_tree.json") if dump_ok else None}
+    if query_error:
+        out["execution_error"] = query_error
     if did:
         out["dialog"] = {"id": did, "class": spec.get("class"), "review": spec.get("review"),
                          "dismissable": dismissable(spec)}
@@ -106,6 +129,65 @@ def diagnose_cover(device, store, d: Path, dialogs: dict) -> dict:
 def _public(diag: dict) -> dict:
     """诊断结果去掉内部字段（_tree），用于事件与返回值。"""
     return {k: v for k, v in diag.items() if not k.startswith("_")}
+
+
+def _dialog_window(spec: dict, diag: dict):
+    """The fallback needs one known registered window, not just matching app text."""
+    windows = diag.get("windows")
+    if windows is None:
+        return None
+    names = spec.get("window_names") or []
+    hits = [w for w in windows if any(w.startswith(n) for n in names)]
+    return hits[0] if len(hits) == 1 else None
+
+
+def _receipt(op, result, att, **extra):
+    receipt = {"op": op, "sent": result.sent, "ok": bool(result.ok),
+               "error_class": result.error_class, **extra}
+    if not result.ok:
+        receipt.update(error=result.error, raw=result.raw)
+        error = att.get("execution_error")
+        if not error and result.error_class in EXECUTION_ERRORS:
+            error = {"stage": "system_dialog_" + op, "error_class": result.error_class,
+                     "error": result.error, "attribution": error_attribution(result.error_class),
+                     "evidence": {"sent": result.sent, "executor_ok": result.ok, "raw": result.raw}}
+        if error:
+            receipt["execution_error"] = error
+    return receipt
+
+
+def _retain_query_error(res, diag, stage):
+    if diag.get("execution_error"):
+        res["execution_error"] = {**diag["execution_error"], "stage": stage}
+
+
+def _back_after_selection(device, dispatcher, spec, did, window, windows, next_diag, res):
+    """One declared back, only while the same registered window remains present."""
+    before = next_diag()
+    res["back_recheck"] = _public(before)
+    if not before["dump_ok"] or before.get("windows") is None:
+        _retain_query_error(res, before, "system_dialog_back_recheck")
+        return "indeterminate", "后退前整屏或窗口复核失败，不后退"
+    if (before.get("matched") != did or _dialog_window(spec, before) != window
+            or set(before.get("windows") or []) != windows):
+        return "dismiss_failed", "后退前弹窗或窗口身份已变化，不后退"
+    att = {"action": "dismiss_system_dialog_back", "step_id": "system_dialog", "dialog": did}
+    result = dispatcher.send("key", "back", preconditions={"screen_locked": False}, att=att)
+    receipt = _receipt("key", result, att, key="back")
+    res["dispatches"].append(receipt)
+    if receipt.get("execution_error"):
+        res["execution_error"] = receipt["execution_error"]
+    if not result.ok or result.sent is not True:
+        return "dismiss_failed", f"受控后退未确认完成：{result.error_class}"
+    _sleep(device, 0.8)
+    after = next_diag()
+    res["back_post"] = _public(after)
+    if not after["dump_ok"] or after.get("windows") is None:
+        _retain_query_error(res, after, "system_dialog_back_verification")
+        return "indeterminate", "后退后复核失败，关闭效果未知"
+    if after.get("matched") == did or window in after["windows"]:
+        return "dismiss_failed", f"后退后弹窗 {did} 或原窗口仍在显示"
+    return "dismissed", f"已选择安全按钮并受控后退关闭弹窗 {did}，独立复核标题与原窗口消失"
 
 
 def resolve_screen_cover(ws, device, store, dispatcher=None, dialogs=None) -> dict:
@@ -127,6 +209,7 @@ def resolve_screen_cover(ws, device, store, dispatcher=None, dialogs=None) -> di
     did, tree = diag.get("matched"), diag.get("_tree")
     res = {"device": device.spec, "diagnosis": _public(diag)}
     if not diag["dump_ok"]:
+        _retain_query_error(res, diag, "system_dialog_initial")
         status, reason = "indeterminate", f"整屏树采集失败（{diag['dump_error']}），不猜"
     elif did is None:
         status = "no_cover"
@@ -144,6 +227,7 @@ def resolve_screen_cover(ws, device, store, dispatcher=None, dialogs=None) -> di
             fdid, ftree = fresh.get("matched"), fresh.get("_tree")
             fbtn = pick_dismiss(dialogs[fdid], ftree) if (fdid and ftree is not None) else None
             if not fresh["dump_ok"]:
+                _retain_query_error(res, fresh, "system_dialog_tap_recheck")
                 status, reason = "indeterminate", f"点击前复核采集失败（{fresh['dump_error']}），不按旧坐标盲点"
             elif fdid is None:
                 status, reason = "no_cover", f"弹窗 {did} 在点击前已自行消失，无需关闭"
@@ -153,11 +237,13 @@ def resolve_screen_cover(ws, device, store, dispatcher=None, dialogs=None) -> di
                 status, reason = "no_safe_button", f"弹窗 {did} 点击前复核未再见安全关闭按钮（prefer）"
             else:
                 btn = fbtn  # 用复核后的新坐标下发
-                r = dispatcher.send("tap", *btn["point"], preconditions={"screen_locked": False},
-                                    att={"action": "dismiss_system_dialog", "step_id": "system_dialog",
-                                         "dialog": did, "button_text": btn["text"]})
-                res["dismiss"] = {"button": btn["text"], "sent": r.sent, "ok": bool(r.ok),
-                                  "error_class": r.error_class}
+                action = {"action": "dismiss_system_dialog", "step_id": "system_dialog",
+                          "dialog": did, "button_text": btn["text"]}
+                r = dispatcher.send("tap", *btn["point"], preconditions={"screen_locked": False}, att=action)
+                res["dismiss"] = _receipt("tap", r, action, button=btn["text"])
+                res["dispatches"] = [res["dismiss"]]
+                if res["dismiss"].get("execution_error"):
+                    res["execution_error"] = res["dismiss"]["execution_error"]
                 if not r.ok:
                     status, reason = "dismiss_failed", f"关闭按钮点击未完成：{r.error_class}"
                 else:
@@ -165,13 +251,28 @@ def resolve_screen_cover(ws, device, store, dispatcher=None, dialogs=None) -> di
                     again = next_diag()
                     res["recheck"] = {k: again.get(k) for k in ("windows", "dump_ok", "matched", "texts")}
                     if not again["dump_ok"]:
+                        _retain_query_error(res, again, "system_dialog_tap_verification")
                         # 复核采集失败：点击效果未知，不谎报“已关闭并复核消失”
                         status, reason = "indeterminate", f"点击后复核采集失败（{again['dump_error']}），关闭效果未知"
                     elif again.get("matched") == did:
                         status, reason = "dismiss_failed", f"点击后弹窗 {did} 仍在显示"
+                        spec = dialogs[did]
+                        window = _dialog_window(spec, fresh)
+                        if (spec.get("dismiss") or {}).get("back_if_still_present") is True and r.sent is True:
+                            if again.get("execution_error") or fresh.get("execution_error"):
+                                failed = again if again.get("execution_error") else fresh
+                                stage = "system_dialog_tap_verification" if failed is again else "system_dialog_tap_recheck"
+                                _retain_query_error(res, failed, stage)
+                                status, reason = "indeterminate", "窗口查询明确失败，不继续后退"
+                            elif (window is not None and _dialog_window(spec, again) == window
+                                  and set(again.get("windows") or []) == set(fresh["windows"])):
+                                status, reason = _back_after_selection(
+                                    device, dispatcher, spec, did, window, set(fresh["windows"]), next_diag, res)
                     else:
                         status, reason = "dismissed", f"已关闭弹窗 {did}（按钮「{btn['text']}」）并复核消失"
     res.update(status=status, reason=reason)
+    if status != "dismissed" and any(d.get("sent") is not False for d in res.get("dispatches", [])):
+        res.update(effect_unknown=True, action_required=True)
     store.event("capability_result", capability="system_dialog", **{k: v for k, v in res.items()})
     return res
 

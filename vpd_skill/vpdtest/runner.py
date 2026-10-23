@@ -132,6 +132,17 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
         from .sysdialog import preflight_dialog_check
         pre["system_dialog"] = preflight_dialog_check(ws, device, store, dispatcher=ctx.dispatcher,
                                                      dialogs=ctx.observer.dialogs)
+        dialog = pre["system_dialog"]
+        dispatches = dialog.get("dispatches", [dialog["dismiss"]] if "dismiss" in dialog else [])
+        if dispatches and dialog["status"] != "dismissed":
+            # A failed or uncertain dismissal must not be repeated after launch.
+            failure = next((d for d in reversed(dispatches) if not d.get("ok")), {})
+            pre["ok"] = False
+            pre["checks"].append({"check": "system_dialog_capability", "ok": False,
+                                  "error_class": failure.get("error_class") or dialog["status"],
+                                  "value": dialog.get("reason"),
+                                  **({"execution_error": dialog["execution_error"]}
+                                     if dialog.get("execution_error") else {})})
 
     store.event("preflight", ok=pre["ok"], checks=pre["checks"])
     ctx.observer.display = pre.get("display")  # 复用前置检查读到的显示参数，不重复查询

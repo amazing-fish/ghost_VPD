@@ -450,6 +450,11 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
                            status, "解锁状态不可识别，请人工核对：" + (unlock.get("reason") or "原因未知"))
             alerts.append({"kind": "unlock", "status": status, "action_required": message,
                            "reason": unlock.get("reason")})
+        dialog = preflight.get("system_dialog") or {}
+        if dialog.get("action_required"):
+            alerts.append({"kind": "system_dialog", "status": dialog.get("status"),
+                           "action_required": "系统弹窗处置可能已执行但未确认关闭，请核对现场后继续",
+                           "reason": dialog.get("reason")})
         bad = [c for c in preflight.get("checks", []) if not c["ok"]]
         errors = [c for c in bad if c.get("execution_error") or c.get("error_class") in {
             "device_offline", "transport_unavailable", "tool_missing", "timeout", "command_failed", "tool_execution_error"}]
