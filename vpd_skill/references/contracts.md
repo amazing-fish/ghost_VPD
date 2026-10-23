@@ -104,6 +104,22 @@ CLI 参数错误在会话锁、设备初始化和信息查询前拒绝，不创�
 `_safety` 步骤及其子动作豁免预算和运动超时，状态、触摸归属与 policy 检查仍生效。
 独立 `unlock` CLI 无运行上下文，dispatch 的预算/运动检查记为 `applicable=false`；run preflight 和动作恢复使用运行上下文。
 PIN 结果的 `entered_digits` 仅累计 `sent is True` 的可靠下发数；`pin_entered` 表示至少一位已下发或可能下发。首位回执 `sent=None` 也保留设备防重入记录，下一次不再发唤醒、上滑或 PIN；首位明确 `sent=False` 且此前无可能输入时才允许重新尝试。PIN 值和数字序列不写入记录。
+锁屏键盘默认只按数字 `text` / `originalText` 识别。无标签 Canvas 键盘仅允许在执行源码所在的
+`vpd_skill/config.local.json` 按精确设备显式配置，示例：
+
+```json
+{"unlock_pin_layouts": {"hdc:<exact-serial>": "standard_3x4_blank"}}
+```
+
+默认 `unlock_pin_layouts={}`，CLI `--device` 优先于配置默认设备；其他设备、通配符、`hdc:` 自动发现、Replay、
+未知布局值或非对象配置均不开启几何识别。已有完整数字标签优先；部分/冲突标签识别失败后，整屏仍有可见单数字
+`text` / `originalText` 时不得降级为几何。几何路径只接受整树恰好12个可点格：键及子树的
+`text/originalText/description/id` 全空，键和完整祖先链可见且启用，根节点给出完整窗口 bounds；
+全部键完整位于当前可见区、等大、无重叠、3列×4行等间距，中心实际触摸接收者属于该键。
+只映射前三行1–9及末行中心0，底部两角不作为数字。无法确认时零次 PIN 输入并交接，不猜坐标。
+识别成功的解锁 `evidence` 增加 `stage=pin_pad`、`pad_source=labels|configured_geometry`，不输出数字坐标表；
+每次查询先清空来源，采集/解析错误沿既有 `execution_error` 保留。该配置只声明设备布局，不改变每位锁屏复核、
+Dispatcher、secret映射及防重入记录。当前只有合成树验证，OH7现场兼容性仍需工作机单次受控复验。
 解锁前置失败由判定层生成 `kind=unlock` 的 alert，CLI 顶层显示具体接管原因并以退出码 2 提醒调用方。
 
 会话执行与转用例共用字段映射：monitor 的 `expect`/`expect_text` 分别为 `until_state`/`until_text`，

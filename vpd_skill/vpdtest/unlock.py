@@ -78,6 +78,9 @@ def wake_unlock(device, pin, dispatcher=None, sleep=None, att=None):
     if not pin:
         return result("missing_secret", reason="当前设备需要 PIN，未配置对应的 secret 映射或值")
     pad = device.lock_pin_pad()
+    source = getattr(device, "pin_pad_source", None)
+    if pad is not None and source in {"labels", "configured_geometry"}:
+        evidence.append({"stage": "pin_pad", "pad_source": source})
     if pad is None:
         return result("indeterminate", reason="未能识别锁屏数字键盘，未输入",
                       **_query_failure(device, field="pin_pad_query_error", query="lock_pin_pad", stage="unlock_pin_pad"))

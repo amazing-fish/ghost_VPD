@@ -27,12 +27,12 @@ class DeviceResult:
     data: dict = field(default_factory=dict)
 
 
-def create_device(spec: str, state_path=None):
+def create_device(spec: str, state_path=None, pin_pad_layout=None):
     """spec: "hdc:<serial>" 真实 Harmony 设备；"replay:<world.json>" 离线回放替身。"""
     kind, _, arg = spec.partition(":")
     if kind == "hdc":
         from .harmony_hdc import HdcDevice
-        return HdcDevice(arg or None)
+        return HdcDevice(arg or None, pin_pad_layout=pin_pad_layout)
     if kind == "replay":
         from .replay import ReplayDevice
         return ReplayDevice(arg, state_path=state_path)
