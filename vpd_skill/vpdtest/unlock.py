@@ -31,7 +31,7 @@ def wake_unlock(device, pin, dispatcher=None, sleep=None, att=None):
     if sleep is None:
         import time
         sleep = time.sleep if device.kind != "replay" else lambda _: None
-    evidence, entered, last_action = [], 0, {}
+    evidence, entered, pin_entered, last_action = [], 0, False, {}
     def action(name):
         nonlocal last_action
         last_action = {"action": name, "step_id": "unlock", "_safety": bool((att or {}).get("_safety"))}
@@ -39,7 +39,7 @@ def wake_unlock(device, pin, dispatcher=None, sleep=None, att=None):
 
     def result(status, **kw):
         return {"status": status, "evidence": evidence, "entered_digits": entered,
-                **({"pin_entered": True} if entered else {}), **kw}
+                **({"pin_entered": True} if pin_entered else {}), **kw}
 
     locked = device.screen_locked()
     evidence.append({"stage": "initial", "screen_locked": locked})
@@ -84,7 +84,11 @@ def wake_unlock(device, pin, dispatcher=None, sleep=None, att=None):
     for ch in pin:
         r = dispatcher.send("tap", *pad[ch], preconditions={"screen_locked": True},
                             att=action("pin_digit"))
-        if r.sent:
+        # Count only confirmed dispatches; an unknown receipt may still have
+        # entered a digit and must retain the per-device reentry guard.
+        if r.sent is not False:
+            pin_entered = True
+        if r.sent is True:
             entered += 1
         if not r.ok:
             return result("indeterminate", error_class=r.error_class,

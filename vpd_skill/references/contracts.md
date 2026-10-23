@@ -103,6 +103,7 @@ CLI 参数错误在会话锁、设备初始化和信息查询前拒绝，不创�
 只有实际下发才计数；清空输入框逐个点击/按键计数，其外层 `dispatch.aggregate=true` 仅汇总结果，不重复计数。
 `_safety` 步骤及其子动作豁免预算和运动超时，状态、触摸归属与 policy 检查仍生效。
 独立 `unlock` CLI 无运行上下文，dispatch 的预算/运动检查记为 `applicable=false`；run preflight 和动作恢复使用运行上下文。
+PIN 结果的 `entered_digits` 仅累计 `sent is True` 的可靠下发数；`pin_entered` 表示至少一位已下发或可能下发。首位回执 `sent=None` 也保留设备防重入记录，下一次不再发唤醒、上滑或 PIN；首位明确 `sent=False` 且此前无可能输入时才允许重新尝试。PIN 值和数字序列不写入记录。
 解锁前置失败由判定层生成 `kind=unlock` 的 alert，CLI 顶层显示具体接管原因并以退出码 2 提醒调用方。
 
 会话执行与转用例共用字段映射：monitor 的 `expect`/`expect_text` 分别为 `until_state`/`until_text`，
