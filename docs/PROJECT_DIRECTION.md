@@ -1,6 +1,6 @@
 # 项目方向与执行安排（2026-10-25）
 
-核对基线：`main @ 4036754f156db715dbb89d651f45e5e23499954d`（#85/#86/#87/#92/#93已合入）。本批#82/#84的工程变更与待现场验收项分列；具体合入状态以对应PR为准，未合入候选不计入上述基线。PR #36 仅保留历史来源，不再整包合入。历史实施范围从 Git 历史与对应 PR 追溯。
+核对基线：`main @ 086a60279b5e7e8b734247981d37c20b635f20cb`（#85/#86/#87/#92/#93/#94已合入）。开放Issue已从18归并为8个唯一任务；重复单原始证据保留，未完成验收迁入承接单，不计为修复或覆盖完成。具体合入状态以对应PR为准，未合入候选不计入上述基线。PR #36 仅保留历史来源，不再整包合入。历史实施范围从 Git 历史与对应 PR 追溯。
 
 ## 交付目标与当前缺口
 
@@ -16,26 +16,26 @@
 
 | 优先级 | 工作包 | 交付与完成边界 |
 | --- | --- | --- |
-| P1 | [#65](https://github.com/amazing-fish/ghost_VPD/issues/65)、[#80](https://github.com/amazing-fish/ghost_VPD/issues/80) | 交付工作机已有1395资产，逐条核对名称、编号、标签、楼层及结果身份。名称查询不替代编号查询；保留适用规则、当前fixture、原始run与cleanup，pending不计正式覆盖。历史143行与NEXT空列先核原表，不自动回填平台 |
-| P2，工程已合，待现场 | [#84](https://github.com/amazing-fish/ghost_VPD/issues/84) | #86已在StateModel/Policy中交付限定搜索筛选结构的导航语义；不全局删除“充电”限制。仍需当前1395父链、输入后页面身份及点击后结果/空态校准 |
-| P2，诊断已合，几何待补 | [#82](https://github.com/amazing-fish/ghost_VPD/issues/82) | 共享裁剪证据、拒绝未知坐标接收者并投影最终策略；不放宽Swiper或窗口计算。947/1264矛盾仍须同帧独立窗口、祖先链与真实按钮后置，不能把诊断交付称为几何适配完成 |
-| P1，现场分支验收 | [#64](https://github.com/amazing-fish/ghost_VPD/issues/64)、[#31](https://github.com/amazing-fish/ghost_VPD/issues/31) | 以量产账密登录/已登录复用为主路径；账号管理的短信验证是旁路，不是普通VPD执行的必经门禁。未知二级页、更新弹窗和黑屏按实际观察取证，不盲目Back或杀进程 |
-| P1，生产事实接线 | [#56](https://github.com/amazing-fish/ghost_VPD/issues/56)、[#34](https://github.com/amazing-fish/ghost_VPD/issues/34) | 判定引擎已交付；补适用的独立现场provider、规则、人审与当前指纹下的真机复跑。一般探索不以固定故障前置为唯一入口；215/226/228业务裁决继续暂缓 |
-| P2，独立场景 | [#83](https://github.com/amazing-fish/ghost_VPD/issues/83)、[#54](https://github.com/amazing-fish/ghost_VPD/issues/54)、[#58](https://github.com/amazing-fish/ghost_VPD/issues/58)、[#52](https://github.com/amazing-fish/ghost_VPD/issues/52) | 分别处理身份绑定/产品规则、影像表面触摸归属、真实手势及知识沉淀；不把它们混成搜索策略豁免或通用几何放行 |
-| P1/P2，新证据收敛 | [#90](https://github.com/amazing-fish/ghost_VPD/issues/90)、[#89](https://github.com/amazing-fish/ghost_VPD/issues/89)、[#88](https://github.com/amazing-fish/ghost_VPD/issues/88) | #90归入#56提供者接线；首页/回自车不证明当前车辆图内，任意历史观测不得全程填yes。#92已交付状态证据诊断，#89仍保留独立环境来源验收。#88分别核楼层实体、组合交集及空态；必须核实际输入值与标签状态，清空后非提示文字的限定拒发沿#93；未知来源与1395现场校准继续沿#64/#65 |
-| 持续治理 | #9 / #45 / #29 | 随实际缺陷收敛重复检查、生产知识解耦与证据准入，不预先增设框架层 |
+| P1，先交已有文件 | [#65](https://github.com/amazing-fish/ghost_VPD/issues/65) | 230v5、231–239及配套定义/形态迁移/当前证据索引先入仓；承接#34逐例验收与#52知识包，后者不阻塞第一交付包。原始run/树留执行机，规则确认不阻塞draft提交 |
+| P1，搜索验收 | [#80](https://github.com/amazing-fish/ghost_VPD/issues/80) | 名称/编号/实体身份各自核验；承接#83身份、#84的#86当前AA/充电桩校准、#88楼层/组合筛选/空态差异。实际查询和标签状态要取证，不能以改期望或归并关闭宣称通过 |
+| P1，登录与输入 | [#64](https://github.com/amazing-fish/ghost_VPD/issues/64) | 账密主路径/已登录复用、账号验证旁路、黑屏及真实输入来源；承接#31原始探索来源、人类确认及当前消费者校准。#93已交付限定拒发，unknown不保证已清空 |
+| P1，生产事实 | [#56](https://github.com/amazing-fish/ghost_VPD/issues/56) | 统一承接#89环境条件与#90业务事实，复用既有provider/guard；缺锚点不证明环境，历史首页/回自车不证明当前车辆图内。保留正反证、身份/时点/有效范围及Windows真机验收 |
+| P2，真实手势 | [#58](https://github.com/amazing-fish/ghost_VPD/issues/58) | 已知唯一滚动容器内的相对swipe、显式px/s速度及会话/重放一致；正式资产不写像素。AVM/地图表面归属与实际后置仍待独立校准，不能由basis或容器标签放行 |
+| P2，独立触摸缺陷 | [#54](https://github.com/amazing-fish/ghost_VPD/issues/54) | 取得当前目标/表面接收者身份及真实父链，再限定修复合法表面归属；不以surface_overlay字段或raw注入跳过策略 |
+| P2，独立几何缺陷 | [#82](https://github.com/amazing-fish/ghost_VPD/issues/82) | #85诊断已交付；947/1264矛盾仍须同帧独立窗口、祖先链与真实右缘按钮后置。保留列表/隐藏分页裁剪，不把诊断当几何适配 |
+| 后续维护 | [#45](https://github.com/amazing-fish/ghost_VPD/issues/45) | 承接#9知识治理/测试隔离与#29方法论。按真实缺陷推进Legacy、Oracle资格和证据治理，不扩平行框架，不阻塞已有资产交付 |
 
 ## 工程交付与架构收敛
 
 以下已交付工程不应重新列为待实施：
 
 - #59/#60/#68：执行错误、适用条件及复合结果独立投影；#69/#70：ensure_state终态与共用结构检查。
-- #61/#62/#63：211/212经验归入flow/state，现有消费者使用ensure_state；211/212仍为operation_reference_only，不计业务执行口径。来源确认及生产校准沿#31。
+- #61/#62/#63：211/212经验归入flow/state，现有消费者使用ensure_state；211/212仍为operation_reference_only，不计业务执行口径。来源确认及生产校准统一沿#64（原#31已归并）。
 - #71/#72/#73：Python3.12与双平台CI、实际判据/模板依赖绑定、Console证据层级。
 - #66/#76：已知选择菜单及延迟遮挡的受控恢复；#77/#79：PIN发送未知的防重入与按设备显式启用的空白键盘识别；#78：USB单选弹窗的一次受控关闭。它们不证明所有现场分支均已验收。
 - #51/#67：任务范围入口/算路许可及预算可观测性；#49/#55已关闭。入口与算路不逐次请求授权；PIN解锁沿既有授权，其他副作用仍按当前策略。
 - #85/#86：裁剪与最终拒发诊断、未知坐标接收者拒发、限定搜索筛选导航语义；对应1395真机校准仍待完成。#87补两项探索成熟度门禁的生产判据隔离和有效重放前置，不改变生产知识。
-- #92：状态后置失败、恢复及清理的同观测诊断，保持原归因、Oracle与接管；调度facts与产品oracle_facts分开。#93：来源可核的非提示文字在追加前拒发，刷新后重核；unknown/secret不承诺已清空。两包不补足#89/#90环境/业务事实来源，也不代表1395真机已验收。
+- #92：状态后置失败、恢复及清理的同观测诊断，保持原归因、Oracle与接管；调度facts与产品oracle_facts分开。#93：来源可核的非提示文字在追加前拒发，刷新后重核；unknown/secret不承诺已清空。两包不补足#56承接的环境/业务事实来源，也不代表1395真机已验收。
 - #81：TC-QK-230 draft及返回首页导航修复；产品判据、1395 fixture、结果身份、按资产来源核对必要的人审及确定重放仍待验收。
 
 本批渐进重构收敛同一事实的来源和消费者：UiTree提供几何，StateModel提供当前页面动作依据，Policy判动作语义，Dispatcher下发前复核，必要时重定位并重算，后置观察证实声明效果。#82的CLI保留初检审计、展示最终拒发；#84复用已有来源通道，不新增另一套配置或执行路径。具体契约见[执行契约](../vpd_skill/references/contracts.md)，职责与剩余技术债见[架构审计](ARCHITECTURE_REVIEW.md)。
@@ -58,6 +58,6 @@
 
 动作发送、声明后置、产品结论、资产成熟度和正式覆盖分别记录。离线CI/Replay属于E1，不能冒充当前设备验收。产品确认、人审、重放资格及覆盖口径完整门槛见[工作流](../vpd_skill/references/workflows.md)与[协作约定](ISSUE_COLLABORATION.md)。
 
-`act swipe`仍为容器滚动，不静默接受未实现的定点/时长参数；完整手势沿#58。设备`uitest uiInput swipe`末参数是速度px/s，不是毫秒；#52保留原始命令与观察后再校正经验。raw HDC/uitest不作为绕过Dispatcher的默认自动化路径；截图变化不独立证明视角身份或遍历完整。
+`act swipe`沿#58支持已知唯一滚动容器内的相对起止位置及显式速度；当前可见区域现算像素，正式资产保存比例和容器语义。旧容器滚动与随机地图原子保持原义；像素point/basis、duration和未知表面仍显式拒绝，不静默改为普通滚动。设备`uitest uiInput swipe`末参数是速度px/s，不是毫秒；原#52经验校准统一沿#65，实际设备工具版本/帮助及同一表面后置仍须现场验证。raw HDC/uitest不作为绕过Dispatcher的默认自动化路径；截图变化不独立证明视角身份或遍历完整。
 
 折叠态可以继续取证，直板形态另行补测。新现场关键场景进入对应Issue；已知问题先复用现有Issue，避免重复建账。每个修复都以可核验行为与用例交付推进，不以代码行数衡量完成。

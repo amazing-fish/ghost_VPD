@@ -397,9 +397,16 @@ class ReplayDevice:
             s.update(stack=[], foreground=LAUNCHER)
 
     def swipe(self, x1, y1, x2, y2, speed: int = 2000) -> DeviceResult:
+        if type(speed) is not int or not 200 <= speed <= 40000:
+            return DeviceResult("swipe", False, False, "invalid_step", "swipe速度须为200..40000整数px/s")
+        dx, dy = x2 - x1, y2 - y1
+        if not dx and not dy:
+            return DeviceResult("swipe", False, False, "invalid_step", "swipe起止点相同，未下发")
+        direction = (("right" if dx > 0 else "left") if abs(dx) > abs(dy)
+                     else ("down" if dy > 0 else "up"))
         if self._in_app() and not self.state["popup"]:
             spec = self._screen_spec(self.state["stack"][-1])
-            nxt = spec.get("on_swipe_" + ("up" if y2 < y1 else "down"))
+            nxt = spec.get("on_swipe_" + direction)
             scrollers = [s["b"] for s, _ in _walk(spec["root"]) if s.get("scroll") and s.get("b")]
             # 声明了滚动容器的屏幕：起点必须落在容器内才会滚动（和真机一样，滑到别的栏上不会滚这个列表）
             inside = not scrollers or any(b[0] <= x1 < b[2] and b[1] <= y1 < b[3] for b in scrollers)

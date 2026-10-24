@@ -478,6 +478,10 @@ class HdcDevice:
         return self._shell("uitest", "uiInput", "click", int(x), int(y), op="tap")
 
     def swipe(self, x1: int, y1: int, x2: int, y2: int, speed: int = 2000) -> DeviceResult:
+        if type(speed) is not int or not 200 <= speed <= 40000:
+            return DeviceResult("swipe", False, False, "invalid_step", "swipe速度须为200..40000整数px/s")
+        if (int(x1), int(y1)) == (int(x2), int(y2)):
+            return DeviceResult("swipe", False, False, "invalid_step", "swipe起止点相同，未下发")
         return self._shell("uitest", "uiInput", "swipe", int(x1), int(y1), int(x2), int(y2), int(speed), op="swipe")
 
     def input_text(self, x: int, y: int, text: str) -> DeviceResult:
