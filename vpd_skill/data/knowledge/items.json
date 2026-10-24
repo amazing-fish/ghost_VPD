@@ -2213,7 +2213,9 @@
       "id": "K-QK-USR-002",
       "kind": "requirement",
       "subject": "qiankun_hm.vpd.fault_blocks_activation",
-    "condition_requirements": {"vehicle_fault": true},
+      "condition_requirements": {
+        "vehicle_fault": true
+      },
       "statement": "车辆当前有故障时，进入 VPD 选默认车位算路后不能激活（「开始」不可用或不出现，并有不可用/故障提示）。",
       "expected": {
         "activation_possible": false
@@ -3012,6 +3014,246 @@
           "ts": "2026-10-23T19:33:38.116+08:00",
           "to": "unconfirmed",
           "why": "新增"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-IDX-240",
+      "kind": "requirement",
+      "subject": "qiankun_hm.k89_batch.240",
+      "statement": "候选子范围：进入当前园区VPD首页后，园区信息行显示测试数据中的完整停车场名称；不证明地图完整加载或车辆图内。",
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100"
+      },
+      "status": "unconfirmed",
+      "source": {
+        "type": "test_goal",
+        "ref": "本轮用户要求将用例表自动化；https://github.com/amazing-fish/ghost_VPD/issues/65 附录A：界面显示/卡片区域显示/VPD图停车场名称。仅用例名索引可用，以下操作级候选由Agent细化，不是原表完整预期抄录。"
+      },
+      "note": "操作轨迹/选择器来自本轮K89实机，仅作实现与校准证据，不证明产品应该如此。未有人确认完整原表预期或本条细化判据，不得将观测符合写为产品通过或整行覆盖。",
+      "created": "2026-10-25T03:41:11.073+08:00",
+      "history": [
+        {
+          "ts": "2026-10-25T03:41:11.073+08:00",
+          "to": "unconfirmed",
+          "why": "建立待复核的操作级候选，不确认产品规则"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-IDX-241",
+      "kind": "requirement",
+      "subject": "qiankun_hm.k89_batch.241",
+      "statement": "候选子范围：当前园区信息行展示格式为共N个的正整数车位数。只核字段及归属，不证明N与真实全部地图车位一致。",
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100"
+      },
+      "status": "unconfirmed",
+      "source": {
+        "type": "test_goal",
+        "ref": "本轮用户要求将用例表自动化；https://github.com/amazing-fish/ghost_VPD/issues/65 附录A：界面显示/卡片区域显示/VPD图车位数量。仅用例名索引可用，以下操作级候选由Agent细化，不是原表完整预期抄录。"
+      },
+      "note": "操作轨迹/选择器来自本轮K89实机，仅作实现与校准证据，不证明产品应该如此。未有人确认完整原表预期或本条细化判据，不得将观测符合写为产品通过或整行覆盖。",
+      "created": "2026-10-25T03:41:11.074+08:00",
+      "history": [
+        {
+          "ts": "2026-10-25T03:41:11.075+08:00",
+          "to": "unconfirmed",
+          "why": "建立待复核的操作级候选，不确认产品规则"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-IDX-242",
+      "kind": "requirement",
+      "subject": "qiankun_hm.k89_batch.242",
+      "statement": "候选子范围：首页搜索入口进入搜索二级页，目的地/车位号输入框与电梯口、充电桩筛选入口显示；不包括提交查询或算路。",
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100"
+      },
+      "status": "unconfirmed",
+      "source": {
+        "type": "test_goal",
+        "ref": "本轮用户要求将用例表自动化；https://github.com/amazing-fish/ghost_VPD/issues/65 附录A：界面显示/卡片区域显示/点击进入搜索二级页面。仅用例名索引可用，以下操作级候选由Agent细化，不是原表完整预期抄录。"
+      },
+      "note": "操作轨迹/选择器来自本轮K89实机，仅作实现与校准证据，不证明产品应该如此。未有人确认完整原表预期或本条细化判据，不得将观测符合写为产品通过或整行覆盖。",
+      "created": "2026-10-25T03:41:11.079+08:00",
+      "history": [
+        {
+          "ts": "2026-10-25T03:41:11.079+08:00",
+          "to": "unconfirmed",
+          "why": "建立待复核的操作级候选，不确认产品规则"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-IDX-243",
+      "kind": "requirement",
+      "subject": "qiankun_hm.k89_batch.243",
+      "statement": "候选子范围：当前由度园区首页展示L1和B1两个楼层入口，字段必须属于同一楼层控件组。只核显示，不验证切层、图面或实际车辆楼层。",
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100"
+      },
+      "status": "unconfirmed",
+      "source": {
+        "type": "test_goal",
+        "ref": "本轮用户要求将用例表自动化；https://github.com/amazing-fish/ghost_VPD/issues/65 附录A：界面显示/地图界面显示/VPD图楼层显示。仅用例名索引可用，以下操作级候选由Agent细化，不是原表完整预期抄录。"
+      },
+      "note": "操作轨迹/选择器来自本轮K89实机，仅作实现与校准证据，不证明产品应该如此。未有人确认完整原表预期或本条细化判据，不得将观测符合写为产品通过或整行覆盖。",
+      "created": "2026-10-25T03:41:11.081+08:00",
+      "history": [
+        {
+          "ts": "2026-10-25T03:41:11.081+08:00",
+          "to": "unconfirmed",
+          "why": "建立待复核的操作级候选，不确认产品规则"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-IDX-244",
+      "kind": "requirement",
+      "subject": "qiankun_hm.k89_batch.244",
+      "statement": "候选子范围：点击支持区域入口后显示支持区域标题、当前城市及已渲染的附近园区列表。标题先于加载出现时须等列表终态，不代表所有园区或地图数据正确。",
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100"
+      },
+      "status": "unconfirmed",
+      "source": {
+        "type": "test_goal",
+        "ref": "本轮用户要求将用例表自动化；https://github.com/amazing-fish/ghost_VPD/issues/65 附录A：界面显示/地图界面显示/点击支持区域按钮进入二级页面。仅用例名索引可用，以下操作级候选由Agent细化，不是原表完整预期抄录。"
+      },
+      "note": "操作轨迹/选择器来自本轮K89实机，仅作实现与校准证据，不证明产品应该如此。未有人确认完整原表预期或本条细化判据，不得将观测符合写为产品通过或整行覆盖。",
+      "created": "2026-10-25T03:41:11.092+08:00",
+      "history": [
+        {
+          "ts": "2026-10-25T03:41:11.092+08:00",
+          "to": "unconfirmed",
+          "why": "建立待复核的操作级候选，不确认产品规则"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-IDX-245",
+      "kind": "requirement",
+      "subject": "qiankun_hm.k89_batch.245",
+      "statement": "候选子范围：城市选择页显示当前城市；输入上海后实际查询值和独立结果行均为上海，选择该行回支持区域。只验证当前城市选回，其他城市切换未验。",
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100"
+      },
+      "status": "unconfirmed",
+      "source": {
+        "type": "test_goal",
+        "ref": "本轮用户要求将用例表自动化；https://github.com/amazing-fish/ghost_VPD/issues/65 附录A：其他页面/支持区域界面/城市显示/选择。仅用例名索引可用，以下操作级候选由Agent细化，不是原表完整预期抄录。"
+      },
+      "note": "操作轨迹/选择器来自本轮K89实机，仅作实现与校准证据，不证明产品应该如此。未有人确认完整原表预期或本条细化判据，不得将观测符合写为产品通过或整行覆盖。",
+      "created": "2026-10-25T03:41:11.104+08:00",
+      "history": [
+        {
+          "ts": "2026-10-25T03:41:11.104+08:00",
+          "to": "unconfirmed",
+          "why": "建立待复核的操作级候选，不确认产品规则"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-IDX-246",
+      "kind": "requirement",
+      "subject": "qiankun_hm.k89_batch.246",
+      "statement": "候选子范围：输入园区关键词并显式提交搜索后，实际查询值正确，独立唯一结果行显示该园区名称、当前位置、车位数和楼层；不能只用输入文字或邻行字段证明命中。",
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100"
+      },
+      "status": "unconfirmed",
+      "source": {
+        "type": "test_goal",
+        "ref": "本轮用户要求将用例表自动化；https://github.com/amazing-fish/ghost_VPD/issues/65 附录A：其他页面/支持区域界面/城市停车场搜索。仅用例名索引可用，以下操作级候选由Agent细化，不是原表完整预期抄录。"
+      },
+      "note": "操作轨迹/选择器来自本轮K89实机，仅作实现与校准证据，不证明产品应该如此。未有人确认完整原表预期或本条细化判据，不得将观测符合写为产品通过或整行覆盖。",
+      "created": "2026-10-25T03:41:11.112+08:00",
+      "history": [
+        {
+          "ts": "2026-10-25T03:41:11.112+08:00",
+          "to": "unconfirmed",
+          "why": "建立待复核的操作级候选，不确认产品规则"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-IDX-247",
+      "kind": "requirement",
+      "subject": "qiankun_hm.k89_batch.247",
+      "statement": "候选子范围：点击完整停车场结果行后进入带列表入口的园区地图，保留所选园区名称，原停车场搜索输入消失。单击名称不跳转的采样保留，地图扎标点击未验。",
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100"
+      },
+      "status": "unconfirmed",
+      "source": {
+        "type": "test_goal",
+        "ref": "本轮用户要求将用例表自动化；https://github.com/amazing-fish/ghost_VPD/issues/65 附录A：其他页面/支持区域界面/点击扎标/列表跳转停车场。仅用例名索引可用，以下操作级候选由Agent细化，不是原表完整预期抄录。"
+      },
+      "note": "操作轨迹/选择器来自本轮K89实机，仅作实现与校准证据，不证明产品应该如此。未有人确认完整原表预期或本条细化判据，不得将观测符合写为产品通过或整行覆盖。",
+      "created": "2026-10-25T03:41:11.120+08:00",
+      "history": [
+        {
+          "ts": "2026-10-25T03:41:11.120+08:00",
+          "to": "unconfirmed",
+          "why": "建立待复核的操作级候选，不确认产品规则"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-IDX-248",
+      "kind": "requirement",
+      "subject": "qiankun_hm.k89_batch.248",
+      "statement": "候选子范围：当前园区行含当前位置标识，另一个明确园区行显示正数km距离；字段不得跨行拼接。显示距离不等于真实测距或当前车辆图内证明。",
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100"
+      },
+      "status": "unconfirmed",
+      "source": {
+        "type": "test_goal",
+        "ref": "本轮用户要求将用例表自动化；https://github.com/amazing-fish/ghost_VPD/issues/65 附录A：其他页面/支持区域界面/停车场距离/当前停车场。仅用例名索引可用，以下操作级候选由Agent细化，不是原表完整预期抄录。"
+      },
+      "note": "操作轨迹/选择器来自本轮K89实机，仅作实现与校准证据，不证明产品应该如此。未有人确认完整原表预期或本条细化判据，不得将观测符合写为产品通过或整行覆盖。",
+      "created": "2026-10-25T03:41:11.122+08:00",
+      "history": [
+        {
+          "ts": "2026-10-25T03:41:11.122+08:00",
+          "to": "unconfirmed",
+          "why": "建立待复核的操作级候选，不确认产品规则"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-IDX-249",
+      "kind": "requirement",
+      "subject": "qiankun_hm.k89_batch.249",
+      "statement": "候选子范围：当前园区唯一卡片同时展示正整数车位数量及可用L1、B1/共2层，不能用其他园区字段补齐。只核字段、格式和行归属，不证明服务端地图完整性。",
+      "applies_to": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100"
+      },
+      "status": "unconfirmed",
+      "source": {
+        "type": "test_goal",
+        "ref": "本轮用户要求将用例表自动化；https://github.com/amazing-fish/ghost_VPD/issues/65 附录A：其他页面/支持区域界面/停车场车位/楼层信息。仅用例名索引可用，以下操作级候选由Agent细化，不是原表完整预期抄录。"
+      },
+      "note": "操作轨迹/选择器来自本轮K89实机，仅作实现与校准证据，不证明产品应该如此。未有人确认完整原表预期或本条细化判据，不得将观测符合写为产品通过或整行覆盖。",
+      "created": "2026-10-25T03:41:11.124+08:00",
+      "history": [
+        {
+          "ts": "2026-10-25T03:41:11.124+08:00",
+          "to": "unconfirmed",
+          "why": "建立待复核的操作级候选，不确认产品规则"
         }
       ]
     }
