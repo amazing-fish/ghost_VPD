@@ -7,7 +7,8 @@ from vpdtest.knowledge import KnowledgeStore
 from vpdtest.runner import run_case
 from vpdtest.util import write_json
 
-from conftest import confirm, unconfirm, world
+from conftest import confirm, world
+from verdict_fixtures import SETTINGS_RULE
 
 BASE = world("motor_hm_base.json")
 
@@ -49,13 +50,13 @@ def test_exploration_record_is_traceable_and_not_promotable_until_complete(ws):
         C.promote(ws, "TC-EXP-001", "candidate", kn)
 
 
-def test_candidate_replay_and_regression_gates(ws):
-    unconfirm(ws, "K-MOT-002")
+def test_candidate_replay_and_regression_gates(verdict_ws):
+    ws = verdict_ws  # 成熟度门禁使用合成判据，不依赖生产判据的确认状态或适用范围。
     _, case = _explored_case(ws)
     kn = KnowledgeStore(ws.root)
     case.update(purpose="从爱车页经我的页进入设置", test_data_none=True, cleanup=[{"action": "stop_app"}],
                 assertions=[{"id": "A1", "at": "S3", "type": "target_present", "target": "logout_entry",
-                             "desc": "设置页可见退出登录", "oracle_refs": ["K-MOT-002"]}])
+                             "desc": "设置页可见退出登录", "oracle_refs": [SETTINGS_RULE]}])
     case["steps"][1]["target"], case["steps"][2]["target"] = "tab_my", "settings_entry"
     write_json(ws.case_path("TC-EXP-001"), case)
     C.approve(ws, "TC-EXP-001", kn, "pytest-human-reviewer", "isolated completed exploration fixture")
@@ -67,7 +68,7 @@ def test_candidate_replay_and_regression_gates(ws):
     assert run["verdict"]["verdict"] == "pending"  # 判据未确认，重放不算通过
     with pytest.raises(PermissionError):
         C.promote(ws, "TC-EXP-001", "replay_verified", kn)
-    confirm(ws, "K-MOT-002")
+    confirm(ws, SETTINGS_RULE)
     for _ in range(2):
         C.record_replay(ws, "TC-EXP-001", run_case(ws, "TC-EXP-001", device_spec=BASE))
     assert C.promote(ws, "TC-EXP-001", "replay_verified", kn)["status"] == "replay_verified"
@@ -79,18 +80,23 @@ def test_candidate_replay_and_regression_gates(ws):
     assert done["status"] == "regression" and len(done["history"][-1]["replays"]) == 2
 
 
-def test_editing_case_invalidates_old_replays(ws):
+def test_editing_case_invalidates_old_replays(verdict_ws):
+    ws = verdict_ws
     _, case = _explored_case(ws)
     kn = KnowledgeStore(ws.root)
-    confirm(ws, "K-MOT-002")
+    confirm(ws, SETTINGS_RULE)
     case.update(purpose="p", test_data_none=True, cleanup=[{"action": "stop_app"}], status="candidate",
                 assertions=[{"id": "A1", "at": "S3", "type": "target_present", "target": "logout_entry",
-                             "desc": "d", "oracle_refs": ["K-MOT-002"]}])
+                             "desc": "d", "oracle_refs": [SETTINGS_RULE]}])
     case["steps"][1]["target"], case["steps"][2]["target"] = "tab_my", "settings_entry"
     write_json(ws.case_path("TC-EXP-001"), case)
     for _ in range(2):
-        C.record_replay(ws, "TC-EXP-001", run_case(ws, "TC-EXP-001", device_spec=BASE))
+        run = run_case(ws, "TC-EXP-001", device_spec=BASE)
+        assert run["verdict"]["verdict"] == "passed"
+        C.record_replay(ws, "TC-EXP-001", run)
     edited = ws.load_case("TC-EXP-001")
+    basis = C.replay_basis(edited, C.dependency_hash(edited, ws.app("motor_hm"), kn))
+    assert basis["ok"] and basis["count"] == 2, basis
     edited["assertions"][0]["type"] = "target_absent"  # 修改断言 → 旧重放不再作数
     write_json(ws.case_path("TC-EXP-001"), edited)
     C.approve(ws, "TC-EXP-001", kn, "pytest-human-reviewer", "isolated changed assertion fixture")
