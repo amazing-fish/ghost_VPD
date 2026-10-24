@@ -150,6 +150,11 @@
       "require_text": [
         "输入目的地或车位号"
       ],
+      "effect_text": {
+        "^充电桩$": "navigation"
+      },
+      "navigation_context_target": "qk_search_input",
+      "navigation_note": "Issue84：只在当前搜索签名和已登记输入框均可核验，且实际可点击接收容器为纯充电桩标签时，覆盖全局裸充电关键词的误分类。页面级限制、真实充电及混合接收者不豁免；布局仍待当前实机复验。",
       "source": "2026-10-13 量产版 1.0.26.100 真机 session-wk-qk4/obs-0046",
       "review": "pending",
       "review_note": "输入框 SearchField 绝对路径见 qk_spot_search_input；联想行 L1层-XXX 车位+路线",

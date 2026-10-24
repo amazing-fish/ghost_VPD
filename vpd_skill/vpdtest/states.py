@@ -127,7 +127,10 @@ class StateModel:
         """页面级规则：deny_text 为纯禁止；effect_text {正则: 副作用类} 把本页上的通用文字（如确认弹窗的「确定」）
         归到某个副作用类，按该类的授权规则处理（例如点「开始」后的「确定」才真正让车动）。"""
         spec = self.states.get(state_id or "", {})
-        return list(spec.get("deny_text", [])) + [{"pattern": p, "class": c} for p, c in spec.get("effect_text", {}).items()]
+        # navigation is a positive classification candidate, never a new hard-deny class.
+        # It can override a keyword only after Policy verifies its current context/receiver.
+        return list(spec.get("deny_text", [])) + [{"pattern": p, "class": c, "state_id": state_id}
+                                                 for p, c in spec.get("effect_text", {}).items() if c != "navigation"]
 
     def deny_for_page(self, page: dict) -> list:
         """歧义不解除限制：取全窗、各栏候选与已识别状态的限制并集，不制造 active 状态。"""
@@ -138,7 +141,11 @@ class StateModel:
         return [t for sid in ids for t in self.deny_for(sid)]
 
     def confirmation_sources(self, tree: UiTree | None, target_ref=None, target=None, page=None, layout=None) -> list:
-        """只认当前同一弹窗的完整登记签名及已评审关闭方式，不信目标自填的 review/source。"""
+        """当前页面/弹窗的动作语义来源；不信目标自填的 review/source。
+
+        navigation 来源复用当前状态和已登记输入目标，不把文本标签本身当作豁免。
+        调用方在执行前及 Dispatcher 重检时都从各自当前树重新生成来源。
+        """
         if tree is None or tree.status != "ok":
             return []
         out = []
@@ -157,6 +164,24 @@ class StateModel:
                                 {"pattern": pattern, "class": effect}
                                 for pattern, effect in self.states.get(sid, {}).get("effect_text", {}).items()]}
                                 for sid in candidates]})
+            if (len(candidates) == 1 and page.get("state") not in
+                    (None, "unknown", "ambiguous", "undetermined", "out_of_app")
+                    and not page.get("interrupts") and not tree.modal_layers()):
+                sid = candidates[0]
+                spec = self.states.get(sid, {})
+                rules = [{"pattern": pattern, "class": effect}
+                         for pattern, effect in spec.get("effect_text", {}).items() if effect == "navigation"]
+                ref = spec.get("navigation_context_target")
+                declared = self.targets.get(ref) if isinstance(ref, str) else None
+                scope = [tree.nodes[scope_idx]] if scope_idx is not None else None
+                if rules and declared and _texts_match(spec, tree, scope):
+                    loc = resolve(ref, declared, tree, None, Path("."), layout=layout)
+                    found = loc["attempts"][-1].get("node") if loc.get("status") == "found" else None
+                    context = tree.nodes[found["idx"]] if found else None
+                    if (context and context.type in ("SearchField", "TextInput") and tree.shown(context)
+                            and tree.in_scope(context, scope)):
+                        out.append({"kind": "state_navigation_context", "state": sid, "scope_idx": scope_idx,
+                                    "context_node_idx": context.idx, "rules": rules})
         for modal in tree.modal_layers():
             matched = [(iid, spec) for iid, spec in self.interrupts.items()
                        if _texts_match(spec, tree, [modal], owner_modal=modal)]
