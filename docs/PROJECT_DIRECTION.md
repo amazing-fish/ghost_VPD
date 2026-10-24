@@ -1,25 +1,28 @@
 # 项目方向与执行安排（2026-10-24）
 
-核对基线：`main @ 244a71ec0205f15dd8adc8ad962372f87fed8e8a`（#81 已合入）。本批#82/#84的工程变更与待现场验收项分列；具体合入状态以对应PR为准，未合入候选不计入上述基线。PR #36 仅保留历史来源，不再整包合入。历史实施范围从 Git 历史与对应 PR 追溯。
+核对基线：`main @ c58f54ae2f99dba48ffc4194ea35ec820bf9deee`（#85/#86/#87已合入）。本批#82/#84的工程变更与待现场验收项分列；具体合入状态以对应PR为准，未合入候选不计入上述基线。PR #36 仅保留历史来源，不再整包合入。历史实施范围从 Git 历史与对应 PR 追溯。
 
 ## 交付目标与当前缺口
 
 交付单位是可独立判定、重复执行、证据可追溯的 **VPD 内功能用例**。沿用 `Observer → Executor/Dispatcher → Verdict → Case`；操作能力落在现有 `flow/state/targets/dialogs`，不新建另一套执行、规划或判定引擎。登录、解锁、系统弹窗及进入业务页属于前置能力，不能计作 VPD 功能覆盖。
 
-工作机报告启境1395在乾崑1.0.26.100折叠态的8项资产、16次整例执行，其中5项为VPD功能方向、3项为基础检查；产品结论均为 pending。该报告不等于远端资产已交付，也不等于确定重放或正式覆盖。
+工作机最新报告本地40份资产：236–239四项replay_verified、230–235六项candidate、20 draft、10 exploration_record。四项晋级仅引用K-GEN-001验证无崩溃/ANR文案，不代表首页、搜索、楼层或支持区域内容已满足原表；作者的本地成熟度仍需源件与当前绑定复核。
 
-在上述244a基线，仓库有31份case（21 draft、10 exploration_record）及90条knowledge；工作机的230新fixture、231–234与形态迁移仍未交付远端。主干TC-QK-230 v2保留历史园区fixture，不代表1395。本批工具补丁不增加业务资产；应先把已有工作变成可检查的draft交付，再按当前内容与依赖补齐验收。判据未确认不阻止单条诊断或draft入仓，之后的确认也不把旧pending追溯改成确定重放。
+上述主干实际仍31份case（21 draft、10 exploration_record）及90条knowledge。230仍为历史A224/C156的v2，230v5、231–239九份新增、相关targets/states/知识和形态迁移未交付远端。先交付已有文件及源码/content/deps/engine/policy/context、run/obs与cleanup索引，不再用“只差确认”概括全部缺口，也不以再建资产代替交付。
+
+工作机本地原表导出SHA-256为`06ae5d08da2f40ffc1e16b1439c203198b96a2329170004e925bd151625ddabe`，本轮未重读现网。最新143行分档合计144，暂不据此发布覆盖率；资产数、行号子范围、产品结论和正式登记分开。判据未确认不阻止draft交付，确认也不追改旧pending。
 
 ## 当前执行顺序
 
 | 优先级 | 工作包 | 交付与完成边界 |
 | --- | --- | --- |
 | P1 | [#65](https://github.com/amazing-fish/ghost_VPD/issues/65)、[#80](https://github.com/amazing-fish/ghost_VPD/issues/80) | 交付工作机已有1395资产，逐条核对名称、编号、标签、楼层及结果身份。名称查询不替代编号查询；保留适用规则、当前fixture、原始run与cleanup，pending不计正式覆盖。历史143行与NEXT空列先核原表，不自动回填平台 |
-| P2，当前修复 | [#84](https://github.com/amazing-fish/ghost_VPD/issues/84) | 已有StateModel/Policy中限定搜索筛选结构的导航语义候选；不全局删除“充电”限制。仍需当前1395父链、输入后页面身份及点击后结果/空态校准 |
-| P2，当前修复 | [#82](https://github.com/amazing-fish/ghost_VPD/issues/82) | 共享裁剪证据、拒绝未知坐标接收者并投影最终策略；不放宽Swiper或窗口计算。947/1264矛盾仍须同帧独立窗口、祖先链与真实按钮后置，不能把诊断交付称为几何适配完成 |
+| P2，工程已合，待现场 | [#84](https://github.com/amazing-fish/ghost_VPD/issues/84) | #86已在StateModel/Policy中交付限定搜索筛选结构的导航语义；不全局删除“充电”限制。仍需当前1395父链、输入后页面身份及点击后结果/空态校准 |
+| P2，诊断已合，几何待补 | [#82](https://github.com/amazing-fish/ghost_VPD/issues/82) | 共享裁剪证据、拒绝未知坐标接收者并投影最终策略；不放宽Swiper或窗口计算。947/1264矛盾仍须同帧独立窗口、祖先链与真实按钮后置，不能把诊断交付称为几何适配完成 |
 | P1，现场分支验收 | [#64](https://github.com/amazing-fish/ghost_VPD/issues/64)、[#31](https://github.com/amazing-fish/ghost_VPD/issues/31) | 以量产账密登录/已登录复用为主路径；账号管理的短信验证是旁路，不是普通VPD执行的必经门禁。未知二级页、更新弹窗和黑屏按实际观察取证，不盲目Back或杀进程 |
 | P1，生产事实接线 | [#56](https://github.com/amazing-fish/ghost_VPD/issues/56)、[#34](https://github.com/amazing-fish/ghost_VPD/issues/34) | 判定引擎已交付；补适用的独立现场provider、规则、人审与当前指纹下的真机复跑。一般探索不以固定故障前置为唯一入口；215/226/228业务裁决继续暂缓 |
 | P2，独立场景 | [#83](https://github.com/amazing-fish/ghost_VPD/issues/83)、[#54](https://github.com/amazing-fish/ghost_VPD/issues/54)、[#58](https://github.com/amazing-fish/ghost_VPD/issues/58)、[#52](https://github.com/amazing-fish/ghost_VPD/issues/52) | 分别处理身份绑定/产品规则、影像表面触摸归属、真实手势及知识沉淀；不把它们混成搜索策略豁免或通用几何放行 |
+| P1/P2，新证据收敛 | [#90](https://github.com/amazing-fish/ghost_VPD/issues/90)、[#89](https://github.com/amazing-fish/ghost_VPD/issues/89)、[#88](https://github.com/amazing-fish/ghost_VPD/issues/88) | #90归入#56提供者接线；首页/回自车不证明当前车辆图内，任意历史观测不得全程填yes。#89先交付状态诊断，缺锚点不自动归环境。#88分别核楼层实体、组合交集及空态；必须核实际输入值与标签状态，clear残留线索单独处理 |
 | 持续治理 | #9 / #45 / #29 | 随实际缺陷收敛重复检查、生产知识解耦与证据准入，不预先增设框架层 |
 
 ## 工程交付与架构收敛
@@ -31,6 +34,7 @@
 - #71/#72/#73：Python3.12与双平台CI、实际判据/模板依赖绑定、Console证据层级。
 - #66/#76：已知选择菜单及延迟遮挡的受控恢复；#77/#79：PIN发送未知的防重入与按设备显式启用的空白键盘识别；#78：USB单选弹窗的一次受控关闭。它们不证明所有现场分支均已验收。
 - #51/#67：任务范围入口/算路许可及预算可观测性；#49/#55已关闭。入口与算路不逐次请求授权；PIN解锁沿既有授权，其他副作用仍按当前策略。
+- #85/#86：裁剪与最终拒发诊断、未知坐标接收者拒发、限定搜索筛选导航语义；对应1395真机校准仍待完成。#87补两项探索成熟度门禁的生产判据隔离和有效重放前置，不改变生产知识。
 - #81：TC-QK-230 draft及返回首页导航修复；产品判据、1395 fixture、结果身份、按资产来源核对必要的人审及确定重放仍待验收。
 
 本批渐进重构收敛同一事实的来源和消费者：UiTree提供几何，StateModel提供当前页面动作依据，Policy判动作语义，Dispatcher下发前复核，必要时重定位并重算，后置观察证实声明效果。#82的CLI保留初检审计、展示最终拒发；#84复用已有来源通道，不新增另一套配置或执行路径。具体契约见[执行契约](../vpd_skill/references/contracts.md)，职责与剩余技术债见[架构审计](ARCHITECTURE_REVIEW.md)。

@@ -223,6 +223,16 @@ clear 与 input 均有可靠成功回执、只在可靠观测下原业务后置�
 
 Agent `diagnosis.status` 消费最终 `final_status`，并以匹配最后尝试和 `final_obs` 的恢复后置提供 `post/obs_id/recovery` 证据；不会引用旧恢复，成功恢复返回无失败诊断。可靠业务后置未达的诊断与产品 `fail_candidate` 一致，首次覆盖异常仅在历史失败记录中保留。
 
+已登记 `expect_state` 的后置失败附 `state_diagnostics`（`diag_only=true`）：保留期望状态的声明签名、
+当前状态与候选、观测ID、树状态/路径，并仅核对 `require_text` 在当前整窗可见文本里的已见/未见项。
+它不重做完整签名匹配；pattern、selected、forbid及分栏等仍由既有状态识别负责，声明快照只供核对。
+无可用树、明确采集错误或过时观测时 `available=false`，`present/missing=null`，不能写成确定全缺。
+未声明 `require_text` 时列表为空，不产生“全部锚点缺失”的结论；特殊 `@in_app` 与未登记状态不制造签名。
+最终诊断优先取绑定当前尝试的恢复后置，首次诊断另留 `first_failure`；恢复成功不残留当前失败诊断。
+结构化证据进入最终步骤及 finding.evidence，报告沿既有 reason 显示简短诊断与观测引用。
+缺锚点只说明当前识别证据，不证明车不在支持园区、距离超限或其他环境原因；unknown/undetermined也不是独立环境反证。
+该诊断不改变原归因、Oracle、接管、重放与产品结论；环境阻塞仍需独立且当前的前置证据。
+
 可靠下发及成功回执后的可观测 `anomaly`、已知晚停/停止失败等确定失败保留交接，不因此标记 `effect_unknown`；该字段只取未知物理证据、部分执行或明确不可判的观测（如无可用树、查询失败、中断下业务状态不可判、停止查询未知）。可靠已知状态上的中断不因此变成未知执行。执行器三条汇总/恢复路径共用此判断，不用“不是 postcondition_not_met”代替未知性。
 
 步骤结果：`passed` / `passed_after_adaptation` / `passed_after_recovery` / `fail_candidate` / `error` / `blocked` / `pending` / `skipped`（操作条件明确不满足，未触发）/ `not_run`。
@@ -256,11 +266,12 @@ Agent `diagnosis.status` 消费最终 `final_status`，并以匹配最后尝试�
 | `not_applicable` | 当前有效、独立的 guard 明确 false，不计通过/失败或覆盖 |
 | `not_run` | 关联步骤未成功（列入 `verdict.not_verified`）；引用的步骤不存在 → 用例定义错误，汇总为 error/tool |
 
-判据适用性：`knowledge_snapshot[].applicability` 把条目 `applies_to` 与 `run.json.facts`（APP、实测版本、屏幕形态、
-独立事实；`--env` 仅保留调度声明）逐项比较。事实缺失或版本描述不可比较（如"内部debug版 phone_fc78649"）→ `applicability_unknown`；
+判据适用性：`knowledge_snapshot[].applicability` 把条目 `applies_to` 与产品判据绑定的 `run.json.oracle_facts`逐项比较；
+不使用含业务声明的调度 `run.json.facts`。真机当前仅绑定实测APP、版本和形态；独立条件证据另沿既有guard链取证。事实缺失或版本描述不可比较（如"内部debug版 phone_fc78649"）→ `applicability_unknown`；
 不相等 → `out_of_scope`。`operation` / `observation` 类条目不是判据（`not_oracle`）。
 
-`env_requirements` 与判据使用同一组运行事实：`app` 来自被测 APP 定义，`app_version`、`device_form`
+`env_requirements` 消费调度 `run.facts`，产品判据消费独立绑定的 `run.oracle_facts`，两者不能混用。
+共同的实测基础中，`app` 来自被测APP定义，`app_version`、`device_form`
 来自本次设备前置检查；这三项即使未知也不能用 `--env` 替代。版本/形态不符或必需实测值缺失时，
 运行判环境阻塞，业务步骤与清理不执行，自动解锁和已登记弹窗关闭也不下发。解锁后重新实测并复核。
 `layout_requirements`（宽窄屏、方向、折叠状态等）在同一恢复前门槛中按实测布局检查，解锁后也重新计算；

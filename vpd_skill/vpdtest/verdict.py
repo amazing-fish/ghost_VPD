@@ -78,6 +78,8 @@ def _execution_findings(results: list, kind: str, ancestors: tuple = (), cleanup
             finding = {"kind": kind, "step": step["step_id"], "result": "error",
                        "attribution": step.get("attribution") or "tool", "reason": step.get("reason"),
                        "mode": step.get("final_status"), **execution_error(step, kind)}
+            if step.get("state_diagnostics") is not None:
+                finding["evidence"]["state_diagnostics"] = step["state_diagnostics"]
             if ancestors:
                 finding.update(parent_step=ancestors[-1], ancestors=list(ancestors))
                 finding["evidence"].update(parent_step=ancestors[-1], ancestors=list(ancestors))
@@ -119,6 +121,8 @@ def _step_findings(steps, knowledge):
         base = {"kind": "step", "step": step["step_id"],
                 "evidence": {"step": step["step_id"], "obs_after": step.get("final_obs"),
                              "oracle_source": source}}
+        if step.get("state_diagnostics") is not None:
+            base["evidence"]["state_diagnostics"] = step["state_diagnostics"]
         if ancestors:
             base.update(parent_step=ancestors[-1], ancestors=list(ancestors))
             base["evidence"].update(parent_step=ancestors[-1], ancestors=list(ancestors))
@@ -510,6 +514,8 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
             continue  # Includes optional cleanup; errors remain independent.
         finding = {"kind": "cleanup", "step": c["step_id"], "cleanup_required": required,
                    "evidence": {"step": c["step_id"], "obs_after": c.get("final_obs")}}
+        if c.get("state_diagnostics") is not None:
+            finding["evidence"]["state_diagnostics"] = c["state_diagnostics"]
         if ancestors:
             finding.update(parent_step=ancestors[-1], ancestors=list(ancestors))
             finding["evidence"].update(parent_step=ancestors[-1], ancestors=list(ancestors))
