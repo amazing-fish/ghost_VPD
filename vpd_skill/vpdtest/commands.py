@@ -16,7 +16,8 @@ from .observe import RunStore
 from .params import Params
 from .runner import run_case
 from .session import (IDENTITY_KEYS, SessionMismatch, dispatched, effect_unknown, from_session, next_seq,
-                      parse_select, summarize, trail, session_lock, step_options, swipe_options_error)
+                      parse_select, summarize, trail, session_lock, step_options, swipe_options_error,
+                      relative_swipe_options)
 from .templates import crop
 from .util import append_jsonl, now_iso, read_json, read_jsonl, write_json
 from .workspace import RunContext, Workspace
@@ -93,7 +94,7 @@ SESSION_SCHEMA = 2
 # act_request 只记这些字段（白名单）：新加的命令行参数默认不落盘，输入文字只记长度
 REQUEST_FIELDS = ("action", "select", "within", "target", "point", "basis", "side_effect", "allow_input", "text_len", "clear",
                   "expect", "expect_text", "timeout", "duration", "interval", "watch", "direction", "authorize",
-                  "supervisor")
+                  "supervisor", "start", "end", "speed")
 
 
 def _open_session(ws, a):
@@ -208,6 +209,7 @@ def _cmd_act(ws: Workspace, a) -> dict:
            "interval": a.interval if a.action == "monitor" else None,
            "watch": dict(kv.split("=", 1) for kv in a.watch or []) if a.action == "monitor" else None,
            "direction": getattr(a, "direction", None), "authorize": sorted(set(a.authorize or [])),
+           "start": getattr(a, "start", None), "end": getattr(a, "end", None), "speed": getattr(a, "speed", None),
            "supervisor": bool(a.supervisor)}
     request = {k: raw[k] for k in REQUEST_FIELDS if raw.get(k) not in (None, [], False)}
     store.event("act_request", seq=seq, step_id=step_id, request=request)
@@ -262,6 +264,8 @@ def _act_step(ctx, store, a, step_id: str) -> dict:
         # 在指定容器里滑：弹出的下拉/面板和背后页面都是可滚动容器时，默认会滑到面积最大的那个
         k, _, v = a.within.partition("=")
         step["within"] = {k: v}
+    if a.action == "swipe" and getattr(a, "start", None) is not None:
+        step.update(relative_swipe_options(vars(a)))
     if a.action == "monitor":
         step["stop_on"] = []
     if a.action in ("tap", "input"):

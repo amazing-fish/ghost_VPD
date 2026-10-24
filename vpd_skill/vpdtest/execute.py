@@ -16,7 +16,7 @@ from .dispatch import auxiliary_dispatches, dispatch_effect_unknown
 from .layout import key as layout_key
 from .layout import resolve_scope
 from .locate import resolve
-from .session import swipe_options_error
+from .session import relative_swipe_options, swipe_options_error
 from .util import now_iso
 from .verdict import collection_error, error_attribution
 
@@ -403,7 +403,9 @@ class Executor:
         elif kind == "swipe":
             if not self._foreground_ok(att):
                 return att
-            if step.get("random"):
+            if step.get("start") is not None:
+                res, att["swipe"] = self._relative_swipe(step, att)
+            elif step.get("random"):
                 res, att["swipe"] = self._random_swipe(tree, obs.get("layout"), step, att)
             else:
                 res, att["swipe"] = self._swipe(step.get("direction", "up"), tree, obs.get("layout"), step.get("within"), att)
@@ -948,6 +950,96 @@ class Executor:
             if tree.touch_check(*pt, box)["allowed"]:
                 return pt
         return first
+
+    def _relative_swipe(self, step, att):
+        """A current, unique known scroll surface; arbitrary pixel/surface proposals stay unsupported."""
+        ctx = self.ctx
+        options = relative_swipe_options(step)
+        within = step["within"]
+        if isinstance(within, str):
+            key, _, value = within.partition("=")
+            within = {key: value}
+        info = {"relative": True, **options, "within": within, "basis": "current_scroll_container"}
+        def reject(status, reason):
+            att.update(status=status, reason=reason)
+            return DeviceResult("swipe", False, False, status, reason), info
+        # The earlier foreground check may have unlocked. Never reuse its old geometry.
+        obs, tree = ctx.observe(f"{step['id']}:relative-predispatch", screenshot=False)
+        info.update(obs=obs["obs_id"], window_rect=(obs.get("layout") or {}).get("window_rect"),
+                    window_source=(obs.get("layout") or {}).get("source"))
+        error = collection_error(obs)
+        if error:
+            att["execution_error"] = {**error, "stage": "relative_swipe"}
+            return reject("observation_failed", "相对手势前观测失败")
+        if tree is None or tree.status != "ok":
+            return reject("target_unresolved", "相对手势需要当前可用UI树和已知滚动容器")
+        if obs.get("fresh") is False or not info["window_rect"]:
+            return reject("target_stale", "相对手势的当前窗口或观测无效")
+        if obs["page"].get("interrupts"):
+            return reject("target_obscured", "手势复核时出现中断，未下发；须重新核对当前页面")
+        if not self._check_condition(step, obs, tree, "relative_swipe", att):
+            return DeviceResult("swipe", False, False, att["status"], att.get("reason")), info
+        scopes = resolve_scope(within, tree, obs.get("layout")) or []
+        if len(scopes) != 1:
+            return reject("target_ambiguous" if scopes else "target_unresolved", "相对手势范围须匹配唯一当前容器")
+        scope = scopes[0]
+        if scope.parent is None or scope.type not in ("Scroll", "List", "Grid") or not scope.scrollable:
+            return reject("target_unresolved", "范围不是可核验的Scroll/List/Grid滚动容器")
+        if not tree.enabled_state(scope)[0]:
+            return reject("target_disabled", "滚动容器当前不可用")
+        area = tree.visible_rect(scope)
+        if not area:
+            return reject("target_unresolved", "滚动容器当前不可见")
+        def point(fractions):
+            return [round(area[i] + (area[i + 2] - area[i] - 1) * fractions[i]) for i in (0, 1)]
+        p1, p2 = point(options["start"]), point(options["end"])
+        info.update(area=list(area), container=scope.brief(), **{"from": p1, "to": p2})
+        if p1 == p2:
+            return reject("invalid_step", "相对手势换算后为零位移，未下发")
+        # A line crosses a finite set of axis-aligned visibility boundaries. Check
+        # every interval, not a fixed sparse sampling that can miss a thin overlay.
+        ts = {0.0, 1.0}
+        for node in tree.nodes:
+            rect = tree.visible_rect(node)
+            if not rect:
+                continue
+            for axis in (0, 1):
+                delta = p2[axis] - p1[axis]
+                if delta:
+                    for edge in (rect[axis], rect[axis + 2]):
+                        t = (edge - p1[axis]) / delta
+                        if 0 < t < 1:
+                            ts.add(t)
+        ordered = sorted(ts)
+        samples = sorted(ts | {(a + b) / 2 for a, b in zip(ordered, ordered[1:])})
+        checks, checked = [], set()
+        target = {"label": "relative_scroll", "side_effect": "navigation"}
+        for t in samples:
+            pt = [p1[i] + (p2[i] - p1[i]) * t for i in (0, 1)]
+            touch = tree.touch_check(*pt, scope)
+            if not touch["allowed"]:
+                info["touch"] = touch
+                return reject("target_obscured", "手势路径存在不属于滚动容器的接收者")
+            node = tree.node_at(*pt)
+            if node is None or not tree.is_within(node, scope):
+                return reject("target_obscured", "手势路径离开当前滚动容器或被其他表面覆盖")
+            identity = (node.idx, (touch.get("receiver") or {}).get("idx"))
+            if identity in checked:
+                continue
+            checked.add(identity)
+            policy = ctx.policy.check_tap(tree, pt, "tree", target,
+                                          ctx.app.states.deny_for_page(obs["page"]), ctx.authorized, node=node)
+            if not policy["allowed"]:
+                att["policy"] = policy
+                return reject("policy_denied", "手势路径未通过当前节点策略：" + policy["reason"])
+            checks.append({"node": node.idx, "receiver": (touch.get("receiver") or {}).get("idx")})
+        info["path_checks"] = list({(c["node"], c["receiver"]): c for c in checks}.values())
+        ctx.store.event("relative_swipe", step=step["id"], **info)
+        # A lock appearing after current geometry must reject, never unlock and
+        # then dispatch coordinates from before that physical action.
+        return ctx.dispatcher.send("swipe", *p1, *p2, options["speed"],
+                                   preconditions={**ctx.dispatcher.app_conditions("swipe"), "recover_unlock": False},
+                                   att=att), info
 
     def _random_swipe(self, tree, lay, step: dict, att=None) -> tuple:
         """可复现的随机滑动（如"随机拖动地图"）：种子记入证据，重跑时用同一种子得到同样的轨迹；

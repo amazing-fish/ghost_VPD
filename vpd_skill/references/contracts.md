@@ -69,7 +69,7 @@
 | `stop_app` | — | — | 无 | 同上 | ≤2 | 结束进程 |
 | `tap` | 目标唯一定位；policy 允许 | `target` 或（agent 模式）`point`+`basis` | `expect_state` | 同上 | ≤2 | 取决于目标 `side_effect` |
 | `back` / `home` | 未锁屏；明确识别被测 APP 或桌面在前台 | — | `expect_state` | 同上 | ≤2 | 导航 |
-| `swipe` | 有可滚动容器或已知窗口尺寸 | `direction`，可选 `within` | `expect_state` | 同上 | ≤2 | 滚动；起止点取容器可见区域的 75%/25% 高度，分栏时不会滑到另一栏；滑动前后内容指纹不变记为 `scroll_end` |
+| `swipe` | 普通滚动有可滚动容器或已知窗口；相对手势须唯一当前可见、enabled且scrollable的Scroll/List/Grid | `direction`及可选`within`，或显式`within`＋`start/end`＋可选`speed` | `expect_state` | 同上 | ≤2 | 普通滚动仍取75%/25%高度；相对手势在当前容器可见区域现算，记录实际坐标/速度和完整窗口矩形；不把命令成功等同后置或产品通过 |
 | `input` | policy 开启输入且目标允许；非敏感框 | `target`,`text` | `expect_state` | 同上 | ≤2 | 改变输入框内容 |
 | `ensure_state` | recipe 存在 | `state` | 到达该状态且无中断 | 由子步骤决定 | 子步骤各自 | recipe 中动作的副作用 |
 | `resume` | APP 已启动过 | — | `expect_state`；另记 `resume.{process_alive_before, cold_start}` | 同上 | ≤2 | 从后台拉回（与 launch 同一命令） |
@@ -85,7 +85,7 @@
 父 `when` 也覆盖自动终态验证：若其正证只存在于起始页，离页后未知仍为 pending。
 只约束一次导航的条件应放在该导航步骤上，不将它声明为整个能力的持续条件。
 
-`act swipe` 不是定点拖动：当前明确拒绝 `--point`、`--basis`、`--duration`。
+`act swipe` 不接受像素定点或时长：继续明确拒绝 `--point`、`--basis`、`--duration`。
 `act` 的 `target_obscured` 诊断回传最后一次下发复核中的 `blocker`、`expected` 和关联 `obs_id`；无该次证据时字段为空，不从旧尝试补造遮挡结论。诊断仅解释拒发，不改变触摸归属或授权检查。
 CLI 参数错误在会话锁、设备初始化和信息查询前拒绝，不创建会话，也不追加请求/拒绝事件。
 直接 step/flow 中的 `point`、`basis`、`point_window`、`point_basis`、`duration`、`duration_s` 同样在观测、解锁和动作前拒绝为
@@ -94,6 +94,18 @@ CLI 参数错误在会话锁、设备初始化和信息查询前拒绝，不创�
 不带这些参数的容器滚动、`within` 与既有随机地图滑动继续沿原路径执行。
 `--duration` 的单位为秒，仅用于 wait/monitor；设备 `uitest uiInput swipe` 的末参数为速度 px/s，
 不是时长，参见 [OpenHarmony 参数说明](https://github.com/openharmony/docs/blob/master/zh-cn/application-dev/application-test/uitest-guidelines.md)。
+
+已知滚动容器的相对手势使用 `act swipe --within id=<容器> --start 0.8,0.5 --end 0.2,0.5 --speed 800`。
+step 对应 `start/end` 两个0..1比例数组、`speed` 整数200..40000 px/s（省略仍为既有2000）；
+必须匹配唯一可见、enabled且scrollable的 `Scroll/List/Grid`，不支持XComponent/未知影像表面。
+新参数不得与 `direction/random/target/select/at/random_point` 混用；只给speed、缺起止之一、非有限数、零位移及无效范围均在观测/设备前拒绝。
+相对点取当前可见矩形半开边界：`round(origin + (extent - 1) * fraction)`，1.0仍落在容器内；
+换算后为同一像素也拒绝。执行前新观测现算完整window_rect、容器和坐标，等尺寸平移亦不复用旧坐标。
+沿线所有可见节点矩形交点和各区间检查触摸归属、遮挡及既有节点/页面policy；basis或within不能豁免受控内容。
+临近下发重新锁屏时拒发，不再次解锁后发送旧坐标。事件保留归一化比例、实际起止点、速度、观测、完整窗口和来源。
+会话固化保留相对参数与within，不保存像素；历史point/basis/duration仍不能变成新能力的成功证据。
+Replay按位移主轴选择up/down/left/right（绝对位移相同按纵轴），不再把水平手势当down；零位移不推进状态。
+这只交付已知滚动容器的swipe参数闭环，不代表drag、AVM档位/地图移动、像素点提议或1395实机已验收；这些仍沿#58/#54与#65。
 
 前台查询返回未知（`None`）时，`back`/`home` 按 `state_indeterminate` 停下，即使查询命令成功也不下发。
 已识别的桌面允许导航；真机 `aa dump` 没有前台 mission 不能作为桌面证据，当前适配器保持返回未知，

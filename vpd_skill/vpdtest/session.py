@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import time
@@ -31,16 +32,59 @@ SELECT_RE = re.compile(r"^(text~|text|id|xpath)=(.+)$", re.S)
 CHROME_TYPES = ("TabBar",)
 
 
+def relative_swipe_options(request: dict) -> dict:
+    """Normalize CLI fractions and stored fractions without converting time into speed."""
+    def pair(value):
+        values = value.split(",") if isinstance(value, str) else value
+        if not isinstance(values, (list, tuple)) or len(values) != 2:
+            raise ValueError("start/end 必须是两个0..1相对比例")
+        if any(isinstance(v, bool) or not isinstance(v, (str, int, float)) for v in values):
+            raise ValueError("start/end 必须是有限数值比例")
+        nums = [float(v) for v in values]
+        if any(not math.isfinite(v) or not 0 <= v <= 1 for v in nums):
+            raise ValueError("start/end 比例必须为0..1的有限数值")
+        return nums
+    start, end = pair(request.get("start")), pair(request.get("end"))
+    speed = request.get("speed") if request.get("speed") is not None else 2000
+    if type(speed) is not int or not 200 <= speed <= 40000:
+        raise ValueError("speed 必须为200..40000的整数，单位px/s")
+    if start == end:
+        raise ValueError("swipe 起止点不能相同")
+    return {"start": start, "end": end, "speed": speed}
+
+
 def swipe_options_error(request: dict) -> str | None:
-    """拒绝当前容器滚动无法兑现的坐标/时长，现场、执行和固化共用同一契约。"""
+    """现场、定义检查和固化共用的滚动/相对手势参数合同。"""
+    relative = any(request.get(k) is not None for k in ("start", "end", "speed"))
     if request.get("action") != "swipe":
-        return None
+        return "start/end/speed 仅用于 swipe" if relative else None
     fields = [key for key in ("point", "basis", "point_window", "point_basis", "duration", "duration_s")
               if request.get(key) is not None]
-    if not fields:
-        return None
-    return (f"swipe 不支持参数 {', '.join(fields)}：当前按滚动容器计算坐标，定点拖动和自定义时长暂不支持；"
-            "请移除这些参数后使用 direction/within 容器滚动。duration 仅用于 wait/monitor。")
+    if fields:
+        return (f"swipe 不支持参数 {', '.join(fields)}：像素定点/时长不能作为容器相对手势；"
+                "请用 direction/within 滚动，或 start/end/speed/within 相对手势。duration 仅用于 wait/monitor。")
+    if not relative:
+        return ("swipe direction 仅支持 up/down；其他方向请使用 start/end 相对手势"
+                if request.get("direction") not in (None, "up", "down") else None)
+    conflicts = [k for k in ("direction", "random", "target", "select", "at", "random_point")
+                 if request.get(k) is not None]
+    if conflicts:
+        return f"swipe 相对手势不能与 {', '.join(conflicts)} 混用"
+    within = request.get("within")
+    if isinstance(within, str):
+        key, sep, value = within.partition("=")
+        within = {key: value} if sep and value else None
+    if (not isinstance(within, dict) or len(within) != 1 or
+            next(iter(within), None) not in ("id", "type") or
+            not isinstance(next(iter(within.values()), None), str) or not next(iter(within.values()), "")):
+        return "swipe 相对手势须显式 within=id=<id> 或 type=Scroll|List|Grid"
+    if "type" in within and within["type"] not in ("Scroll", "List", "Grid"):
+        return "swipe 相对手势只支持已知可滚动 Scroll/List/Grid 容器"
+    try:
+        relative_swipe_options(request)
+    except (TypeError, ValueError, OverflowError) as error:
+        return f"swipe 参数无效：{error}"
+    return None
 
 
 def parse_select(spec: str, within: Optional[str] = None, side_effect: str = "navigation",
@@ -409,6 +453,8 @@ def _to_case_step(it: dict, req: dict, session_dir: Path, test_data: dict, facts
     if action == "swipe" and req.get("within"):
         k, _, v = req["within"].partition("=")
         step["within"] = {k: v}
+    if action == "swipe" and req.get("start") is not None:
+        step.update(relative_swipe_options(req))
     if action in ("tap", "input"):
         derived_node = None
         if req.get("select"):

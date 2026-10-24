@@ -106,7 +106,7 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
 |---|---|
 | `page.state = unknown` | 看该观测的 `screen.png`，描述页面语义；未声明页面用 `--expect-text` 写后置条件；如需纳入状态模型，提议 states.json 签名（需人工评审） |
 | 无 UI 树 / 定位失败 | `--select` 只覆盖有 UI 树的页面，地图等自绘区域（XComponent）不在树里。先考虑已有模板；可用 `template-crop` 从观测裁剪模板并提议登记。只有确有把握时才用 `act tap --point x,y --basis "<看到了什么>"`，且执行器仍会按 policy 拦截 |
-| 定点拖动 / swipe 参数拒绝 | `act swipe` 只按 `direction` 和可选 `within` 做容器上下滚动；`--point`、`--basis`、`--duration` 明确拒绝，不会退化为普通滚动。历史含这些参数的动作不能直接固化，可重新采样或用 `--drop A序号=理由` 留痕排除。定点/AVM 手势能力仍待实现，按当前受控入口或人工交接处理。 |
+| 相对 swipe / 像素拖动拒绝 | 普通 `direction/within` 上下滚动不变；唯一可见且scrollable的Scroll/List/Grid可用 `--within id=<容器> --start 0.8,0.5 --end 0.2,0.5 --speed 800`，比例0..1、速度200..40000整数px/s（默认2000）。当前树现算完整窗口与路径，复核遮挡/policy后下发；会话保留相对参数。`--point/--basis/--duration`仍拒绝，历史此类请求不能冒充新手势；XComponent、AVM表面与drag仍待校准。 |
 | `target_ambiguous` | 不要挑一个点；`diagnosis.candidates` 列出了各候选，用 `--within` 限定容器/分栏或改用 `id=`/`xpath=` |
 | `target_stale` / `foreground_changed` | 观察与下发之间页面变了 / 前台被切走：重新 observe 再决定；触摸/输入时前台是其他应用则停止该动作；可受控 launch/resume 后重新观察 |
 | `target_obscured` | 读取诊断的 `blocker`（遮挡节点类型/文字/边界）、`expected` 与 `obs_id`，核对当前树。仅执行当前已登记流程，不因覆盖物名为 SelectOverlay 或看起来透明就穿透触摸检查；未知覆盖物保留阻塞。 |
