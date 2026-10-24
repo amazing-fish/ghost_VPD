@@ -13,7 +13,7 @@ from vpdtest.util import read_json, write_json
 @pytest.mark.parametrize("mutation", ["removed", "ineligible"])
 def test_verdict_contract_survives_production_corpus_changes(tmp_path, mutation):
     skill = tmp_path / "skill"
-    # 子进程只运行 test_verdict，不会递归运行本模块；生产集成检查仍由外层全量执行。
+    # 只运行判定契约和两项成熟度门禁，不递归运行本模块；生产集成仍由外层全量执行。
     shutil.copytree(SKILL, skill, ignore=shutil.ignore_patterns(
         ".git", ".venv", "runs", "reports", "__pycache__", ".pytest_cache", ".ruff_cache"))
     path = skill / "data" / "knowledge" / "items.json"
@@ -27,6 +27,8 @@ def test_verdict_contract_survives_production_corpus_changes(tmp_path, mutation)
         write_json(path, data)
     env = {**os.environ, "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"}
     env.pop("PYTEST_ADDOPTS", None)
-    result = subprocess.run([sys.executable, "-m", "pytest", "-q", "-o", "addopts=", "tests/test_verdict.py"],
+    result = subprocess.run([sys.executable, "-m", "pytest", "-q", "-o", "addopts=", "tests/test_verdict.py",
+                             "tests/test_explore_promote.py::test_candidate_replay_and_regression_gates",
+                             "tests/test_explore_promote.py::test_editing_case_invalidates_old_replays"],
                             cwd=skill, env=env, capture_output=True, text=True, timeout=120, check=False)
     assert result.returncode == 0, result.stdout + result.stderr
