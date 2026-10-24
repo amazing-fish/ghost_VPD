@@ -20,7 +20,7 @@ class Policy:
         self.version = data.get("version", "unknown")
         self.hash = sha256_obj(data)[:12]
         self.allowed_packages = set(data.get("allowed_packages", []))
-        self.deny = [(re.compile(d["pattern"]), d["reason"], d.get("class", "denied"))
+        self.deny = [(re.compile(d["pattern"]), d["reason"], d.get("class", "denied"), d.get("id"))
                      for d in data.get("deny_text", [])]
         self.denied_side_effects = set(data.get("denied_side_effects", []))
         self.gated_side_effects = set(data.get("gated_side_effects", {}))
@@ -58,14 +58,16 @@ class Policy:
         return hits[0] if hits else None
 
     def match_all(self, texts: list, extra: Optional[list] = None) -> list:
-        rules = list(self.deny)
+        rules = [(rx, reason, cls, "policy", rid, None) for rx, reason, cls, rid in self.deny]
         for p in extra or []:
             if isinstance(p, dict):  # 页面级副作用归类：按该类的授权规则处理
-                rules.append((re.compile(p["pattern"]), f"本页面上该控件属于 {p['class']}", p["class"]))
+                rules.append((re.compile(p["pattern"]), f"本页面上该控件属于 {p['class']}", p["class"],
+                              "state", None, p.get("state_id")))
             else:
-                rules.append((re.compile(p), "页面级禁止", "state_deny"))
-        return [{"text": text, "pattern": rx.pattern, "reason": reason, "class": cls}
-                for text in texts for rx, reason, cls in rules if rx.search(text.strip())]
+                rules.append((re.compile(p), "页面级禁止", "state_deny", "state", None, None))
+        return [{"text": text, "pattern": rx.pattern, "reason": reason, "class": cls, "source": source,
+                 **({"rule_id": rid} if rid else {}), **({"state_id": sid} if sid else {})}
+                for text in texts for rx, reason, cls, source, rid, sid in rules if rx.search(text.strip())]
 
     def check_grants(self, granted) -> None:
         """命令行 --authorize 只接受可授予的副作用名；拼错或硬禁止类直接报错，不静默忽略。"""
@@ -117,7 +119,10 @@ class Policy:
                   state_deny: Optional[list] = None, authorized: Optional[set] = None, node=None,
                   confirmation_sources: list | None = None) -> dict:
         """判定一次点击。返回 {allowed, reason, label, deny}；不会抛异常。
-        task 类随测试任务许可；其他类使用 authorized。只放行"目标声明了同一副作用"的命中。"""
+        task 类随测试任务许可；其他类使用 authorized。只放行"目标声明了同一副作用"的命中。
+        confirmation_sources 保持旧参数名，承载 StateModel 当前页面/弹窗动作依据，
+        包括严格绑定搜索输入与筛选组的 navigation；目标自填字段不产生这些来源。
+        """
         target, authorized = target or {}, self.effective_grants(authorized)
         if basis not in VALID_BASIS:
             return {"allowed": False, "reason": f"未知定位依据 {basis}", "label": None, "deny": None}
@@ -183,6 +188,13 @@ class Policy:
         texts = [t for t in texts if t]
         label = (texts[0] if texts else "")[:40]
         hits = self.match_all(texts, state_deny)
+        navigation = self._search_filter_source(tree, point, container, texts, effect, confirmation_sources)
+        if navigation:
+            # Only this identified broad policy rule is superseded. Page rules and any other
+            # global hit remain restrictions, even if they name the same label/class.
+            hits = [h for h in hits if not (
+                h.get("source") == "policy" and h.get("rule_id") == "vehicle_control_keywords"
+                and h["class"] == "vehicle_control" and h["text"].strip() == "充电桩")]
         editable = any(n.type in EDITABLE_TYPES
                        for n in [node, container] + tree.ancestors(node))
         generic = [] if editable else [t for t in texts if self.confirmation_rx.fullmatch(t.strip())]
@@ -274,8 +286,72 @@ class Policy:
         if basis == "point" and not texts:
             return {"allowed": False, "reason": "坐标落在无文本标识的控件上，无法确认副作用", "label": label, "deny": None}
         return {"allowed": True, "reason": "通过", "label": label, "deny": None,
+                **({"navigation_source": navigation} if navigation else {}),
                 **({"authorized_by": effect, "authorization_source": "task_policy"} if effect in self.task_side_effects else {}),
                 **({"confirmation_source": confirmation} if confirmation else {})}
+
+    def _search_filter_source(self, tree, point, container, texts, effect, sources):
+        """Exact search-filter classification, not a general text/target exemption."""
+        if effect != "navigation" or {t.strip() for t in texts} != {"充电桩"}:
+            return None
+        receiver = tree.touch_target(*point)
+        if not container.clickable or receiver is None or receiver.idx != container.idx or tree.modal_layers():
+            return None
+        nodes = [n for n in tree.nodes if tree.is_within(n, container)]
+        if any(n.type in EDITABLE_TYPES | self.deny_node_types for n in nodes):
+            return None
+        if any(n.clickable and n.idx != container.idx for n in nodes):
+            return None
+        visible = {t.strip() for n in nodes if tree.shown(n) for t in (n.text, n.description) if t.strip()}
+        if visible != {"充电桩"}:
+            return None
+        for source in sources or []:
+            if source.get("kind") != "state_navigation_context":
+                continue
+            scope_idx, context_idx = source.get("scope_idx"), source.get("context_node_idx")
+            if scope_idx is not None and not (type(scope_idx) is int and 0 <= scope_idx < len(tree.nodes)
+                                              and tree.is_within(container, tree.nodes[scope_idx])):
+                continue
+            if type(context_idx) is not int or not 0 <= context_idx < len(tree.nodes):
+                continue
+            context = tree.nodes[context_idx]
+            if context.type not in ("SearchField", "TextInput") or not tree.shown(context):
+                continue
+            rules = source.get("rules") or []
+            if rules and all(r.get("class") == "navigation" and re.fullmatch(r["pattern"], "充电桩")
+                             for r in rules):
+                group = self._search_filter_group(tree, container, context, scope_idx)
+                if group:
+                    return {**source, "container_idx": container.idx, **group}
+        return None
+
+    def _search_filter_group(self, tree, container, context, scope_idx):
+        """Prove membership in the observed two-label filter group without guessing AA ids/types."""
+        labels = {"充电桩", "电梯口"}
+        for group in tree.ancestors(container):
+            if group.parent is None or group.clickable or tree.is_within(context, group):
+                continue
+            if scope_idx is not None and not tree.is_within(group, tree.nodes[scope_idx]):
+                continue
+            nodes = [n for n in tree.nodes if tree.is_within(n, group) and tree.shown(n)]
+            if {t.strip() for n in nodes for t in (n.text, n.description) if t.strip()} != labels:
+                continue
+            if any(n.type in EDITABLE_TYPES | self.deny_node_types for n in nodes):
+                continue
+            holders = {label: {tree.clickable_container(n).idx for n in nodes
+                              if label in (n.text.strip(), n.description.strip())} for label in labels}
+            if any(len(ids) != 1 for ids in holders.values()):
+                continue
+            ids = {next(iter(values)) for values in holders.values()}
+            if len(ids) != 2 or next(iter(holders["充电桩"])) != container.idx:
+                continue
+            if {n.idx for n in nodes if n.clickable} != ids:
+                continue  # Includes unlabeled and nested receivers, not only text-bearing buttons.
+            if any(not tree.nodes[i].clickable or not tree.is_within(tree.nodes[i], group)
+                   or tree.touch_target(*tree.visibility(tree.nodes[i])["center"]).idx != i for i in ids):
+                continue
+            return {"filter_group_idx": group.idx, "filter_receivers": sorted(ids)}
+        return None
 
     def _check_safe_stop(self, texts: list, hits: list, label: str) -> dict:
         """安全停止（暂停/退出泊车）：不需要授权、不受页面级禁止限制。

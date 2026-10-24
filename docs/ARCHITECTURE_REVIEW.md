@@ -1,8 +1,8 @@
-# 架构与技术债审计（2026-10-21）
+# 架构与技术债审计（2026-10-24对账）
 
 审计基线：[`main@3273f27`](https://github.com/amazing-fish/ghost_VPD/commit/3273f27ee5bc7d129ceff8357b15c720a42648e2)，#66/#67 已合入。证据为实际代码阅读与隔离工作区的合成 Replay；没有操作真机、确认生产知识或批准资产。
 
-后续对账：#68～#73 已合入 `main@8657630`：复合判定、ensure_state 终态、共用结构检查、Python 3.12 安装/两平台 CI、依赖绑定及 Console 证据层级均已补齐。本次文档修订只收拢重复审核/晋级说明，不改变运行时规则。完整语义见[执行契约](../vpd_skill/references/contracts.md)，当前操作说明见[工作流](../vpd_skill/references/workflows.md)。下文保留原审计时点的证据与工作包范围。
+后续对账：#68～#73 已合入 `main@8657630`：复合判定、ensure_state 终态、共用结构检查、Python 3.12 安装/两平台 CI、依赖绑定及 Console 证据层级均已补齐。下表原审计缺陷已逐项标记工程交付状态，避免重复实施。完整语义见[执行契约](../vpd_skill/references/contracts.md)，当前操作说明见[工作流](../vpd_skill/references/workflows.md)。下文保留原审计时点的证据与工作包范围。
 
 ## 整体判断
 
@@ -21,23 +21,40 @@
 
 Legacy 仍在仓库，根 README 仅有旧标题；是否还在部署未知。当前只能确认入口及隔离事实，不能据此宣布旧服务可删除。其配置凭据治理已有 #45 记录，本轮未读取凭据值、未迁移或重写历史。
 
-## 按实际影响排列的技术债
+## 当前修复与职责收敛（2026-10-24）
+
+核对基线为main@244a71e（#81已合）；本批围绕#82/#84推进工程修复，合入状态以对应PR为准；两项均未完成真机验收。没有新增平行执行、规划或判定引擎。重构围绕同一事实的来源和消费者一致性，不能用发送成功替代动作效果或产品判据。
+
+| 环节 | 当前职责 |
+| --- | --- |
+| UiTree / StateModel | 提供当前几何、接收者、页面及范围内动作依据；不是产品Oracle |
+| Policy | 消费当前依据并保留规则来源，判断拟执行动作是否允许 |
+| Dispatcher | 下发前复核，必要时重定位并重算依据；初检通过不能替代最终允许 |
+| 后置观察 | 取得动作后的声明效果证据，独立于发送回执 |
+| Case / Replay / Verdict | 按内容、依赖、人审及独立判据处理资格；执行完成、成熟度和产品pending分开 |
+
+#82的定位诊断复用UiTree可见性计算，未知坐标接收者明确拒发；CLI展示最终策略并保留初检审计，不改变窗口或裁剪规则。#84复用StateModel已有动作来源通道，限定当前搜索输入、同栏纯筛选组与真实接收者；仅覆盖已标识的宽关键词规则，其他全局和页面限制保留，下发前重新核验。
+
+当前完整AA父链和独立窗口证据未提供。#84真实结构、输入后的签名及结果/空态仍需1395校准；#82的947/1264矛盾仍待同帧取证。严格合成正例不证明真实布局已支持，本批不新增业务资产或正式覆盖。下一步优先交付工作机已有draft及原始证据索引，沿#65/#80验收；不能继续用执行器补丁替代用例落库。
+
+## 历史审计发现与交付对账
+
 
 | 优先级 / 类型 | 已核证据与影响 | 处理边界 |
 |---|---|---|
-| P1，判定缺陷 | `execute.py::_run_children` 允许非关键失败后继续；`verdict.py::case_verdict` 却主要检查顶层，只有 error/pending 有专门递归。真实 `run_case → Replay → Executor` 反例：相同子步骤的 confirmed 失败、unconfirmed 候选或 blocked，包进成功父流程后整例可 passed；关键子步骤还可能使用父层其他 Oracle 误判。 | **本轮唯一运行时优化包**：在现有 Verdict 中统一投影实际子步骤，保留父子路径、正确 Oracle 和原始观测。`critical` 继续控制是否停止执行，不承担隐藏结果的职责。 |
-| P1，执行前后契约 | `cases.py::iter_case_steps/lint` 已识别递归 flow/recipe，但执行入口仅选择性复用检查；重复步骤 ID 可被 `by_id` 覆盖。通用 `ensure_state` 也没有统一复核 recipe 完成后的目标状态；当前登录配置用末尾显式检查规避。 | 后续复用现有遍历，在副作用前拒绝无效结构，并补目标终态核验；不把全部资产治理 lint 强制加到 informal 诊断上。 |
-| P1，依赖绑定缺口 | `dependency_hash` 只绑定显式 Oracle；`knowledge.py` 的冲突裁决还依赖同 subject 的其他条目。隔离反例中新增相反条目后 Oracle 已 conflicted，但 deps 和审核仍有效，旧两次 Replay 仍能晋级 `replay_verified`。`regression` 仍被当前 Oracle 检查拦住。模板内容也仅绑定审核，未绑定重放指纹。 | 独立包候选：把实际影响裁决的条目、被引用模板字节接入既有依赖指纹；不要用整个引擎哈希粗暴清空所有重放。 |
-| P1，安装与平台验证 | `install.ps1` / README 声称 Python 3.9+，固定的 NumPy 2.5.2 实际要求 3.12+；已有 `.venv` 未单独检查版本。`.github` 无测试 workflow，两项 PowerShell 测试在 Linux 跳过。 | 独立包明确支持基线、验证现有虚拟环境，并复用现有 pytest 做 Linux/Windows CI；不把 Linux 测试数当 Windows 通过。依赖依据：[NumPy 2.5.2](https://pypi.org/project/numpy/2.5.2/)。 |
-| P2，结果展示 | `console/progress.py` 未透传 `validation_level/informal/asset_review`，主界面会显示“通过”“已验证”；Markdown 报告已有这些边界。 | 扩展现有 Console 展示已有字段即可，不建覆盖平台。 |
+| P1，判定缺陷（#68已交付） | `execute.py::_run_children` 允许非关键失败后继续；`verdict.py::case_verdict` 却主要检查顶层，只有 error/pending 有专门递归。真实 `run_case → Replay → Executor` 反例：相同子步骤的 confirmed 失败、unconfirmed 候选或 blocked，包进成功父流程后整例可 passed；关键子步骤还可能使用父层其他 Oracle 误判。 | **#68已交付**：在现有 Verdict 中统一投影实际子步骤，保留父子路径、正确 Oracle 和原始观测。`critical` 继续控制是否停止执行，不承担隐藏结果的职责。 |
+| P1，执行前后契约（#69/#70已交付） | `cases.py::iter_case_steps/lint` 已识别递归 flow/recipe，但执行入口仅选择性复用检查；重复步骤 ID 可被 `by_id` 覆盖。通用 `ensure_state` 也没有统一复核 recipe 完成后的目标状态；当前登录配置用末尾显式检查规避。 | 已由#69/#70复用现有遍历，在副作用前拒绝无效结构并核验目标终态；不把全部资产治理 lint 强制加到 informal 诊断上。 |
+| P1，依赖绑定缺口（#72已交付） | `dependency_hash` 只绑定显式 Oracle；`knowledge.py` 的冲突裁决还依赖同 subject 的其他条目。隔离反例中新增相反条目后 Oracle 已 conflicted，但 deps 和审核仍有效，旧两次 Replay 仍能晋级 `replay_verified`。`regression` 仍被当前 Oracle 检查拦住。模板内容也仅绑定审核，未绑定重放指纹。 | 已由#72把实际影响裁决的条目、被引用模板字节接入既有依赖指纹；不要用整个引擎哈希粗暴清空所有重放。 |
+| P1，安装与平台验证（#71已交付） | `install.ps1` / README 声称 Python 3.9+，固定的 NumPy 2.5.2 实际要求 3.12+；已有 `.venv` 未单独检查版本。`.github` 无测试 workflow，两项 PowerShell 测试在 Linux 跳过。 | 已由#71明确支持基线、验证现有虚拟环境，并复用现有pytest做Linux/Windows CI；不把 Linux 测试数当 Windows 通过。依赖依据：[NumPy 2.5.2](https://pypi.org/project/numpy/2.5.2/)。 |
+| P2，结果展示（#73已交付） | `console/progress.py` 未透传 `validation_level/informal/asset_review`，主界面会显示“通过”“已验证”；Markdown 报告已有这些边界。 | 已由#73扩展现有Console展示已有字段，不建覆盖平台。 |
 | P2，维护与证据准入 | 条件判断调用 Verdict 私有检查函数；部分测试仍依赖生产知识；重放晋级信任摘要而不自动核验原始运行包；经验偏好按策略 index 绑定。 | 分别在相应修改中收敛。完整证据包目前仍按 `BATCH_ASSET_ACCEPTANCE.md` 人工验收；不声称已有自动完整性校验。 |
 
-## 本轮最小优化与验收
+## 历史实施范围与验收（#68，已完成）
 
-复用 #56 / #45，保持一个独立 PR：修复复合结果的判定与证据投影，更新对应结果依赖版本及相关消费者测试。原始历史 run/verdict 不改写；旧语义的重放不用于新语义晋级。执行器的动作顺序、策略、重试和 `critical` 继续语义保持原有边界。
+以下保留#68当时范围，不是新的待实施包。复用#56/#45：修复复合结果的判定与证据投影，更新对应结果依赖版本及相关消费者测试。原始历史 run/verdict 不改写；旧语义的重放不用于新语义晋级。执行器的动作顺序、策略、重试和 `critical` 继续语义保持原有边界。
 
 必要正反例：同一检查平铺与嵌套结论一致；confirmed/unconfirmed/conflicted Oracle 正确区分；父层 Oracle 不替代子层；多层路径可追溯且复制的父失败不重复计数；已恢复的历史错误不重新变成当前错误；必需/可选 Cleanup 分别处理；CLI、报告、Console 和重放消费者保持可读。
 
 不并入 Legacy 迁移、安装/CI、证据指纹、结构校验、Console 展示或新业务资产。#52/#54/#58 和 215/226/228 的原边界继续保留。
 
-既有真机 prompt 的操作顺序可以沿用，但其中固定的 #66/#67 HEAD 不含本轮修复，版本区块须更新到本次候选或其合入版本。执行前核对实际源码与结果契约，按新语义重新积累运行；登录菜单、二级页安全归位、更新弹窗/黑屏及独立业务判据仍需 Windows/真机证据。
+既有真机prompt须核对当前源码与契约，不继续使用固定的旧#66/#67 HEAD。执行前核对实际源码与结果契约，按新语义重新积累运行；登录菜单、二级页安全归位、更新弹窗/黑屏及独立业务判据仍需 Windows/真机证据。
