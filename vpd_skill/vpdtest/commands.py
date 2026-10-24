@@ -347,7 +347,8 @@ def diagnose(res: dict) -> Optional[dict]:
         if last.get("state_before") == "out_of_app" or all(t.get("status") == "skipped_no_tree" for t in tries):
             out["hint"] = "没有被测 APP 的 UI 树（APP 不在前台/被系统弹层遮住）：先 observe 确认前台，必要时 act launch"
         elif out["offscreen"]:
-            out["hint"] = "树里有但在可视区外：先 act swipe 再试"
+            out["clipped_candidates"] = [c for t in tries for c in t.get("clipped_candidates", [])][:5]
+            out["hint"] = "目标被当前窗口/祖先裁剪：先核对同帧截图与裁剪链，确认属于可滚动内容后再滑动，不据此放宽可见性"
         else:
             out["hint"] = ("当前 UI 树里没有：看截图确认文字；地图等自绘区域（XComponent）不在 UI 树里，选择器无法覆盖；"
                            "通知横幅盖住的部分也会从树里消失，几秒后重新 observe 再试")
@@ -364,7 +365,11 @@ def diagnose(res: dict) -> Optional[dict]:
         out["foreground"] = last.get("foreground_check")
         out["hint"] = "当前触摸/输入未下发；可经受控 launch/resume 拉起被测 APP，重新观察后再操作"
     elif st == "policy_denied":
-        out["policy"] = last.get("policy") or last.get("policy_context")
+        tap = ((last.get("dispatch_recheck") or {}).get("checks") or {}).get("tap") or {}
+        out["policy"] = tap.get("policy") if tap.get("status") == st else (
+            last.get("policy") or last.get("policy_context"))
+        if ((out["policy"] or {}).get("deny") or {}).get("class") == "no_receiver_at_point":
+            out["hint"] = "未找到具体接收节点：核对本次观测的落点、被裁候选与窗口证据；不要改副作用声明或盲点绕过"
     elif st == "postcondition_not_met":
         if (last.get("post") or {}).get("status") == st:
             out.setdefault("post", last["post"])
