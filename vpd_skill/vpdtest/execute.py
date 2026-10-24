@@ -23,6 +23,7 @@ from .verdict import collection_error, error_attribution
 ENV_ERRORS = {"screen_locked", "screen_off", "device_offline", "app_missing", "tool_missing", "transport_unavailable"}
 STATUS_MAP = {
     "input_required": ("blocked", "environment", "所选输入缺少有效外部值，未定位或输入"),
+    "clear_not_confirmed": ("error", "tool", "清空后目标仍显示非提示文字，未追加输入；请核对当前字段"),
     "preparation_error": ("error", "tool", "操作前弹窗处置失败"),
     "condition_false": ("skipped", "requirement_unclear", "当前独立证据明确不满足操作条件，未执行"),
     "condition_unknown": ("pending", "requirement_unclear", "操作条件未知，未执行"),
@@ -472,7 +473,7 @@ class Executor:
                 att["resolved"] = _resolved(loc, obs)
             res = self._send_target("input_text", loc, obs, tree, target, tid, step, att, text)
             if att.get("status"):
-                if att["status"] == "target_obscured":
+                if att["status"] in ("target_obscured", "clear_not_confirmed"):
                     att["dispatch"] = {"op": res.op, "sent": res.sent, "executor_ok": res.ok,
                                        "error_class": res.error_class, "error": res.error,
                                        "duration_ms": res.duration_ms}
@@ -695,6 +696,9 @@ class Executor:
             return self._check_condition(step, o, t, "dispatch", att)
         if not recheck_condition(obs, tree):
             return DeviceResult(op, False, False, att["status"], att["reason"])
+        if op == "input_text" and (att.get("clear") or {}).get("ok") is True:
+            if not self._cleared_input_ok(target, loc, obs, tree, att, "after_clear"):
+                return DeviceResult(op, False, False, att["status"], att["execution_error"]["error"])
         def pack(loc, obs, tree):
             return {"loc": loc, "tree": tree, "target": target, "target_ref": tid, "page": obs["page"],
                     "state_deny": ctx.app.states.deny_for_page(obs["page"]), "layout": obs.get("layout")}
@@ -711,8 +715,59 @@ class Executor:
             att["resolved"] = _resolved(l, o)
             if not recheck_condition(o, t):
                 return None
+            if op == "input_text" and (att.get("clear") or {}).get("ok") is True:
+                if not self._cleared_input_ok(target, l, o, t, att, "dispatch_refresh"):
+                    return None
             return pack(l, o, t)
         return ctx.dispatcher.send(op, *loc["point"], *extra, preconditions={**ctx.dispatcher.app_conditions(att["action"]), "target_subtree": True}, att=att, tap=pack(loc, obs, tree), refresh=refresh)
+
+    def _cleared_input_ok(self, target, loc, obs, tree, att, phase):
+        """Reject known non-hint text, without treating unknown or empty UI text as an empty value."""
+        check = {"phase": phase, "obs": obs.get("obs_id"), "status": "unknown", "verified": None,
+                 "source": "unavailable"}
+        att["clear"].setdefault("value_checks", []).append(check)
+        def unknown(reason):
+            check["reason"] = reason
+            return True  # This bounded check does not change unobservable/secret input contracts.
+        if target.get("secret") or (att.get("input") or {}).get("secret"):
+            return unknown("secret_not_read")
+        if tree is None or tree.status != "ok" or obs.get("fresh") is False or collection_error(obs):
+            return unknown("observation_unusable")
+        node = _tree_node(tree, loc)
+        if node is None or node.type not in ("TextInput", "TextArea", "SearchField") or not tree.shown(node):
+            return unknown("not_direct_editable")
+        attrs = node.attrs
+        if any(k in attrs and str(attrs[k]).lower() not in ("false", "0", "")
+               for k in ("password", "isPassword")):
+            return unknown("masked_not_read")
+        check["node"] = {"idx": node.idx, "type": node.type}
+        if (str(attrs.get("accessibilityGroup", "false")).lower() not in ("false", "0", "")
+                or any(k in attrs and (not isinstance(attrs[k], str) or attrs[k])
+                       for k in ("accessibilityText", "accessibilityCustomComponentType"))
+                or any(n.idx != node.idx and tree.is_within(n, node) and tree.shown(n)
+                       and (n.text.strip() or n.description.strip()) for n in tree.nodes)):
+            return unknown("aggregated_or_custom_content")
+        if "text" not in attrs or not isinstance(attrs["text"], str):
+            return unknown("text_attribute_unavailable")
+        text = attrs["text"]
+        check.update(source="ui_tree.attributes.text", text_length=len(text))
+        prompts = {k: attrs[k] for k in ("hint", "placeholder") if k in attrs}
+        if not prompts or any(not isinstance(value, str) for value in prompts.values()):
+            return unknown("independent_prompt_unavailable")
+        check["prompt_sources"] = list(prompts)
+        if len(set(prompts.values())) > 1:
+            return unknown("conflicting_prompt_sources")
+        if "originalText" in attrs and (not isinstance(attrs["originalText"], str)
+                                        or attrs["originalText"] != text):
+            return unknown("conflicting_text_sources")
+        if not text.strip() or text.strip() in (value.strip() for value in prompts.values()):
+            return unknown("empty_or_prompt_text")
+        check.update(status="non_hint_text", verified=False, reason="non_hint_text_observed")
+        error = STATUS_MAP["clear_not_confirmed"][2]
+        att.update(status="clear_not_confirmed", obs_after=obs.get("obs_id"), action_required=True,
+                   execution_error={"stage": "input_clear_verification", "error_class": "clear_not_confirmed",
+                                    "error": error, "attribution": "tool", "evidence": check})
+        return False
 
     def _clear_interrupts(self, obs: dict, tree, label: str, limit: int = 3, safety: bool = False,
                           condition_step=None) -> tuple:
