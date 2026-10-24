@@ -1,0 +1,469 @@
+{
+  "id": "TC-QK-242",
+  "version": 1,
+  "status": "draft",
+  "app": "qiankun_hm",
+  "origin": {
+    "type": "session"
+  },
+  "title": "K89 0228 · 点击进入搜索二级页面",
+  "goal": "从VPD首页搜索入口进入车位搜索二级页",
+  "purpose": "从VPD首页搜索入口进入车位搜索二级页。按Issue65原表索引的名称建立可执行候选。原始工作表完整步骤与预期本机未取得，原表完整覆盖待核；本条不是正式回归通过。",
+  "preconditions": [
+    "设备已登录乾崑1.0.26.100，保持已有账号；本例不执行登录、登出、车辆运动或车控",
+    "本轮指定问界K89、车架号末六位000228；前置每次重新打开当前车辆列表并唯一选择，不按车型别名猜选",
+    "当前园区测试数据为由度金闽园地下停车场；只核显示子范围，不以首页锚点证明车辆图内、健康或地图完整性",
+    "以受控stop_app/launch重建起点；只在无进行中VPD任务的本轮只读现场执行，其他场景需重新取证"
+  ],
+  "env_requirements": {
+    "app_version": "1.0.26.100"
+  },
+  "test_data": {
+    "parking_area": "由度金闽园地下停车场",
+    "other_parking_area": "华为练秋湖研发中心"
+  },
+  "test_data_none": false,
+  "authorizations": [
+    "vpd_entry",
+    "vehicle_selection"
+  ],
+  "steps": [
+    {
+      "id": "S1",
+      "action": "stop_app",
+      "timeout_s": 15.0,
+      "retry": 0,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-k89-entry-cold-20261025",
+        "seq": 1,
+        "step": "A1",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0001",
+        "obs_after": "obs-0002"
+      }
+    },
+    {
+      "id": "S2",
+      "action": "launch",
+      "timeout_s": 15.0,
+      "retry": 0,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-k89-entry-cold-20261025",
+        "seq": 2,
+        "step": "A2",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0003",
+        "obs_after": "obs-0005"
+      },
+      "expect_state": "@in_app"
+    },
+    {
+      "id": "S3",
+      "action": "tap",
+      "timeout_s": 15.0,
+      "retry": 0,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-k89-entry-cold-20261025",
+        "seq": 3,
+        "step": "A3",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0006",
+        "obs_after": "obs-0007"
+      },
+      "expect_state": "qk_car_tab",
+      "target": "qk_tab_car"
+    },
+    {
+      "id": "S4",
+      "action": "tap",
+      "timeout_s": 15.0,
+      "retry": 0,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-k89-entry-cold-20261025",
+        "seq": 4,
+        "step": "A4",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0008",
+        "obs_after": "obs-0010"
+      },
+      "expect_state": "qk_vehicle_list",
+      "revalidate": true,
+      "target": {
+        "label": "select:text=问界K89",
+        "strategies": [
+          {
+            "kind": "text",
+            "value": "问界K89"
+          }
+        ],
+        "side_effect": "navigation",
+        "origin": "agent_select",
+        "observed": {
+          "session": "session-k89-entry-cold-20261025",
+          "seq": 4,
+          "obs": "obs-0009",
+          "outcome": "passed",
+          "node": {
+            "idx": 18,
+            "type": "Text",
+            "text": "问界K89",
+            "id": "",
+            "bounds": [
+              54,
+              186,
+              313,
+              265
+            ],
+            "clickable": true,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": "1.0.26.100",
+          "device_form": "bar",
+          "validation_level": "real_device"
+        }
+      }
+    },
+    {
+      "id": "S5",
+      "action": "tap",
+      "timeout_s": 15.0,
+      "retry": 0,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-k89-entry-cold-20261025",
+        "seq": 5,
+        "step": "A5",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0011",
+        "obs_after": "obs-0013"
+      },
+      "expect_state": "qk_car_tab",
+      "revalidate": true,
+      "target": {
+        "label": "select:text=车架号 000228(后六位)",
+        "strategies": [
+          {
+            "kind": "text",
+            "value": "车架号 000228(后六位)"
+          }
+        ],
+        "side_effect": "vehicle_selection",
+        "origin": "agent_select",
+        "observed": {
+          "session": "session-k89-entry-cold-20261025",
+          "seq": 5,
+          "obs": "obs-0012",
+          "outcome": "passed",
+          "node": {
+            "idx": 98,
+            "type": "Text",
+            "text": "车架号 000228(后六位)",
+            "id": "",
+            "bounds": [
+              111,
+              565,
+              529,
+              619
+            ],
+            "clickable": false,
+            "selected": false
+          },
+          "node_basis": "resolved",
+          "dispatched": true,
+          "layout_key": "sm/portrait",
+          "app_version": "1.0.26.100",
+          "device_form": "bar",
+          "validation_level": "real_device"
+        }
+      }
+    },
+    {
+      "id": "S6",
+      "action": "tap",
+      "timeout_s": 15.0,
+      "retry": 0,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-k89-entry-cold-20261025",
+        "seq": 6,
+        "step": "A6",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0014",
+        "obs_after": "obs-0016"
+      },
+      "expect_state": "qk_vpd_home",
+      "target": "qk_ads"
+    },
+    {
+      "id": "S7",
+      "action": "tap",
+      "timeout_s": 10.0,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [],
+      "from_session": {
+        "session": "session-k89-entry-cold-20261025",
+        "seq": 7,
+        "step": "A7",
+        "outcome": "passed",
+        "effect_unknown": false,
+        "obs_before": "obs-0017",
+        "obs_after": "obs-0018"
+      },
+      "expect_state": "qk_spot_search",
+      "target": "qk_search_entry"
+    }
+  ],
+  "assertions": [
+    {
+      "id": "A1",
+      "at": "S7",
+      "type": "text_present",
+      "text": "输入目的地或车位号",
+      "exact": true,
+      "desc": "输入目的地或车位号",
+      "oracle_refs": [
+        "K-QK-IDX-242"
+      ]
+    },
+    {
+      "id": "A2",
+      "at": "S7",
+      "type": "text_present",
+      "text": "电梯口",
+      "exact": true,
+      "desc": "电梯口",
+      "oracle_refs": [
+        "K-QK-IDX-242"
+      ]
+    },
+    {
+      "id": "A3",
+      "at": "S7",
+      "type": "text_present",
+      "text": "充电桩",
+      "exact": true,
+      "desc": "充电桩",
+      "oracle_refs": [
+        "K-QK-IDX-242"
+      ]
+    }
+  ],
+  "cleanup": [
+    {
+      "id": "C_STOP",
+      "action": "stop_app",
+      "retry": 0,
+      "critical": true,
+      "desc": "结束被测APP并独立核实进程停止；不以发送成功代替清理核验"
+    }
+  ],
+  "knowledge_used": [
+    {
+      "id": "K-QK-IDX-242",
+      "use": "未确认的操作级候选判据",
+      "applicability": "unknown",
+      "rationale": "K-QK-IDX-242只约束本候选的显示/导航子范围；原表完整预期未取得，不自行confirm或人审"
+    }
+  ],
+  "sources": [
+    {
+      "type": "session",
+      "run": "session-k89-entry-cold-20261025",
+      "validation_level": "real_device",
+      "facts": {
+        "app": "qiankun_hm",
+        "bundle": "com.yinwang.qiankunapp.hm",
+        "device": "hdc:5MT0225B05000904",
+        "validation_level": "real_device",
+        "app_version": "1.0.26.100",
+        "device_form": "bar"
+      },
+      "included": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "excluded": [
+        {
+          "seq": 7,
+          "step": "A7",
+          "action": "tap",
+          "outcome": "passed",
+          "reason": "不属于本条候选的操作路径；首次失败、原始观测和请求保留在原会话及此排除记录",
+          "effect_unknown": false,
+          "obs": [
+            "obs-0017",
+            "obs-0018"
+          ]
+        }
+      ],
+      "rejected": [],
+      "incomplete": [],
+      "effect_unknown": [],
+      "obs": [
+        "obs-0001",
+        "obs-0002",
+        "obs-0003",
+        "obs-0005",
+        "obs-0006",
+        "obs-0007",
+        "obs-0008",
+        "obs-0010",
+        "obs-0011",
+        "obs-0013",
+        "obs-0014",
+        "obs-0016"
+      ],
+      "trail": "runs/session-k89-entry-cold-20261025/events.jsonl"
+    },
+    {
+      "type": "session",
+      "run": "session-k89-entry-cold-20261025",
+      "validation_level": "real_device",
+      "facts": {
+        "app": "qiankun_hm",
+        "bundle": "com.yinwang.qiankunapp.hm",
+        "device": "hdc:5MT0225B05000904",
+        "validation_level": "real_device",
+        "app_version": "1.0.26.100",
+        "device_form": "bar"
+      },
+      "included": [
+        7
+      ],
+      "excluded": [
+        {
+          "seq": 1,
+          "step": "A1",
+          "action": "stop_app",
+          "outcome": "passed",
+          "reason": "不属于本条候选的操作路径；首次失败、原始观测和请求保留在原会话及此排除记录",
+          "effect_unknown": false,
+          "obs": [
+            "obs-0001",
+            "obs-0002"
+          ]
+        },
+        {
+          "seq": 2,
+          "step": "A2",
+          "action": "launch",
+          "outcome": "passed",
+          "reason": "不属于本条候选的操作路径；首次失败、原始观测和请求保留在原会话及此排除记录",
+          "effect_unknown": false,
+          "obs": [
+            "obs-0003",
+            "obs-0005"
+          ]
+        },
+        {
+          "seq": 3,
+          "step": "A3",
+          "action": "tap",
+          "outcome": "passed",
+          "reason": "不属于本条候选的操作路径；首次失败、原始观测和请求保留在原会话及此排除记录",
+          "effect_unknown": false,
+          "obs": [
+            "obs-0006",
+            "obs-0007"
+          ]
+        },
+        {
+          "seq": 4,
+          "step": "A4",
+          "action": "tap",
+          "outcome": "passed",
+          "reason": "不属于本条候选的操作路径；首次失败、原始观测和请求保留在原会话及此排除记录",
+          "effect_unknown": false,
+          "obs": [
+            "obs-0008",
+            "obs-0010"
+          ]
+        },
+        {
+          "seq": 5,
+          "step": "A5",
+          "action": "tap",
+          "outcome": "passed",
+          "reason": "不属于本条候选的操作路径；首次失败、原始观测和请求保留在原会话及此排除记录",
+          "effect_unknown": false,
+          "obs": [
+            "obs-0011",
+            "obs-0013"
+          ]
+        },
+        {
+          "seq": 6,
+          "step": "A6",
+          "action": "tap",
+          "outcome": "passed",
+          "reason": "不属于本条候选的操作路径；首次失败、原始观测和请求保留在原会话及此排除记录",
+          "effect_unknown": false,
+          "obs": [
+            "obs-0014",
+            "obs-0016"
+          ]
+        }
+      ],
+      "rejected": [],
+      "incomplete": [],
+      "effect_unknown": [],
+      "obs": [
+        "obs-0017",
+        "obs-0018"
+      ],
+      "trail": "runs/session-k89-entry-cold-20261025/events.jsonl"
+    },
+    {
+      "type": "issue",
+      "ref": "https://github.com/amazing-fish/ghost_VPD/issues/65",
+      "scope": "附录A的场景及用例名索引；非完整步骤/预期源件"
+    }
+  ],
+  "history": [
+    {
+      "ts": "2026-10-25T03:41:11.070+08:00",
+      "to": "exploration_record",
+      "why": "由会话生成：待补齐目的、判据（独立来源）、清理与 knowledge_used"
+    },
+    {
+      "ts": "2026-10-25T03:41:11.077+08:00",
+      "to": "draft",
+      "why": "补齐独立子范围、参数、断言、清理与来源；保留unconfirmed和必需人审，不冒充原表整行覆盖。源会话错误后置及标题点击无跳转均保留，不复用历史重放。"
+    }
+  ],
+  "onebox_case_ref": {
+    "source": "https://github.com/amazing-fish/ghost_VPD/issues/65",
+    "sheet": "全量用例测试结果",
+    "scenario": "界面显示/卡片区域显示",
+    "case_name": "点击进入搜索二级页面",
+    "source_status": "issue_index_only",
+    "original_export_sha256_reported": "06ae5d08da2f40ffc1e16b1439c203198b96a2329170004e925bd151625ddabe",
+    "row": null,
+    "full_steps_and_expectations_verified": false,
+    "full_row_coverage": false
+  }
+}
