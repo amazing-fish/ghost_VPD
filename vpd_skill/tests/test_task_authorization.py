@@ -125,10 +125,18 @@ def test_planning_label_cannot_grant_motion_or_unknown_confirmation(ws):
 
 @pytest.mark.parametrize("effect", ["vpd_entry", "route_planning"])
 @pytest.mark.parametrize("basis", ["tree", "template", "point"])
-def test_mislabeled_unclassified_control_cannot_take_automatic_task_grant(ws, effect, basis):
-    denied = ws.policy().check_tap(_tree(["帮助"]), (50, 15), basis,
+@pytest.mark.parametrize("nested_receiver", [False, True])
+def test_mislabeled_unclassified_control_cannot_take_automatic_task_grant(ws, effect, basis, nested_receiver):
+    tree = _tree(["帮助"])
+    if nested_receiver:
+        tree = UiTree({"attributes": {"type": "Root", "bounds": "[0,0][300,300]"},
+                       "children": [tree.raw]})
+    denied = ws.policy().check_tap(tree, (50, 15), basis,
                                    {"side_effect": effect, "strategies": [{"kind": "text", "value": "帮助"}]})
-    assert not denied["allowed"] and denied["deny"]["class"] == "task_semantics_unverified"
+    # A point whose receiver falls back to the root is rejected before semantic classification.
+    # A concrete non-root help button still cannot borrow the declared task category as permission.
+    expected = "no_receiver_at_point" if basis == "point" and not nested_receiver else "task_semantics_unverified"
+    assert not denied["allowed"] and denied["deny"]["class"] == expected
     assert "authorized_by" not in denied
 
 
