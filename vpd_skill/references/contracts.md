@@ -101,7 +101,8 @@ step 对应 `start/end` 两个0..1比例数组、`speed` 整数200..40000 px/s�
 新参数不得与 `direction/random/target/select/at/random_point` 混用；只给speed、缺起止之一、非有限数、零位移及无效范围均在观测/设备前拒绝。
 相对点取当前可见矩形半开边界：`round(origin + (extent - 1) * fraction)`，1.0仍落在容器内；
 换算后为同一像素也拒绝。执行前新观测现算完整window_rect、容器和坐标，等尺寸平移亦不复用旧坐标。
-沿线所有可见节点矩形交点和各区间检查触摸归属、遮挡及既有节点/页面policy；basis或within不能豁免受控内容。
+沿线所有可见节点矩形交点和各区间检查触摸归属、遮挡及既有节点/页面policy；可见节点与实际接收者均须通过。
+文字覆盖下的Slider等设置控件不因clickable=false免检；沿途未校准XComponent/SurfaceView/Web等表面拒发，不能借within或节点缓存跳过中段控件。
 临近下发重新锁屏时拒发，不再次解锁后发送旧坐标。事件保留归一化比例、实际起止点、速度、观测、完整窗口和来源。
 会话固化保留相对参数与within，不保存像素；历史point/basis/duration仍不能变成新能力的成功证据。
 Replay按位移主轴选择up/down/left/right（绝对位移相同按纵轴），不再把水平手势当down；零位移不推进状态。

@@ -1024,14 +1024,35 @@ class Executor:
             if node is None or not tree.is_within(node, scope):
                 return reject("target_obscured", "手势路径离开当前滚动容器或被其他表面覆盖")
             identity = (node.idx, (touch.get("receiver") or {}).get("idx"))
-            if identity in checked:
-                continue
-            checked.add(identity)
-            policy = ctx.policy.check_tap(tree, pt, "tree", target,
-                                          ctx.app.states.deny_for_page(obs["page"]), ctx.authorized, node=node)
-            if not policy["allowed"]:
-                att["policy"] = policy
-                return reject("policy_denied", "手势路径未通过当前节点策略：" + policy["reason"])
+            # Visible text can overlay a different clickable receiver (e.g. a
+            # Slider). Ownership within the scope does not establish its effect.
+            nodes = {node.idx: node}
+            if identity[1] is not None:
+                nodes[identity[1]] = tree.nodes[identity[1]]
+            # clickable=False does not make a Slider or a self-drawn surface
+            # safe to drag. A text sibling can hide both from node_at(). Check
+            # each crossed interval before deduping policy nodes, including a
+            # thin control in the middle of an otherwise unchanged text node.
+            for candidate in tree.nodes:
+                rect = tree.visible_rect(candidate)
+                if not rect or not (rect[0] <= pt[0] < rect[2] and rect[1] <= pt[1] < rect[3]):
+                    continue
+                if candidate.type in ("XComponent", "SurfaceView", "TextureView", "Web", "WebView", "Canvas"):
+                    info["unverified_surface"] = candidate.brief()
+                    return reject("target_unresolved", "手势路径包含未校准表面，不能按普通容器滚动下发")
+                if candidate.type in ctx.policy.deny_node_types:
+                    nodes[candidate.idx] = candidate
+            for current in nodes.values():
+                if current.idx in checked:
+                    continue
+                checked.add(current.idx)
+                policy = ctx.policy.check_tap(tree, pt, "tree", target,
+                                              ctx.app.states.deny_for_page(obs["page"]), ctx.authorized,
+                                              node=current)
+                if not policy["allowed"]:
+                    att["policy"] = policy
+                    info["policy_node"] = current.brief()
+                    return reject("policy_denied", "手势路径节点或实际接收者未通过策略：" + policy["reason"])
             checks.append({"node": node.idx, "receiver": (touch.get("receiver") or {}).get("idx")})
         info["path_checks"] = list({(c["node"], c["receiver"]): c for c in checks}.values())
         ctx.store.event("relative_swipe", step=step["id"], **info)

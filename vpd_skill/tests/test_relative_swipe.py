@@ -52,7 +52,11 @@ def _step(**extra):
 ])
 def test_relative_swipe_reaches_replay_direction_using_requested_points(
         ws, tmp_path, monkeypatch, start, end, direction, expected):
-    ctx = _ctx(ws, _world(tmp_path))
+    spec = _world(tmp_path)
+    data = read_json(spec.split(":", 1)[1])
+    data["screens"]["home"]["root"]["children"][0]["click"] = False
+    write_json(spec.split(":", 1)[1], data)
+    ctx = _ctx(ws, spec)
     real, calls = ctx.device.swipe, []
 
     def swipe(*args):
@@ -389,4 +393,59 @@ def test_interrupt_arriving_during_current_swipe_revalidation_does_not_crash_or_
     assert result["final_status"] == "target_obscured"
     assert "中断" in result["attempts"][-1]["reason"]
     assert result["attempts"][-1]["swipe"]["obs"] == observed[-1]
+
+
+@pytest.mark.parametrize("kind,label,clickable,expected_class", [
+    ("Slider", "", True, "setting_change"),
+    ("Slider", "", False, "setting_change"),
+    ("Button", "支付", True, "payment"),
+])
+def test_relative_swipe_checks_actual_receiver_when_nonclickable_text_overlaps_it(
+        ws, tmp_path, monkeypatch, kind, label, clickable, expected_class):
+    spec = _world(tmp_path, children=[
+        {"t": kind, "id": "actual_receiver", "text": label, "b": [100, 200, 900, 800], "click": clickable},
+        {"t": "Text", "id": "visible_description", "text": "普通说明", "b": [100, 200, 900, 800], "click": False},
+    ])
+    data = read_json(spec.split(":", 1)[1])
+    data["screens"]["home"]["root"]["children"][0]["click"] = False
+    write_json(spec.split(":", 1)[1], data)
+    ctx, calls = _ctx(ws, spec), []
+    _, tree = ctx.observe("synthetic receiver identity")
+    assert tree.node_at(500, 500).id == "visible_description"
+    actual = next(n for n in tree.nodes if n.id == "actual_receiver")
+    receiver = tree.touch_target(500, 500)
+    if clickable:
+        assert receiver is actual
+    else:
+        assert receiver is None  # Slider's drag semantics do not depend on AA clickable=true.
+    policy = ctx.policy.check_tap(tree, (500, 500), "tree", {"side_effect": "navigation"},
+                                  authorized=ctx.authorized, node=actual)
+    assert not policy["allowed"] and policy["deny"]["class"] == expected_class
+    monkeypatch.setattr(ctx.device, "swipe", lambda *args: calls.append(args) or DeviceResult("swipe", True, True))
+    result = Executor(ctx).run_step(_step(), "actual-receiver-relative")
+    assert calls == [], result
+    assert ctx.actions == 0 and result["final_status"] == "policy_denied", result
+    assert result["attempts"][-1]["policy"]["deny"]["class"] == expected_class
+
+
+@pytest.mark.parametrize("kind", ["Slider", "XComponent"])
+def test_thin_sensitive_surface_covered_by_full_text_is_checked_before_path_cache(
+        ws, tmp_path, monkeypatch, kind):
+    spec = _world(tmp_path, children=[
+        {"t": kind, "id": "thin_sensitive", "b": [417, 200, 418, 800], "click": False},
+        {"t": "Text", "id": "full_description", "text": "普通说明", "b": [100, 200, 900, 800], "click": False},
+    ])
+    data = read_json(spec.split(":", 1)[1])
+    data["screens"]["home"]["root"]["children"][0]["click"] = False
+    write_json(spec.split(":", 1)[1], data)
+    ctx, calls = _ctx(ws, spec), []
+    _, tree = ctx.observe("synthetic thin surface")
+    assert {tree.node_at(x, 500).id for x in (260, 417, 417.5, 739)} == {"full_description"}
+    assert all(tree.touch_target(x, 500) is None for x in (260, 417, 417.5, 739))
+    monkeypatch.setattr(ctx.device, "swipe", lambda *args: calls.append(args) or DeviceResult("swipe", True, True))
+    result = Executor(ctx).run_step(_step(), "thin-surface-relative")
+    assert calls == [], result
+    assert result["outcome"] != "passed" and ctx.actions == 0, result
+    if kind == "Slider":
+        assert result["attempts"][-1]["policy"]["deny"]["class"] == "setting_change"
 
