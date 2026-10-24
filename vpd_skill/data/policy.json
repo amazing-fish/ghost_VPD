@@ -1,5 +1,5 @@
 {
-  "version": "policy-0.8",
+  "version": "policy-0.9",
   "note": "运行边界。Skill/经验/模型都不能修改本文件；变更需人工评审并单独提交。",
   "allowed_packages": [
     "app.huawei.hmos.motor",
@@ -19,6 +19,7 @@
     },
     {
       "class": "vehicle_control",
+      "id": "vehicle_control_keywords",
       "pattern": "解锁|闭锁|上锁|开锁|车锁|车窗|天窗|尾门|后备箱|空调|鸣笛|闪灯|寻车|座椅|加热|通风|哨兵|\\A(?!\\s*附近充电站\\s*\\Z)[\\s\\S]*充电|电源|上电|下电|启动车辆",
       "reason": "车控指令"
     },
@@ -114,6 +115,15 @@
   "safe_stop_text": "暂停|停止|结束|退出|取消|中止|终止|急停|返回",
   "safe_stop_note": "side_effect=safe_stop 的目标（暂停/退出泊车等）在任何授权下都可点击、不占动作预算：安全停止不应被门槛挡住。但点击点所在可点击容器里必须有停止类文字，且不能同时含有其他会触发运动/车控的文字。",
   "changelog": [
+    {
+      "version": "policy-0.9",
+      "date": "2026-10-24",
+      "changes": [
+        "Issue84：以稳定规则id标记全局vehicle_control关键词；仅允许当前搜索签名、已登记搜索输入框及纯标签真实接收者共同证明的充电桩筛选导航覆盖该条误分类",
+        "保留所有其他全局及页面限制、通用确认、真实车控与未知接收者约束；执行前及Dispatcher复用同一来源和Policy核验"
+      ],
+      "reviewed_by": "维护者2026-10-24授权按Issue修复；实现待当前PR审查，非产品判据确认"
+    },
     {
       "version": "policy-0.8",
       "date": "2026-10-15",
