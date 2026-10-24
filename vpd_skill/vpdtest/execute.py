@@ -994,6 +994,27 @@ class Executor:
         return self.ctx.dispatcher.send("swipe", x, y1, x, y2, preconditions=self.ctx.dispatcher.app_conditions("swipe"), att=att), info
 
     # ---- 后置条件 ----
+    def _state_diagnostics(self, expect, obs, tree):
+        """Explain declared require_text evidence, not state matching or environment causes."""
+        spec = self.ctx.app.states.states.get(expect) if isinstance(expect, str) else None
+        if not isinstance(spec, dict):
+            return None  # Builtins and undeclared states have no registered signature to explain.
+        keys = ("require_text", "require_any_text", "require_text_pattern", "require_selected_text",
+                "forbid_text", "forbid_text_pattern")
+        signature = {key: list(spec[key]) for key in keys if key in spec}
+        page, meta = obs.get("page") or {}, obs.get("tree") or {}
+        available = bool(tree is not None and tree.status == "ok" and meta.get("status") == "ok"
+                         and obs.get("fresh") is not False and not collection_error(obs))
+        required = list(spec.get("require_text") or [])
+        texts = set(tree.visible_texts()) if available else set()
+        return {"diag_only": True, "expected": expect, "signature": signature, "obs": obs["obs_id"],
+                "observed": {key: page.get(key) for key in ("state", "candidates", "active", "panes")},
+                "tree": {"status": meta.get("status"), "path": meta.get("path")},
+                "require_text": {"scope": "whole_window_visible_text", "available": available,
+                                 "required": required,
+                                 "present": [text for text in required if text in texts] if available else None,
+                                 "missing": [text for text in required if text not in texts] if available else None}}
+
     def _post(self, step: dict, n: int, case_id: str, was_in_app: bool = True, mark: int = 0) -> dict:
         ctx = self.ctx
         expect = step.get("expect_state")
@@ -1084,7 +1105,7 @@ class Executor:
                     status = "postcondition_not_met"
                 break
             time.sleep(interval)
-        return {"obs_id": obs["obs_id"], "expected": expect, "observed": page["state"], "met": status == "ok",
+        post = {"obs_id": obs["obs_id"], "expected": expect, "observed": page["state"], "met": status == "ok",
                 "execution_error": ({**obs["process_error"], "stage": "stop_verification",
                                      "attribution": error_attribution(obs["process_error"].get("error_class")),
                                      "evidence": {"obs": obs["obs_id"], "process_error": obs["process_error"]}}
@@ -1093,6 +1114,11 @@ class Executor:
                 "dialogs": page.get("dialogs", []),
                 "anomalies": anomalies, "elapsed_s": elapsed, "timeout_s": timeout, "polls": polls,
                 "dismissed": post_dismissed, "stop_check": stop_check}
+        if status != "ok":
+            diagnostic = self._state_diagnostics(expect, obs, tree)
+            if diagnostic is not None:
+                post["state_diagnostics"] = diagnostic
+        return post
 
     # ---- 恢复 ----
     def _effect_unknown(self, att: dict, *, status=None, post=None) -> bool:
@@ -1351,6 +1377,16 @@ class Executor:
                          "execution_error": final_post.get("execution_error") or (last.get("post") or {}).get("execution_error")
                          or last.get("execution_error") or (last.get("locate") or {}).get("execution_error")}
             out["outcome"], out["attribution"], out["reason"] = classify(effective)
+            diagnostic = (final_post or last.get("post") or {}).get("state_diagnostics")
+            if diagnostic is not None:
+                # Recovery owns its final observation; first_failure keeps the original evidence.
+                out["state_diagnostics"] = diagnostic
+                anchors = diagnostic["require_text"]
+                detail = ("require_text无法核对" if not anchors["available"] else
+                          f"require_text已见{anchors['present']}，未见{anchors['missing']}" if anchors["required"] else
+                          "未声明require_text锚点")
+                out["reason"] += (f"；状态诊断（仅文本证据，非环境证明）：当前{diagnostic['observed']['state']}，"
+                                  f"{detail}；观测{diagnostic['obs']}")
             if out["outcome"] == "skipped" and any(item["sent"] is not False for item in auxiliary_dispatches(effective)):
                 out.update(outcome="pending", attribution="tool",
                            reason="后续操作条件不满足；辅助动作已经或可能执行，保留部分执行并交接")
@@ -1511,6 +1547,8 @@ def _failure_detail(att: dict) -> dict:
         d["locate"] = {k: att["locate"].get(k) for k in ("status", "target", "attempts")}
     if att.get("post"):
         d["post"] = {k: att["post"].get(k) for k in ("expected", "observed", "interrupts", "suspected_crash")}
+        if att["post"].get("state_diagnostics") is not None:
+            d["post"]["state_diagnostics"] = att["post"]["state_diagnostics"]
     if att.get("stop_check"):
         # Issue #15：停止断言两级证据随失败记录落盘（进程是否结束 / 前台是否恢复）
         d["stop_check"] = att["stop_check"]
