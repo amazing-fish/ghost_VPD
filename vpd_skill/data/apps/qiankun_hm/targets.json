@@ -265,13 +265,13 @@
       "strategies": [
         {
           "kind": "xpath",
-          "value": "//*[contains(@text, \"车架号\") and contains(@text, \"${param:vin_tail}(后6位)\")]",
-          "source": "skill：原选择器要求完整后 6 位精确匹配；用户只给了末 4 位，改为包含「<末位>(后6位)」。多辆车末位相同会得到多匹配并拒绝点击（未经真机验证）"
+          "value": "//*[contains(@text, \"车架号\") and (contains(@text, \"${param:vin_tail}(后6位)\") or contains(@text, \"${param:vin_tail}(后六位)\"))]",
+          "source": "skill：保留末位匹配，同时查询后6位和后六位，混合文案仍须唯一；后六位来自2026-10-25 session-k89-0228-20261025 obs-0011 当前真机列表"
         },
         {
           "kind": "xpath",
-          "value": "//*[@text=\"车架号 ${param:vin_tail}(后6位)\"]",
-          "source": "app/config/mhero_config.py:502 MHERO_HARMONY_CONFIG.car_vin"
+          "value": "//*[@text=\"车架号 ${param:vin_tail}(后6位)\" or @text=\"车架号 ${param:vin_tail}(后六位)\"]",
+          "source": "app/config/mhero_config.py:502 MHERO_HARMONY_CONFIG.car_vin；精确后备同样包含两种已知文案，不能用旧文案掩盖混合列表歧义"
         }
       ]
     },

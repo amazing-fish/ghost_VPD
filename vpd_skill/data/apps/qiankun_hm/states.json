@@ -18,15 +18,15 @@
       "review": "pending"
     },
     "qk_vehicle_list": {
-      "desc": "车辆列表（每行带「车架号 xxxxxx(后6位)」）",
+      "desc": "车辆列表（每行带「车架号 xxxxxx(后6位/后六位)」）",
       "require_text_pattern": [
-        "车架号 .{6}\\(后6位\\)"
+        "车架号 .{6}\\(后[6六]位\\)"
       ],
       "effect_text": {
         "车架号": "vehicle_selection"
       },
       "effect_note": "点列表行就会切换当前车辆，行内文字不含「切换车辆」，靠页面级规则归为 vehicle_selection",
-      "source": "app/config/mhero_config.py:502 car_vin「车架号 %s(后6位)」",
+      "source": "app/config/mhero_config.py:502 car_vin「车架号 %s(后6位)」；2026-10-25 乾崑1.0.26.100/Mate80 Pro Max，session-k89-0228-20261025 obs-0011 真机显示后六位",
       "review": "pending"
     },
     "qk_vpd_loading": {
