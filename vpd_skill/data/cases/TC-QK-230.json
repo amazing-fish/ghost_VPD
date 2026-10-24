@@ -1,0 +1,231 @@
+{
+  "id": "TC-QK-230",
+  "version": 2,
+  "status": "draft",
+  "app": "qiankun_hm",
+  "title": "乾崑 VPD 搜索已收藏车位与路点（原表「搜索收藏信息」L0）",
+  "purpose": "OneBox 全量用例测试结果第 59 行（搜索收藏信息，L0）的按收藏名称搜索候选子范围：在 VPD 首页点搜索框，分别输入已收藏车位名与路点名。原表步骤写的是「搜索已经收藏的车位号和路点」，按名称搜索是否等价仍待负责人裁决，不能声明逐项完整覆盖。当前 A1/A2 只核对页面编号，未证明名称与编号属于同一唯一结果行，不能据此验收结果身份。不点「路线/去这里」、不发起算路、不改动收藏。K-QK-TC-059 保持 unconfirmed；还需当前现场 fixture、完整结果身份断言与资产人审。",
+  "preconditions": [
+    "乾崑 APP 已登录（当前复用态；登出态时本条不成立，判环境阻塞）",
+    "当前无进行中的 VPD 任务：VPD 首页出现「搜索车位号设为目的地」（有任务时是任务卡片页，搜索入口不可达）",
+    "VPD 园区图已加载：首页显示园区名与「泊车代驾 共 N 个」（2026-10-23 实测 由度金闽园地下停车场 共 695 个）",
+    "账号「常去地点」已有收藏车位与收藏停车点；下列 fixture 仅来自历史工作机：「1号车位/默认/B1层/A224」与「1号停车点/停车点/B1/C156」（session-probe1023 obs-0018/obs-0025），不代表启境1395。新现场执行前须独立读取车辆、园区和收藏身份，不得照搬旧值；不匹配时先修订测试数据与断言并重新冻结版本",
+    "设备已解锁、亮屏、联网"
+  ],
+  "env_requirements": {},
+  "test_data": {
+    "fav_spot": "1号车位",
+    "fav_waypoint": "1号停车点"
+  },
+  "authorizations": [
+    "vpd_entry"
+  ],
+  "steps": [
+    {
+      "id": "S1",
+      "action": "stop_app",
+      "desc": "冷启动前置：结束目标 APP，获得确定的起点（不登出、不切车）"
+    },
+    {
+      "id": "S2",
+      "action": "launch",
+      "expect_state": "@in_app",
+      "timeout_s": 15,
+      "desc": "拉起乾崑 APP（资源包等已登记良性弹窗由执行器按登记处置）"
+    },
+    {
+      "id": "S3",
+      "action": "tap",
+      "target": "qk_tab_car",
+      "timeout_s": 10,
+      "critical": true,
+      "expect_state": "qk_car_tab",
+      "desc": "进「爱车」页"
+    },
+    {
+      "id": "S4",
+      "action": "tap",
+      "target": "qk_ads",
+      "timeout_s": 20,
+      "critical": true,
+      "expect_state": "qk_vpd_home",
+      "desc": "点 ADS 进入泊车代驾地图（原用例前置：进入泊车代驾功能；qk_vpd_home 签名含搜索入口且排除已知停车场加载失败）"
+    },
+    {
+      "id": "S5",
+      "action": "tap",
+      "target": "qk_search_entry",
+      "timeout_s": 10,
+      "critical": true,
+      "expect_state": "qk_spot_search",
+      "desc": "原步骤 1：点击搜索框，进入搜索二级页面（qk_spot_search 以「输入目的地或车位号」为准）"
+    },
+    {
+      "id": "S6",
+      "action": "input",
+      "target": "qk_search_input",
+      "text": "${var:fav_spot}",
+      "timeout_s": 10,
+      "critical": true,
+      "desc": "原步骤 2 之一：搜索已收藏车位名（tap+输入在同一 action 内完成；新页面字段为空，不清空）"
+    },
+    {
+      "id": "S7",
+      "action": "wait",
+      "duration_s": 3,
+      "desc": "等待搜索结果列表"
+    },
+    {
+      "id": "S8",
+      "action": "back",
+      "desc": "收起输入法键盘：搜索页首退只收键盘、页面不变（2026-10-23 run-20261023-192726-4ac9 obs-0018→obs-0021 实测），故本步不设后置条件"
+    },
+    {
+      "id": "S9",
+      "action": "ensure_state",
+      "state": "qk_vpd_home",
+      "desc": "先观察当前状态：若 S8 已返回 VPD 首页，直接完成，不再下发 Back；若仍在搜索页，复用既有 qk_vpd_home recipe 冷启动重返首页并独立核验终态（不登出、不切车、不点路线）。此路径会增加冷启动动作，需新版本真机复跑，不沿用 v1 重放"
+    },
+    {
+      "id": "S10",
+      "action": "tap",
+      "target": "qk_search_entry",
+      "timeout_s": 10,
+      "critical": true,
+      "expect_state": "qk_spot_search",
+      "desc": "再次进入搜索页（新页面输入框为空；实测 SearchField 的 clear 只删掉部分字符，不能复用同一页改词）"
+    },
+    {
+      "id": "S11",
+      "action": "input",
+      "target": "qk_search_input",
+      "text": "${var:fav_waypoint}",
+      "timeout_s": 10,
+      "critical": true,
+      "desc": "原步骤 2 之二：搜索已收藏停车点（路点）名"
+    },
+    {
+      "id": "S12",
+      "action": "wait",
+      "duration_s": 3,
+      "desc": "等待搜索结果列表"
+    }
+  ],
+  "assertions": [
+    {
+      "id": "A1",
+      "at": "S7",
+      "type": "text_present",
+      "text": "A224",
+      "exact": true,
+      "desc": "按收藏车位名搜索后，结果列表出现该收藏车位的车位号 A224（现场 fixture：首页常去地点「1号车位/默认/B1层/A224」）；只证明该收藏被搜到并显示，不证明收藏集合完整或层级/车位数据全量正确",
+      "oracle_refs": [
+        "K-QK-TC-059"
+      ]
+    },
+    {
+      "id": "A2",
+      "at": "S12",
+      "type": "text_present",
+      "text": "C156",
+      "exact": true,
+      "desc": "按收藏停车点名搜索后，结果列表出现该路点编号 C156（现场 fixture：首页常去地点「1号停车点/停车点/B1/C156」）；不证明推荐上下车点规则",
+      "oracle_refs": [
+        "K-QK-TC-059"
+      ]
+    },
+    {
+      "id": "A3",
+      "at": "S4",
+      "type": "visual_review",
+      "advisory": true,
+      "desc": "VPD 首页在园区图内的一次裁决材料（建议）",
+      "prompt": "检查截图：地图上是否有自车/停泊位置标记、园区名与车位总数是否已加载、是否出现「停车场信息加载失败」。只作前置的一次裁决材料，不作为产品通过证据"
+    },
+    {
+      "id": "A4",
+      "at": "S12",
+      "type": "visual_review",
+      "advisory": true,
+      "desc": "两次搜索的结果行结构（建议）",
+      "prompt": "检查截图：车位搜索结果行是否含名称/楼层/车位号/「路线」按钮；路点搜索结果行是否含名称/「停车点」/楼层/编号/「路线」按钮；相邻行（如 11号车位、1号停车点c）不得被误认为目标收藏。只给建议，不作为缺陷结论"
+    }
+  ],
+  "cleanup": [
+    {
+      "id": "C1",
+      "action": "back",
+      "required": false,
+      "desc": "收起输入法键盘（搜索页首退只收键盘，可能仍停在结果页；不点路线、不改收藏）。非必需：本用例没有写用户数据，终态由 C2 独立核验"
+    },
+    {
+      "id": "C2",
+      "action": "stop_app",
+      "desc": "结束目标 APP，并由执行器独立核验进程结束"
+    }
+  ],
+  "knowledge_used": [
+    {
+      "id": "K-QK-TC-059",
+      "use": "原表第 59 行预期「搜索成功，显示结果」的直接判据：按收藏名搜索后结果列表显示该收藏项",
+      "applicability": "unconfirmed",
+      "rationale": "由 OneBox 原表预期整理，applies_to 仅 app=qiankun_hm，本次 facts（1.0.26.100 / foldable）不构成越界；但条目状态 unconfirmed，引擎按「判据未确认」记 pending，须用例/产品负责人一次 confirm。",
+      "steps": [
+        "S5",
+        "S6",
+        "S11"
+      ]
+    },
+    {
+      "id": "K-QK-USR-003",
+      "use": "同一行为的产品侧佐证（VPD 首页按收藏名搜索可以发起算路）——本条只取「能搜到该收藏」的部分，不点路线不做算路",
+      "applicability": "unknown",
+      "rationale": "已确认，但 applies_to 含 vehicle_in_vpd_map=yes；真机 facts 只有 app/app_version/device_form，无该来源，引擎会判 applicability_unknown。故只作佐证，不做本条断言判据。",
+      "steps": [
+        "S5",
+        "S6"
+      ]
+    },
+    {
+      "id": "K-QK-OBS-202",
+      "use": "搜索页按收藏名（如「1号车位」）能搜到该收藏（行：名称/楼层/车位号/路线）——结果行结构对照",
+      "applicability": "out_of_scope",
+      "rationale": "该条 applies_to 限定 1.0.26.100 直板（bar）；本次设备 1.0.26.100 HOP-AL00 折叠态 foldable，引擎判 out_of_scope，结果行结构只作对照观察。",
+      "steps": [
+        "S7"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "type": "text_case",
+      "ref": "OneBox「全量用例测试结果」第 59 行（工作表 usedRows=144 含表头；本地原始导出 全量用例测试结果-all.json，SHA-256 06ae5d08da2f40ffc1e16b1439c203198b96a2329170004e925bd151625ddabe）"
+    },
+    {
+      "type": "device_observation",
+      "ref": "session-probe1023 obs-0018（搜索「1号车位」结果）、obs-0025（搜索「1号停车点」结果）、obs-0007（搜索页 qk_spot_search）"
+    }
+  ],
+  "history": [
+    {
+      "ts": "2026-10-23T19:20:00+08:00",
+      "to": "draft",
+      "why": "按 OneBox 原表第 59 行新建：L0、手机端、非车控、只读搜索；复用既有 qk_search_entry/qk_spot_search/qk_search_input 与 #31 登录复用终态，不新增目标或引擎能力"
+    },
+    {
+      "ts": "2026-10-23T19:40:00+08:00",
+      "to": "draft",
+      "why": "首次真机运行 run-20261023-192726-4ac9 暴露：S8「back+expect qk_vpd_home」在搜索页首退只收键盘时被判定后置未满足且无可执行恢复，导致后半段未执行；改为两步 back（首步仅收键盘、不设后置）并把清理改为非必需收键盘 + stop_app 独立核验。同时断言判据换为原表预期条目 K-QK-TC-059（K-QK-USR-003/OBS-202 降为佐证，适用性不足）"
+    },
+    {
+      "ts": "2026-10-24T02:33:22+08:00",
+      "to": "draft",
+      "why": "PR81 Codex discussion_r4359186336：expect_state 是动作后检查，不能阻止第二次 Back。S9 改用既有 ensure_state；合成键盘展开/未展开两路径验证导航。另纠正原表完整映射与历史fixture声明，保留结果行身份/判据覆盖缺口。v1历史工作机重放不支撑v2；家庭机尚未检测到NEXT，无本版本1395实机证据"
+    }
+  ],
+  "origin": {
+    "type": "text_case",
+    "ref": "OneBox 全量用例测试结果 第 59 行",
+    "review_reason": "文字用例来源，非探索/会话生成；仍需人工核对判据适用性与清理范围后才谈晋级"
+  }
+}
