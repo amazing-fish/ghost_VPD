@@ -1,6 +1,6 @@
-# 项目方向与执行安排（2026-10-24）
+# 项目方向与执行安排（2026-10-25）
 
-核对基线：`main @ c58f54ae2f99dba48ffc4194ea35ec820bf9deee`（#85/#86/#87已合入）。本批#82/#84的工程变更与待现场验收项分列；具体合入状态以对应PR为准，未合入候选不计入上述基线。PR #36 仅保留历史来源，不再整包合入。历史实施范围从 Git 历史与对应 PR 追溯。
+核对基线：`main @ 4036754f156db715dbb89d651f45e5e23499954d`（#85/#86/#87/#92/#93已合入）。本批#82/#84的工程变更与待现场验收项分列；具体合入状态以对应PR为准，未合入候选不计入上述基线。PR #36 仅保留历史来源，不再整包合入。历史实施范围从 Git 历史与对应 PR 追溯。
 
 ## 交付目标与当前缺口
 
@@ -22,7 +22,7 @@
 | P1，现场分支验收 | [#64](https://github.com/amazing-fish/ghost_VPD/issues/64)、[#31](https://github.com/amazing-fish/ghost_VPD/issues/31) | 以量产账密登录/已登录复用为主路径；账号管理的短信验证是旁路，不是普通VPD执行的必经门禁。未知二级页、更新弹窗和黑屏按实际观察取证，不盲目Back或杀进程 |
 | P1，生产事实接线 | [#56](https://github.com/amazing-fish/ghost_VPD/issues/56)、[#34](https://github.com/amazing-fish/ghost_VPD/issues/34) | 判定引擎已交付；补适用的独立现场provider、规则、人审与当前指纹下的真机复跑。一般探索不以固定故障前置为唯一入口；215/226/228业务裁决继续暂缓 |
 | P2，独立场景 | [#83](https://github.com/amazing-fish/ghost_VPD/issues/83)、[#54](https://github.com/amazing-fish/ghost_VPD/issues/54)、[#58](https://github.com/amazing-fish/ghost_VPD/issues/58)、[#52](https://github.com/amazing-fish/ghost_VPD/issues/52) | 分别处理身份绑定/产品规则、影像表面触摸归属、真实手势及知识沉淀；不把它们混成搜索策略豁免或通用几何放行 |
-| P1/P2，新证据收敛 | [#90](https://github.com/amazing-fish/ghost_VPD/issues/90)、[#89](https://github.com/amazing-fish/ghost_VPD/issues/89)、[#88](https://github.com/amazing-fish/ghost_VPD/issues/88) | #90归入#56提供者接线；首页/回自车不证明当前车辆图内，任意历史观测不得全程填yes。#89先交付状态诊断，缺锚点不自动归环境。#88分别核楼层实体、组合交集及空态；必须核实际输入值与标签状态，clear残留线索单独处理 |
+| P1/P2，新证据收敛 | [#90](https://github.com/amazing-fish/ghost_VPD/issues/90)、[#89](https://github.com/amazing-fish/ghost_VPD/issues/89)、[#88](https://github.com/amazing-fish/ghost_VPD/issues/88) | #90归入#56提供者接线；首页/回自车不证明当前车辆图内，任意历史观测不得全程填yes。#92已交付状态证据诊断，#89仍保留独立环境来源验收。#88分别核楼层实体、组合交集及空态；必须核实际输入值与标签状态，清空后非提示文字的限定拒发沿#93；未知来源与1395现场校准继续沿#64/#65 |
 | 持续治理 | #9 / #45 / #29 | 随实际缺陷收敛重复检查、生产知识解耦与证据准入，不预先增设框架层 |
 
 ## 工程交付与架构收敛
@@ -35,6 +35,7 @@
 - #66/#76：已知选择菜单及延迟遮挡的受控恢复；#77/#79：PIN发送未知的防重入与按设备显式启用的空白键盘识别；#78：USB单选弹窗的一次受控关闭。它们不证明所有现场分支均已验收。
 - #51/#67：任务范围入口/算路许可及预算可观测性；#49/#55已关闭。入口与算路不逐次请求授权；PIN解锁沿既有授权，其他副作用仍按当前策略。
 - #85/#86：裁剪与最终拒发诊断、未知坐标接收者拒发、限定搜索筛选导航语义；对应1395真机校准仍待完成。#87补两项探索成熟度门禁的生产判据隔离和有效重放前置，不改变生产知识。
+- #92：状态后置失败、恢复及清理的同观测诊断，保持原归因、Oracle与接管；调度facts与产品oracle_facts分开。#93：来源可核的非提示文字在追加前拒发，刷新后重核；unknown/secret不承诺已清空。两包不补足#89/#90环境/业务事实来源，也不代表1395真机已验收。
 - #81：TC-QK-230 draft及返回首页导航修复；产品判据、1395 fixture、结果身份、按资产来源核对必要的人审及确定重放仍待验收。
 
 本批渐进重构收敛同一事实的来源和消费者：UiTree提供几何，StateModel提供当前页面动作依据，Policy判动作语义，Dispatcher下发前复核，必要时重定位并重算，后置观察证实声明效果。#82的CLI保留初检审计、展示最终拒发；#84复用已有来源通道，不新增另一套配置或执行路径。具体契约见[执行契约](../vpd_skill/references/contracts.md)，职责与剩余技术债见[架构审计](ARCHITECTURE_REVIEW.md)。
