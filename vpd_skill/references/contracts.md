@@ -207,6 +207,14 @@ Agent 不自动确认产品知识或批准生产资产。
 
 `clear.sent` 保留清空阶段的下发事实，后续输入未发不能将整步改成未发；聚合 clear 的 sent 采用三态（任一字面 true→true、全部字面 false→false、其余→null）。会话对未知发送事实保守计入预算，记录 `effect_unknown`。只有清空成功而未完成输入仍为部分执行，不整步清空重跑。
 
+**清空后非提示文字（#91）**：clear的成功回执不证明字段值为空。追加input前，以及Dispatcher因遮挡/解锁刷新树后，
+复用同一known-only检查：当前唯一、可见的直接TextInput/TextArea/SearchField须有显式字符串`text`和独立
+`hint`/`placeholder`（显式空字符串有效）；仅当非空text与所有提示不同、无冲突originalText或可识别的自定义/聚合来源时，
+以`clear_not_confirmed`（error/tool）拒绝追加并交接。clear原回执、部分执行及禁止重放继续保留，不追加删除或Back。
+`originalText`缺失不参与比较；只要显式提供，其类型异常或与text不相等（含空字符串对非空text）均为来源冲突，保持unknown。
+`clear.value_checks`保留每次当前obs/节点/来源、长度和三态；不复制文本或其hash。提示、缺属性、冲突、聚合和不可观测为unknown，
+保持原输入契约；secret/掩码不读回。显式空text也不输出verified=true，本检查不承诺所有设备/字段都已清空；实际现场hint来源仍需校准。
+
 定位内滚动及弹窗处置的辅助物理下发也保留 sent；子动作已发失败或发送未知时，不能仅因父 dispatch 缺失就完整重试。Dispatcher 的动作预算对未知发送事实同样保守计数。恢复复核使用原 attempt 的 motion_mark，不重置运动超时/晚停的事实边界。
 
 良性中断/已登记系统弹窗的原子处置继续可执行，随后重新核验原步骤完整后置条件。后置满足可恢复通过；不满足且原动作不可重放则停止原步骤，不以关闭弹窗代替原业务后置。首次异常、恢复动作与复核证据分别保留。
