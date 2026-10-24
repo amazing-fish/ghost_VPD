@@ -164,9 +164,16 @@ class Policy:
 
         # 按 UI 树定位到的节点优先（定位本身已确认它可见、唯一）；坐标类依据才按点击点反查
         node = node if node is not None else tree.node_at(*point)
+        container = tree.clickable_container(node) if node is not None else None
+        if basis == "point" and (container is None or container.parent is None or (
+                node.children and not (node.clickable or node.text.strip() or node.description.strip())
+                and container is node)):
+            # 只有根容器不代表定位到具体控件；整页子树文字不能给空白落点证明副作用。
+            return {"allowed": False, "reason": "坐标未解析到具体接收节点，未下发；请核对当前窗口、裁剪链与截图",
+                    "label": None, "deny": {"class": "no_receiver_at_point"},
+                    "point_evidence": tree.point_evidence(*point)}
         if node is None:
             return {"allowed": False, "reason": "点击点不在任何可见节点内", "label": None, "deny": None}
-        container = tree.clickable_container(node)
         types = {n.type for n in [node, container] + tree.ancestors(node)[:2]}
         hit_type = types & self.deny_node_types
         if hit_type and not target.get("allow_node_type"):

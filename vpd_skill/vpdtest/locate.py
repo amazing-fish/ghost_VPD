@@ -73,6 +73,7 @@ def _tree_attempt(rec: dict, s: dict, tree: UiTree, layout: Optional[dict], min_
         rec["status"] = "not_found"
         if nodes and box is None:
             rec["offscreen"] = len(nodes)  # 在树里但被列表裁剪到可视区外，滑动后可能出现
+            rec["clipped_candidates"] = [tree.visibility_evidence(n) for n in nodes[:5]]
 
 
 def resolve(target_id: str, target: dict, tree: Optional[UiTree], screenshot: Optional[str], app_dir: Path,

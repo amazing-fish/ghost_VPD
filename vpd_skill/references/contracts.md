@@ -152,6 +152,21 @@ Dispatcher、secret映射及防重入记录。当前只有合成树验证，OH7�
 `postcondition_not_met`、`interrupted`、`anomaly`、`unobservable`、`budget_exhausted`、`invalid_step`、
 `target_disabled`（`require_enabled` 且控件置灰，阻塞·环境）、`monitor_abort`、`motion_timeout`（运动超过 `max_motion_s`）。
 agent 模式的 `--point` 记录提出时的窗口尺寸（`point_window`）；执行前窗口尺寸变了（旋转/折叠/分屏）就丢弃该坐标。
+
+树策略发现目标被裁时，定位尝试与 `diagnosis` 的 `clipped_candidates` 最多保留5个候选，
+包含节点、可见矩形/比例、窗口和裁剪祖先链。`window_source=ui_tree_bounds` 明确表示窗口仍由
+当前树的包围盒推导，不是独立的实际窗口证明。子节点越出祖先也可能是正常滚动/翻页，诊断不会自动扩大裁剪区域。
+
+有可用树的坐标点击若没有可见节点、实际容器退到根节点，或落在没有自身文字/描述且没有可点击祖先的
+非交互布局容器上，返回 `policy_denied`、`deny.class=no_receiver_at_point`；`point_evidence` 给出
+落点、命中节点及最多5个落点内被裁候选。整页子树文字不再作为该空白落点的副作用依据。
+此诊断不把候选变为可点目标；已登记 Canvas/XComponent 的正常树定位仍沿现有定位和触摸复核。
+若Dispatcher重定位后的最终策略拒绝，CLI诊断读取该次 `dispatch_recheck.checks.tap.policy`，
+初检 `attempt.policy` 仍保留作独立审计；不会用初检通过的旧策略掩盖最终接收者拒发。
+
+折叠布局疑似树窗口/祖先包围盒错误时，工作机先保留同一 `obs_id` 的原树、截图、`layout.window_rect`
+与本次诊断，核对候选的裁剪祖先和实际按钮位置。若要扩大可见区域，仍需该帧独立窗口/布局证据与
+List/Scroll/Grid、隐藏Swiper页及真实浮层负例；本诊断切片不声称修复右缘按钮或完成真机验收。
 定位记录 `locate.attempts[]` 列出每个策略的结果；`adapted=true` 表示首个尝试的策略失败、由后备策略成功。
 
 **策略文字语境（#35）**：`check_tap` 检查最近可点击容器的各条 text/description。policy-0.6 仅对完整标签「被授权的车辆」「附近充电站」（允许外围空白）排除对应的授权/充电关键词误命中；同容器其他文字、其他规则、页面级 deny/effect 与目标显式副作用继续检查。混合标签、换行追加指令、充电站启动与充电费不按该例外放行。纯文字断言不经过动作门禁；切车仍须目标声明 vehicle_selection 且本次授权。该修复只缩窄既有配置，不改变 Policy / Executor / Dispatcher 接口。

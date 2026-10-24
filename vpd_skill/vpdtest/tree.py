@@ -214,6 +214,25 @@ class UiTree:
         frac = round(((r[2] - r[0]) * (r[3] - r[1])) / node.area, 3) if (r and node.area) else 0.0
         return {"rect": r, "fraction": frac, "center": ((r[0] + r[2]) // 2, (r[1] + r[3]) // 2) if r else None}
 
+    def visibility_evidence(self, node: Node) -> dict:
+        """解释当前树的可见性计算，不把祖先/窗口矛盾自动修正为可点击。"""
+        return {"node": node.brief(), **self.visibility(node), "window_rect": self.window_rect(),
+                "window_source": "ui_tree_bounds",
+                "clip_ancestors": [a.brief() for a in self.ancestors(node)
+                                   if a.type in CLIP_TYPES or a.scrollable]}
+
+    def point_evidence(self, x: int, y: int) -> dict:
+        """仅列落点内被裁掉的最多5个候选；候选不是可见接收者，不能用于发送。"""
+        def contains(rect):
+            return rect and rect[0] <= x < rect[2] and rect[1] <= y < rect[3]
+
+        candidates = [n for n in reversed(self.nodes) if n.parent is not None and n.visible
+                      and contains(n.bounds) and not contains(self.visible_rect(n))][:5]
+        hit = self.node_at(x, y)
+        return {"point": [x, y], "node": hit.brief() if hit else None,
+                "window_rect": self.window_rect(), "window_source": "ui_tree_bounds",
+                "clipped_candidates": [self.visibility_evidence(n) for n in candidates]}
+
     def node_at(self, x: int, y: int) -> Optional[Node]:
         """点击点实际落在哪个节点：只看可见矩形，被列表裁掉的条目不算（否则会把底部导航上的点击
         误判为列表项）。"""
