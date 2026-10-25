@@ -2,6 +2,7 @@
 from copy import deepcopy
 
 import pytest
+from conftest import unconfirm
 
 from vpdtest.cases import lint, review_status
 from vpdtest.execute import _measure
@@ -41,14 +42,15 @@ def _read(ws, case_id, step_id, tree):
 
 
 @pytest.mark.parametrize("number", range(240, 250))
-def test_new_assets_are_lint_clean_but_still_require_actual_human_review(ws, number):
+def test_assets_preserve_the_users_per_case_review_decisions(ws, number):
     case = ws.load_case(f"TC-QK-{number}")
     kn = KnowledgeStore(ws.root)
     assert lint(case, ws.app(case["app"]), kn, ws.policy(), runs_dir=None) == []
     review = review_status(ws, case, kn)
-    assert review["required"] and not review["valid"]
+    accepted = number in {240, 241, 243, 245, 246, 247, 249}
+    assert review["required"] and review["valid"] is accepted
     assert case["onebox_case_ref"]["full_row_coverage"] is False
-    assert all(kn.get(ref)["status"] == "unconfirmed"
+    assert all(kn.get(ref)["status"] == ("confirmed" if accepted else "unconfirmed")
                for a in case["assertions"] for ref in a["oracle_refs"])
 
 
@@ -76,6 +78,7 @@ def test_same_parking_name_in_two_rows_is_not_silently_selected(ws):
 
 
 def test_display_evidence_keeps_unconfirmed_product_verdict(ws):
+    unconfirm(ws, "K-QK-IDX-241")
     case = ws.load_case("TC-QK-241")
     status, measurement = _read(ws, case["id"], "S_COUNT", _tree([_row(AREA, ["共 695 个"], 0, "Row")]))
     assert status == "found"

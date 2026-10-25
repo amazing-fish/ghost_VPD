@@ -1,0 +1,367 @@
+{
+  "recorded_at": "2026-10-25T18:34:27.236232+00:00",
+  "reviewer": "用户（当前会话）",
+  "source": "当前会话用户直接提交的逐条审阅结果",
+  "review_snapshot": "2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c",
+  "reviewed_code": "f15f46005749e51643964f2f2a6170cb3e4c7a27",
+  "landed_base": "7c22b0a4a7333aad2105f6a0115d9a47999d78a3",
+  "scope": "范围仅原确认单各条明确的显示/导航子范围；原表完整验收保持待核。",
+  "decisions": [
+    {
+      "case": "TC-QK-240",
+      "knowledge": "K-QK-IDX-240",
+      "decision": "accept",
+      "user_text": "认可此条候选规则与用例范围，允许按此确认判据并记录人工资产审阅",
+      "reviewed_version": 3,
+      "reviewed_binding": {
+        "case_id": "TC-QK-240",
+        "content_hash": "f508f23da989",
+        "dependency_hash": "86371aebc80d",
+        "review_hash": "f0c53a481aa655187d8c8530f33957ec4a1127a6476123af7d8028cb6b33e791",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
+    },
+    {
+      "case": "TC-QK-241",
+      "knowledge": "K-QK-IDX-241",
+      "decision": "accept",
+      "user_text": "认可此条候选规则与用例范围，允许按此确认判据并记录人工资产审阅",
+      "reviewed_version": 3,
+      "reviewed_binding": {
+        "case_id": "TC-QK-241",
+        "content_hash": "d994a7ee4425",
+        "dependency_hash": "3f955db85331",
+        "review_hash": "d5aeb88e542f2f275dd36cf6d3b713f484f54876aaf81dd3c3a7ec5a0fd085ac",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
+    },
+    {
+      "case": "TC-QK-242",
+      "knowledge": "K-QK-IDX-242",
+      "decision": "change",
+      "user_text": "实际出现的是地图中有的标签信息，和地图上的车位POI可对应",
+      "reviewed_version": 3,
+      "reviewed_binding": {
+        "case_id": "TC-QK-242",
+        "content_hash": "070e012da055",
+        "dependency_hash": "b5824cfa1c91",
+        "review_hash": "b751ee7344be210debfbd654f1c898075e58efd59bc70ea7e103fe707a770702",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
+    },
+    {
+      "case": "TC-QK-243",
+      "knowledge": "K-QK-IDX-243",
+      "decision": "accept",
+      "user_text": "认可此条候选规则与用例范围，允许按此确认判据并记录人工资产审阅",
+      "reviewed_version": 3,
+      "reviewed_binding": {
+        "case_id": "TC-QK-243",
+        "content_hash": "88156a104f4a",
+        "dependency_hash": "96a1ac925354",
+        "review_hash": "d25a05ff2f05b4b272702c42396abaeaeb6e0e40cffe48be85b34f2811c9b0a2",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
+    },
+    {
+      "case": "TC-QK-244",
+      "knowledge": "K-QK-IDX-244",
+      "decision": "undecided",
+      "user_text": "未决",
+      "reviewed_version": 3,
+      "reviewed_binding": {
+        "case_id": "TC-QK-244",
+        "content_hash": "cf06add6fc6a",
+        "dependency_hash": "806da152a749",
+        "review_hash": "17e298f5f86d136e1bddf3472c770283046dfa59be7daf2e27073a5a1a0e0da1",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
+    },
+    {
+      "case": "TC-QK-245",
+      "knowledge": "K-QK-IDX-245",
+      "decision": "accept",
+      "user_text": "认可此条候选规则与用例范围，允许按此确认判据并记录人工资产审阅",
+      "reviewed_version": 3,
+      "reviewed_binding": {
+        "case_id": "TC-QK-245",
+        "content_hash": "ecd807642db7",
+        "dependency_hash": "a13847dfc23a",
+        "review_hash": "c1be4d3e8090fb7ba17b00f114c2e6a8bdec2f46acb1258713b2eb58cde7e21f",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
+    },
+    {
+      "case": "TC-QK-246",
+      "knowledge": "K-QK-IDX-246",
+      "decision": "accept",
+      "user_text": "认可此条候选规则与用例范围，允许按此确认判据并记录人工资产审阅",
+      "reviewed_version": 3,
+      "reviewed_binding": {
+        "case_id": "TC-QK-246",
+        "content_hash": "1548da905f63",
+        "dependency_hash": "bdbcdd6396d8",
+        "review_hash": "40e25c745c984d0849c4db4c122a47336983e7494937e5735fb90e5202537b62",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
+    },
+    {
+      "case": "TC-QK-247",
+      "knowledge": "K-QK-IDX-247",
+      "decision": "accept",
+      "user_text": "认可此条候选规则与用例范围，允许按此确认判据并记录人工资产审阅",
+      "reviewed_version": 3,
+      "reviewed_binding": {
+        "case_id": "TC-QK-247",
+        "content_hash": "7cc12abb2f43",
+        "dependency_hash": "40fa59c85397",
+        "review_hash": "82b9e4230c95db9efb86652fc3ff9455cd27f6144112f536d7cbba5f7fcb0683",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
+    },
+    {
+      "case": "TC-QK-248",
+      "knowledge": "K-QK-IDX-248",
+      "decision": "change",
+      "user_text": "错误，下面的距离是另一个园区的，当前园区是一个位置符号",
+      "reviewed_version": 3,
+      "reviewed_binding": {
+        "case_id": "TC-QK-248",
+        "content_hash": "77811c2d0856",
+        "dependency_hash": "9e9277bed8da",
+        "review_hash": "9c84b62b94164b83097ffedc330b84cf4acb42378a638b84d565b23725dbe90d",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
+    },
+    {
+      "case": "TC-QK-249",
+      "knowledge": "K-QK-IDX-249",
+      "decision": "accept",
+      "user_text": "认可此条候选规则与用例范围，允许按此确认判据并记录人工资产审阅",
+      "reviewed_version": 3,
+      "reviewed_binding": {
+        "case_id": "TC-QK-249",
+        "content_hash": "b4db8e1ef1c6",
+        "dependency_hash": "d413f9ff619a",
+        "review_hash": "b4625c147addec6135e40a099e77941c3a627e8a11c111e8d9dc5927b1ad1532",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
+    }
+  ],
+  "operations": [
+    {
+      "command": [
+        "vpdtest",
+        "knowledge",
+        "confirm",
+        "K-QK-IDX-240",
+        "--reviewer",
+        "用户（当前会话）",
+        "--basis",
+        "当前会话用户逐条审阅并明确授权；审阅快照 2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；docs/reviews/K89_20261026.json；仅对应显示/导航子范围，原表完整验收待核"
+      ],
+      "output_sha256": "87a4afe4fd98151a635c14f27b347fcbe39d0eb3c3283c63ffefce84e0a81510"
+    },
+    {
+      "command": [
+        "vpdtest",
+        "case",
+        "approve",
+        "TC-QK-240",
+        "--reviewer",
+        "用户（当前会话）",
+        "--basis",
+        "当前会话用户逐条审阅并明确授权；审阅快照 2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；docs/reviews/K89_20261026.json；仅对应显示/导航子范围，原表完整验收待核"
+      ],
+      "output_sha256": "770fbcd2c06175ca74ccc53a00d73fb113468e58e4632338279481eec1dd469e"
+    },
+    {
+      "command": [
+        "vpdtest",
+        "knowledge",
+        "confirm",
+        "K-QK-IDX-241",
+        "--reviewer",
+        "用户（当前会话）",
+        "--basis",
+        "当前会话用户逐条审阅并明确授权；审阅快照 2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；docs/reviews/K89_20261026.json；仅对应显示/导航子范围，原表完整验收待核"
+      ],
+      "output_sha256": "fd5559b1b58f6a23c10c779d40e2048bf1c06b92748ce1836d34a9c41d57834a"
+    },
+    {
+      "command": [
+        "vpdtest",
+        "case",
+        "approve",
+        "TC-QK-241",
+        "--reviewer",
+        "用户（当前会话）",
+        "--basis",
+        "当前会话用户逐条审阅并明确授权；审阅快照 2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；docs/reviews/K89_20261026.json；仅对应显示/导航子范围，原表完整验收待核"
+      ],
+      "output_sha256": "3ba171f489ea2e270d4a5316008ad6a7956d8476030061e807f968853d836f24"
+    },
+    {
+      "command": [
+        "vpdtest",
+        "knowledge",
+        "confirm",
+        "K-QK-IDX-243",
+        "--reviewer",
+        "用户（当前会话）",
+        "--basis",
+        "当前会话用户逐条审阅并明确授权；审阅快照 2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；docs/reviews/K89_20261026.json；仅对应显示/导航子范围，原表完整验收待核"
+      ],
+      "output_sha256": "85663e6151d499ea5b0a34f55222183d87924652565467cd831621afe1585eaa"
+    },
+    {
+      "command": [
+        "vpdtest",
+        "case",
+        "approve",
+        "TC-QK-243",
+        "--reviewer",
+        "用户（当前会话）",
+        "--basis",
+        "当前会话用户逐条审阅并明确授权；审阅快照 2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；docs/reviews/K89_20261026.json；仅对应显示/导航子范围，原表完整验收待核"
+      ],
+      "output_sha256": "a72aa1a119cd062781f3eb792cd1e9a8e7c75ac3b5cddc5b559b6f594ded2665"
+    },
+    {
+      "command": [
+        "vpdtest",
+        "knowledge",
+        "confirm",
+        "K-QK-IDX-245",
+        "--reviewer",
+        "用户（当前会话）",
+        "--basis",
+        "当前会话用户逐条审阅并明确授权；审阅快照 2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；docs/reviews/K89_20261026.json；仅对应显示/导航子范围，原表完整验收待核"
+      ],
+      "output_sha256": "e5d093a3eca4cb77fe13170458cd24305fb8a7d5129bdbfbeb852f6b024a98ae"
+    },
+    {
+      "command": [
+        "vpdtest",
+        "case",
+        "approve",
+        "TC-QK-245",
+        "--reviewer",
+        "用户（当前会话）",
+        "--basis",
+        "当前会话用户逐条审阅并明确授权；审阅快照 2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；docs/reviews/K89_20261026.json；仅对应显示/导航子范围，原表完整验收待核"
+      ],
+      "output_sha256": "404a7437d91f59a28c674046446b30a522842c8589861a01701851722fb38fba"
+    },
+    {
+      "command": [
+        "vpdtest",
+        "knowledge",
+        "confirm",
+        "K-QK-IDX-246",
+        "--reviewer",
+        "用户（当前会话）",
+        "--basis",
+        "当前会话用户逐条审阅并明确授权；审阅快照 2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；docs/reviews/K89_20261026.json；仅对应显示/导航子范围，原表完整验收待核"
+      ],
+      "output_sha256": "fe750a269debfeeffe6c541dbfd9b01537109864d0fb47b049b9b25d86d686fa"
+    },
+    {
+      "command": [
+        "vpdtest",
+        "case",
+        "approve",
+        "TC-QK-246",
+        "--reviewer",
+        "用户（当前会话）",
+        "--basis",
+        "当前会话用户逐条审阅并明确授权；审阅快照 2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；docs/reviews/K89_20261026.json；仅对应显示/导航子范围，原表完整验收待核"
+      ],
+      "output_sha256": "dc0ca523ee094f8ad39162ecc55b8106e8efa4df57cb06cf778d368e2c036bde"
+    },
+    {
+      "command": [
+        "vpdtest",
+        "knowledge",
+        "confirm",
+        "K-QK-IDX-247",
+        "--reviewer",
+        "用户（当前会话）",
+        "--basis",
+        "当前会话用户逐条审阅并明确授权；审阅快照 2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；docs/reviews/K89_20261026.json；仅对应显示/导航子范围，原表完整验收待核"
+      ],
+      "output_sha256": "29424e0410b28d86434dc3f4442b52466c96731e727643e9157b1862af2bb5ae"
+    },
+    {
+      "command": [
+        "vpdtest",
+        "case",
+        "approve",
+        "TC-QK-247",
+        "--reviewer",
+        "用户（当前会话）",
+        "--basis",
+        "当前会话用户逐条审阅并明确授权；审阅快照 2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；docs/reviews/K89_20261026.json；仅对应显示/导航子范围，原表完整验收待核"
+      ],
+      "output_sha256": "1bc13afb5bc6770caca148668d3f2bfe6cf06956e5473dcf5fa56063f531ba3c"
+    },
+    {
+      "command": [
+        "vpdtest",
+        "knowledge",
+        "confirm",
+        "K-QK-IDX-249",
+        "--reviewer",
+        "用户（当前会话）",
+        "--basis",
+        "当前会话用户逐条审阅并明确授权；审阅快照 2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；docs/reviews/K89_20261026.json；仅对应显示/导航子范围，原表完整验收待核"
+      ],
+      "output_sha256": "072970a2760abd6dbdb4301f35826945fbaf6c2df6f5755552009656b050720a"
+    },
+    {
+      "command": [
+        "vpdtest",
+        "case",
+        "approve",
+        "TC-QK-249",
+        "--reviewer",
+        "用户（当前会话）",
+        "--basis",
+        "当前会话用户逐条审阅并明确授权；审阅快照 2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；docs/reviews/K89_20261026.json；仅对应显示/导航子范围，原表完整验收待核"
+      ],
+      "output_sha256": "82b8d293dffd31a4dae9722723d25c54ef9157f1184d3fd23d66445364d265e1"
+    }
+  ],
+  "applied": {
+    "confirmed_rules": 7,
+    "approved_assets": 7,
+    "changes_pending": [
+      242,
+      248
+    ],
+    "undecided": [
+      244
+    ],
+    "formal_original_rows_added": 0
+  }
+}
