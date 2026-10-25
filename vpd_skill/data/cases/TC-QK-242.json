@@ -1,31 +1,37 @@
 {
   "id": "TC-QK-242",
-  "version": 4,
+  "version": 5,
   "status": "draft",
   "app": "qiankun_hm",
   "origin": {
     "type": "session"
   },
-  "title": "K89 0228 · 点击进入搜索二级页面",
-  "goal": "进入搜索二级页，核对标签来自当前地图并与车位POI对应",
-  "purpose": "搜索标签按当前地图内容动态显示，应与该图的车位POI对应；不能把电梯口、充电桩写成所有地图固定必有的两个入口。保留进入搜索页的自动检查；当前自绘地图缺少可供执行器读取的完整POI语义，标签—POI对应暂列必需视觉待核，不冒充已自动验证。原表完整验收待核。",
+  "title": "K89 0228 · 给车位打标签后在搜索中显示、选中并查找",
+  "goal": "给B1层A207打楼梯口标签，重新进入搜索显示并选中标签，结果命中同一车位，撤回本次修改",
+  "purpose": "按用户最新明确需求验证完整车位标签链路，不以地图预置标签或输入A207本身代替标签筛选。限定由度园区POI4000191310；先核原标签未选和搜索入口未出现，再写入并验证、撤回。原表完整行验收仍待核。",
   "preconditions": [
     "设备已登录乾崑1.0.26.100，保持已有账号；本例不执行登录、登出、车辆运动或车控",
     "本轮指定问界K89、车架号末六位000228；前置每次重新打开当前车辆列表并唯一选择，不按车型别名猜选",
     "当前园区测试数据为由度金闽园地下停车场；只核显示子范围，不以首页锚点证明车辆图内、健康或地图完整性",
-    "以受控stop_app/launch重建起点；只在无进行中VPD任务的本轮只读现场执行，其他场景需重新取证"
+    "以受控stop_app/launch重建起点；只在无进行中VPD任务的本轮只读现场执行，其他场景需重新取证",
+    "本次专用A207原未选楼梯口，搜索初始也无该标签入口；两个肯定型读取均由本例验证，不满足时不清理既有数据。"
   ],
   "env_requirements": {
     "app_version": "1.0.26.100"
   },
   "test_data": {
     "parking_area": "由度金闽园地下停车场",
-    "other_parking_area": "华为练秋湖研发中心"
+    "other_parking_area": "华为练秋湖研发中心",
+    "spot_title": "B1层-A207 车位",
+    "spot_query": "A207",
+    "poi_id": "4000191310",
+    "tag": "楼梯口"
   },
   "test_data_none": false,
   "authorizations": [
     "vpd_entry",
-    "vehicle_selection"
+    "vehicle_selection",
+    "user_data"
   ],
   "steps": [
     {
@@ -96,44 +102,177 @@
       "target": "qk_ads"
     },
     {
-      "id": "S7",
+      "id": "S_SEARCH_INITIAL",
       "action": "tap",
-      "timeout_s": 10.0,
-      "retry": 1,
       "critical": true,
-      "oracle_refs": [],
-      "from_session": {
-        "session": "session-k89-entry-cold-20261025",
-        "seq": 7,
-        "step": "A7",
-        "outcome": "passed",
-        "effect_unknown": false,
-        "obs_before": "obs-0017",
-        "obs_after": "obs-0018"
-      },
-      "expect_state": "qk_spot_search",
-      "target": "qk_search_entry"
+      "retry": 0,
+      "timeout_s": 12,
+      "target": "qk_search_entry",
+      "expect_state": "qk_spot_search"
+    },
+    {
+      "id": "S_NO_TAG",
+      "action": "read",
+      "critical": true,
+      "retry": 0,
+      "timeout_s": 12,
+      "target": "qk_k89_search_without_stair",
+      "read_scope": "self",
+      "pattern": "电梯口.*充电桩",
+      "measure": "s_no_tag",
+      "desc": "本次搜索初始没有楼梯口入口，存在则不改任何既有数据"
+    },
+    {
+      "id": "S_QUERY",
+      "action": "input",
+      "critical": true,
+      "retry": 0,
+      "timeout_s": 12,
+      "target": "qk_k89_tag_search_input",
+      "text": "A207",
+      "clear": true,
+      "expect_text": "A207"
+    },
+    {
+      "id": "S_PANEL",
+      "action": "tap",
+      "critical": true,
+      "retry": 0,
+      "timeout_s": 12,
+      "target": "qk_k89_a207_result_title",
+      "expect_text": "添加标签"
+    },
+    {
+      "id": "S_BASELINE",
+      "action": "read",
+      "critical": true,
+      "retry": 0,
+      "timeout_s": 12,
+      "target": "qk_k89_a207_stair_unset",
+      "read_scope": "self",
+      "pattern": "^楼梯口$",
+      "measure": "s_baseline",
+      "desc": "确认同一A207原未选择楼梯口标签；否则停止，不获得清理归属"
+    },
+    {
+      "id": "S_TAG_ADD",
+      "action": "tap",
+      "critical": true,
+      "retry": 0,
+      "timeout_s": 12,
+      "target": "qk_k89_a207_stair_unset",
+      "expect_text": "添加标签"
+    },
+    {
+      "id": "S_TAG_SELECTED",
+      "action": "read",
+      "critical": true,
+      "retry": 0,
+      "timeout_s": 12,
+      "target": "qk_k89_a207_stair_set",
+      "read_scope": "self",
+      "pattern": "^楼梯口$",
+      "measure": "s_tag_selected",
+      "desc": "同一车位标签写入后的独立状态检查"
+    },
+    {
+      "id": "S_HOME",
+      "action": "back",
+      "critical": true,
+      "retry": 0,
+      "timeout_s": 12,
+      "expect_state": "qk_vpd_home"
+    },
+    {
+      "id": "S_SEARCH_AGAIN",
+      "action": "tap",
+      "critical": true,
+      "retry": 0,
+      "timeout_s": 12,
+      "target": "qk_search_entry",
+      "expect_state": "qk_spot_search"
+    },
+    {
+      "id": "S_SEARCH_TAG",
+      "action": "read",
+      "critical": true,
+      "retry": 0,
+      "timeout_s": 12,
+      "target": "qk_k89_search_stair",
+      "read_scope": "self",
+      "pattern": "^楼梯口$",
+      "measure": "s_search_tag",
+      "desc": "标签在重新进入的搜索页显示"
+    },
+    {
+      "id": "S_FILTER",
+      "action": "tap",
+      "critical": true,
+      "retry": 0,
+      "timeout_s": 12,
+      "target": "qk_k89_search_stair",
+      "expect_text": "B1层-A207 车位"
+    },
+    {
+      "id": "S_RESULT",
+      "action": "read",
+      "critical": true,
+      "retry": 0,
+      "timeout_s": 12,
+      "target": "qk_k89_a207_same_park_result",
+      "read_scope": "self",
+      "pattern": "^由度金闽园地下停车场.*B1层-A207 车位",
+      "measure": "s_result",
+      "desc": "同一园区结果组命中同一POI 4000191310与B1层A207"
     }
   ],
   "assertions": [
     {
-      "id": "A1",
-      "at": "S7",
-      "type": "text_present",
-      "text": "输入目的地或车位号",
-      "exact": true,
-      "desc": "输入目的地或车位号",
+      "id": "A_TAG_SET",
+      "at": "S_TAG_SELECTED",
+      "type": "value_present",
+      "pattern": "楼梯口",
+      "desc": "同一A207已打标签",
       "oracle_refs": [
         "K-QK-IDX-242"
       ]
     },
     {
-      "id": "A_TAG_POI",
-      "at": "S7",
-      "type": "visual_review",
-      "advisory": false,
-      "desc": "必需待核：标签来自当前地图，并与地图上的车位POI对应",
-      "prompt": "对照本次运行S6的地图原图与S7的搜索页原图，核对实际标签集合来自当前地图且与车位POI对应；不预设必须有电梯口、充电桩，不把无障碍树中出现标签文字当作对应关系证据。当前自动化无法确定完整POI集合，此项保持pending。",
+      "id": "A_TAG_SHOWN",
+      "at": "S_SEARCH_TAG",
+      "type": "value_present",
+      "pattern": "楼梯口",
+      "desc": "标签重新进入搜索后可显示",
+      "oracle_refs": [
+        "K-QK-IDX-242"
+      ]
+    },
+    {
+      "id": "A_TAG_SELECTED",
+      "at": "S_FILTER",
+      "type": "target_present",
+      "target": "qk_k89_search_stair_selected",
+      "desc": "搜索页该标签被选中",
+      "oracle_refs": [
+        "K-QK-IDX-242"
+      ]
+    },
+    {
+      "id": "A_QUERY_EMPTY",
+      "at": "S_FILTER",
+      "type": "target_present",
+      "target": "qk_k89_tag_query_empty",
+      "desc": "空查询下按标签查找，不沿用A207文字查询",
+      "oracle_refs": [
+        "K-QK-IDX-242"
+      ]
+    },
+    {
+      "id": "A_SAME_POI",
+      "at": "S_RESULT",
+      "type": "value_present",
+      "pattern": "由度金闽园地下停车场.*B1层-A207 车位",
+      "desc": "命中同园区同楼层同POI，不只看任意同名文本",
       "oracle_refs": [
         "K-QK-IDX-242"
       ]
@@ -141,19 +280,28 @@
   ],
   "cleanup": [
     {
+      "id": "C_RESTORE_TAG",
+      "action": "flow",
+      "critical": true,
+      "retry": 0,
+      "timeout_s": 12,
+      "flow": "restore_k89_a207_stair",
+      "after_dispatch": "S_TAG_ADD"
+    },
+    {
       "id": "C_STOP",
       "action": "stop_app",
-      "retry": 0,
       "critical": true,
-      "desc": "结束被测APP并独立核实进程停止；不以发送成功代替清理核验"
+      "retry": 0,
+      "timeout_s": 12
     }
   ],
   "knowledge_used": [
     {
       "id": "K-QK-IDX-242",
-      "use": "未确认的操作级候选判据",
-      "applicability": "unknown",
-      "rationale": "K-QK-IDX-242只约束本候选的显示/导航子范围；原表完整预期未取得，不自行confirm或人审"
+      "use": "用户明确的车位标签产品要求",
+      "applicability": "qiankun_hm 1.0.26.100 / K89由度园区A207专用子范围",
+      "rationale": "标签写入、搜索显示、选中、空查询与同POI命中分开取证；原人审仅覆盖旧范围，新v5不自行批准。"
     }
   ],
   "sources": [
@@ -312,6 +460,74 @@
       "type": "issue",
       "ref": "https://github.com/amazing-fish/ghost_VPD/issues/65",
       "scope": "附录A的场景及用例名索引；非完整步骤/预期源件"
+    },
+    {
+      "type": "session",
+      "run": "session-session-k89-tags-20261026",
+      "validation_level": "real_device",
+      "facts": {
+        "app": "qiankun_hm",
+        "bundle": "com.yinwang.qiankunapp.hm",
+        "device": "hdc:5MT0225B05000904",
+        "validation_level": "real_device",
+        "app_version": "1.0.26.100",
+        "device_form": "bar"
+      },
+      "included": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "excluded": [],
+      "rejected": [],
+      "incomplete": [],
+      "effect_unknown": [],
+      "obs": [
+        "obs-0001",
+        "obs-0003",
+        "obs-0004",
+        "obs-0006",
+        "obs-0007",
+        "obs-0008",
+        "obs-0009",
+        "obs-0012",
+        "obs-0013",
+        "obs-0015",
+        "obs-0016",
+        "obs-0018",
+        "obs-0019",
+        "obs-0020",
+        "obs-0021",
+        "obs-0022",
+        "obs-0023",
+        "obs-0025",
+        "obs-0026",
+        "obs-0028",
+        "obs-0029",
+        "obs-0031",
+        "obs-0032",
+        "obs-0033",
+        "obs-0034",
+        "obs-0035",
+        "obs-0036",
+        "obs-0037"
+      ],
+      "trail": "runs/session-session-k89-tags-20261026/events.jsonl"
+    },
+    {
+      "type": "reviewer",
+      "ref": "当前用户明确：点击车位后可以打上标签，这个标签预计在搜索中可显示、选中和查找；docs/reviews/K89_20261026_FOLLOWUP.json"
     }
   ],
   "history": [
@@ -344,6 +560,14 @@
       "review_snapshot": "2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c",
       "user_text": "实际出现的是地图中有的标签信息，和地图上的车位POI可对应",
       "why": "撤销固定两标签的普适断言，保留用户要求的地图POI对应为必需待核项；未授予本修订版确认或资产人审。"
+    },
+    {
+      "ts": "2026-10-25T20:26:52.063360+00:00",
+      "version": 5,
+      "event": "user_clarified_tag_chain",
+      "why": "用户澄清后，以真实会话固化车位标签写入→搜索显示/选中/查找及清理；旧地图POI视觉待核范围被新明确需求替代，原始记录保留。",
+      "source_session": "session-session-k89-tags-20261026",
+      "asset_review": "pending"
     }
   ],
   "onebox_case_ref": {
@@ -356,5 +580,18 @@
     "row": null,
     "full_steps_and_expectations_verified": false,
     "full_row_coverage": false
+  },
+  "conditions": {
+    "a207_stair_selected": {
+      "kind": "page",
+      "true": {
+        "type": "target_present",
+        "target": "qk_k89_a207_stair_set"
+      },
+      "false": {
+        "type": "target_present",
+        "target": "qk_k89_a207_stair_unset"
+      }
+    }
   }
 }
