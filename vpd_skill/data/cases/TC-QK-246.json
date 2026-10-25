@@ -1,6 +1,6 @@
 {
   "id": "TC-QK-246",
-  "version": 1,
+  "version": 3,
   "status": "draft",
   "app": "qiankun_hm",
   "origin": {
@@ -65,135 +65,17 @@
       "expect_state": "@in_app"
     },
     {
-      "id": "S3",
-      "action": "tap",
-      "timeout_s": 15.0,
-      "retry": 0,
-      "critical": true,
-      "oracle_refs": [],
-      "from_session": {
-        "session": "session-k89-entry-cold-20261025",
-        "seq": 3,
-        "step": "A3",
-        "outcome": "passed",
-        "effect_unknown": false,
-        "obs_before": "obs-0006",
-        "obs_after": "obs-0007"
-      },
-      "expect_state": "qk_car_tab",
-      "target": "qk_tab_car"
-    },
-    {
       "id": "S4",
-      "action": "tap",
+      "action": "flow",
+      "flow": "switch_vehicle",
+      "params": {
+        "vin_tail": "000228"
+      },
       "timeout_s": 15.0,
       "retry": 0,
       "critical": true,
       "oracle_refs": [],
-      "from_session": {
-        "session": "session-k89-entry-cold-20261025",
-        "seq": 4,
-        "step": "A4",
-        "outcome": "passed",
-        "effect_unknown": false,
-        "obs_before": "obs-0008",
-        "obs_after": "obs-0010"
-      },
-      "expect_state": "qk_vehicle_list",
-      "revalidate": true,
-      "target": {
-        "label": "select:text=问界K89",
-        "strategies": [
-          {
-            "kind": "text",
-            "value": "问界K89"
-          }
-        ],
-        "side_effect": "navigation",
-        "origin": "agent_select",
-        "observed": {
-          "session": "session-k89-entry-cold-20261025",
-          "seq": 4,
-          "obs": "obs-0009",
-          "outcome": "passed",
-          "node": {
-            "idx": 18,
-            "type": "Text",
-            "text": "问界K89",
-            "id": "",
-            "bounds": [
-              54,
-              186,
-              313,
-              265
-            ],
-            "clickable": true,
-            "selected": false
-          },
-          "node_basis": "resolved",
-          "dispatched": true,
-          "layout_key": "sm/portrait",
-          "app_version": "1.0.26.100",
-          "device_form": "bar",
-          "validation_level": "real_device"
-        }
-      }
-    },
-    {
-      "id": "S5",
-      "action": "tap",
-      "timeout_s": 15.0,
-      "retry": 0,
-      "critical": true,
-      "oracle_refs": [],
-      "from_session": {
-        "session": "session-k89-entry-cold-20261025",
-        "seq": 5,
-        "step": "A5",
-        "outcome": "passed",
-        "effect_unknown": false,
-        "obs_before": "obs-0011",
-        "obs_after": "obs-0013"
-      },
-      "expect_state": "qk_car_tab",
-      "revalidate": true,
-      "target": {
-        "label": "select:text=车架号 000228(后六位)",
-        "strategies": [
-          {
-            "kind": "text",
-            "value": "车架号 000228(后六位)"
-          }
-        ],
-        "side_effect": "vehicle_selection",
-        "origin": "agent_select",
-        "observed": {
-          "session": "session-k89-entry-cold-20261025",
-          "seq": 5,
-          "obs": "obs-0012",
-          "outcome": "passed",
-          "node": {
-            "idx": 98,
-            "type": "Text",
-            "text": "车架号 000228(后六位)",
-            "id": "",
-            "bounds": [
-              111,
-              565,
-              529,
-              619
-            ],
-            "clickable": false,
-            "selected": false
-          },
-          "node_basis": "resolved",
-          "dispatched": true,
-          "layout_key": "sm/portrait",
-          "app_version": "1.0.26.100",
-          "device_form": "bar",
-          "validation_level": "real_device"
-        }
-      }
+      "desc": "复用既有选车能力：从当前车型打开列表，必要时滚动，并唯一选择VIN末六位000228"
     },
     {
       "id": "S6",
@@ -1010,6 +892,18 @@
       "ts": "2026-10-25T03:41:11.109+08:00",
       "to": "draft",
       "why": "补齐独立子范围、参数、断言、清理与来源；保留unconfirmed和必需人审，不冒充原表整行覆盖。源会话错误后置及标题点击无跳转均保留，不复用历史重放。"
+    },
+    {
+      "ts": "2026-10-26T01:01:16.322+08:00",
+      "version": 2,
+      "why": "实机当前车辆已为赛力斯M9 F2A，旧S4提前要求问界K89标题导致无法打开车辆列表。S4改复用结构性共享qk_car_select；S5仍唯一匹配VIN末六位000228，原业务断言、判据与清理不变。旧运行保留，不作为v2通过证据。",
+      "evidence": "run-20261026-004920-06c3 / S4 / obs-0008; 乾崑1.0.26.100 / Mate80 Pro Max"
+    },
+    {
+      "ts": "2026-10-26T01:28:00.560+08:00",
+      "version": 3,
+      "why": "run-20261026-012053-ff38已证实共用入口能从当前M9打开列表，但K89不在首屏，旧S5没有滚动查找。将S3-S5整体收敛到已有switch_vehicle(vin_tail=000228)，复用qk_car_by_vin的滚动、唯一定位和既有授权；业务断言及清理不变。v1/v2原始阻塞记录保留。",
+      "evidence": "run-20261026-012053-ff38 / S4 obs-0010 → S5 obs-0011；当前列表首屏002681/002685/S00384/S00133，无000228"
     }
   ],
   "onebox_case_ref": {
