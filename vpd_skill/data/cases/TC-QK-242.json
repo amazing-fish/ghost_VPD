@@ -1,6 +1,6 @@
 {
   "id": "TC-QK-242",
-  "version": 5,
+  "version": 6,
   "status": "draft",
   "app": "qiankun_hm",
   "origin": {
@@ -568,6 +568,12 @@
       "why": "用户澄清后，以真实会话固化车位标签写入→搜索显示/选中/查找及清理；旧地图POI视觉待核范围被新明确需求替代，原始记录保留。",
       "source_session": "session-session-k89-tags-20261026",
       "asset_review": "pending"
+    },
+    {
+      "version": 6,
+      "event": "review_fix_result_group_boundary",
+      "why": "PR100审查发现最小共同祖先仍可跨园区拼接。改用实机search_list下单个结果组边界，园区标题Column与POI节点必须是同组直接子节点；跨组、外层标题、重复组分别拒绝。v5原始运行不改写，v6重新实机。",
+      "review_thread": "https://github.com/amazing-fish/ghost_VPD/pull/100#discussion_r4372345308"
     }
   ],
   "onebox_case_ref": {

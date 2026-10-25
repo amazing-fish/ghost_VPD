@@ -1,17 +1,17 @@
 {
-  "recorded_at": "2026-10-25T20:42:41.984087+00:00",
+  "recorded_at": "2026-10-25T20:59:01.634746+00:00",
   "base": "7f0e7353cf1479339bcdedab1d8643f92887d1c8",
   "branch": "codex/k89-tag-search-chain-20261026",
   "depends_on_pr": "https://github.com/amazing-fish/ghost_VPD/pull/99",
   "case": "TC-QK-242",
-  "version": 5,
+  "version": 6,
   "validation_level": "real_device",
-  "run": "run-20261026-042807-3774",
-  "run_path": "vpd_skill/runs/run-20261026-042807-3774/run.json",
-  "run_sha256": "00f965c3c1cac02cbac0364479a9516f1f1af0c59f1724cb6b1a54f4a66c286a",
-  "started": "2026-10-26T04:28:07.274+08:00",
-  "finished": "2026-10-26T04:32:37.513+08:00",
-  "duration_s": 270.239,
+  "run": "run-20261026-045255-9f8e",
+  "run_path": "vpd_skill/runs/run-20261026-045255-9f8e/run.json",
+  "run_sha256": "25f8ff8dde78520885e994bfd33f6a7bf853637f0b8366a7a4c0ba3eaf39c1ff",
+  "started": "2026-10-26T04:52:55.496+08:00",
+  "finished": "2026-10-26T04:57:30.249+08:00",
+  "duration_s": 274.753,
   "device": {
     "serial": "5MT0225B05000904",
     "kind": "hdc",
@@ -37,8 +37,8 @@
   "binding": {
     "case_id": "TC-QK-242",
     "content_hash": "f877144cd320",
-    "dependency_hash": "51c89eedd1ae",
-    "review_hash": "21404f1f5ba33599e7dface8ac7815d71d20a665ef175ed77782e7dbc8fcbf34",
+    "dependency_hash": "9faf26aae864",
+    "review_hash": "35f581c9ea8c263d4735c2a6ecc8baef1d1083534789bad8981c815baf14bc06",
     "policy_hash": "24b6ecd0679d",
     "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
     "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
@@ -175,21 +175,23 @@
     "stop_checks": [
       {
         "process_alive": false,
-        "foreground": "com.ohos.sceneboard",
+        "foreground": "com.ss.hm.ugc.aweme",
         "process_ended": true,
-        "foreground_restored": true,
+        "foreground_restored": false,
         "require_launcher": false,
         "foreground_error": null,
-        "process_error": null
+        "process_error": null,
+        "foreign_foreground": "com.ss.hm.ugc.aweme"
       },
       {
         "process_alive": false,
-        "foreground": "com.ohos.sceneboard",
+        "foreground": "com.ss.hm.ugc.aweme",
         "process_ended": true,
-        "foreground_restored": true,
+        "foreground_restored": false,
         "require_launcher": false,
         "foreground_error": null,
-        "process_error": null
+        "process_error": null,
+        "foreign_foreground": "com.ss.hm.ugc.aweme"
       }
     ],
     "final_stop": "passed"
@@ -199,55 +201,55 @@
       "at": "S_BASELINE",
       "label": "添加前：同一A207的楼梯口未选",
       "obs": "obs-0024",
-      "ts": "2026-10-26T04:29:41.108+08:00",
-      "path": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0024/screen.png",
-      "sha256": "18d8344f70e67d041c2b72093d8ab5b80f683549cb3176155636900c3c2f677d",
-      "tree": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0024/tree.json"
+      "ts": "2026-10-26T04:54:25.785+08:00",
+      "path": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0024/screen.png",
+      "sha256": "cb8ebe9831f052238771d91e893314a782f57982a9d451082a95ded2726da8e7",
+      "tree": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0024/tree.json"
     },
     {
       "at": "S_TAG_SELECTED",
       "label": "添加后：同一A207已选楼梯口",
       "obs": "obs-0027",
-      "ts": "2026-10-26T04:29:53.188+08:00",
-      "path": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0027/screen.png",
-      "sha256": "547d4ed1d1e0c523a27a24771ffb2d14da2776eae82306048fb491b6a331f3d9",
-      "tree": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0027/tree.json"
+      "ts": "2026-10-26T04:54:37.904+08:00",
+      "path": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0027/screen.png",
+      "sha256": "d1d823b5edf2ec9f5409f2938e7576ae01c20b97143c89032c27d2e11dff087d",
+      "tree": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0027/tree.json"
     },
     {
       "at": "S_SEARCH_TAG",
       "label": "重新进入搜索：楼梯口标签出现",
       "obs": "obs-0032",
-      "ts": "2026-10-26T04:30:14.185+08:00",
-      "path": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0032/screen.png",
-      "sha256": "80fbbe5fbd0565e4de28181e99985756501c92d3f188f0dca83960063d7b8bbf",
-      "tree": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0032/tree.json"
+      "ts": "2026-10-26T04:54:58.446+08:00",
+      "path": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0032/screen.png",
+      "sha256": "7f50811819ff0347b62ed391bb87c8b080576af2b9c049ce008fc358110e88cc",
+      "tree": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0032/tree.json"
     },
     {
       "at": "S_RESULT",
       "label": "选中标签：空查询命中同一园区、楼层和POI",
       "obs": "obs-0035",
-      "ts": "2026-10-26T04:30:26.134+08:00",
-      "path": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0035/screen.png",
-      "sha256": "e71ea3b33290012c9a1c69241105079841ea62d2502df4f9935da77c53aad36e",
-      "tree": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0035/tree.json"
+      "ts": "2026-10-26T04:55:15.854+08:00",
+      "path": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0035/screen.png",
+      "sha256": "076264bf6d77b60b67c6bab61e2dd5ccc9c1d258f8aa37d421ffb4d06063c0a2",
+      "tree": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0035/tree.json"
     },
     {
       "at": "C_RESTORE_TAG.9",
       "label": "撤回后：同一A207的楼梯口恢复未选",
       "obs": "obs-0061",
-      "ts": "2026-10-26T04:32:09.559+08:00",
-      "path": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0061/screen.png",
-      "sha256": "6ab069a607a71f334848eb8985d2a58044ed8145cefd6c1047830210a509f47e",
-      "tree": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0061/tree.json"
+      "ts": "2026-10-26T04:57:00.834+08:00",
+      "path": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0061/screen.png",
+      "sha256": "9132867c52eb7c4911cfe47a4850eba96a5abc568c3a53fe41e0e73126c278a4",
+      "tree": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0061/tree.json"
     },
     {
       "at": "C_RESTORE_TAG.12",
       "label": "撤回后：搜索标签恢复原状",
       "obs": "obs-0066",
-      "ts": "2026-10-26T04:32:30.199+08:00",
-      "path": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0066/screen.png",
-      "sha256": "f32307dd6140e005678ed207bd431c9cae906f4b19cf58776240b504e1ff1592",
-      "tree": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0066/tree.json"
+      "ts": "2026-10-26T04:57:22.646+08:00",
+      "path": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0066/screen.png",
+      "sha256": "120f1ffb8e291313f0632cdecd99c048ca0540b350152299a35252d0f484518d",
+      "tree": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0066/tree.json"
     }
   ],
   "source_session": "vpd_skill/runs/session-session-k89-tags-20261026",
@@ -261,5 +263,37 @@
     "Original complete steps/expected source is unavailable here; formal original rows added = 0.",
     "Raw run/tree/PNG stay on the execution machine; this index records relative paths and hashes."
   ],
-  "formal_original_rows_added": 0
+  "formal_original_rows_added": 0,
+  "review_fix": {
+    "base_head": "38c90578cd52e84fd2b2c5051ff58f0830913247",
+    "split_park_old": "found",
+    "split_park_fixed": "not_found",
+    "actual_live_tree_fixed": "found",
+    "regressions_passed": 132,
+    "finding": "https://github.com/amazing-fish/ghost_VPD/pull/100#discussion_r4372345308"
+  },
+  "prior_run": {
+    "run": "run-20261026-042807-3774",
+    "version": 5,
+    "status": "Original single-park pass retained; not a substitute for the stricter v6 binding."
+  },
+  "preflight_attempt": {
+    "run": "run-20261026-045123-f32a",
+    "physical_actions": 0,
+    "status": "blocked: duplicate CLI --authorize option overwrote the first grant; corrected to one option with both grants."
+  },
+  "local_validation": {
+    "pytest": "132 passed in 22.94s",
+    "ruff": "All checks passed",
+    "case_lint": "no issues",
+    "tests": [
+      "test_cleanup_dispatch_ownership.py",
+      "test_k89_tag_chain.py",
+      "test_k89_review_corrections.py",
+      "test_k89_case_display_evidence.py",
+      "test_asset_review.py",
+      "test_condition_compound_runner.py"
+    ],
+    "temporary_path_retry": "Initial pytest default temp-root setup failed; identical tests passed with a fresh workspace-local basetemp."
+  }
 }

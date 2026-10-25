@@ -1181,10 +1181,10 @@
       "strategies": [
         {
           "kind": "xpath",
-          "value": "//Column[.//Text[@text=\"由度金闽园地下停车场\"] and .//*[@id=\"searchPoiSpot_4000191310\"]][not(.//Column[.//Text[@text=\"由度金闽园地下停车场\"] and .//*[@id=\"searchPoiSpot_4000191310\"]])]"
+          "value": "//*[@id=\"SearchPoiPage\"]//*[@id=\"search_list\"]/List/__Common__/Row/Stack/Column[Column//Text[@text=\"由度金闽园地下停车场\"] and __Common__[@id=\"searchPoiSpot_4000191310\"]]"
         }
       ],
-      "source": "session-session-k89-tags-20261026：query obs-0012 / panel obs-0015 / tagged obs-0018 / filter obs-0025 / restored obs-0031 / cleared obs-0035；仅K89、乾崑1.0.26.100、由度园区A207的实际定位。"
+      "source": "run-20261026-042807-3774/obs-0035：search_list/List/__Common__/Row/Stack/Column为实际单园区结果组，园区标题Column和POI __Common__必须是该组直接子节点。仅K89、乾崑1.0.26.100、由度园区A207；跨园区拆分反例另测。"
     }
   }
 }
