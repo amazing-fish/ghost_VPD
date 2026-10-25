@@ -3159,7 +3159,7 @@
         "app": "qiankun_hm",
         "app_version": "1.0.26.100"
       },
-      "status": "unconfirmed",
+      "status": "confirmed",
       "source": {
         "type": "test_goal",
         "ref": "本轮用户要求将用例表自动化；https://github.com/amazing-fish/ghost_VPD/issues/65 附录A：界面显示/地图界面显示/点击支持区域按钮进入二级页面。仅用例名索引可用，以下操作级候选由Agent细化，不是原表完整预期抄录。"
@@ -3171,8 +3171,18 @@
           "ts": "2026-10-25T03:41:11.092+08:00",
           "to": "unconfirmed",
           "why": "建立待复核的操作级候选，不确认产品规则"
+        },
+        {
+          "ts": "2026-10-26T03:41:03.756+08:00",
+          "from": "unconfirmed",
+          "to": "confirmed",
+          "by": "用户（当前会话）",
+          "basis": "用户当前会话明确同意244原范围、248修订v6；docs/reviews/K89_20261026_FOLLOWUP.json；源码LF与指纹清单路径统一，设备执行逻辑未变，差异证明见docs/evidence/K89_ENGINE_LF_20261026.json；沿用用户对相同行为的认可，不新增业务范围"
         }
-      ]
+      ],
+      "confirmed_by": "用户（当前会话）",
+      "confirmed_at": "2026-10-26T03:41:03.756+08:00",
+      "confirm_basis": "用户当前会话明确同意244原范围、248修订v6；docs/reviews/K89_20261026_FOLLOWUP.json；源码LF与指纹清单路径统一，设备执行逻辑未变，差异证明见docs/evidence/K89_ENGINE_LF_20261026.json；沿用用户对相同行为的认可，不新增业务范围"
     },
     {
       "id": "K-QK-IDX-245",
@@ -3285,7 +3295,7 @@
         "app": "qiankun_hm",
         "app_version": "1.0.26.100"
       },
-      "status": "unconfirmed",
+      "status": "confirmed",
       "source": {
         "type": "test_goal",
         "ref": "本轮用户要求将用例表自动化；https://github.com/amazing-fish/ghost_VPD/issues/65 附录A：其他页面/支持区域界面/停车场距离/当前停车场。仅用例名索引可用，以下操作级候选由Agent细化，不是原表完整预期抄录。"
@@ -3304,8 +3314,18 @@
           "review_snapshot": "2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c",
           "previous_statement": "候选子范围：当前园区行含当前位置标识，另一个明确园区行显示正数km距离；字段不得跨行拼接。显示距离不等于真实测距或当前车辆图内证明。",
           "why": "按用户直接提交的修改意见细化，未确认本修订候选"
+        },
+        {
+          "ts": "2026-10-26T03:41:04.322+08:00",
+          "from": "unconfirmed",
+          "to": "confirmed",
+          "by": "用户（当前会话）",
+          "basis": "用户当前会话明确同意244原范围、248修订v6；docs/reviews/K89_20261026_FOLLOWUP.json；源码LF与指纹清单路径统一，设备执行逻辑未变，差异证明见docs/evidence/K89_ENGINE_LF_20261026.json；沿用用户对相同行为的认可，不新增业务范围"
         }
-      ]
+      ],
+      "confirmed_by": "用户（当前会话）",
+      "confirmed_at": "2026-10-26T03:41:04.322+08:00",
+      "confirm_basis": "用户当前会话明确同意244原范围、248修订v6；docs/reviews/K89_20261026_FOLLOWUP.json；源码LF与指纹清单路径统一，设备执行逻辑未变，差异证明见docs/evidence/K89_ENGINE_LF_20261026.json；沿用用户对相同行为的认可，不新增业务范围"
     },
     {
       "id": "K-QK-IDX-249",

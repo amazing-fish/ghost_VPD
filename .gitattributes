@@ -1,0 +1,2 @@
+# Asset approvals bind exact executor bytes; check out the same Python bytes on every OS.
+vpd_skill/vpdtest/**/*.py text eol=lf

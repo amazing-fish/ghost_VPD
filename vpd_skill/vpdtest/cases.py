@@ -178,14 +178,14 @@ def exploration_signals(case: dict) -> list:
 def review_context(ws, app) -> dict:
     """检查和执行共用配置快照；模板只绑定文件指纹，运行期间须保持源码/模板不变。"""
     templates_dir = app.dir / "templates"
-    templates = {str(p.relative_to(app.dir)): sha256_file(p) for p in sorted(templates_dir.rglob("*")) if p.is_file()}
+    templates = {p.relative_to(app.dir).as_posix(): sha256_file(p) for p in sorted(templates_dir.rglob("*")) if p.is_file()}
     return {"app": app.meta, "layout": ws.layout_config(),
             "system_dialogs": read_json(ws.root / "system_dialogs.json", {}), "templates": templates}
 
 
 def _review_binding(ws, case: dict, app, knowledge, policy, context=None) -> dict:
     engine_dir = Path(__file__).parent
-    engine = {str(p.relative_to(engine_dir)): sha256_file(p) for p in sorted(engine_dir.rglob("*.py"))}
+    engine = {p.relative_to(engine_dir).as_posix(): sha256_file(p) for p in sorted(engine_dir.rglob("*.py"))}
     context = review_context(ws, app) if context is None else context
     return {"case_id": case["id"], "content_hash": content_hash(case),
             "dependency_hash": dependency_hash(case, app, knowledge),

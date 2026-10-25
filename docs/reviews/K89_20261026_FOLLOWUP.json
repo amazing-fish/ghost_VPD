@@ -1,0 +1,36 @@
+{
+  "recorded_at": "2026-10-25T19:41:01.331494+00:00",
+  "reviewer": "用户（当前会话）",
+  "source": "用户当前会话直接补充",
+  "user_text": [
+    "1/242：点击车位后可以打上标签，这个标签预计在搜索中可显示、选中和查找",
+    "2/244：同意，忘记点了",
+    "3/248：同意修改"
+  ],
+  "decisions": {
+    "242": "clarify: tag a parking spot, then display/select/find that tag in search; complete implementation still required",
+    "244": "accept original v3 scope and approve asset",
+    "248": "accept revised v6 scope and approve asset"
+  },
+  "reviewed_bindings": {
+    "244": {
+      "case_id": "TC-QK-244",
+      "content_hash": "cf06add6fc6a",
+      "dependency_hash": "806da152a749",
+      "review_hash": "17e298f5f86d136e1bddf3472c770283046dfa59be7daf2e27073a5a1a0e0da1",
+      "policy_hash": "24b6ecd0679d",
+      "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+      "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+    },
+    "248": {
+      "case_id": "TC-QK-248",
+      "content_hash": "56cbb6a34345",
+      "dependency_hash": "b783d9619c2b",
+      "review_hash": "11d0f9598db14277e3633886e00ea358790af9a331123e418feabc8e10cb9f0f",
+      "policy_hash": "24b6ecd0679d",
+      "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+      "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+    }
+  },
+  "canonical_engine_equivalence": "docs/evidence/K89_ENGINE_LF_20261026.json"
+}
