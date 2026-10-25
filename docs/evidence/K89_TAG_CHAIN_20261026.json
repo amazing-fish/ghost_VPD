@@ -1,0 +1,265 @@
+{
+  "recorded_at": "2026-10-25T20:42:41.984087+00:00",
+  "base": "7f0e7353cf1479339bcdedab1d8643f92887d1c8",
+  "branch": "codex/k89-tag-search-chain-20261026",
+  "depends_on_pr": "https://github.com/amazing-fish/ghost_VPD/pull/99",
+  "case": "TC-QK-242",
+  "version": 5,
+  "validation_level": "real_device",
+  "run": "run-20261026-042807-3774",
+  "run_path": "vpd_skill/runs/run-20261026-042807-3774/run.json",
+  "run_sha256": "00f965c3c1cac02cbac0364479a9516f1f1af0c59f1724cb6b1a54f4a66c286a",
+  "started": "2026-10-26T04:28:07.274+08:00",
+  "finished": "2026-10-26T04:32:37.513+08:00",
+  "duration_s": 270.239,
+  "device": {
+    "serial": "5MT0225B05000904",
+    "kind": "hdc",
+    "model": "SGT-AL10",
+    "name": "HUAWEI Mate 80 Pro Max",
+    "os": "OpenHarmony-7.0.0.105",
+    "software": "SGT-AL10 7.0.0.109(SP6C00E105R3P3)"
+  },
+  "app": {
+    "id": "qiankun_hm",
+    "bundle": "com.yinwang.qiankunapp.hm",
+    "version": "1.0.26.100"
+  },
+  "vin_tail": "000228",
+  "test_data": {
+    "parking_area": "由度金闽园地下停车场",
+    "other_parking_area": "华为练秋湖研发中心",
+    "spot_title": "B1层-A207 车位",
+    "spot_query": "A207",
+    "poi_id": "4000191310",
+    "tag": "楼梯口"
+  },
+  "binding": {
+    "case_id": "TC-QK-242",
+    "content_hash": "f877144cd320",
+    "dependency_hash": "51c89eedd1ae",
+    "review_hash": "21404f1f5ba33599e7dface8ac7815d71d20a665ef175ed77782e7dbc8fcbf34",
+    "policy_hash": "24b6ecd0679d",
+    "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
+    "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+  },
+  "asset_review": {
+    "state": "pending",
+    "valid": false,
+    "use": "informal single run"
+  },
+  "rule_status": "confirmed from the current user requirement, separate from asset review",
+  "execution": {
+    "status": "completed",
+    "errors": []
+  },
+  "product_verdict": "passed",
+  "action_required": null,
+  "physical_actions": 34,
+  "assertions": [
+    {
+      "id": "A_TAG_SET",
+      "description": "同一A207已打标签",
+      "result": "pass",
+      "at": "S_TAG_SELECTED",
+      "evidence": {
+        "measurement": {
+          "name": "s_tag_selected",
+          "value": "楼梯口",
+          "raw": "楼梯口",
+          "pattern": "^楼梯口$",
+          "unit": null,
+          "target": "qk_k89_a207_stair_set"
+        }
+      }
+    },
+    {
+      "id": "A_TAG_SHOWN",
+      "description": "标签重新进入搜索后可显示",
+      "result": "pass",
+      "at": "S_SEARCH_TAG",
+      "evidence": {
+        "measurement": {
+          "name": "s_search_tag",
+          "value": "楼梯口",
+          "raw": "楼梯口",
+          "pattern": "^楼梯口$",
+          "unit": null,
+          "target": "qk_k89_search_stair"
+        }
+      }
+    },
+    {
+      "id": "A_TAG_SELECTED",
+      "description": "搜索页该标签被选中",
+      "result": "pass",
+      "at": "S_FILTER",
+      "evidence": {
+        "obs": "obs-0034",
+        "tree": "obs/obs-0034/tree.json",
+        "screenshot": "obs/obs-0034/screen.png",
+        "locate": {
+          "status": "found",
+          "strategy": "xpath",
+          "bounds": [
+            358,
+            347,
+            635,
+            469
+          ],
+          "visible_fraction": 1.0
+        }
+      }
+    },
+    {
+      "id": "A_QUERY_EMPTY",
+      "description": "空查询下按标签查找，不沿用A207文字查询",
+      "result": "pass",
+      "at": "S_FILTER",
+      "evidence": {
+        "obs": "obs-0034",
+        "tree": "obs/obs-0034/tree.json",
+        "screenshot": "obs/obs-0034/screen.png",
+        "locate": {
+          "status": "found",
+          "strategy": "xpath",
+          "bounds": [
+            296,
+            158,
+            1037,
+            293
+          ],
+          "visible_fraction": 1.0
+        }
+      }
+    },
+    {
+      "id": "A_SAME_POI",
+      "description": "命中同园区同楼层同POI，不只看任意同名文本",
+      "result": "pass",
+      "at": "S_RESULT",
+      "evidence": {
+        "measurement": {
+          "name": "s_result",
+          "value": "由度金闽园地下停车场 <100米 · 金闽路539号 当前园区 路线 B1层-A207 车位",
+          "raw": "由度金闽园地下停车场 <100米 · 金闽路539号 当前园区 路线 B1层-A207 车位 路线",
+          "pattern": "^由度金闽园地下停车场.*B1层-A207 车位",
+          "unit": null,
+          "target": "qk_k89_a207_same_park_result"
+        }
+      }
+    }
+  ],
+  "cleanup": {
+    "outcome": "passed",
+    "ownership": {
+      "after_dispatch": "S_TAG_ADD",
+      "may_have_changed_user_data": true
+    },
+    "panel_restored": {
+      "name": "verify_panel",
+      "value": "楼梯口",
+      "raw": "楼梯口",
+      "pattern": "^楼梯口$",
+      "unit": null,
+      "target": "qk_k89_a207_stair_unset"
+    },
+    "search_restored": {
+      "name": "verify_search",
+      "value": "电梯口 充电桩",
+      "raw": "电梯口 充电桩",
+      "pattern": "电梯口.*充电桩",
+      "unit": null,
+      "target": "qk_k89_search_without_stair"
+    },
+    "stop_checks": [
+      {
+        "process_alive": false,
+        "foreground": "com.ohos.sceneboard",
+        "process_ended": true,
+        "foreground_restored": true,
+        "require_launcher": false,
+        "foreground_error": null,
+        "process_error": null
+      },
+      {
+        "process_alive": false,
+        "foreground": "com.ohos.sceneboard",
+        "process_ended": true,
+        "foreground_restored": true,
+        "require_launcher": false,
+        "foreground_error": null,
+        "process_error": null
+      }
+    ],
+    "final_stop": "passed"
+  },
+  "frames": [
+    {
+      "at": "S_BASELINE",
+      "label": "添加前：同一A207的楼梯口未选",
+      "obs": "obs-0024",
+      "ts": "2026-10-26T04:29:41.108+08:00",
+      "path": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0024/screen.png",
+      "sha256": "18d8344f70e67d041c2b72093d8ab5b80f683549cb3176155636900c3c2f677d",
+      "tree": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0024/tree.json"
+    },
+    {
+      "at": "S_TAG_SELECTED",
+      "label": "添加后：同一A207已选楼梯口",
+      "obs": "obs-0027",
+      "ts": "2026-10-26T04:29:53.188+08:00",
+      "path": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0027/screen.png",
+      "sha256": "547d4ed1d1e0c523a27a24771ffb2d14da2776eae82306048fb491b6a331f3d9",
+      "tree": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0027/tree.json"
+    },
+    {
+      "at": "S_SEARCH_TAG",
+      "label": "重新进入搜索：楼梯口标签出现",
+      "obs": "obs-0032",
+      "ts": "2026-10-26T04:30:14.185+08:00",
+      "path": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0032/screen.png",
+      "sha256": "80fbbe5fbd0565e4de28181e99985756501c92d3f188f0dca83960063d7b8bbf",
+      "tree": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0032/tree.json"
+    },
+    {
+      "at": "S_RESULT",
+      "label": "选中标签：空查询命中同一园区、楼层和POI",
+      "obs": "obs-0035",
+      "ts": "2026-10-26T04:30:26.134+08:00",
+      "path": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0035/screen.png",
+      "sha256": "e71ea3b33290012c9a1c69241105079841ea62d2502df4f9935da77c53aad36e",
+      "tree": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0035/tree.json"
+    },
+    {
+      "at": "C_RESTORE_TAG.9",
+      "label": "撤回后：同一A207的楼梯口恢复未选",
+      "obs": "obs-0061",
+      "ts": "2026-10-26T04:32:09.559+08:00",
+      "path": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0061/screen.png",
+      "sha256": "6ab069a607a71f334848eb8985d2a58044ed8145cefd6c1047830210a509f47e",
+      "tree": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0061/tree.json"
+    },
+    {
+      "at": "C_RESTORE_TAG.12",
+      "label": "撤回后：搜索标签恢复原状",
+      "obs": "obs-0066",
+      "ts": "2026-10-26T04:32:30.199+08:00",
+      "path": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0066/screen.png",
+      "sha256": "f32307dd6140e005678ed207bd431c9cae906f4b19cf58776240b504e1ff1592",
+      "tree": "vpd_skill/runs/run-20261026-042807-3774/obs/obs-0066/tree.json"
+    }
+  ],
+  "source_session": "vpd_skill/runs/session-session-k89-tags-20261026",
+  "human_requirement": "docs/reviews/K89_20261026_FOLLOWUP.json",
+  "unchanged_nine_approval_equivalence": "docs/evidence/K89_TAG_ENGINE_20261026.json",
+  "limits": [
+    "One real run on the specified device, app version, park and A207 POI; no repeatability promotion.",
+    "242 new script is not human-approved and cannot enter a suite or be promoted.",
+    "Selection markers use actual scoped native background properties plus same-POI filter results; selected/checked flags were not true.",
+    "No vehicle motion/control, route execution, cross-floor/park, other tags or full original-row acceptance.",
+    "Original complete steps/expected source is unavailable here; formal original rows added = 0.",
+    "Raw run/tree/PNG stay on the execution machine; this index records relative paths and hashes."
+  ],
+  "formal_original_rows_added": 0
+}

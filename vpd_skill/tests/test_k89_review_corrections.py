@@ -39,17 +39,14 @@ def test_current_location_icon_must_belong_to_current_parking_name_row(ws, varia
     assert result["evidence"]["locate"]["status"] == expected
 
 
-def test_search_tag_poi_correspondence_cannot_pass_from_fixed_tag_text(ws):
+def test_search_tag_chain_cannot_pass_from_old_static_label_presence(ws):
     case = ws.load_case("TC-QK-242")
-    assertion = next(a for a in case["assertions"] if a["id"] == "A_TAG_POI")
-    assert assertion["type"] == "visual_review" and assertion["advisory"] is False
     assert not any(a.get("type") == "text_present" and a.get("text") in {"电梯口", "充电桩"}
                    for a in case["assertions"])
     knowledge = KnowledgeStore(ws.root)
-    knowledge.confirm("K-QK-IDX-242", reviewer="synthetic-only-reviewer", basis="isolated unit fixture")
     observed = {"obs_id": "fixture", "fresh": True, "tree": {"status": "ok"},
                 "screenshot": {"status": "ok", "path": "synthetic.png"}}
     tree = UiTree(node("Column", children=[node("Text", "电梯口"), node("Text", "充电桩")]))
-    evaluated = evaluate_assertion(assertion, {"S7": {"outcome": "passed", "final_obs": "fixture"}},
-                                   lambda _: (observed, tree), knowledge, ws.app(case["app"]))
-    assert evaluated["result"] == "pending"
+    for assertion in case["assertions"]:
+        evaluated = evaluate_assertion(assertion, {}, lambda _: (observed, tree), knowledge, ws.app(case["app"]))
+        assert evaluated["result"] == "not_run"

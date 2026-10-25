@@ -50,7 +50,7 @@ def test_assets_preserve_the_users_per_case_review_decisions(ws, number):
     accepted = number in {240, 241, 243, 244, 245, 246, 247, 248, 249}
     assert review["required"] and review["valid"] is accepted
     assert case["onebox_case_ref"]["full_row_coverage"] is False
-    assert all(kn.get(ref)["status"] == ("confirmed" if accepted else "unconfirmed")
+    assert all(kn.get(ref)["status"] == "confirmed"
                for a in case["assertions"] for ref in a["oracle_refs"])
 
 
