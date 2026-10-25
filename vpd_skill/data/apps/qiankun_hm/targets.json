@@ -248,8 +248,8 @@
       "strategies": [
         {
           "kind": "xpath",
-          "value": "//root[1]/Navigation[1]/NavigationContent[1]/NavDestination[1]/NavDestinationContent[1]/Navigation[1]/NavBar[1]/NavBarContent[1]/Tabs[1]/Swiper[1]/TabContent[1]/Stack[1]/Row[1]/Row[1]",
-          "source": "app/config/mhero_config.py:498 MHERO_HARMONY_CONFIG.car_select"
+          "value": "(//root[1]/Navigation[1]/NavigationContent[1]/NavDestination[1]/NavDestinationContent[1]/Navigation[1]/NavBar[1]/NavBarContent[1]/Tabs[1]/Swiper[1]/TabContent[1]/Stack[1]/Row[1]/Row[1] | //*[@id=\"vehicleListBgImg\"]/following-sibling::Column[1]/Row[1]/Row[1]/Text[@clickable=\"true\"])",
+          "source": "原 app/config/mhero_config.py:498 路径与 2026-10-26 量产版实际 Column 布局在同一查询中识别；run-20261026-004920-06c3 obs-0008 / 乾崑1.0.26.100 / Mate80 Pro Max。以 vehicleListBgImg 相邻 Column 内的顶部点击文本定位，不依赖当前车型名；重复入口仍须唯一。"
         }
       ]
     },

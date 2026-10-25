@@ -1,0 +1,642 @@
+{
+  "checked_at": "2026-10-26T02:08:12.687+08:00",
+  "base": "6849e9bde344a8cf7b615466bd2d26d177e6b677",
+  "branch": "codex/k89-current-vehicle-entry-20261026",
+  "device": "hdc:5MT0225B05000904",
+  "vehicle": "K89 / VIN tail 000228",
+  "app": "qiankun_hm 1.0.26.100",
+  "scope": "Explicit display/navigation candidate subranges; original 143-row complete steps/expectations not available",
+  "review_snapshot": "2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c",
+  "totals": {
+    "cases": 10,
+    "steps_completed": 77,
+    "steps_total": 77,
+    "observed_checks": 24,
+    "checks": 24,
+    "physical_actions": 87,
+    "duration_s": 949.62,
+    "process_ended": 10
+  },
+  "product_input_sha256": {
+    "vpd_skill/data/apps/qiankun_hm/targets.json": "c9695ed2ca58d58ea978126a9dbff7308e7849394eafcb81568ae179c9471796",
+    "vpd_skill/data/cases/TC-QK-240.json": "aa5032425ff26af10463556cfa84113bdad6d354f86d9ee417d56f5c3c9d6f62",
+    "vpd_skill/data/cases/TC-QK-241.json": "aa34a6c3ecb5b82c8048edb5b9b6d39bd89abd9a37c658fd5a3328e2569786c3",
+    "vpd_skill/data/cases/TC-QK-242.json": "724d907aa297d37375da20ef7a9853c0fae9f53220b6b2a9af8c1eda3c9acf82",
+    "vpd_skill/data/cases/TC-QK-243.json": "abb0af0164714361e35f746260344ccdf9db8057aa9bd36d07f2b789ea14a899",
+    "vpd_skill/data/cases/TC-QK-244.json": "5b99d31e8f27af69dd7b01f82041906047d94e168a762d0c65009e7cecf51537",
+    "vpd_skill/data/cases/TC-QK-245.json": "b98f1a947a5823ffa05f5ad70b4d826eb629db392cf7b0431a78e29bdf881519",
+    "vpd_skill/data/cases/TC-QK-246.json": "33f89d86ff06054c882c15dd5014075c5b2ab89cb19a06750fe4e704d1483ac5",
+    "vpd_skill/data/cases/TC-QK-247.json": "cc38516c1ce293d8eb3d0025a810d79951cd29ed015849a720692d508d4b1e58",
+    "vpd_skill/data/cases/TC-QK-248.json": "6d445ac9212a215e5aa8edeec63949f6305652b484933b9105fd0805c4f890de",
+    "vpd_skill/data/cases/TC-QK-249.json": "7628ea74e1ef1ec1790ae01a8ad1a1013e912e1e38b160d7fa13aa843155931b"
+  },
+  "cases": [
+    {
+      "case": "TC-QK-240",
+      "version": 3,
+      "fingerprints": {
+        "case_id": "TC-QK-240",
+        "content_hash": "f508f23da989",
+        "dependency_hash": "86371aebc80d",
+        "review_hash": "f0c53a481aa655187d8c8530f33957ec4a1127a6476123af7d8028cb6b33e791",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "run": "run-20261026-012823-c407",
+      "started": "2026-10-26T01:28:23.277+08:00",
+      "finished": "2026-10-26T01:29:43.250+08:00",
+      "validation_level": "real_device",
+      "execution": "completed",
+      "product": "pending",
+      "observed_checks": 1,
+      "checks": 1,
+      "process_ended": true,
+      "assertions": [
+        {
+          "id": "A1",
+          "at": "S_NAME",
+          "desc": "同一园区信息行显示完整名称",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "读数有效，但引用的知识尚未确认"
+        }
+      ],
+      "frames": [
+        {
+          "at": "S_NAME",
+          "obs": "obs-0018",
+          "caption": "园区名称",
+          "ts": "2026-10-26T01:29:34.990+08:00",
+          "sha256": "45da94675a24b22a39ec341152d395789c4b110c5c02d2c613f5f8453c8ae90a",
+          "path": "vpd_skill/runs/run-20261026-012823-c407/obs/obs-0018/screen.png"
+        }
+      ]
+    },
+    {
+      "case": "TC-QK-241",
+      "version": 3,
+      "fingerprints": {
+        "case_id": "TC-QK-241",
+        "content_hash": "d994a7ee4425",
+        "dependency_hash": "3f955db85331",
+        "review_hash": "d5aeb88e542f2f275dd36cf6d3b713f484f54876aaf81dd3c3a7ec5a0fd085ac",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "run": "run-20261026-013242-d0ba",
+      "started": "2026-10-26T01:32:42.578+08:00",
+      "finished": "2026-10-26T01:33:50.637+08:00",
+      "validation_level": "real_device",
+      "execution": "completed",
+      "product": "pending",
+      "observed_checks": 1,
+      "checks": 1,
+      "process_ended": true,
+      "assertions": [
+        {
+          "id": "A1",
+          "at": "S_COUNT",
+          "desc": "当前园区车位数量是正整数",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "读数有效，但引用的知识尚未确认"
+        }
+      ],
+      "frames": [
+        {
+          "at": "S_COUNT",
+          "obs": "obs-0016",
+          "caption": "园区车位数量",
+          "ts": "2026-10-26T01:33:42.405+08:00",
+          "sha256": "80b04ad38599d727755caea8b13885fdfe0f45f70d2c74cd1560e6ec7a7c65e3",
+          "path": "vpd_skill/runs/run-20261026-013242-d0ba/obs/obs-0016/screen.png"
+        }
+      ]
+    },
+    {
+      "case": "TC-QK-242",
+      "version": 3,
+      "fingerprints": {
+        "case_id": "TC-QK-242",
+        "content_hash": "070e012da055",
+        "dependency_hash": "b5824cfa1c91",
+        "review_hash": "b751ee7344be210debfbd654f1c898075e58efd59bc70ea7e103fe707a770702",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "run": "run-20261026-013544-b77d",
+      "started": "2026-10-26T01:35:44.852+08:00",
+      "finished": "2026-10-26T01:36:57.148+08:00",
+      "validation_level": "real_device",
+      "execution": "completed",
+      "product": "pending",
+      "observed_checks": 3,
+      "checks": 3,
+      "process_ended": true,
+      "assertions": [
+        {
+          "id": "A1",
+          "at": "S7",
+          "desc": "输入目的地或车位号",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "观测符合预期，但引用的知识尚未确认"
+        },
+        {
+          "id": "A2",
+          "at": "S7",
+          "desc": "电梯口",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "观测符合预期，但引用的知识尚未确认"
+        },
+        {
+          "id": "A3",
+          "at": "S7",
+          "desc": "充电桩",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "观测符合预期，但引用的知识尚未确认"
+        }
+      ],
+      "frames": [
+        {
+          "at": "S7",
+          "obs": "obs-0017",
+          "caption": "搜索二级页",
+          "ts": "2026-10-26T01:36:49.326+08:00",
+          "sha256": "09ba2b02f917411cb9b972aba16076cd7ab34c5dbe08b4f3531254d20c11f4f1",
+          "path": "vpd_skill/runs/run-20261026-013544-b77d/obs/obs-0017/screen.png"
+        }
+      ]
+    },
+    {
+      "case": "TC-QK-243",
+      "version": 3,
+      "fingerprints": {
+        "case_id": "TC-QK-243",
+        "content_hash": "88156a104f4a",
+        "dependency_hash": "96a1ac925354",
+        "review_hash": "d25a05ff2f05b4b272702c42396abaeaeb6e0e40cffe48be85b34f2811c9b0a2",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "run": "run-20261026-013820-10e9",
+      "started": "2026-10-26T01:38:20.148+08:00",
+      "finished": "2026-10-26T01:39:27.042+08:00",
+      "validation_level": "real_device",
+      "execution": "completed",
+      "product": "pending",
+      "observed_checks": 1,
+      "checks": 1,
+      "process_ended": true,
+      "assertions": [
+        {
+          "id": "A1",
+          "at": "S_FLOORS",
+          "desc": "同一楼层控件组中出现L1和B1",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "读数有效，但引用的知识尚未确认"
+        }
+      ],
+      "frames": [
+        {
+          "at": "S_FLOORS",
+          "obs": "obs-0016",
+          "caption": "左侧楼层入口",
+          "ts": "2026-10-26T01:39:18.959+08:00",
+          "sha256": "dfe88d5fe361a667fc354592a058a880fd538c25f732169dd96ae399ea767030",
+          "path": "vpd_skill/runs/run-20261026-013820-10e9/obs/obs-0016/screen.png"
+        }
+      ]
+    },
+    {
+      "case": "TC-QK-244",
+      "version": 3,
+      "fingerprints": {
+        "case_id": "TC-QK-244",
+        "content_hash": "cf06add6fc6a",
+        "dependency_hash": "806da152a749",
+        "review_hash": "17e298f5f86d136e1bddf3472c770283046dfa59be7daf2e27073a5a1a0e0da1",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "run": "run-20261026-014053-147e",
+      "started": "2026-10-26T01:40:53.444+08:00",
+      "finished": "2026-10-26T01:42:15.405+08:00",
+      "validation_level": "real_device",
+      "execution": "completed",
+      "product": "pending",
+      "observed_checks": 4,
+      "checks": 4,
+      "process_ended": true,
+      "assertions": [
+        {
+          "id": "A1",
+          "at": "S_READY",
+          "desc": "支持区域",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "观测符合预期，但引用的知识尚未确认"
+        },
+        {
+          "id": "A2",
+          "at": "S_READY",
+          "desc": "上海",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "观测符合预期，但引用的知识尚未确认"
+        },
+        {
+          "id": "A3",
+          "at": "S_READY",
+          "desc": "由度金闽园地下停车场",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "观测符合预期，但引用的知识尚未确认"
+        },
+        {
+          "id": "A4",
+          "at": "S_READY",
+          "desc": "正在加载...",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "观测符合预期，但引用的知识尚未确认"
+        }
+      ],
+      "frames": [
+        {
+          "at": "S_READY",
+          "obs": "obs-0020",
+          "caption": "支持区域列表终态",
+          "ts": "2026-10-26T01:42:07.028+08:00",
+          "sha256": "e9266b41b60d30b2050f1e70c136121af9edc1e4a531968c1ee514f65bf75af9",
+          "path": "vpd_skill/runs/run-20261026-014053-147e/obs/obs-0020/screen.png"
+        }
+      ]
+    },
+    {
+      "case": "TC-QK-245",
+      "version": 3,
+      "fingerprints": {
+        "case_id": "TC-QK-245",
+        "content_hash": "ecd807642db7",
+        "dependency_hash": "a13847dfc23a",
+        "review_hash": "c1be4d3e8090fb7ba17b00f114c2e6a8bdec2f46acb1258713b2eb58cde7e21f",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "run": "run-20261026-014507-1bbb",
+      "started": "2026-10-26T01:45:07.917+08:00",
+      "finished": "2026-10-26T01:47:21.694+08:00",
+      "validation_level": "real_device",
+      "execution": "completed",
+      "product": "pending",
+      "observed_checks": 5,
+      "checks": 5,
+      "process_ended": true,
+      "assertions": [
+        {
+          "id": "A1",
+          "at": "S11",
+          "desc": "当前城市",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "观测符合预期，但引用的知识尚未确认"
+        },
+        {
+          "id": "A2",
+          "at": "S_CITY_QUERY",
+          "desc": "实际城市查询值正确",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "读数有效，但引用的知识尚未确认"
+        },
+        {
+          "id": "A3",
+          "at": "S_CITY_RESULT",
+          "desc": "独立城市结果行正确",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "读数有效，但引用的知识尚未确认"
+        },
+        {
+          "id": "A4",
+          "at": "S_CITY_READY",
+          "desc": "支持区域",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "观测符合预期，但引用的知识尚未确认"
+        },
+        {
+          "id": "A5",
+          "at": "S_CITY_READY",
+          "desc": "上海",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "观测符合预期，但引用的知识尚未确认"
+        }
+      ],
+      "frames": [
+        {
+          "at": "S11",
+          "obs": "obs-0023",
+          "caption": "城市选择页",
+          "ts": "2026-10-26T01:46:34.400+08:00",
+          "sha256": "a4efc41e7a02584652807bfdf81d164d579acc69ee4872c9125b2b71532dfdca",
+          "path": "vpd_skill/runs/run-20261026-014507-1bbb/obs/obs-0023/screen.png"
+        },
+        {
+          "at": "S_CITY_RESULT",
+          "obs": "obs-0028",
+          "caption": "实际查询与独立结果",
+          "ts": "2026-10-26T01:46:54.329+08:00",
+          "sha256": "cbbba53394fd051326752eeaf6ba5d46825085017cb3dd940c0fa935f30a785f",
+          "path": "vpd_skill/runs/run-20261026-014507-1bbb/obs/obs-0028/screen.png"
+        },
+        {
+          "at": "S_CITY_READY",
+          "obs": "obs-0033",
+          "caption": "选回上海之后",
+          "ts": "2026-10-26T01:47:13.263+08:00",
+          "sha256": "859fe8797b43ac5d5ce8bf4400049e3c1ca2d7aa0792e2c8a5114de10e14e121",
+          "path": "vpd_skill/runs/run-20261026-014507-1bbb/obs/obs-0033/screen.png"
+        }
+      ]
+    },
+    {
+      "case": "TC-QK-246",
+      "version": 3,
+      "fingerprints": {
+        "case_id": "TC-QK-246",
+        "content_hash": "1548da905f63",
+        "dependency_hash": "bdbcdd6396d8",
+        "review_hash": "40e25c745c984d0849c4db4c122a47336983e7494937e5735fb90e5202537b62",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "run": "run-20261026-015023-dad1",
+      "started": "2026-10-26T01:50:23.770+08:00",
+      "finished": "2026-10-26T01:52:27.048+08:00",
+      "validation_level": "real_device",
+      "execution": "completed",
+      "product": "pending",
+      "observed_checks": 2,
+      "checks": 2,
+      "process_ended": true,
+      "assertions": [
+        {
+          "id": "A1",
+          "at": "S_PARK_QUERY",
+          "desc": "实际查询值与计划一致",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "读数有效，但引用的知识尚未确认"
+        },
+        {
+          "id": "A2",
+          "at": "S_PARK_RESULT",
+          "desc": "名称与附属字段属于同一唯一结果行",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "读数有效，但引用的知识尚未确认"
+        }
+      ],
+      "frames": [
+        {
+          "at": "S_PARK_QUERY",
+          "obs": "obs-0029",
+          "caption": "实际查询值",
+          "ts": "2026-10-26T01:52:15.099+08:00",
+          "sha256": "b6b6372b8aa3ac21ef9196b9417287eaccda7d239136f85c95b9ebcb2e2c4fc4",
+          "path": "vpd_skill/runs/run-20261026-015023-dad1/obs/obs-0029/screen.png"
+        },
+        {
+          "at": "S_PARK_RESULT",
+          "obs": "obs-0030",
+          "caption": "提交后的结果",
+          "ts": "2026-10-26T01:52:18.797+08:00",
+          "sha256": "642db1577b14d9e1bb07844a3a0acef8e7f6b9a2f3e5a47c4587d72aace33c88",
+          "path": "vpd_skill/runs/run-20261026-015023-dad1/obs/obs-0030/screen.png"
+        }
+      ]
+    },
+    {
+      "case": "TC-QK-247",
+      "version": 3,
+      "fingerprints": {
+        "case_id": "TC-QK-247",
+        "content_hash": "7cc12abb2f43",
+        "dependency_hash": "40fa59c85397",
+        "review_hash": "82b9e4230c95db9efb86652fc3ff9455cd27f6144112f536d7cbba5f7fcb0683",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "run": "run-20261026-015538-f341",
+      "started": "2026-10-26T01:55:38.718+08:00",
+      "finished": "2026-10-26T01:57:53.377+08:00",
+      "validation_level": "real_device",
+      "execution": "completed",
+      "product": "pending",
+      "observed_checks": 3,
+      "checks": 3,
+      "process_ended": true,
+      "assertions": [
+        {
+          "id": "A1",
+          "at": "S18",
+          "desc": "列表",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "观测符合预期，但引用的知识尚未确认"
+        },
+        {
+          "id": "A2",
+          "at": "S18",
+          "desc": "由度金闽园地下停车场",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "观测符合预期，但引用的知识尚未确认"
+        },
+        {
+          "id": "A3",
+          "at": "S18",
+          "desc": "原搜索输入消失，不能以原结果页已有名称替代跳转",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "观测符合预期，但引用的知识尚未确认"
+        }
+      ],
+      "frames": [
+        {
+          "at": "S_PARK_RESULT",
+          "obs": "obs-0030",
+          "caption": "跳转前的完整结果行",
+          "ts": "2026-10-26T01:57:34.386+08:00",
+          "sha256": "0add5db4bfb2b850d0057acf849201cf021ae1344bc69d3fb8a6cd12c405a3bf",
+          "path": "vpd_skill/runs/run-20261026-015538-f341/obs/obs-0030/screen.png"
+        },
+        {
+          "at": "S18",
+          "obs": "obs-0033",
+          "caption": "点击后进入园区地图",
+          "ts": "2026-10-26T01:57:45.761+08:00",
+          "sha256": "1c1f9177bbdd9828879c90052768714e1aeb8baa79fb8aac58a54baf6232e531",
+          "path": "vpd_skill/runs/run-20261026-015538-f341/obs/obs-0033/screen.png"
+        }
+      ]
+    },
+    {
+      "case": "TC-QK-248",
+      "version": 3,
+      "fingerprints": {
+        "case_id": "TC-QK-248",
+        "content_hash": "77811c2d0856",
+        "dependency_hash": "9e9277bed8da",
+        "review_hash": "9c84b62b94164b83097ffedc330b84cf4acb42378a638b84d565b23725dbe90d",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "run": "run-20261026-020259-3bef",
+      "started": "2026-10-26T02:02:59.422+08:00",
+      "finished": "2026-10-26T02:04:36.648+08:00",
+      "validation_level": "real_device",
+      "execution": "completed",
+      "product": "pending",
+      "observed_checks": 2,
+      "checks": 2,
+      "process_ended": true,
+      "assertions": [
+        {
+          "id": "A1",
+          "at": "S_CURRENT",
+          "desc": "当前标识归属正确园区",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "读数有效，但引用的知识尚未确认"
+        },
+        {
+          "id": "A2",
+          "at": "S_DISTANCE",
+          "desc": "另一明确园区显示正数公里距离",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "读数有效，但引用的知识尚未确认"
+        }
+      ],
+      "frames": [
+        {
+          "at": "S_CURRENT",
+          "obs": "obs-0022",
+          "caption": "当前位置标识",
+          "ts": "2026-10-26T02:04:24.958+08:00",
+          "sha256": "9614a6cad0488d51c4c5ee8b574bb06bcd222cea24080e5bc58bd88a4e398862",
+          "path": "vpd_skill/runs/run-20261026-020259-3bef/obs/obs-0022/screen.png"
+        },
+        {
+          "at": "S_DISTANCE",
+          "obs": "obs-0023",
+          "caption": "独立参考园区的距离",
+          "ts": "2026-10-26T02:04:28.861+08:00",
+          "sha256": "79432ba2d669082e422a15c522fa78bb43f05d67234b32cd7fc31680a96dc1a3",
+          "path": "vpd_skill/runs/run-20261026-020259-3bef/obs/obs-0023/screen.png"
+        }
+      ]
+    },
+    {
+      "case": "TC-QK-249",
+      "version": 3,
+      "fingerprints": {
+        "case_id": "TC-QK-249",
+        "content_hash": "b4db8e1ef1c6",
+        "dependency_hash": "d413f9ff619a",
+        "review_hash": "b4625c147addec6135e40a099e77941c3a627e8a11c111e8d9dc5927b1ad1532",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "run": "run-20261026-020551-41eb",
+      "started": "2026-10-26T02:05:51.888+08:00",
+      "finished": "2026-10-26T02:07:23.385+08:00",
+      "validation_level": "real_device",
+      "execution": "completed",
+      "product": "pending",
+      "observed_checks": 2,
+      "checks": 2,
+      "process_ended": true,
+      "assertions": [
+        {
+          "id": "A1",
+          "at": "S_INFO_COUNT",
+          "desc": "同一卡片车位数量有效",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "读数有效，但引用的知识尚未确认"
+        },
+        {
+          "id": "A2",
+          "at": "S_INFO_FLOORS",
+          "desc": "同一卡片楼层与总层数显示",
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "读数有效，但引用的知识尚未确认"
+        }
+      ],
+      "frames": [
+        {
+          "at": "S_INFO_COUNT",
+          "obs": "obs-0021",
+          "caption": "同一卡片车位数",
+          "ts": "2026-10-26T02:07:11.132+08:00",
+          "sha256": "3cfc72743c2d102a6b8fc18d8e474d945e7c5d122407eb9048b2e642fc68d57e",
+          "path": "vpd_skill/runs/run-20261026-020551-41eb/obs/obs-0021/screen.png"
+        },
+        {
+          "at": "S_INFO_FLOORS",
+          "obs": "obs-0022",
+          "caption": "同一卡片楼层",
+          "ts": "2026-10-26T02:07:14.859+08:00",
+          "sha256": "0a4c4b74df8b0c0f660484476d19f7790cac746956ec1908c476c48064f91f0c",
+          "path": "vpd_skill/runs/run-20261026-020551-41eb/obs/obs-0022/screen.png"
+        }
+      ]
+    }
+  ],
+  "retained_failures": [
+    {
+      "run": "run-20261026-004920-06c3",
+      "version": 1,
+      "stage": "S4",
+      "result": "current M9 title does not match hardcoded K89"
+    },
+    {
+      "run": "run-20261026-010222-d626",
+      "version": 2,
+      "stage": "preflight",
+      "result": "missing device PIN mapping; subsequently configured and real unlock verified"
+    },
+    {
+      "run": "run-20261026-012053-ff38",
+      "version": 2,
+      "stage": "S5",
+      "result": "K89 not on first visible list page; existing switch_vehicle scroll reused in v3"
+    }
+  ],
+  "approval_state": {
+    "knowledge": "unconfirmed",
+    "asset_review": "pending",
+    "promotion": 0,
+    "formal_original_rows_added": 0
+  },
+  "storage": "Original PNG/tree/run stay in execution workspace; paths and SHA-256 allow transfer verification. No screenshot is substituted by a synthetic UI."
+}
