@@ -1,0 +1,299 @@
+{
+  "recorded_at": "2026-10-25T20:59:01.634746+00:00",
+  "base": "7f0e7353cf1479339bcdedab1d8643f92887d1c8",
+  "branch": "codex/k89-tag-search-chain-20261026",
+  "depends_on_pr": "https://github.com/amazing-fish/ghost_VPD/pull/99",
+  "case": "TC-QK-242",
+  "version": 6,
+  "validation_level": "real_device",
+  "run": "run-20261026-045255-9f8e",
+  "run_path": "vpd_skill/runs/run-20261026-045255-9f8e/run.json",
+  "run_sha256": "25f8ff8dde78520885e994bfd33f6a7bf853637f0b8366a7a4c0ba3eaf39c1ff",
+  "started": "2026-10-26T04:52:55.496+08:00",
+  "finished": "2026-10-26T04:57:30.249+08:00",
+  "duration_s": 274.753,
+  "device": {
+    "serial": "5MT0225B05000904",
+    "kind": "hdc",
+    "model": "SGT-AL10",
+    "name": "HUAWEI Mate 80 Pro Max",
+    "os": "OpenHarmony-7.0.0.105",
+    "software": "SGT-AL10 7.0.0.109(SP6C00E105R3P3)"
+  },
+  "app": {
+    "id": "qiankun_hm",
+    "bundle": "com.yinwang.qiankunapp.hm",
+    "version": "1.0.26.100"
+  },
+  "vin_tail": "000228",
+  "test_data": {
+    "parking_area": "由度金闽园地下停车场",
+    "other_parking_area": "华为练秋湖研发中心",
+    "spot_title": "B1层-A207 车位",
+    "spot_query": "A207",
+    "poi_id": "4000191310",
+    "tag": "楼梯口"
+  },
+  "binding": {
+    "case_id": "TC-QK-242",
+    "content_hash": "f877144cd320",
+    "dependency_hash": "9faf26aae864",
+    "review_hash": "35f581c9ea8c263d4735c2a6ecc8baef1d1083534789bad8981c815baf14bc06",
+    "policy_hash": "24b6ecd0679d",
+    "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
+    "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+  },
+  "asset_review": {
+    "state": "pending",
+    "valid": false,
+    "use": "informal single run"
+  },
+  "rule_status": "confirmed from the current user requirement, separate from asset review",
+  "execution": {
+    "status": "completed",
+    "errors": []
+  },
+  "product_verdict": "passed",
+  "action_required": null,
+  "physical_actions": 34,
+  "assertions": [
+    {
+      "id": "A_TAG_SET",
+      "description": "同一A207已打标签",
+      "result": "pass",
+      "at": "S_TAG_SELECTED",
+      "evidence": {
+        "measurement": {
+          "name": "s_tag_selected",
+          "value": "楼梯口",
+          "raw": "楼梯口",
+          "pattern": "^楼梯口$",
+          "unit": null,
+          "target": "qk_k89_a207_stair_set"
+        }
+      }
+    },
+    {
+      "id": "A_TAG_SHOWN",
+      "description": "标签重新进入搜索后可显示",
+      "result": "pass",
+      "at": "S_SEARCH_TAG",
+      "evidence": {
+        "measurement": {
+          "name": "s_search_tag",
+          "value": "楼梯口",
+          "raw": "楼梯口",
+          "pattern": "^楼梯口$",
+          "unit": null,
+          "target": "qk_k89_search_stair"
+        }
+      }
+    },
+    {
+      "id": "A_TAG_SELECTED",
+      "description": "搜索页该标签被选中",
+      "result": "pass",
+      "at": "S_FILTER",
+      "evidence": {
+        "obs": "obs-0034",
+        "tree": "obs/obs-0034/tree.json",
+        "screenshot": "obs/obs-0034/screen.png",
+        "locate": {
+          "status": "found",
+          "strategy": "xpath",
+          "bounds": [
+            358,
+            347,
+            635,
+            469
+          ],
+          "visible_fraction": 1.0
+        }
+      }
+    },
+    {
+      "id": "A_QUERY_EMPTY",
+      "description": "空查询下按标签查找，不沿用A207文字查询",
+      "result": "pass",
+      "at": "S_FILTER",
+      "evidence": {
+        "obs": "obs-0034",
+        "tree": "obs/obs-0034/tree.json",
+        "screenshot": "obs/obs-0034/screen.png",
+        "locate": {
+          "status": "found",
+          "strategy": "xpath",
+          "bounds": [
+            296,
+            158,
+            1037,
+            293
+          ],
+          "visible_fraction": 1.0
+        }
+      }
+    },
+    {
+      "id": "A_SAME_POI",
+      "description": "命中同园区同楼层同POI，不只看任意同名文本",
+      "result": "pass",
+      "at": "S_RESULT",
+      "evidence": {
+        "measurement": {
+          "name": "s_result",
+          "value": "由度金闽园地下停车场 <100米 · 金闽路539号 当前园区 路线 B1层-A207 车位",
+          "raw": "由度金闽园地下停车场 <100米 · 金闽路539号 当前园区 路线 B1层-A207 车位 路线",
+          "pattern": "^由度金闽园地下停车场.*B1层-A207 车位",
+          "unit": null,
+          "target": "qk_k89_a207_same_park_result"
+        }
+      }
+    }
+  ],
+  "cleanup": {
+    "outcome": "passed",
+    "ownership": {
+      "after_dispatch": "S_TAG_ADD",
+      "may_have_changed_user_data": true
+    },
+    "panel_restored": {
+      "name": "verify_panel",
+      "value": "楼梯口",
+      "raw": "楼梯口",
+      "pattern": "^楼梯口$",
+      "unit": null,
+      "target": "qk_k89_a207_stair_unset"
+    },
+    "search_restored": {
+      "name": "verify_search",
+      "value": "电梯口 充电桩",
+      "raw": "电梯口 充电桩",
+      "pattern": "电梯口.*充电桩",
+      "unit": null,
+      "target": "qk_k89_search_without_stair"
+    },
+    "stop_checks": [
+      {
+        "process_alive": false,
+        "foreground": "com.ss.hm.ugc.aweme",
+        "process_ended": true,
+        "foreground_restored": false,
+        "require_launcher": false,
+        "foreground_error": null,
+        "process_error": null,
+        "foreign_foreground": "com.ss.hm.ugc.aweme"
+      },
+      {
+        "process_alive": false,
+        "foreground": "com.ss.hm.ugc.aweme",
+        "process_ended": true,
+        "foreground_restored": false,
+        "require_launcher": false,
+        "foreground_error": null,
+        "process_error": null,
+        "foreign_foreground": "com.ss.hm.ugc.aweme"
+      }
+    ],
+    "final_stop": "passed"
+  },
+  "frames": [
+    {
+      "at": "S_BASELINE",
+      "label": "添加前：同一A207的楼梯口未选",
+      "obs": "obs-0024",
+      "ts": "2026-10-26T04:54:25.785+08:00",
+      "path": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0024/screen.png",
+      "sha256": "cb8ebe9831f052238771d91e893314a782f57982a9d451082a95ded2726da8e7",
+      "tree": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0024/tree.json"
+    },
+    {
+      "at": "S_TAG_SELECTED",
+      "label": "添加后：同一A207已选楼梯口",
+      "obs": "obs-0027",
+      "ts": "2026-10-26T04:54:37.904+08:00",
+      "path": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0027/screen.png",
+      "sha256": "d1d823b5edf2ec9f5409f2938e7576ae01c20b97143c89032c27d2e11dff087d",
+      "tree": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0027/tree.json"
+    },
+    {
+      "at": "S_SEARCH_TAG",
+      "label": "重新进入搜索：楼梯口标签出现",
+      "obs": "obs-0032",
+      "ts": "2026-10-26T04:54:58.446+08:00",
+      "path": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0032/screen.png",
+      "sha256": "7f50811819ff0347b62ed391bb87c8b080576af2b9c049ce008fc358110e88cc",
+      "tree": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0032/tree.json"
+    },
+    {
+      "at": "S_RESULT",
+      "label": "选中标签：空查询命中同一园区、楼层和POI",
+      "obs": "obs-0035",
+      "ts": "2026-10-26T04:55:15.854+08:00",
+      "path": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0035/screen.png",
+      "sha256": "076264bf6d77b60b67c6bab61e2dd5ccc9c1d258f8aa37d421ffb4d06063c0a2",
+      "tree": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0035/tree.json"
+    },
+    {
+      "at": "C_RESTORE_TAG.9",
+      "label": "撤回后：同一A207的楼梯口恢复未选",
+      "obs": "obs-0061",
+      "ts": "2026-10-26T04:57:00.834+08:00",
+      "path": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0061/screen.png",
+      "sha256": "9132867c52eb7c4911cfe47a4850eba96a5abc568c3a53fe41e0e73126c278a4",
+      "tree": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0061/tree.json"
+    },
+    {
+      "at": "C_RESTORE_TAG.12",
+      "label": "撤回后：搜索标签恢复原状",
+      "obs": "obs-0066",
+      "ts": "2026-10-26T04:57:22.646+08:00",
+      "path": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0066/screen.png",
+      "sha256": "120f1ffb8e291313f0632cdecd99c048ca0540b350152299a35252d0f484518d",
+      "tree": "vpd_skill/runs/run-20261026-045255-9f8e/obs/obs-0066/tree.json"
+    }
+  ],
+  "source_session": "vpd_skill/runs/session-session-k89-tags-20261026",
+  "human_requirement": "docs/reviews/K89_20261026_FOLLOWUP.json",
+  "unchanged_nine_approval_equivalence": "docs/evidence/K89_TAG_ENGINE_20261026.json",
+  "limits": [
+    "One real run on the specified device, app version, park and A207 POI; no repeatability promotion.",
+    "242 new script is not human-approved and cannot enter a suite or be promoted.",
+    "Selection markers use actual scoped native background properties plus same-POI filter results; selected/checked flags were not true.",
+    "No vehicle motion/control, route execution, cross-floor/park, other tags or full original-row acceptance.",
+    "Original complete steps/expected source is unavailable here; formal original rows added = 0.",
+    "Raw run/tree/PNG stay on the execution machine; this index records relative paths and hashes."
+  ],
+  "formal_original_rows_added": 0,
+  "review_fix": {
+    "base_head": "38c90578cd52e84fd2b2c5051ff58f0830913247",
+    "split_park_old": "found",
+    "split_park_fixed": "not_found",
+    "actual_live_tree_fixed": "found",
+    "regressions_passed": 132,
+    "finding": "https://github.com/amazing-fish/ghost_VPD/pull/100#discussion_r4372345308"
+  },
+  "prior_run": {
+    "run": "run-20261026-042807-3774",
+    "version": 5,
+    "status": "Original single-park pass retained; not a substitute for the stricter v6 binding."
+  },
+  "preflight_attempt": {
+    "run": "run-20261026-045123-f32a",
+    "physical_actions": 0,
+    "status": "blocked: duplicate CLI --authorize option overwrote the first grant; corrected to one option with both grants."
+  },
+  "local_validation": {
+    "pytest": "132 passed in 22.94s",
+    "ruff": "All checks passed",
+    "case_lint": "no issues",
+    "tests": [
+      "test_cleanup_dispatch_ownership.py",
+      "test_k89_tag_chain.py",
+      "test_k89_review_corrections.py",
+      "test_k89_case_display_evidence.py",
+      "test_asset_review.py",
+      "test_condition_compound_runner.py"
+    ],
+    "temporary_path_retry": "Initial pytest default temp-root setup failed; identical tests passed with a fresh workspace-local basetemp."
+  }
+}

@@ -282,6 +282,18 @@ def iter_case_steps(case: dict, app):
 def execution_structure_issues(case: dict, app) -> list:
     """lint、Runner 与选中的复合步骤共用；只核执行结构，不代替资产审核。"""
     issues, seen, runtime_ids, child_counts, root_counts = [], {}, {}, {}, {}
+    main = {s.get("id"): s for s in case.get("steps", []) if isinstance(s.get("id"), str)}
+    for i, cleanup in enumerate(case.get("cleanup", [])):
+        if "after_dispatch" not in cleanup:
+            continue
+        owner = cleanup["after_dispatch"]
+        source = main.get(owner) if isinstance(owner, str) and owner else None
+        target = (source or {}).get("target")
+        target = app.targets.get(target) if isinstance(target, str) else target
+        if (source is None or source.get("action") not in {"tap", "input"}
+                or not isinstance(target, dict) or target.get("side_effect") != "user_data"):
+            issues.append({"field": f"cleanup.{cleanup.get('id', f'C{i + 1}')}.after_dispatch",
+                           "problem": "须引用本用例顶层tap/input步骤，且其目标明确声明user_data"})
 
     def reserve(step_id, where):
         if not isinstance(step_id, str) or not step_id:
@@ -292,6 +304,8 @@ def execution_structure_issues(case: dict, app) -> list:
             seen[step_id] = where
 
     for step, parent, where in iter_case_steps(case, app):
+        if "after_dispatch" in step and (parent is not None or not where.startswith("cleanup.")):
+            issues.append({"field": where + ".after_dispatch", "problem": "只允许在顶层cleanup声明清理归属"})
         if parent is None:
             source = where.split(".", 1)[0]
             root_counts[source] = root_counts.get(source, 0) + 1
