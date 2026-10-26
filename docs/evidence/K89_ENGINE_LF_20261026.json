@@ -1,0 +1,471 @@
+{
+  "recorded_at": "2026-10-25T19:41:01.275482+00:00",
+  "source_commit": "e496e80f07a00515c7df527536be20c8647c9a5a",
+  "previous_engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+  "previous_git_lf_posix_engine_hash": "54153db730f3b5ac8458d6c1595acda04ac9551e692fb76627235aa50d600574",
+  "canonical_engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+  "comparison": "The recorded Windows engine is reproduced from committed CRLF bytes and Windows paths. Current files equal LF blobs except two cases.py manifest-key expressions use as_posix. Exact byte hashing and approval comparison remain strict.",
+  "device_execution_logic_changed": false,
+  "approval_gate_changed": false,
+  "files": [
+    {
+      "path": "vpd_skill/vpdtest/__init__.py",
+      "previous_committed_sha256": "d07745ada0c3f26dc86d1296159d8182750a55476e07a5869a7236e820e25b5c",
+      "canonical_source_sha256": "d07745ada0c3f26dc86d1296159d8182750a55476e07a5869a7236e820e25b5c",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/__main__.py",
+      "previous_committed_sha256": "13a1a5b340cdcfc1902b62be90e508c7c71886000d5bf087e7854aadf09fb35e",
+      "canonical_source_sha256": "13a1a5b340cdcfc1902b62be90e508c7c71886000d5bf087e7854aadf09fb35e",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/cases.py",
+      "previous_committed_sha256": "45d79477b6c3d5e16887647350ffe090791a003f6ad632036853e2d643e9b93e",
+      "canonical_source_sha256": "a456d14124afb11684a5660fb3bc74aaeb74f063681f01f5d6ddc8d96464dcce",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": true
+    },
+    {
+      "path": "vpd_skill/vpdtest/cli.py",
+      "previous_committed_sha256": "c9fb450a90d7de2b1825a18726fd8b70fa4ca1f04dcc085fedfc20ea8ad4bf83",
+      "canonical_source_sha256": "c9fb450a90d7de2b1825a18726fd8b70fa4ca1f04dcc085fedfc20ea8ad4bf83",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/commands.py",
+      "previous_committed_sha256": "b4bc33be6e794637c72193b223475013707fa895e47bf42d4bd27237b5d99b39",
+      "canonical_source_sha256": "b4bc33be6e794637c72193b223475013707fa895e47bf42d4bd27237b5d99b39",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/conditions.py",
+      "previous_committed_sha256": "31d467e555983e64bdfe452183ce04b9f0e714d9f7f00860bddb4f840b767193",
+      "canonical_source_sha256": "31d467e555983e64bdfe452183ce04b9f0e714d9f7f00860bddb4f840b767193",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/console/__init__.py",
+      "previous_committed_sha256": "70c7e584504ba8934cede9eb4f0b1b8563e49129c6959095363ec746e5c474e3",
+      "canonical_source_sha256": "70c7e584504ba8934cede9eb4f0b1b8563e49129c6959095363ec746e5c474e3",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/console/control.py",
+      "previous_committed_sha256": "bec67dd10cd879d0714b9d42df9cc24ec1f4f2f250877a0e5511dbe9a83a232d",
+      "canonical_source_sha256": "bec67dd10cd879d0714b9d42df9cc24ec1f4f2f250877a0e5511dbe9a83a232d",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/console/frames.py",
+      "previous_committed_sha256": "9aaa4e113ad121873e52b8a7c96ba44cd86cbdf2c51264f8b0c8468f0cfe363c",
+      "canonical_source_sha256": "9aaa4e113ad121873e52b8a7c96ba44cd86cbdf2c51264f8b0c8468f0cfe363c",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/console/progress.py",
+      "previous_committed_sha256": "2dc301295b3991f0f111ffc2e0999c12397635b0ce6b3875de6fae3648318134",
+      "canonical_source_sha256": "2dc301295b3991f0f111ffc2e0999c12397635b0ce6b3875de6fae3648318134",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/console/server.py",
+      "previous_committed_sha256": "f9af7539fe3448cfa095047f5c48d25222382bb788eb9871c80ad6d048d58f28",
+      "canonical_source_sha256": "f9af7539fe3448cfa095047f5c48d25222382bb788eb9871c80ad6d048d58f28",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/devices/__init__.py",
+      "previous_committed_sha256": "5e10f49500466437b161f42b682d04852e0c3c19b0c5e23f6e9ff6bf08f7d314",
+      "canonical_source_sha256": "5e10f49500466437b161f42b682d04852e0c3c19b0c5e23f6e9ff6bf08f7d314",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/devices/harmony_hdc.py",
+      "previous_committed_sha256": "79326e08879748865258c8f9bdbf219bd3c7be61d7db5a728c12b77a87924263",
+      "canonical_source_sha256": "79326e08879748865258c8f9bdbf219bd3c7be61d7db5a728c12b77a87924263",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/devices/replay.py",
+      "previous_committed_sha256": "96b80e42c9a1b4af6eb31cebc91f5c842eec3775a407ee9a2d930ffe5b31c434",
+      "canonical_source_sha256": "96b80e42c9a1b4af6eb31cebc91f5c842eec3775a407ee9a2d930ffe5b31c434",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/dispatch.py",
+      "previous_committed_sha256": "de104410237766683ef882f85fc761f293c6104a7c40878a671cc63dca61d32d",
+      "canonical_source_sha256": "de104410237766683ef882f85fc761f293c6104a7c40878a671cc63dca61d32d",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/execute.py",
+      "previous_committed_sha256": "4ac42c2b50641971ba91a4df6b1bf1b1e7b2c128fe56329ac43d5b852dceb08d",
+      "canonical_source_sha256": "4ac42c2b50641971ba91a4df6b1bf1b1e7b2c128fe56329ac43d5b852dceb08d",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/experience.py",
+      "previous_committed_sha256": "24835144f5839f0878f05794a3a5f99e15d530be5e0704761921bff53aaba7a7",
+      "canonical_source_sha256": "24835144f5839f0878f05794a3a5f99e15d530be5e0704761921bff53aaba7a7",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/explore.py",
+      "previous_committed_sha256": "c6208740920641636dceb7487ab7730ada0a8de242caf29bf4bba7614fe5ec64",
+      "canonical_source_sha256": "c6208740920641636dceb7487ab7730ada0a8de242caf29bf4bba7614fe5ec64",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/knowledge.py",
+      "previous_committed_sha256": "159a4cef0afb702f4d9208cd057c9dc3bc3e1e0ef4cecbf67019f91ad9169648",
+      "canonical_source_sha256": "159a4cef0afb702f4d9208cd057c9dc3bc3e1e0ef4cecbf67019f91ad9169648",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/layout.py",
+      "previous_committed_sha256": "aea31e631e06a7478e8d0c2a27976f422dcc49406e35ddbbca58e8abca4f75db",
+      "canonical_source_sha256": "aea31e631e06a7478e8d0c2a27976f422dcc49406e35ddbbca58e8abca4f75db",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/locate.py",
+      "previous_committed_sha256": "8b2f122800a4e635afb1ff41fe520cf547d64cfbf61801cf8b65a94027c30270",
+      "canonical_source_sha256": "8b2f122800a4e635afb1ff41fe520cf547d64cfbf61801cf8b65a94027c30270",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/observe.py",
+      "previous_committed_sha256": "b4964a8db614ba89562447820d9df2b93caa34f4efcea531ecb3246884aead6d",
+      "canonical_source_sha256": "b4964a8db614ba89562447820d9df2b93caa34f4efcea531ecb3246884aead6d",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/params.py",
+      "previous_committed_sha256": "309256e226c9c20041e3a3a296a2bdac1d96f0c66977fc8a1c51ffe0392f0220",
+      "canonical_source_sha256": "309256e226c9c20041e3a3a296a2bdac1d96f0c66977fc8a1c51ffe0392f0220",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/policy.py",
+      "previous_committed_sha256": "a1a553de249793f84e855f2e21b34e5ddd1fbff94923713cfec0152e7e81cdfe",
+      "canonical_source_sha256": "a1a553de249793f84e855f2e21b34e5ddd1fbff94923713cfec0152e7e81cdfe",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/report.py",
+      "previous_committed_sha256": "95eaccf45b3e77302efc2c0b50a10b3484da5128907c3c96c0871e8ea24e221e",
+      "canonical_source_sha256": "95eaccf45b3e77302efc2c0b50a10b3484da5128907c3c96c0871e8ea24e221e",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/runner.py",
+      "previous_committed_sha256": "5afcff2ccbb403bbbf96cf13dba0a00e1088419c8358e7e665fb30bc99c38b9a",
+      "canonical_source_sha256": "5afcff2ccbb403bbbf96cf13dba0a00e1088419c8358e7e665fb30bc99c38b9a",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/safety.py",
+      "previous_committed_sha256": "700b9d3478b5a095e1d87cdbe02d749f8d1965cde96b90120767b8f2bb0da453",
+      "canonical_source_sha256": "700b9d3478b5a095e1d87cdbe02d749f8d1965cde96b90120767b8f2bb0da453",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/search.py",
+      "previous_committed_sha256": "d33495acb0c3679eb123407ffbd05c8679beead96ae9b6682f5a8451925ecfb1",
+      "canonical_source_sha256": "d33495acb0c3679eb123407ffbd05c8679beead96ae9b6682f5a8451925ecfb1",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/session.py",
+      "previous_committed_sha256": "087b1126189924bf7deddc24638c8a2dc6234a60114457e73f0687ac69fb0562",
+      "canonical_source_sha256": "087b1126189924bf7deddc24638c8a2dc6234a60114457e73f0687ac69fb0562",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/states.py",
+      "previous_committed_sha256": "f8a8cebf249cec586e5d757463f0691bd5e8e422e5d35fc73f23515e7f0f4003",
+      "canonical_source_sha256": "f8a8cebf249cec586e5d757463f0691bd5e8e422e5d35fc73f23515e7f0f4003",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/sysdialog.py",
+      "previous_committed_sha256": "35952b07a62515ddf4fe0acf4660e577de5a5a7626f47c5ec14e8b051f665ade",
+      "canonical_source_sha256": "35952b07a62515ddf4fe0acf4660e577de5a5a7626f47c5ec14e8b051f665ade",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/templates.py",
+      "previous_committed_sha256": "5e8ab174f1bb2795c484445ceed4125c5ed637057b668b78b0b7a484beb7b6f3",
+      "canonical_source_sha256": "5e8ab174f1bb2795c484445ceed4125c5ed637057b668b78b0b7a484beb7b6f3",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/tree.py",
+      "previous_committed_sha256": "e31ea53207d348cb3c9e56b728952218128300edcaadac0ee7cac315310e9823",
+      "canonical_source_sha256": "e31ea53207d348cb3c9e56b728952218128300edcaadac0ee7cac315310e9823",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/unlock.py",
+      "previous_committed_sha256": "fc44dc32860beeb044e973d04b7d96977908187953877a77fee05f82107a7a96",
+      "canonical_source_sha256": "fc44dc32860beeb044e973d04b7d96977908187953877a77fee05f82107a7a96",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/util.py",
+      "previous_committed_sha256": "0c4e900780d434da45de836627dd0af877b0fc7bf398cec794ca40dd1e118baf",
+      "canonical_source_sha256": "0c4e900780d434da45de836627dd0af877b0fc7bf398cec794ca40dd1e118baf",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/verdict.py",
+      "previous_committed_sha256": "57e936ee0a70079aab1469122e206deeb105d39c487697d250317dfad3195800",
+      "canonical_source_sha256": "57e936ee0a70079aab1469122e206deeb105d39c487697d250317dfad3195800",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    },
+    {
+      "path": "vpd_skill/vpdtest/workspace.py",
+      "previous_committed_sha256": "138ef973c3bf35cb85d5ae7934f1830a9c50ca33419e7bc12de684a222572390",
+      "canonical_source_sha256": "138ef973c3bf35cb85d5ae7934f1830a9c50ca33419e7bc12de684a222572390",
+      "runtime_behavior_unchanged": true,
+      "metadata_path_expression_changed": false
+    }
+  ],
+  "rebinding": [
+    {
+      "case": "TC-QK-240",
+      "before": {
+        "case_id": "TC-QK-240",
+        "content_hash": "f508f23da989",
+        "dependency_hash": "86371aebc80d",
+        "review_hash": "f0c53a481aa655187d8c8530f33957ec4a1127a6476123af7d8028cb6b33e791",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "after": {
+        "case_id": "TC-QK-240",
+        "content_hash": "f508f23da989",
+        "dependency_hash": "86371aebc80d",
+        "review_hash": "f0c53a481aa655187d8c8530f33957ec4a1127a6476123af7d8028cb6b33e791",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "basis": "原逐条认可快照2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；源码LF与指纹清单路径统一，设备执行逻辑未变，差异证明见docs/evidence/K89_ENGINE_LF_20261026.json；沿用用户对相同行为的认可，不新增业务范围"
+    },
+    {
+      "case": "TC-QK-241",
+      "before": {
+        "case_id": "TC-QK-241",
+        "content_hash": "d994a7ee4425",
+        "dependency_hash": "3f955db85331",
+        "review_hash": "d5aeb88e542f2f275dd36cf6d3b713f484f54876aaf81dd3c3a7ec5a0fd085ac",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "after": {
+        "case_id": "TC-QK-241",
+        "content_hash": "d994a7ee4425",
+        "dependency_hash": "3f955db85331",
+        "review_hash": "d5aeb88e542f2f275dd36cf6d3b713f484f54876aaf81dd3c3a7ec5a0fd085ac",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "basis": "原逐条认可快照2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；源码LF与指纹清单路径统一，设备执行逻辑未变，差异证明见docs/evidence/K89_ENGINE_LF_20261026.json；沿用用户对相同行为的认可，不新增业务范围"
+    },
+    {
+      "case": "TC-QK-243",
+      "before": {
+        "case_id": "TC-QK-243",
+        "content_hash": "88156a104f4a",
+        "dependency_hash": "96a1ac925354",
+        "review_hash": "d25a05ff2f05b4b272702c42396abaeaeb6e0e40cffe48be85b34f2811c9b0a2",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "after": {
+        "case_id": "TC-QK-243",
+        "content_hash": "88156a104f4a",
+        "dependency_hash": "96a1ac925354",
+        "review_hash": "d25a05ff2f05b4b272702c42396abaeaeb6e0e40cffe48be85b34f2811c9b0a2",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "basis": "原逐条认可快照2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；源码LF与指纹清单路径统一，设备执行逻辑未变，差异证明见docs/evidence/K89_ENGINE_LF_20261026.json；沿用用户对相同行为的认可，不新增业务范围"
+    },
+    {
+      "case": "TC-QK-245",
+      "before": {
+        "case_id": "TC-QK-245",
+        "content_hash": "ecd807642db7",
+        "dependency_hash": "a13847dfc23a",
+        "review_hash": "c1be4d3e8090fb7ba17b00f114c2e6a8bdec2f46acb1258713b2eb58cde7e21f",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "after": {
+        "case_id": "TC-QK-245",
+        "content_hash": "ecd807642db7",
+        "dependency_hash": "a13847dfc23a",
+        "review_hash": "c1be4d3e8090fb7ba17b00f114c2e6a8bdec2f46acb1258713b2eb58cde7e21f",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "basis": "原逐条认可快照2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；源码LF与指纹清单路径统一，设备执行逻辑未变，差异证明见docs/evidence/K89_ENGINE_LF_20261026.json；沿用用户对相同行为的认可，不新增业务范围"
+    },
+    {
+      "case": "TC-QK-246",
+      "before": {
+        "case_id": "TC-QK-246",
+        "content_hash": "1548da905f63",
+        "dependency_hash": "bdbcdd6396d8",
+        "review_hash": "40e25c745c984d0849c4db4c122a47336983e7494937e5735fb90e5202537b62",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "after": {
+        "case_id": "TC-QK-246",
+        "content_hash": "1548da905f63",
+        "dependency_hash": "bdbcdd6396d8",
+        "review_hash": "40e25c745c984d0849c4db4c122a47336983e7494937e5735fb90e5202537b62",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "basis": "原逐条认可快照2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；源码LF与指纹清单路径统一，设备执行逻辑未变，差异证明见docs/evidence/K89_ENGINE_LF_20261026.json；沿用用户对相同行为的认可，不新增业务范围"
+    },
+    {
+      "case": "TC-QK-247",
+      "before": {
+        "case_id": "TC-QK-247",
+        "content_hash": "7cc12abb2f43",
+        "dependency_hash": "40fa59c85397",
+        "review_hash": "82b9e4230c95db9efb86652fc3ff9455cd27f6144112f536d7cbba5f7fcb0683",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "after": {
+        "case_id": "TC-QK-247",
+        "content_hash": "7cc12abb2f43",
+        "dependency_hash": "40fa59c85397",
+        "review_hash": "82b9e4230c95db9efb86652fc3ff9455cd27f6144112f536d7cbba5f7fcb0683",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "basis": "原逐条认可快照2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；源码LF与指纹清单路径统一，设备执行逻辑未变，差异证明见docs/evidence/K89_ENGINE_LF_20261026.json；沿用用户对相同行为的认可，不新增业务范围"
+    },
+    {
+      "case": "TC-QK-249",
+      "before": {
+        "case_id": "TC-QK-249",
+        "content_hash": "b4db8e1ef1c6",
+        "dependency_hash": "d413f9ff619a",
+        "review_hash": "b4625c147addec6135e40a099e77941c3a627e8a11c111e8d9dc5927b1ad1532",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "after": {
+        "case_id": "TC-QK-249",
+        "content_hash": "b4db8e1ef1c6",
+        "dependency_hash": "d413f9ff619a",
+        "review_hash": "b4625c147addec6135e40a099e77941c3a627e8a11c111e8d9dc5927b1ad1532",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "basis": "原逐条认可快照2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；源码LF与指纹清单路径统一，设备执行逻辑未变，差异证明见docs/evidence/K89_ENGINE_LF_20261026.json；沿用用户对相同行为的认可，不新增业务范围"
+    },
+    {
+      "case": "TC-QK-244",
+      "before": {
+        "case_id": "TC-QK-244",
+        "content_hash": "cf06add6fc6a",
+        "dependency_hash": "806da152a749",
+        "review_hash": "17e298f5f86d136e1bddf3472c770283046dfa59be7daf2e27073a5a1a0e0da1",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "after": {
+        "case_id": "TC-QK-244",
+        "content_hash": "cf06add6fc6a",
+        "dependency_hash": "806da152a749",
+        "review_hash": "17e298f5f86d136e1bddf3472c770283046dfa59be7daf2e27073a5a1a0e0da1",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "basis": "用户当前会话明确同意244原范围、248修订v6；docs/reviews/K89_20261026_FOLLOWUP.json；源码LF与指纹清单路径统一，设备执行逻辑未变，差异证明见docs/evidence/K89_ENGINE_LF_20261026.json；沿用用户对相同行为的认可，不新增业务范围"
+    },
+    {
+      "case": "TC-QK-248",
+      "before": {
+        "case_id": "TC-QK-248",
+        "content_hash": "56cbb6a34345",
+        "dependency_hash": "b783d9619c2b",
+        "review_hash": "11d0f9598db14277e3633886e00ea358790af9a331123e418feabc8e10cb9f0f",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "after": {
+        "case_id": "TC-QK-248",
+        "content_hash": "56cbb6a34345",
+        "dependency_hash": "b783d9619c2b",
+        "review_hash": "11d0f9598db14277e3633886e00ea358790af9a331123e418feabc8e10cb9f0f",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "basis": "用户当前会话明确同意244原范围、248修订v6；docs/reviews/K89_20261026_FOLLOWUP.json；源码LF与指纹清单路径统一，设备执行逻辑未变，差异证明见docs/evidence/K89_ENGINE_LF_20261026.json；沿用用户对相同行为的认可，不新增业务范围"
+    }
+  ]
+}

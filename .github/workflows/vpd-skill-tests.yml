@@ -3,11 +3,13 @@ name: VPD Skill tests
 on:
   pull_request:
     paths:
+      - '.gitattributes'
       - 'vpd_skill/**'
       - '.github/workflows/vpd-skill-tests.yml'
   push:
     branches: [main]
     paths:
+      - '.gitattributes'
       - 'vpd_skill/**'
       - '.github/workflows/vpd-skill-tests.yml'
   workflow_dispatch:

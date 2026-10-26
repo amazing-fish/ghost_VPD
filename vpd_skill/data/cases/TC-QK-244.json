@@ -537,6 +537,22 @@
       "version": 3,
       "why": "run-20261026-012053-ff38已证实共用入口能从当前M9打开列表，但K89不在首屏，旧S5没有滚动查找。将S3-S5整体收敛到已有switch_vehicle(vin_tail=000228)，复用qk_car_by_vin的滚动、唯一定位和既有授权；业务断言及清理不变。v1/v2原始阻塞记录保留。",
       "evidence": "run-20261026-012053-ff38 / S4 obs-0010 → S5 obs-0011；当前列表首屏002681/002685/S00384/S00133，无000228"
+    },
+    {
+      "event": "asset_review",
+      "schema": 1,
+      "reviewer": "用户（当前会话）",
+      "basis": "用户当前会话明确同意244原范围、248修订v6；docs/reviews/K89_20261026_FOLLOWUP.json；源码LF与指纹清单路径统一，设备执行逻辑未变，差异证明见docs/evidence/K89_ENGINE_LF_20261026.json；沿用用户对相同行为的认可，不新增业务范围",
+      "ts": "2026-10-26T03:41:04.030+08:00",
+      "binding": {
+        "case_id": "TC-QK-244",
+        "content_hash": "cf06add6fc6a",
+        "dependency_hash": "806da152a749",
+        "review_hash": "17e298f5f86d136e1bddf3472c770283046dfa59be7daf2e27073a5a1a0e0da1",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
     }
   ],
   "onebox_case_ref": {
@@ -549,5 +565,20 @@
     "row": null,
     "full_steps_and_expectations_verified": false,
     "full_row_coverage": false
+  },
+  "asset_review": {
+    "schema": 1,
+    "reviewer": "用户（当前会话）",
+    "basis": "用户当前会话明确同意244原范围、248修订v6；docs/reviews/K89_20261026_FOLLOWUP.json；源码LF与指纹清单路径统一，设备执行逻辑未变，差异证明见docs/evidence/K89_ENGINE_LF_20261026.json；沿用用户对相同行为的认可，不新增业务范围",
+    "ts": "2026-10-26T03:41:04.030+08:00",
+    "binding": {
+      "case_id": "TC-QK-244",
+      "content_hash": "cf06add6fc6a",
+      "dependency_hash": "806da152a749",
+      "review_hash": "17e298f5f86d136e1bddf3472c770283046dfa59be7daf2e27073a5a1a0e0da1",
+      "policy_hash": "24b6ecd0679d",
+      "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+      "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+    }
   }
 }

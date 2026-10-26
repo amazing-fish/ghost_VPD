@@ -983,6 +983,38 @@
       "version": 3,
       "why": "run-20261026-012053-ff38已证实共用入口能从当前M9打开列表，但K89不在首屏，旧S5没有滚动查找。将S3-S5整体收敛到已有switch_vehicle(vin_tail=000228)，复用qk_car_by_vin的滚动、唯一定位和既有授权；业务断言及清理不变。v1/v2原始阻塞记录保留。",
       "evidence": "run-20261026-012053-ff38 / S4 obs-0010 → S5 obs-0011；当前列表首屏002681/002685/S00384/S00133，无000228"
+    },
+    {
+      "event": "asset_review",
+      "schema": 1,
+      "reviewer": "用户（当前会话）",
+      "basis": "当前会话用户逐条审阅并明确授权；审阅快照 2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；docs/reviews/K89_20261026.json；仅对应显示/导航子范围，原表完整验收待核",
+      "ts": "2026-10-26T02:34:29.164+08:00",
+      "binding": {
+        "case_id": "TC-QK-245",
+        "content_hash": "ecd807642db7",
+        "dependency_hash": "a13847dfc23a",
+        "review_hash": "c1be4d3e8090fb7ba17b00f114c2e6a8bdec2f46acb1258713b2eb58cde7e21f",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
+    },
+    {
+      "event": "asset_review",
+      "schema": 1,
+      "reviewer": "用户（当前会话）",
+      "basis": "原逐条认可快照2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；源码LF与指纹清单路径统一，设备执行逻辑未变，差异证明见docs/evidence/K89_ENGINE_LF_20261026.json；沿用用户对相同行为的认可，不新增业务范围",
+      "ts": "2026-10-26T03:41:02.539+08:00",
+      "binding": {
+        "case_id": "TC-QK-245",
+        "content_hash": "ecd807642db7",
+        "dependency_hash": "a13847dfc23a",
+        "review_hash": "c1be4d3e8090fb7ba17b00f114c2e6a8bdec2f46acb1258713b2eb58cde7e21f",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
     }
   ],
   "onebox_case_ref": {
@@ -995,5 +1027,20 @@
     "row": null,
     "full_steps_and_expectations_verified": false,
     "full_row_coverage": false
+  },
+  "asset_review": {
+    "schema": 1,
+    "reviewer": "用户（当前会话）",
+    "basis": "原逐条认可快照2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；源码LF与指纹清单路径统一，设备执行逻辑未变，差异证明见docs/evidence/K89_ENGINE_LF_20261026.json；沿用用户对相同行为的认可，不新增业务范围",
+    "ts": "2026-10-26T03:41:02.539+08:00",
+    "binding": {
+      "case_id": "TC-QK-245",
+      "content_hash": "ecd807642db7",
+      "dependency_hash": "a13847dfc23a",
+      "review_hash": "c1be4d3e8090fb7ba17b00f114c2e6a8bdec2f46acb1258713b2eb58cde7e21f",
+      "policy_hash": "24b6ecd0679d",
+      "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+      "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+    }
   }
 }

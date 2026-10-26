@@ -1,14 +1,14 @@
 {
   "id": "TC-QK-248",
-  "version": 3,
+  "version": 6,
   "status": "draft",
   "app": "qiankun_hm",
   "origin": {
     "type": "session"
   },
   "title": "K89 0228 · 停车场距离/当前停车场",
-  "goal": "按同一园区行核当前停车场标识和另一园区距离",
-  "purpose": "按同一园区行核当前停车场标识和另一园区距离。按Issue65原表索引的名称建立可执行候选。只核显示和行归属，不核实际地理距离。原始工作表完整步骤与预期本机未取得，原表完整覆盖待核；本条不是正式回归通过。",
+  "goal": "当前园区显示位置图标；其他园区在自己的列表行显示距离",
+  "purpose": "由度金闽园地下停车场是当前园区，名称行右侧显示位置图标和当前位置；下面华为练秋湖研发中心的63.7km属于另一个园区。逐行独立检查图标容器与距离归属，不把下方距离解释成当前园区的距离；不验证图标像素形状或真实测距。原表完整验收待核。",
   "preconditions": [
     "设备已登录乾崑1.0.26.100，保持已有账号；本例不执行登录、登出、车辆运动或车控",
     "本轮指定问界K89、车架号末六位000228；前置每次重新打开当前车辆列表并唯一选择，不按车型别名猜选",
@@ -181,7 +181,16 @@
       "measure": "s_current",
       "critical": true,
       "retry": 0,
-      "desc": "当前标识与园区名称绑定同一行"
+      "desc": "当前园区名称与当前位置文案绑定同一行；图标另行检查"
+    },
+    {
+      "id": "S_CURRENT_ICON",
+      "action": "wait",
+      "duration_s": 0,
+      "timeout_s": 5,
+      "critical": true,
+      "retry": 0,
+      "desc": "采集位置图标的当前页面，由同帧target_present核验图标节点；不向无文本Image索要文字读数"
     },
     {
       "id": "S_DISTANCE",
@@ -216,6 +225,27 @@
       "oracle_refs": [
         "K-QK-IDX-248"
       ]
+    },
+    {
+      "id": "A_CURRENT_ICON",
+      "at": "S_CURRENT_ICON",
+      "type": "target_present",
+      "desc": "当前园区的位置图标节点存在且可见；不把P图标或其他园区图标充当位置图标",
+      "oracle_refs": [
+        "K-QK-IDX-248"
+      ],
+      "target": {
+        "label": "当前园区名称行的位置图标",
+        "side_effect": "read_only",
+        "forbid_tap": true,
+        "strategies": [
+          {
+            "kind": "xpath",
+            "value": "//ListItem[.//Text[@text=\"由度金闽园地下停车场\"]]//*[@id=\"area_name\"]//Row[Text[@text=\"当前位置\"]]/Image"
+          }
+        ],
+        "source": "run-20261026-020259-3bef / obs-0022：当前园区area_name中位置Image与当前位置Text同属Row；只证明独立图标节点存在，不声称识别像素形状。"
+      }
     },
     {
       "id": "A2",
@@ -557,6 +587,42 @@
       "version": 3,
       "why": "run-20261026-012053-ff38已证实共用入口能从当前M9打开列表，但K89不在首屏，旧S5没有滚动查找。将S3-S5整体收敛到已有switch_vehicle(vin_tail=000228)，复用qk_car_by_vin的滚动、唯一定位和既有授权；业务断言及清理不变。v1/v2原始阻塞记录保留。",
       "evidence": "run-20261026-012053-ff38 / S4 obs-0010 → S5 obs-0011；当前列表首屏002681/002685/S00384/S00133，无000228"
+    },
+    {
+      "ts": "2026-10-25T18:44:15.800219+00:00",
+      "version": 4,
+      "event": "human_revision_requested",
+      "review_snapshot": "2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c",
+      "user_text": "错误，下面的距离是另一个园区的，当前园区是一个位置符号",
+      "why": "明确上下两园区距离归属，新增当前园区名称行位置图标独立取证；修订仍unconfirmed且未获资产人审。"
+    },
+    {
+      "ts": "2026-10-25T18:58:01.176928+00:00",
+      "version": 5,
+      "why": "v4实机Image节点无文本，read无法产生文字读数，S_CURRENT_ICON后置未满足。改用现有wait采集当前帧与target_present断言，不修改判据或执行器。",
+      "evidence": "run-20261026-025428-85da / S_CURRENT_ICON；首次异常及原始截图保留，不作为修后通过。"
+    },
+    {
+      "ts": "2026-10-25T19:02:47.560697+00:00",
+      "version": 6,
+      "why": "v5节点检查未匹配：现有断言inline目标不展开var。此用例固定园区，改用该园区明确名称；测试改走真实evaluate_assertion，避免测试侧预展开掩盖问题。业务预期和现有引擎均不变。",
+      "evidence": "run-20261026-025818-4182 / A_CURRENT_ICON / obs-0023；原始observed_holds=false保留，不作修后成立证据。"
+    },
+    {
+      "event": "asset_review",
+      "schema": 1,
+      "reviewer": "用户（当前会话）",
+      "basis": "用户当前会话明确同意244原范围、248修订v6；docs/reviews/K89_20261026_FOLLOWUP.json；源码LF与指纹清单路径统一，设备执行逻辑未变，差异证明见docs/evidence/K89_ENGINE_LF_20261026.json；沿用用户对相同行为的认可，不新增业务范围",
+      "ts": "2026-10-26T03:41:04.604+08:00",
+      "binding": {
+        "case_id": "TC-QK-248",
+        "content_hash": "56cbb6a34345",
+        "dependency_hash": "b783d9619c2b",
+        "review_hash": "11d0f9598db14277e3633886e00ea358790af9a331123e418feabc8e10cb9f0f",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
     }
   ],
   "onebox_case_ref": {
@@ -569,5 +635,20 @@
     "row": null,
     "full_steps_and_expectations_verified": false,
     "full_row_coverage": false
+  },
+  "asset_review": {
+    "schema": 1,
+    "reviewer": "用户（当前会话）",
+    "basis": "用户当前会话明确同意244原范围、248修订v6；docs/reviews/K89_20261026_FOLLOWUP.json；源码LF与指纹清单路径统一，设备执行逻辑未变，差异证明见docs/evidence/K89_ENGINE_LF_20261026.json；沿用用户对相同行为的认可，不新增业务范围",
+    "ts": "2026-10-26T03:41:04.604+08:00",
+    "binding": {
+      "case_id": "TC-QK-248",
+      "content_hash": "56cbb6a34345",
+      "dependency_hash": "b783d9619c2b",
+      "review_hash": "11d0f9598db14277e3633886e00ea358790af9a331123e418feabc8e10cb9f0f",
+      "policy_hash": "24b6ecd0679d",
+      "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+      "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+    }
   }
 }

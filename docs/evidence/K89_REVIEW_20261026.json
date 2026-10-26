@@ -1,0 +1,481 @@
+{
+  "checked_at": "2026-10-25T19:06:32.070324+00:00",
+  "base": "7c22b0a4a7333aad2105f6a0115d9a47999d78a3",
+  "branch": "codex/k89-human-review-20261026",
+  "review_snapshot": "2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c",
+  "review_record": "docs/reviews/K89_20261026.json",
+  "device": "hdc:5MT0225B05000904",
+  "vehicle": "K89 / VIN tail 000228",
+  "app": "qiankun_hm 1.0.26.100",
+  "totals": {
+    "accepted": 7,
+    "confirmed_rules": 7,
+    "valid_asset_reviews": 7,
+    "fresh_real_product_passed": 7,
+    "revised_pending": [
+      242,
+      248
+    ],
+    "undecided": [
+      244
+    ],
+    "runs_completed": 9,
+    "process_ended": 9,
+    "formal_original_rows_added": 0
+  },
+  "cases": [
+    {
+      "case": "TC-QK-240",
+      "version": 3,
+      "run": "run-20261026-023931-108f",
+      "started": "2026-10-26T02:39:31.051+08:00",
+      "finished": "2026-10-26T02:41:05.730+08:00",
+      "current_binding": {
+        "case_id": "TC-QK-240",
+        "content_hash": "f508f23da989",
+        "dependency_hash": "86371aebc80d",
+        "review_hash": "f0c53a481aa655187d8c8530f33957ec4a1127a6476123af7d8028cb6b33e791",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "asset_review": "approved",
+      "execution": "completed",
+      "product": "passed",
+      "actions": 16,
+      "process_ended": true,
+      "knowledge_status": "confirmed",
+      "assertions": [
+        {
+          "id": "A1",
+          "type": "value_present",
+          "advisory": false,
+          "result": "pass",
+          "observed_holds": true,
+          "reason": null
+        }
+      ],
+      "frames": [],
+      "run_sha256": "c2fbf6640ae45a9a84cab193ad8854f75e35ed36b5a8606d32673148c8db0701"
+    },
+    {
+      "case": "TC-QK-241",
+      "version": 3,
+      "run": "run-20261026-024224-57d1",
+      "started": "2026-10-26T02:42:24.247+08:00",
+      "finished": "2026-10-26T02:43:32.730+08:00",
+      "current_binding": {
+        "case_id": "TC-QK-241",
+        "content_hash": "d994a7ee4425",
+        "dependency_hash": "3f955db85331",
+        "review_hash": "d5aeb88e542f2f275dd36cf6d3b713f484f54876aaf81dd3c3a7ec5a0fd085ac",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "asset_review": "approved",
+      "execution": "completed",
+      "product": "passed",
+      "actions": 7,
+      "process_ended": true,
+      "knowledge_status": "confirmed",
+      "assertions": [
+        {
+          "id": "A1",
+          "type": "value_present",
+          "advisory": false,
+          "result": "pass",
+          "observed_holds": true,
+          "reason": null
+        }
+      ],
+      "frames": [],
+      "run_sha256": "e3fca9a93e5d0c76a8fff450d1c7e9fca2df3363e2373b75653059f78e15e67f"
+    },
+    {
+      "case": "TC-QK-243",
+      "version": 3,
+      "run": "run-20261026-024332-6cf9",
+      "started": "2026-10-26T02:43:32.940+08:00",
+      "finished": "2026-10-26T02:44:39.741+08:00",
+      "current_binding": {
+        "case_id": "TC-QK-243",
+        "content_hash": "88156a104f4a",
+        "dependency_hash": "96a1ac925354",
+        "review_hash": "d25a05ff2f05b4b272702c42396abaeaeb6e0e40cffe48be85b34f2811c9b0a2",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "asset_review": "approved",
+      "execution": "completed",
+      "product": "passed",
+      "actions": 7,
+      "process_ended": true,
+      "knowledge_status": "confirmed",
+      "assertions": [
+        {
+          "id": "A1",
+          "type": "value_present",
+          "advisory": false,
+          "result": "pass",
+          "observed_holds": true,
+          "reason": null
+        }
+      ],
+      "frames": [],
+      "run_sha256": "acd0f0939329ef5f162b10e79b10026ffd0140fbb851609d42e150a6afae52f7"
+    },
+    {
+      "case": "TC-QK-245",
+      "version": 3,
+      "run": "run-20261026-024439-bbfa",
+      "started": "2026-10-26T02:44:39.931+08:00",
+      "finished": "2026-10-26T02:46:51.694+08:00",
+      "current_binding": {
+        "case_id": "TC-QK-245",
+        "content_hash": "ecd807642db7",
+        "dependency_hash": "a13847dfc23a",
+        "review_hash": "c1be4d3e8090fb7ba17b00f114c2e6a8bdec2f46acb1258713b2eb58cde7e21f",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "asset_review": "approved",
+      "execution": "completed",
+      "product": "passed",
+      "actions": 11,
+      "process_ended": true,
+      "knowledge_status": "confirmed",
+      "assertions": [
+        {
+          "id": "A1",
+          "type": "text_present",
+          "advisory": false,
+          "result": "pass",
+          "observed_holds": true,
+          "reason": null
+        },
+        {
+          "id": "A2",
+          "type": "value_present",
+          "advisory": false,
+          "result": "pass",
+          "observed_holds": true,
+          "reason": null
+        },
+        {
+          "id": "A3",
+          "type": "value_present",
+          "advisory": false,
+          "result": "pass",
+          "observed_holds": true,
+          "reason": null
+        },
+        {
+          "id": "A4",
+          "type": "text_present",
+          "advisory": false,
+          "result": "pass",
+          "observed_holds": true,
+          "reason": null
+        },
+        {
+          "id": "A5",
+          "type": "text_present",
+          "advisory": false,
+          "result": "pass",
+          "observed_holds": true,
+          "reason": null
+        }
+      ],
+      "frames": [],
+      "run_sha256": "a0b0e72c1573ea95df8f890868856bb70ddbbb6d2e91e1b089c94bd6fa2716e6"
+    },
+    {
+      "case": "TC-QK-246",
+      "version": 3,
+      "run": "run-20261026-024651-34ca",
+      "started": "2026-10-26T02:46:51.918+08:00",
+      "finished": "2026-10-26T02:48:48.642+08:00",
+      "current_binding": {
+        "case_id": "TC-QK-246",
+        "content_hash": "1548da905f63",
+        "dependency_hash": "bdbcdd6396d8",
+        "review_hash": "40e25c745c984d0849c4db4c122a47336983e7494937e5735fb90e5202537b62",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "asset_review": "approved",
+      "execution": "completed",
+      "product": "passed",
+      "actions": 10,
+      "process_ended": true,
+      "knowledge_status": "confirmed",
+      "assertions": [
+        {
+          "id": "A1",
+          "type": "value_present",
+          "advisory": false,
+          "result": "pass",
+          "observed_holds": true,
+          "reason": null
+        },
+        {
+          "id": "A2",
+          "type": "value_present",
+          "advisory": false,
+          "result": "pass",
+          "observed_holds": true,
+          "reason": null
+        }
+      ],
+      "frames": [],
+      "run_sha256": "ab9ee6c4bdd370ccc3aa4d9dad5a1cb3eb8784d885d3123d3f8831bef6c342a8"
+    },
+    {
+      "case": "TC-QK-247",
+      "version": 3,
+      "run": "run-20261026-024848-1736",
+      "started": "2026-10-26T02:48:48.825+08:00",
+      "finished": "2026-10-26T02:50:54.172+08:00",
+      "current_binding": {
+        "case_id": "TC-QK-247",
+        "content_hash": "7cc12abb2f43",
+        "dependency_hash": "40fa59c85397",
+        "review_hash": "82b9e4230c95db9efb86652fc3ff9455cd27f6144112f536d7cbba5f7fcb0683",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "asset_review": "approved",
+      "execution": "completed",
+      "product": "passed",
+      "actions": 11,
+      "process_ended": true,
+      "knowledge_status": "confirmed",
+      "assertions": [
+        {
+          "id": "A1",
+          "type": "text_present",
+          "advisory": false,
+          "result": "pass",
+          "observed_holds": true,
+          "reason": null
+        },
+        {
+          "id": "A2",
+          "type": "text_present",
+          "advisory": false,
+          "result": "pass",
+          "observed_holds": true,
+          "reason": null
+        },
+        {
+          "id": "A3",
+          "type": "target_absent",
+          "advisory": false,
+          "result": "pass",
+          "observed_holds": true,
+          "reason": null
+        }
+      ],
+      "frames": [],
+      "run_sha256": "2784307f014cd05370e9f326ebf5157ec581f34a2634656c92bca28b51aee918"
+    },
+    {
+      "case": "TC-QK-249",
+      "version": 3,
+      "run": "run-20261026-025054-7823",
+      "started": "2026-10-26T02:50:54.335+08:00",
+      "finished": "2026-10-26T02:52:21.930+08:00",
+      "current_binding": {
+        "case_id": "TC-QK-249",
+        "content_hash": "b4db8e1ef1c6",
+        "dependency_hash": "d413f9ff619a",
+        "review_hash": "b4625c147addec6135e40a099e77941c3a627e8a11c111e8d9dc5927b1ad1532",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "asset_review": "approved",
+      "execution": "completed",
+      "product": "passed",
+      "actions": 8,
+      "process_ended": true,
+      "knowledge_status": "confirmed",
+      "assertions": [
+        {
+          "id": "A1",
+          "type": "value_present",
+          "advisory": false,
+          "result": "pass",
+          "observed_holds": true,
+          "reason": null
+        },
+        {
+          "id": "A2",
+          "type": "value_present",
+          "advisory": false,
+          "result": "pass",
+          "observed_holds": true,
+          "reason": null
+        }
+      ],
+      "frames": [],
+      "run_sha256": "01c4ba46e0ce4a996713749fc03e23c2659430ae589c2ba0ea24f82548486e14"
+    },
+    {
+      "case": "TC-QK-248",
+      "version": 6,
+      "run": "run-20261026-030255-df0a",
+      "started": "2026-10-26T03:02:55.011+08:00",
+      "finished": "2026-10-26T03:04:30.799+08:00",
+      "current_binding": {
+        "case_id": "TC-QK-248",
+        "content_hash": "56cbb6a34345",
+        "dependency_hash": "b783d9619c2b",
+        "review_hash": "11d0f9598db14277e3633886e00ea358790af9a331123e418feabc8e10cb9f0f",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "asset_review": "pending",
+      "execution": "completed",
+      "product": "pending",
+      "actions": 8,
+      "process_ended": true,
+      "knowledge_status": "unconfirmed",
+      "assertions": [
+        {
+          "id": "A1",
+          "type": "value_present",
+          "advisory": false,
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "读数有效，但引用的知识尚未确认"
+        },
+        {
+          "id": "A_CURRENT_ICON",
+          "type": "target_present",
+          "advisory": false,
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "观测符合预期，但引用的知识尚未确认"
+        },
+        {
+          "id": "A2",
+          "type": "value_present",
+          "advisory": false,
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "读数有效，但引用的知识尚未确认"
+        }
+      ],
+      "frames": [
+        {
+          "at": "S_CURRENT",
+          "obs": "obs-0021",
+          "ts": "2026-10-26T03:04:11.637+08:00",
+          "sha256": "c444e058ea600a6f3c4000f7c6f948a0e37a367fdf95a522eb5860030c6ab484",
+          "path": "vpd_skill/runs/run-20261026-030255-df0a/obs/obs-0021/screen.png"
+        },
+        {
+          "at": "S_CURRENT_ICON",
+          "obs": "obs-0023",
+          "ts": "2026-10-26T03:04:18.862+08:00",
+          "sha256": "f9d4f2685bbff5bda0310de1ffd6db2db787b670f518ae4724441acccd1bd107",
+          "path": "vpd_skill/runs/run-20261026-030255-df0a/obs/obs-0023/screen.png"
+        },
+        {
+          "at": "S_DISTANCE",
+          "obs": "obs-0024",
+          "ts": "2026-10-26T03:04:22.722+08:00",
+          "sha256": "e059fb5e1d9660f21afc85670c254ac15e6d1730c428c58e63ee0bcb67795152",
+          "path": "vpd_skill/runs/run-20261026-030255-df0a/obs/obs-0024/screen.png"
+        }
+      ],
+      "run_sha256": "18965e4210c5db8665a1fd31d9832d8e4a22d4d68a8fe1b7344535dc93ab0e8c"
+    },
+    {
+      "case": "TC-QK-242",
+      "version": 4,
+      "run": "run-20261026-025559-1564",
+      "started": "2026-10-26T02:55:59.818+08:00",
+      "finished": "2026-10-26T02:57:09.894+08:00",
+      "current_binding": {
+        "case_id": "TC-QK-242",
+        "content_hash": "f916cc85a3ff",
+        "dependency_hash": "a69aa780c991",
+        "review_hash": "81521288c1962f5e2f5943b7e3d3ae4008faeaf23ea6f52f234033a886eb722a",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "f214975c3d717e48f1da1d2ab0fb4111f57cc3bf7eec923910ab9d328b0a600a",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "asset_review": "pending",
+      "execution": "completed",
+      "product": "pending",
+      "actions": 8,
+      "process_ended": true,
+      "knowledge_status": "unconfirmed",
+      "assertions": [
+        {
+          "id": "A1",
+          "type": "text_present",
+          "advisory": false,
+          "result": "pending",
+          "observed_holds": true,
+          "reason": "观测符合预期，但引用的知识尚未确认"
+        },
+        {
+          "id": "A_TAG_POI",
+          "type": "visual_review",
+          "advisory": false,
+          "result": "pending",
+          "observed_holds": null,
+          "reason": "主观/视觉检查：只输出建议，需人工或经确认的规则转化为确定性断言"
+        }
+      ],
+      "frames": [
+        {
+          "at": "S6",
+          "obs": "obs-0015",
+          "ts": "2026-10-26T02:56:52.605+08:00",
+          "sha256": "d8eaa2ddd20c6a023060ae45b3d90b3d263b01bc7ba941a2a6abaeee87175ff2",
+          "path": "vpd_skill/runs/run-20261026-025559-1564/obs/obs-0015/screen.png"
+        },
+        {
+          "at": "S7",
+          "obs": "obs-0017",
+          "ts": "2026-10-26T02:57:02.109+08:00",
+          "sha256": "9ff98d0413b6c7d36b5858cca65a3d8f378611455737b967ca0132b2083f4626",
+          "path": "vpd_skill/runs/run-20261026-025559-1564/obs/obs-0017/screen.png"
+        }
+      ],
+      "run_sha256": "5b133407959969e05e7913ae18d7f358c6fb064527e6c463c6a532b8d13ac42a"
+    }
+  ],
+  "historical_pending_unchanged": true,
+  "case244_unchanged": true,
+  "policy_unchanged": true,
+  "executor_and_shared_definitions_unchanged": true,
+  "retained_revision_failures": [
+    {
+      "run": "run-20261026-025428-85da",
+      "version": 4,
+      "result": "Image text read postcondition not met"
+    },
+    {
+      "run": "run-20261026-025818-4182",
+      "version": 5,
+      "result": "Image assertion inline var not expanded; observed_holds=false"
+    }
+  ],
+  "offline": {
+    "related_and_asset_review_tests_passed": 85,
+    "ruff": "passed",
+    "case_lint_issues": 0
+  },
+  "remaining": "242标签与地图车位POI对应缺少完整机器可读证据；242/248修订版未确认未人审；244未决；原表完整验收待核。"
+}
