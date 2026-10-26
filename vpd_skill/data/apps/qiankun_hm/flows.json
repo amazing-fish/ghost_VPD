@@ -218,6 +218,132 @@
         }
       ],
       "source": "#31 login_provenance；同一已登录页条件持续约束子步，最终账户终态在入口末尾严格检查"
+    },
+    "restore_k89_a207_stair": {
+      "desc": "仅撤回本轮A207楼梯口标签；重新定位同一POI并核对详情及搜索恢复",
+      "status": "calibrated_on_device",
+      "source": "session-session-k89-tags-20261026 / A10–A14及独立冷启动入口；只在after_dispatch证明本轮可能改过数据后调用。",
+      "params": {},
+      "steps": [
+        {
+          "id": "RESET_STOP",
+          "action": "stop_app",
+          "critical": true,
+          "retry": 0,
+          "timeout_s": 12
+        },
+        {
+          "id": "RESET_LAUNCH",
+          "action": "launch",
+          "critical": true,
+          "retry": 0,
+          "timeout_s": 12,
+          "expect_state": "@in_app"
+        },
+        {
+          "id": "VIN",
+          "action": "flow",
+          "critical": true,
+          "retry": 0,
+          "timeout_s": 12,
+          "flow": "switch_vehicle",
+          "params": {
+            "vin_tail": "000228"
+          }
+        },
+        {
+          "id": "ADS",
+          "action": "tap",
+          "critical": true,
+          "retry": 0,
+          "timeout_s": 15,
+          "target": "qk_ads",
+          "expect_state": "qk_vpd_home"
+        },
+        {
+          "id": "SEARCH",
+          "action": "tap",
+          "critical": true,
+          "retry": 0,
+          "timeout_s": 12,
+          "target": "qk_search_entry",
+          "expect_state": "qk_spot_search"
+        },
+        {
+          "id": "QUERY",
+          "action": "input",
+          "critical": true,
+          "retry": 0,
+          "timeout_s": 12,
+          "target": "qk_k89_tag_search_input",
+          "text": "A207",
+          "clear": true,
+          "expect_text": "A207"
+        },
+        {
+          "id": "PANEL",
+          "action": "tap",
+          "critical": true,
+          "retry": 0,
+          "timeout_s": 12,
+          "target": "qk_k89_a207_result_title",
+          "expect_text": "添加标签"
+        },
+        {
+          "id": "UNSET",
+          "action": "tap",
+          "critical": false,
+          "retry": 0,
+          "timeout_s": 12,
+          "target": "qk_k89_a207_stair_set",
+          "when": {
+            "condition": "a207_stair_selected",
+            "equals": true
+          },
+          "expect_text": "添加标签"
+        },
+        {
+          "id": "VERIFY_PANEL",
+          "action": "read",
+          "critical": true,
+          "retry": 0,
+          "timeout_s": 12,
+          "target": "qk_k89_a207_stair_unset",
+          "read_scope": "self",
+          "pattern": "^楼梯口$",
+          "measure": "verify_panel",
+          "desc": "核对A207标签回到原未选中状态"
+        },
+        {
+          "id": "HOME",
+          "action": "back",
+          "critical": true,
+          "retry": 0,
+          "timeout_s": 12,
+          "expect_state": "qk_vpd_home"
+        },
+        {
+          "id": "SEARCH_AGAIN",
+          "action": "tap",
+          "critical": true,
+          "retry": 0,
+          "timeout_s": 12,
+          "target": "qk_search_entry",
+          "expect_state": "qk_spot_search"
+        },
+        {
+          "id": "VERIFY_SEARCH",
+          "action": "read",
+          "critical": true,
+          "retry": 0,
+          "timeout_s": 12,
+          "target": "qk_k89_search_without_stair",
+          "read_scope": "self",
+          "pattern": "电梯口.*充电桩",
+          "measure": "verify_search",
+          "desc": "独立核对搜索楼梯口入口已撤回，原入口保留"
+        }
+      ]
     }
   }
 ,

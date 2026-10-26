@@ -1,0 +1,145 @@
+{
+  "recorded_at": "2026-10-26T17:22:28.701711+00:00",
+  "base_main": "4e960e9352afe56667484752a60b8ca51fdad70c",
+  "source_pr": 100,
+  "source_head": "3a4d730b0e8367d2eda319bbcf7d278662d84af3",
+  "source_tree": "d493e22f10e3c476079dd20ccaada782a632c7d4",
+  "reconstructed_tree_before_delivery_docs": "d493e22f10e3c476079dd20ccaada782a632c7d4",
+  "full_tracked_tree_equal_before_delivery_docs": true,
+  "delivery_commits": [
+    "9e8e628f4e0815caee7ad5d15c63582192e6e3d5",
+    "d0cbc1e692ce283de9b3f9f321e14374cab7ec18"
+  ],
+  "existing_real_run": "run-20261026-045255-9f8e",
+  "existing_run_date": "2026-10-26",
+  "real_binding_matches_current": true,
+  "real_product_checks": "5/5 pass",
+  "real_cleanup": "same POI panel and search restored; both actual stop checks process_ended=true",
+  "raw_run_location_on_execution_machine": "C:/Users/Administrator/Documents/ChatGPT/VPD测试/ghost_VPD-k89-cases/vpd_skill/runs/run-20261026-045255-9f8e",
+  "new_real_run_this_round": false,
+  "reason": "Device doctor reports device_offline; no new real-device actions were sent.",
+  "device_doctor": "artifacts/k89-doctor-20261027.json",
+  "nine_existing_approvals": [
+    {
+      "case": "TC-QK-240",
+      "valid": true,
+      "binding": {
+        "case_id": "TC-QK-240",
+        "content_hash": "f508f23da989",
+        "dependency_hash": "86371aebc80d",
+        "review_hash": "f0c53a481aa655187d8c8530f33957ec4a1127a6476123af7d8028cb6b33e791",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
+    },
+    {
+      "case": "TC-QK-241",
+      "valid": true,
+      "binding": {
+        "case_id": "TC-QK-241",
+        "content_hash": "d994a7ee4425",
+        "dependency_hash": "3f955db85331",
+        "review_hash": "d5aeb88e542f2f275dd36cf6d3b713f484f54876aaf81dd3c3a7ec5a0fd085ac",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
+    },
+    {
+      "case": "TC-QK-243",
+      "valid": true,
+      "binding": {
+        "case_id": "TC-QK-243",
+        "content_hash": "88156a104f4a",
+        "dependency_hash": "96a1ac925354",
+        "review_hash": "d25a05ff2f05b4b272702c42396abaeaeb6e0e40cffe48be85b34f2811c9b0a2",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
+    },
+    {
+      "case": "TC-QK-244",
+      "valid": true,
+      "binding": {
+        "case_id": "TC-QK-244",
+        "content_hash": "cf06add6fc6a",
+        "dependency_hash": "806da152a749",
+        "review_hash": "17e298f5f86d136e1bddf3472c770283046dfa59be7daf2e27073a5a1a0e0da1",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
+    },
+    {
+      "case": "TC-QK-245",
+      "valid": true,
+      "binding": {
+        "case_id": "TC-QK-245",
+        "content_hash": "ecd807642db7",
+        "dependency_hash": "a13847dfc23a",
+        "review_hash": "c1be4d3e8090fb7ba17b00f114c2e6a8bdec2f46acb1258713b2eb58cde7e21f",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
+    },
+    {
+      "case": "TC-QK-246",
+      "valid": true,
+      "binding": {
+        "case_id": "TC-QK-246",
+        "content_hash": "1548da905f63",
+        "dependency_hash": "bdbcdd6396d8",
+        "review_hash": "40e25c745c984d0849c4db4c122a47336983e7494937e5735fb90e5202537b62",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
+    },
+    {
+      "case": "TC-QK-247",
+      "valid": true,
+      "binding": {
+        "case_id": "TC-QK-247",
+        "content_hash": "7cc12abb2f43",
+        "dependency_hash": "40fa59c85397",
+        "review_hash": "82b9e4230c95db9efb86652fc3ff9455cd27f6144112f536d7cbba5f7fcb0683",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
+    },
+    {
+      "case": "TC-QK-248",
+      "valid": true,
+      "binding": {
+        "case_id": "TC-QK-248",
+        "content_hash": "56cbb6a34345",
+        "dependency_hash": "b783d9619c2b",
+        "review_hash": "11d0f9598db14277e3633886e00ea358790af9a331123e418feabc8e10cb9f0f",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
+    },
+    {
+      "case": "TC-QK-249",
+      "valid": true,
+      "binding": {
+        "case_id": "TC-QK-249",
+        "content_hash": "b4db8e1ef1c6",
+        "dependency_hash": "d413f9ff619a",
+        "review_hash": "b4625c147addec6135e40a099e77941c3a627e8a11c111e8d9dc5927b1ad1532",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      }
+    }
+  ],
+  "case242_asset_review": "pending; no automatic approval or promotion",
+  "scope": "Deliver missing PR100 content to main. No new business capability beyond PR100, no policy/gate relaxation.",
+  "baseline_issue102": "https://github.com/amazing-fish/ghost_VPD/issues/102",
+  "baseline_note": "151-row source is now available. Stable-ID mapping is a separate independent work package; formal whole-row coverage is not inferred."
+}

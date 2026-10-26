@@ -1067,6 +1067,124 @@
           "source": "#64密码表单正证与当前SelectOverlay互斥；缺表单或未登记SelectOverlay保持unknown"
         }
       ]
+    },
+    "qk_k89_a207_stair_unset": {
+      "label": "A207详情中尚未选中的楼梯口标签",
+      "desc": "A207详情中尚未选中的楼梯口标签",
+      "side_effect": "user_data",
+      "status": "calibrated_on_device",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//Row[@clickable=\"true\" and @backgroundColor=\"#1AAFBEDC\" and Text[@text=\"楼梯口\"]][ancestor::*[.//Text[@text=\"添加标签\"] and .//Text[@text=\"B1层-A207 车位\"]]]"
+        }
+      ],
+      "source": "session-session-k89-tags-20261026：query obs-0012 / panel obs-0015 / tagged obs-0018 / filter obs-0025 / restored obs-0031 / cleared obs-0035；仅K89、乾崑1.0.26.100、由度园区A207的实际定位。"
+    },
+    "qk_k89_a207_stair_set": {
+      "label": "A207详情中已选中的楼梯口标签",
+      "desc": "A207详情中已选中的楼梯口标签",
+      "side_effect": "user_data",
+      "status": "calibrated_on_device",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//Row[@clickable=\"true\" and @backgroundColor=\"#1A4EA2FF\" and Text[@text=\"楼梯口\"]][ancestor::*[.//Text[@text=\"添加标签\"] and .//Text[@text=\"B1层-A207 车位\"]]]"
+        }
+      ],
+      "source": "session-session-k89-tags-20261026：query obs-0012 / panel obs-0015 / tagged obs-0018 / filter obs-0025 / restored obs-0031 / cleared obs-0035；仅K89、乾崑1.0.26.100、由度园区A207的实际定位。"
+    },
+    "qk_k89_tag_search_input": {
+      "label": "车位搜索页的当前实际输入框",
+      "desc": "车位搜索页的当前实际输入框",
+      "side_effect": "navigation",
+      "status": "calibrated_on_device",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@id=\"SearchPoiPage\"]//SearchField[@id=\"__SearchField__search_input\"]"
+        }
+      ],
+      "source": "session-session-k89-tags-20261026：query obs-0012 / panel obs-0015 / tagged obs-0018 / filter obs-0025 / restored obs-0031 / cleared obs-0035；仅K89、乾崑1.0.26.100、由度园区A207的实际定位。",
+      "allow_input": true
+    },
+    "qk_k89_a207_result_title": {
+      "label": "搜索结果中同一POI 4000191310 的B1层A207车位标题，避开路线按钮",
+      "desc": "搜索结果中同一POI 4000191310 的B1层A207车位标题，避开路线按钮",
+      "side_effect": "navigation",
+      "status": "calibrated_on_device",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@id=\"SearchPoiPage\"]//*[@id=\"searchPoiSpot_4000191310\"]//Text[@text=\"B1层-A207 车位\"]"
+        }
+      ],
+      "source": "session-session-k89-tags-20261026：query obs-0012 / panel obs-0015 / tagged obs-0018 / filter obs-0025 / restored obs-0031 / cleared obs-0035；仅K89、乾崑1.0.26.100、由度园区A207的实际定位。"
+    },
+    "qk_k89_search_stair": {
+      "label": "搜索页楼梯口筛选项",
+      "desc": "搜索页楼梯口筛选项",
+      "side_effect": "navigation",
+      "status": "calibrated_on_device",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@id=\"SearchPoiPage\"]//*[@id=\"my_location_and_filter_view\"]//Row[Text[@text=\"楼梯口\"]]"
+        }
+      ],
+      "source": "session-session-k89-tags-20261026：query obs-0012 / panel obs-0015 / tagged obs-0018 / filter obs-0025 / restored obs-0031 / cleared obs-0035；仅K89、乾崑1.0.26.100、由度园区A207的实际定位。"
+    },
+    "qk_k89_search_stair_selected": {
+      "label": "搜索页选中的楼梯口筛选项，和标签后结果共同核验",
+      "desc": "搜索页选中的楼梯口筛选项，和标签后结果共同核验",
+      "side_effect": "read_only",
+      "status": "calibrated_on_device",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@id=\"SearchPoiPage\"]//*[@id=\"my_location_and_filter_view\"]//Row[@backgroundColor=\"#FFEFF2F9\" and Text[@text=\"楼梯口\"]]"
+        }
+      ],
+      "source": "session-session-k89-tags-20261026：query obs-0012 / panel obs-0015 / tagged obs-0018 / filter obs-0025 / restored obs-0031 / cleared obs-0035；仅K89、乾崑1.0.26.100、由度园区A207的实际定位。"
+    },
+    "qk_k89_tag_query_empty": {
+      "label": "标签筛选时搜索输入为空，排除按A207旧词命中的假象",
+      "desc": "标签筛选时搜索输入为空，排除按A207旧词命中的假象",
+      "side_effect": "read_only",
+      "status": "calibrated_on_device",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@id=\"SearchPoiPage\"]//SearchField[@id=\"__SearchField__search_input\" and @text=\"\"]"
+        }
+      ],
+      "source": "session-session-k89-tags-20261026：query obs-0012 / panel obs-0015 / tagged obs-0018 / filter obs-0025 / restored obs-0031 / cleared obs-0035；仅K89、乾崑1.0.26.100、由度园区A207的实际定位。"
+    },
+    "qk_k89_search_without_stair": {
+      "label": "搜索页恢复到没有楼梯口入口的原始状态",
+      "desc": "搜索页恢复到没有楼梯口入口的原始状态",
+      "side_effect": "read_only",
+      "status": "calibrated_on_device",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@id=\"SearchPoiPage\" and not(.//Text[@text=\"楼梯口\"])]//*[@id=\"my_location_and_filter_view\"]"
+        }
+      ],
+      "source": "session-session-k89-tags-20261026：query obs-0012 / panel obs-0015 / tagged obs-0018 / filter obs-0025 / restored obs-0031 / cleared obs-0035；仅K89、乾崑1.0.26.100、由度园区A207的实际定位。"
+    },
+    "qk_k89_a207_same_park_result": {
+      "label": "同一由度园区结果组与POI 4000191310，不跨园区拼接",
+      "desc": "同一由度园区结果组与POI 4000191310，不跨园区拼接",
+      "side_effect": "read_only",
+      "status": "calibrated_on_device",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@id=\"SearchPoiPage\"]//*[@id=\"search_list\"]/List/__Common__/Row/Stack/Column[Column//Text[@text=\"由度金闽园地下停车场\"] and __Common__[@id=\"searchPoiSpot_4000191310\"]]"
+        }
+      ],
+      "source": "run-20261026-042807-3774/obs-0035：search_list/List/__Common__/Row/Stack/Column为实际单园区结果组，园区标题Column和POI __Common__必须是该组直接子节点。仅K89、乾崑1.0.26.100、由度园区A207；跨园区拆分反例另测。"
     }
   }
 }

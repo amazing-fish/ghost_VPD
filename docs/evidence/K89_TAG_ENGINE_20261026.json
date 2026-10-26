@@ -1,0 +1,216 @@
+{
+  "recorded_at": "2026-10-25T20:30:18.448937+00:00",
+  "base": "7f0e7353cf1479339bcdedab1d8643f92887d1c8",
+  "change": "Optional top-level cleanup.after_dispatch only applies to a declared main user_data tap/input step. Existing cleanup without it follows the same executor path.",
+  "gate": "Byte SHA and review comparison stay strict. No policy or supervision relaxation.",
+  "unchanged_cases": [
+    {
+      "case": "TC-QK-240",
+      "before": {
+        "case_id": "TC-QK-240",
+        "content_hash": "f508f23da989",
+        "dependency_hash": "86371aebc80d",
+        "review_hash": "f0c53a481aa655187d8c8530f33957ec4a1127a6476123af7d8028cb6b33e791",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "after": {
+        "case_id": "TC-QK-240",
+        "content_hash": "f508f23da989",
+        "dependency_hash": "86371aebc80d",
+        "review_hash": "f0c53a481aa655187d8c8530f33957ec4a1127a6476123af7d8028cb6b33e791",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "new_cleanup_field_absent": true,
+      "basis": "沿用用户已明确认可的相同行为；仅新增未被本例使用的after_dispatch用户数据清理归属功能，默认清理路径保持原样；见docs/evidence/K89_TAG_ENGINE_20261026.json及两轮用户审阅记录"
+    },
+    {
+      "case": "TC-QK-241",
+      "before": {
+        "case_id": "TC-QK-241",
+        "content_hash": "d994a7ee4425",
+        "dependency_hash": "3f955db85331",
+        "review_hash": "d5aeb88e542f2f275dd36cf6d3b713f484f54876aaf81dd3c3a7ec5a0fd085ac",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "after": {
+        "case_id": "TC-QK-241",
+        "content_hash": "d994a7ee4425",
+        "dependency_hash": "3f955db85331",
+        "review_hash": "d5aeb88e542f2f275dd36cf6d3b713f484f54876aaf81dd3c3a7ec5a0fd085ac",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "new_cleanup_field_absent": true,
+      "basis": "沿用用户已明确认可的相同行为；仅新增未被本例使用的after_dispatch用户数据清理归属功能，默认清理路径保持原样；见docs/evidence/K89_TAG_ENGINE_20261026.json及两轮用户审阅记录"
+    },
+    {
+      "case": "TC-QK-243",
+      "before": {
+        "case_id": "TC-QK-243",
+        "content_hash": "88156a104f4a",
+        "dependency_hash": "96a1ac925354",
+        "review_hash": "d25a05ff2f05b4b272702c42396abaeaeb6e0e40cffe48be85b34f2811c9b0a2",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "after": {
+        "case_id": "TC-QK-243",
+        "content_hash": "88156a104f4a",
+        "dependency_hash": "96a1ac925354",
+        "review_hash": "d25a05ff2f05b4b272702c42396abaeaeb6e0e40cffe48be85b34f2811c9b0a2",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "new_cleanup_field_absent": true,
+      "basis": "沿用用户已明确认可的相同行为；仅新增未被本例使用的after_dispatch用户数据清理归属功能，默认清理路径保持原样；见docs/evidence/K89_TAG_ENGINE_20261026.json及两轮用户审阅记录"
+    },
+    {
+      "case": "TC-QK-244",
+      "before": {
+        "case_id": "TC-QK-244",
+        "content_hash": "cf06add6fc6a",
+        "dependency_hash": "806da152a749",
+        "review_hash": "17e298f5f86d136e1bddf3472c770283046dfa59be7daf2e27073a5a1a0e0da1",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "after": {
+        "case_id": "TC-QK-244",
+        "content_hash": "cf06add6fc6a",
+        "dependency_hash": "806da152a749",
+        "review_hash": "17e298f5f86d136e1bddf3472c770283046dfa59be7daf2e27073a5a1a0e0da1",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "new_cleanup_field_absent": true,
+      "basis": "沿用用户已明确认可的相同行为；仅新增未被本例使用的after_dispatch用户数据清理归属功能，默认清理路径保持原样；见docs/evidence/K89_TAG_ENGINE_20261026.json及两轮用户审阅记录"
+    },
+    {
+      "case": "TC-QK-245",
+      "before": {
+        "case_id": "TC-QK-245",
+        "content_hash": "ecd807642db7",
+        "dependency_hash": "a13847dfc23a",
+        "review_hash": "c1be4d3e8090fb7ba17b00f114c2e6a8bdec2f46acb1258713b2eb58cde7e21f",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "after": {
+        "case_id": "TC-QK-245",
+        "content_hash": "ecd807642db7",
+        "dependency_hash": "a13847dfc23a",
+        "review_hash": "c1be4d3e8090fb7ba17b00f114c2e6a8bdec2f46acb1258713b2eb58cde7e21f",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "new_cleanup_field_absent": true,
+      "basis": "沿用用户已明确认可的相同行为；仅新增未被本例使用的after_dispatch用户数据清理归属功能，默认清理路径保持原样；见docs/evidence/K89_TAG_ENGINE_20261026.json及两轮用户审阅记录"
+    },
+    {
+      "case": "TC-QK-246",
+      "before": {
+        "case_id": "TC-QK-246",
+        "content_hash": "1548da905f63",
+        "dependency_hash": "bdbcdd6396d8",
+        "review_hash": "40e25c745c984d0849c4db4c122a47336983e7494937e5735fb90e5202537b62",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "after": {
+        "case_id": "TC-QK-246",
+        "content_hash": "1548da905f63",
+        "dependency_hash": "bdbcdd6396d8",
+        "review_hash": "40e25c745c984d0849c4db4c122a47336983e7494937e5735fb90e5202537b62",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "new_cleanup_field_absent": true,
+      "basis": "沿用用户已明确认可的相同行为；仅新增未被本例使用的after_dispatch用户数据清理归属功能，默认清理路径保持原样；见docs/evidence/K89_TAG_ENGINE_20261026.json及两轮用户审阅记录"
+    },
+    {
+      "case": "TC-QK-247",
+      "before": {
+        "case_id": "TC-QK-247",
+        "content_hash": "7cc12abb2f43",
+        "dependency_hash": "40fa59c85397",
+        "review_hash": "82b9e4230c95db9efb86652fc3ff9455cd27f6144112f536d7cbba5f7fcb0683",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "after": {
+        "case_id": "TC-QK-247",
+        "content_hash": "7cc12abb2f43",
+        "dependency_hash": "40fa59c85397",
+        "review_hash": "82b9e4230c95db9efb86652fc3ff9455cd27f6144112f536d7cbba5f7fcb0683",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "new_cleanup_field_absent": true,
+      "basis": "沿用用户已明确认可的相同行为；仅新增未被本例使用的after_dispatch用户数据清理归属功能，默认清理路径保持原样；见docs/evidence/K89_TAG_ENGINE_20261026.json及两轮用户审阅记录"
+    },
+    {
+      "case": "TC-QK-248",
+      "before": {
+        "case_id": "TC-QK-248",
+        "content_hash": "56cbb6a34345",
+        "dependency_hash": "b783d9619c2b",
+        "review_hash": "11d0f9598db14277e3633886e00ea358790af9a331123e418feabc8e10cb9f0f",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "after": {
+        "case_id": "TC-QK-248",
+        "content_hash": "56cbb6a34345",
+        "dependency_hash": "b783d9619c2b",
+        "review_hash": "11d0f9598db14277e3633886e00ea358790af9a331123e418feabc8e10cb9f0f",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "new_cleanup_field_absent": true,
+      "basis": "沿用用户已明确认可的相同行为；仅新增未被本例使用的after_dispatch用户数据清理归属功能，默认清理路径保持原样；见docs/evidence/K89_TAG_ENGINE_20261026.json及两轮用户审阅记录"
+    },
+    {
+      "case": "TC-QK-249",
+      "before": {
+        "case_id": "TC-QK-249",
+        "content_hash": "b4db8e1ef1c6",
+        "dependency_hash": "d413f9ff619a",
+        "review_hash": "b4625c147addec6135e40a099e77941c3a627e8a11c111e8d9dc5927b1ad1532",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "b22ba350acb04d85128531b1e1516efe55034e4fe40df7f26a0899aa86d51b68",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "after": {
+        "case_id": "TC-QK-249",
+        "content_hash": "b4db8e1ef1c6",
+        "dependency_hash": "d413f9ff619a",
+        "review_hash": "b4625c147addec6135e40a099e77941c3a627e8a11c111e8d9dc5927b1ad1532",
+        "policy_hash": "24b6ecd0679d",
+        "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
+        "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
+      },
+      "new_cleanup_field_absent": true,
+      "basis": "沿用用户已明确认可的相同行为；仅新增未被本例使用的after_dispatch用户数据清理归属功能，默认清理路径保持原样；见docs/evidence/K89_TAG_ENGINE_20261026.json及两轮用户审阅记录"
+    }
+  ],
+  "new_case242_asset_review": "pending"
+}

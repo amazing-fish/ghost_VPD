@@ -3089,17 +3089,17 @@
       "id": "K-QK-IDX-242",
       "kind": "requirement",
       "subject": "qiankun_hm.k89_batch.242",
-      "statement": "搜索二级页显示当前地图实际拥有的标签信息，标签应与地图上的车位POI对应；标签集合随地图变化，不固定要求电梯口和充电桩。当前缺少完整POI自动读数，对应关系必须待核，不能以标签出现替代。",
+      "statement": "给具体车位添加标签后，该标签应在搜索中显示、可选中，并能查找到同一车位。标签所属车位/园区/楼层身份必须可核；不以固定地图预置标签文字出现替代。",
       "applies_to": {
         "app": "qiankun_hm",
         "app_version": "1.0.26.100"
       },
-      "status": "unconfirmed",
+      "status": "confirmed",
       "source": {
-        "type": "test_goal",
-        "ref": "本轮用户要求将用例表自动化；https://github.com/amazing-fish/ghost_VPD/issues/65 附录A：界面显示/卡片区域显示/点击进入搜索二级页面。仅用例名索引可用，以下操作级候选由Agent细化，不是原表完整预期抄录。"
+        "type": "reviewer",
+        "ref": "用户当前会话明确的242要求；docs/reviews/K89_20261026_FOLLOWUP.json"
       },
-      "note": "2026-10-26用户要求修改后形成的v4候选，尚未确认；旧运行和旧审阅快照保留。",
+      "note": "用户明确的业务要求；自动化步骤与当前v5资产尚待独立人审，原表整行验收仍待核。",
       "created": "2026-10-25T03:41:11.079+08:00",
       "history": [
         {
@@ -3113,8 +3113,25 @@
           "review_snapshot": "2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c",
           "previous_statement": "候选子范围：首页搜索入口进入搜索二级页，目的地/车位号输入框与电梯口、充电桩筛选入口显示；不包括提交查询或算路。",
           "why": "按用户直接提交的修改意见细化，未确认本修订候选"
+        },
+        {
+          "ts": "2026-10-25T20:26:52.063360+00:00",
+          "event": "user_requirement_clarified",
+          "previous_statement": "搜索二级页显示当前地图实际拥有的标签信息，标签应与地图上的车位POI对应；标签集合随地图变化，不固定要求电梯口和充电桩。当前缺少完整POI自动读数，对应关系必须待核，不能以标签出现替代。",
+          "source": "docs/reviews/K89_20261026_FOLLOWUP.json",
+          "why": "用户明确贴标签后在搜索中显示、选中、查找；此前地图预置标签解释不作为验收。"
+        },
+        {
+          "ts": "2026-10-26T04:26:52.082+08:00",
+          "from": "unconfirmed",
+          "to": "confirmed",
+          "by": "用户（当前会话）",
+          "basis": "用户明确：点击车位后可以打上标签，这个标签预计在搜索中可显示、选中和查找；docs/reviews/K89_20261026_FOLLOWUP.json"
         }
-      ]
+      ],
+      "confirmed_by": "用户（当前会话）",
+      "confirmed_at": "2026-10-26T04:26:52.082+08:00",
+      "confirm_basis": "用户明确：点击车位后可以打上标签，这个标签预计在搜索中可显示、选中和查找；docs/reviews/K89_20261026_FOLLOWUP.json"
     },
     {
       "id": "K-QK-IDX-243",

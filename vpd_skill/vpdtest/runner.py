@@ -58,6 +58,18 @@ def run_facts(app, pre: dict, declared: dict) -> dict:
     return out
 
 
+def cleanup_dispatch_owned(steps: list, owner: str) -> bool:
+    """Only the named main user-data action's primary/clear send grants cleanup ownership.
+
+    Unknown send outcomes may have changed data. Lookup scrolling and dialog
+    recovery alone do not create ownership of the requested user-data mutation.
+    """
+    source = next((s for s in steps if s["step_id"] == owner), {})
+    return any(bool(record) and record.get("sent") is not False
+               for attempt in source.get("attempts", [])
+               for record in (attempt.get("dispatch"), attempt.get("clear")) if isinstance(record, dict))
+
+
 def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] = None, device_spec: Optional[str] = None,
              overlay=None, env: Optional[dict] = None, run_id: Optional[str] = None, propose: bool = True,
              authorize: Optional[list] = None, supervisor: Optional[str] = None, require_asset_review: bool = False) -> dict:
@@ -205,10 +217,21 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
             safety_stops.append(safety_mod.safe_stop(ex, "motion_timeout" if ctx.motion.locked()
                                                      else "case_end_still_moving"))
         for i, c in enumerate(case.get("cleanup", [])):
-            res = ex.run_step({"critical": False, "retry": 0, **c, "id": c.get("id", f"C{i + 1}")}, case["id"])
+            owner = c.get("after_dispatch")
+            operation = {"critical": False, "retry": 0, **c, "id": c.get("id", f"C{i + 1}")}
+            operation.pop("after_dispatch", None)
+            owned = owner is None or cleanup_dispatch_owned(steps, owner)
+            if owned:
+                res = ex.run_step(operation, case["id"])
+            else:
+                res = {"step_id": operation["id"], "action": operation["action"], "critical": False,
+                       "outcome": "skipped", "attempts": [], "recoveries": [], "adapted": False,
+                       "final_status": "cleanup_not_owned", "reason": "本次未下发所引用的用户数据动作，不清理既有数据"}
+            if owner is not None:
+                res["cleanup_guard"] = {"after_dispatch": owner, "may_have_changed_user_data": owned}
             if res.get("final_status") == "safety_hold":
                 res.update(outcome="not_run", reason="安全停止未确认，清理暂停，需人工接管")
-            res["required"] = c.get("required", True)  # 默认必需：清理没完成就不能判通过
+            res["required"] = c.get("required", True) if owned else False
             cleanup.append(res)
             store.event("cleanup_done", step=res["step_id"], outcome=res["outcome"], required=res["required"])
     else:
