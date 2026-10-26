@@ -1,0 +1,609 @@
+{
+  "format_version": 1,
+  "kind": "source_to_asset_scope_mapping",
+  "baseline": {
+    "id": "onebox-9month-20261026",
+    "snapshot": "onebox-9month-20261026.json",
+    "issue": "https://github.com/amazing-fish/ghost_VPD/issues/102"
+  },
+  "asset_source_commit": "4e960e9352afe56667484752a60b8ca51fdad70c",
+  "asset_inventory": {
+    "at_commit": "4e960e9352afe56667484752a60b8ca51fdad70c",
+    "all_case_count": 41,
+    "qiankun_case_count": 32,
+    "all_status_counts": {
+      "exploration_record": 10,
+      "draft": 31
+    },
+    "qiankun_status_counts": {
+      "draft": 28,
+      "exploration_record": 4
+    },
+    "cases": [
+      {
+        "id": "TC-HM-S01",
+        "app": "motor_hm",
+        "version": 1,
+        "status": "exploration_record",
+        "path": "vpd_skill/data/cases/TC-HM-S01.json"
+      },
+      {
+        "id": "TC-MOTOR-HM-001",
+        "app": "motor_hm",
+        "version": 1,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-MOTOR-HM-001.json"
+      },
+      {
+        "id": "TC-MOTOR-HM-002",
+        "app": "motor_hm",
+        "version": 1,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-MOTOR-HM-002.json"
+      },
+      {
+        "id": "TC-MOTOR-HM-003",
+        "app": "motor_hm",
+        "version": 1,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-MOTOR-HM-003.json"
+      },
+      {
+        "id": "TC-MOTOR-HM-004",
+        "app": "motor_hm",
+        "version": 1,
+        "status": "exploration_record",
+        "path": "vpd_skill/data/cases/TC-MOTOR-HM-004.json"
+      },
+      {
+        "id": "TC-MOTOR-HM-005",
+        "app": "motor_hm",
+        "version": 1,
+        "status": "exploration_record",
+        "path": "vpd_skill/data/cases/TC-MOTOR-HM-005.json"
+      },
+      {
+        "id": "TC-MOTOR-HM-006",
+        "app": "motor_hm",
+        "version": 2,
+        "status": "exploration_record",
+        "path": "vpd_skill/data/cases/TC-MOTOR-HM-006.json"
+      },
+      {
+        "id": "TC-MOTOR-HM-007",
+        "app": "motor_hm",
+        "version": 2,
+        "status": "exploration_record",
+        "path": "vpd_skill/data/cases/TC-MOTOR-HM-007.json"
+      },
+      {
+        "id": "TC-MOTOR-HM-008",
+        "app": "motor_hm",
+        "version": 2,
+        "status": "exploration_record",
+        "path": "vpd_skill/data/cases/TC-MOTOR-HM-008.json"
+      },
+      {
+        "id": "TC-QK-101",
+        "app": "qiankun_hm",
+        "version": 1,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-101.json"
+      },
+      {
+        "id": "TC-QK-102",
+        "app": "qiankun_hm",
+        "version": 1,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-102.json"
+      },
+      {
+        "id": "TC-QK-103",
+        "app": "qiankun_hm",
+        "version": 1,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-103.json"
+      },
+      {
+        "id": "TC-QK-201",
+        "app": "qiankun_hm",
+        "version": 1,
+        "status": "exploration_record",
+        "path": "vpd_skill/data/cases/TC-QK-201.json"
+      },
+      {
+        "id": "TC-QK-202",
+        "app": "qiankun_hm",
+        "version": 1,
+        "status": "exploration_record",
+        "path": "vpd_skill/data/cases/TC-QK-202.json"
+      },
+      {
+        "id": "TC-QK-211",
+        "app": "qiankun_hm",
+        "version": 2,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-211.json"
+      },
+      {
+        "id": "TC-QK-212",
+        "app": "qiankun_hm",
+        "version": 2,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-212.json"
+      },
+      {
+        "id": "TC-QK-213",
+        "app": "qiankun_hm",
+        "version": 2,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-213.json"
+      },
+      {
+        "id": "TC-QK-214",
+        "app": "qiankun_hm",
+        "version": 2,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-214.json"
+      },
+      {
+        "id": "TC-QK-215",
+        "app": "qiankun_hm",
+        "version": 2,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-215.json"
+      },
+      {
+        "id": "TC-QK-216",
+        "app": "qiankun_hm",
+        "version": 2,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-216.json"
+      },
+      {
+        "id": "TC-QK-217",
+        "app": "qiankun_hm",
+        "version": 2,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-217.json"
+      },
+      {
+        "id": "TC-QK-218",
+        "app": "qiankun_hm",
+        "version": 2,
+        "status": "exploration_record",
+        "path": "vpd_skill/data/cases/TC-QK-218.json"
+      },
+      {
+        "id": "TC-QK-219",
+        "app": "qiankun_hm",
+        "version": 2,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-219.json"
+      },
+      {
+        "id": "TC-QK-221",
+        "app": "qiankun_hm",
+        "version": 2,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-221.json"
+      },
+      {
+        "id": "TC-QK-222",
+        "app": "qiankun_hm",
+        "version": 2,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-222.json"
+      },
+      {
+        "id": "TC-QK-223",
+        "app": "qiankun_hm",
+        "version": 4,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-223.json"
+      },
+      {
+        "id": "TC-QK-226",
+        "app": "qiankun_hm",
+        "version": 2,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-226.json"
+      },
+      {
+        "id": "TC-QK-227",
+        "app": "qiankun_hm",
+        "version": 2,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-227.json"
+      },
+      {
+        "id": "TC-QK-228",
+        "app": "qiankun_hm",
+        "version": 2,
+        "status": "exploration_record",
+        "path": "vpd_skill/data/cases/TC-QK-228.json"
+      },
+      {
+        "id": "TC-QK-229",
+        "app": "qiankun_hm",
+        "version": 2,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-229.json"
+      },
+      {
+        "id": "TC-QK-230",
+        "app": "qiankun_hm",
+        "version": 2,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-230.json"
+      },
+      {
+        "id": "TC-QK-240",
+        "app": "qiankun_hm",
+        "version": 3,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-240.json"
+      },
+      {
+        "id": "TC-QK-241",
+        "app": "qiankun_hm",
+        "version": 3,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-241.json"
+      },
+      {
+        "id": "TC-QK-242",
+        "app": "qiankun_hm",
+        "version": 4,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-242.json"
+      },
+      {
+        "id": "TC-QK-243",
+        "app": "qiankun_hm",
+        "version": 3,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-243.json"
+      },
+      {
+        "id": "TC-QK-244",
+        "app": "qiankun_hm",
+        "version": 3,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-244.json"
+      },
+      {
+        "id": "TC-QK-245",
+        "app": "qiankun_hm",
+        "version": 3,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-245.json"
+      },
+      {
+        "id": "TC-QK-246",
+        "app": "qiankun_hm",
+        "version": 3,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-246.json"
+      },
+      {
+        "id": "TC-QK-247",
+        "app": "qiankun_hm",
+        "version": 3,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-247.json"
+      },
+      {
+        "id": "TC-QK-248",
+        "app": "qiankun_hm",
+        "version": 6,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-248.json"
+      },
+      {
+        "id": "TC-QK-249",
+        "app": "qiankun_hm",
+        "version": 3,
+        "status": "draft",
+        "path": "vpd_skill/data/cases/TC-QK-249.json"
+      }
+    ],
+    "source_claim_correction": "Issue102/103的40份TC-QK及4replay_verified等是历史工作机口径，不是本固定主干目录清单。"
+  },
+  "mapped_assets": [
+    {
+      "case_id": "TC-QK-240",
+      "case_version_at_base": 3,
+      "asset_source_commit": "4e960e9352afe56667484752a60b8ca51fdad70c",
+      "relationships": [
+        {
+          "baseline_row": "UI-31",
+          "relationship": "partial_candidate",
+          "implemented_scope": [
+            "当前唯一园区信息行的完整名称"
+          ],
+          "not_covered_or_not_verified": [
+            "完整地图就绪和原表前置尚未按新基线验收"
+          ],
+          "formal_full_row_accepted": false
+        }
+      ],
+      "asset_review": "not_changed_or_reassessed",
+      "new_automated_case_count": 0
+    },
+    {
+      "case_id": "TC-QK-241",
+      "case_version_at_base": 3,
+      "asset_source_commit": "4e960e9352afe56667484752a60b8ca51fdad70c",
+      "relationships": [
+        {
+          "baseline_row": "UI-32",
+          "relationship": "partial_candidate",
+          "implemented_scope": [
+            "同一园区信息行中正整数车位数量的显示"
+          ],
+          "not_covered_or_not_verified": [
+            "支持车位数量的独立准确性来源；不是任意正整数即可代表真实库存"
+          ],
+          "formal_full_row_accepted": false
+        }
+      ],
+      "asset_review": "not_changed_or_reassessed",
+      "new_automated_case_count": 0
+    },
+    {
+      "case_id": "TC-QK-242",
+      "case_version_at_base": 4,
+      "asset_source_commit": "4e960e9352afe56667484752a60b8ca51fdad70c",
+      "relationships": [
+        {
+          "baseline_row": "UI-34",
+          "relationship": "partial_candidate",
+          "implemented_scope": [
+            "进入搜索二级页和输入提示；主干v4还保留标签/POI必需视觉待核"
+          ],
+          "not_covered_or_not_verified": [
+            "v4不是完整标签写入/搜索链路，尚无本版完整基线验收"
+          ],
+          "formal_full_row_accepted": false
+        }
+      ],
+      "asset_review": "not_changed_or_reassessed",
+      "new_automated_case_count": 0
+    },
+    {
+      "case_id": "TC-QK-243",
+      "case_version_at_base": 3,
+      "asset_source_commit": "4e960e9352afe56667484752a60b8ca51fdad70c",
+      "relationships": [
+        {
+          "baseline_row": "UI-19",
+          "relationship": "partial_candidate",
+          "implemented_scope": [
+            "同一楼层控件组显示L1/B1"
+          ],
+          "not_covered_or_not_verified": [
+            "当前车辆实际楼层正确性和车辆图标归属；切层属于UI20另行验收"
+          ],
+          "formal_full_row_accepted": false
+        }
+      ],
+      "asset_review": "not_changed_or_reassessed",
+      "new_automated_case_count": 0
+    },
+    {
+      "case_id": "TC-QK-244",
+      "case_version_at_base": 3,
+      "asset_source_commit": "4e960e9352afe56667484752a60b8ca51fdad70c",
+      "relationships": [
+        {
+          "baseline_row": "UI-30",
+          "relationship": "partial_candidate",
+          "implemented_scope": [
+            "支持区域二级页标题、当前城市、列表终态与当前园区"
+          ],
+          "not_covered_or_not_verified": [
+            "需按UI30完整前置和当前绑定登记；所有园区正确性不在本行范围内"
+          ],
+          "formal_full_row_accepted": false
+        }
+      ],
+      "asset_review": "not_changed_or_reassessed",
+      "new_automated_case_count": 0
+    },
+    {
+      "case_id": "TC-QK-245",
+      "case_version_at_base": 3,
+      "asset_source_commit": "4e960e9352afe56667484752a60b8ca51fdad70c",
+      "relationships": [
+        {
+          "baseline_row": "OP-03",
+          "relationship": "partial_candidate",
+          "implemented_scope": [
+            "打开城市列表、查询上海并选回上海"
+          ],
+          "not_covered_or_not_verified": [
+            "原行要求点击不同城市后跳转，当前仅选回原城市不足"
+          ],
+          "formal_full_row_accepted": false
+        },
+        {
+          "baseline_row": "OP-04",
+          "relationship": "partial_candidate",
+          "implemented_scope": [
+            "城市列表中真实查询值和独立城市结果行"
+          ],
+          "not_covered_or_not_verified": [
+            "城市查询仅是可复用子步骤，尚未按OP04单独验收；与TC246停车场查询分开"
+          ],
+          "formal_full_row_accepted": false
+        }
+      ],
+      "asset_review": "not_changed_or_reassessed",
+      "new_automated_case_count": 0
+    },
+    {
+      "case_id": "TC-QK-246",
+      "case_version_at_base": 3,
+      "asset_source_commit": "4e960e9352afe56667484752a60b8ca51fdad70c",
+      "relationships": [
+        {
+          "baseline_row": "OP-04",
+          "relationship": "not_equivalent",
+          "implemented_scope": [
+            "脚本在停车场输入框搜索由度金闽园并核园区结果行"
+          ],
+          "not_covered_or_not_verified": [
+            "原行步骤/预期是搜索城市信息；标题相同不能替代行为等价；保留脚本为额外园区搜索能力"
+          ],
+          "formal_full_row_accepted": false
+        }
+      ],
+      "asset_review": "not_changed_or_reassessed",
+      "new_automated_case_count": 0
+    },
+    {
+      "case_id": "TC-QK-247",
+      "case_version_at_base": 3,
+      "asset_source_commit": "4e960e9352afe56667484752a60b8ca51fdad70c",
+      "relationships": [
+        {
+          "baseline_row": "OP-05",
+          "relationship": "partial_candidate",
+          "implemented_scope": [
+            "完整停车场列表行跳转园区地图，列表入口出现且原搜索输入消失"
+          ],
+          "not_covered_or_not_verified": [
+            "地图扎标点击与停车场搜索结果跳转等其余原步骤"
+          ],
+          "formal_full_row_accepted": false
+        }
+      ],
+      "asset_review": "not_changed_or_reassessed",
+      "new_automated_case_count": 0
+    },
+    {
+      "case_id": "TC-QK-248",
+      "case_version_at_base": 6,
+      "asset_source_commit": "4e960e9352afe56667484752a60b8ca51fdad70c",
+      "relationships": [
+        {
+          "baseline_row": "OP-06",
+          "relationship": "partial_candidate",
+          "implemented_scope": [
+            "当前园区位置图标/当前位置，与另一明确园区行的公里距离分别检查"
+          ],
+          "not_covered_or_not_verified": [
+            "距离相对当前界面中心的正确性；移动地图后更新合理性；不以车辆位置替代界面中心"
+          ],
+          "formal_full_row_accepted": false
+        }
+      ],
+      "asset_review": "not_changed_or_reassessed",
+      "new_automated_case_count": 0
+    },
+    {
+      "case_id": "TC-QK-249",
+      "case_version_at_base": 3,
+      "asset_source_commit": "4e960e9352afe56667484752a60b8ca51fdad70c",
+      "relationships": [
+        {
+          "baseline_row": "OP-07",
+          "relationship": "partial_candidate",
+          "implemented_scope": [
+            "同一园区卡片内的车位数量、可用楼层和总层数"
+          ],
+          "not_covered_or_not_verified": [
+            "原行选择停车场后卡片的完整前置及真实性核验；不泛化全部园区或切层"
+          ],
+          "formal_full_row_accepted": false
+        }
+      ],
+      "asset_review": "not_changed_or_reassessed",
+      "new_automated_case_count": 0
+    }
+  ],
+  "unmapped_qiankun_case_ids": [
+    "TC-QK-101",
+    "TC-QK-102",
+    "TC-QK-103",
+    "TC-QK-201",
+    "TC-QK-202",
+    "TC-QK-211",
+    "TC-QK-212",
+    "TC-QK-213",
+    "TC-QK-214",
+    "TC-QK-215",
+    "TC-QK-216",
+    "TC-QK-217",
+    "TC-QK-218",
+    "TC-QK-219",
+    "TC-QK-221",
+    "TC-QK-222",
+    "TC-QK-223",
+    "TC-QK-226",
+    "TC-QK-227",
+    "TC-QK-228",
+    "TC-QK-229",
+    "TC-QK-230"
+  ],
+  "out_of_app_case_ids": [
+    "TC-HM-S01",
+    "TC-MOTOR-HM-001",
+    "TC-MOTOR-HM-002",
+    "TC-MOTOR-HM-003",
+    "TC-MOTOR-HM-004",
+    "TC-MOTOR-HM-005",
+    "TC-MOTOR-HM-006",
+    "TC-MOTOR-HM-007",
+    "TC-MOTOR-HM-008"
+  ],
+  "unmapped_boundary": "未映射表示本包尚未逐项审查，不表示无相关行为、已失败或已通过；其他APP资产不计为乾崑VPD覆盖。",
+  "pending_delivery_at_base": {
+    "case_id": "TC-QK-242",
+    "version": 6,
+    "pr": "https://github.com/amazing-fish/ghost_VPD/pull/100",
+    "head": "3a4d730b0e8367d2eda319bbcf7d278662d84af3",
+    "code_status": "not_in_main_at_asset_source_commit",
+    "scope": "给指定A207车位打楼梯口标签→搜索显示→选中→空查询命中同一园区/楼层/POI→撤回本次新增标签",
+    "relationships_after_delivery_candidate": [
+      {
+        "baseline_row": "RT-04",
+        "relationship": "partial_candidate",
+        "implemented_scope": [
+          "指定楼梯口标签的搜索、选中及同一POI命中"
+        ],
+        "not_covered_or_not_verified": [
+          "未泛化其他标签、其他园区/楼层或完整结果集合；资产人审和重放资格单独办理"
+        ],
+        "formal_full_row_accepted": false
+      },
+      {
+        "baseline_row": "UI-34",
+        "relationship": "partial_candidate",
+        "implemented_scope": [
+          "打开搜索页仅为链路中的一个子步骤"
+        ],
+        "not_covered_or_not_verified": [
+          "不能把更大标签链路只按原UI34标题登记"
+        ],
+        "formal_full_row_accepted": false
+      },
+      {
+        "baseline_row": "DM-02",
+        "relationship": "not_equivalent",
+        "implemented_scope": [
+          "本地编辑标签是链路准备动作"
+        ],
+        "not_covered_or_not_verified": [
+          "DM02还包括命名、泊入偏好和跨端同步，不等价为完整DM02"
+        ],
+        "formal_full_row_accepted": false
+      }
+    ],
+    "note": "只记录固定基线下的交付缺口和候选对应；不得把PR merged标签或分支源码当作已入main。"
+  },
+  "formal_full_rows_accepted_by_this_package": 0,
+  "new_automated_cases_added_by_this_package": 0,
+  "runtime_consumption": "documentation_only; existing runtime, policy, knowledge and case review data are unchanged"
+}
