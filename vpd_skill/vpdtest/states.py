@@ -15,7 +15,7 @@ from .tree import MODAL_TYPES, UiTree
 from .util import short_hash
 
 
-def _texts_match(spec: dict, tree: UiTree, scope: Optional[list] = None, owner_modal=None) -> bool:
+def _texts_match(spec: dict, tree: UiTree, scope: Optional[list] = None, owner_modal=None, node_filter=None) -> bool:
     """scope=None 在整个窗口上匹配；给定分栏节点时只看该栏内的文本（选中态仍按整棵树的容器判断）。"""
     def owned(node):
         if owner_modal is None:
@@ -23,8 +23,9 @@ def _texts_match(spec: dict, tree: UiTree, scope: Optional[list] = None, owner_m
         nearest = next((n for n in [node] + tree.ancestors(node) if n.type in MODAL_TYPES), None)
         return nearest is not None and nearest.idx == owner_modal.idx
 
-    texts = (tree.texts_in(scope) if owner_modal is None else
-             [t for n in tree.nodes if tree.shown(n) and tree.in_scope(n, scope) and owned(n)
+    visible = tree.shown if node_filter is None else node_filter
+    texts = (tree.texts_in(scope) if owner_modal is None and node_filter is None else
+             [t for n in tree.nodes if visible(n) and tree.in_scope(n, scope) and owned(n)
               for t in (n.text.strip(), n.description.strip()) if t])
     for t in spec.get("require_text", []):
         if t not in texts:
@@ -41,7 +42,8 @@ def _texts_match(spec: dict, tree: UiTree, scope: Optional[list] = None, owner_m
         if any(re.search(pat, x) for x in texts):
             return False
     for t in spec.get("require_selected_text", []):
-        if not any(is_selected(tree, n) for n in tree.find_text(t) if tree.in_scope(n, scope) and owned(n)):
+        if not any(is_selected(tree, n) for n in tree.find_text(t)
+                   if visible(n) and tree.in_scope(n, scope) and owned(n)):
             return False
     return True
 
@@ -92,14 +94,14 @@ class StateModel:
             return None
         return node
 
-    def _matches(self, spec, tree, scope=None, layout=None):
+    def _matches(self, spec, tree, scope=None, layout=None, node_filter=None):
         panes = (layout or {}).get("panes") or []
         if scope is None and "require_target" in spec and len(panes) > 1:
             # A structural signature cannot combine text in one pane with an
             # input in another, even when the whole-window text set matches.
-            return any(self._matches(spec, tree, [tree.nodes[p["node_idx"]]], layout)
+            return any(self._matches(spec, tree, [tree.nodes[p["node_idx"]]], layout, node_filter)
                        for p in panes if type(p.get("node_idx")) is int and 0 <= p["node_idx"] < len(tree.nodes))
-        return (_texts_match(spec, tree, scope) and
+        return (_texts_match(spec, tree, scope, node_filter=node_filter) and
                 ("require_target" not in spec or
                  self._target_node(spec["require_target"], tree, scope, layout) is not None))
 

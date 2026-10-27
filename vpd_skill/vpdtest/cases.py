@@ -59,16 +59,52 @@ def content_hash(case: dict) -> str:
     return sha256_obj(body)[:12]
 
 
+def _condition_references(case: dict, app, knowledge=None):
+    """Actual guards and direct Oracle requirements share one provider selection."""
+    from .conditions import definitions
+    oracles, names = set(), set()
+    for step, _, _ in iter_case_steps(case, app):
+        for guard in (step.get("when"), step.get("dismiss_obstruction_when")):
+            if isinstance(guard, dict) and isinstance(guard.get("condition"), str):
+                names.add(guard["condition"])
+        oracles.update(step.get("oracle_refs") or [])
+    for assertion in case.get("assertions", []):
+        guard = assertion.get("guard")
+        if isinstance(guard, dict) and isinstance(guard.get("condition"), str):
+            names.add(guard["condition"])
+        oracles.update(assertion.get("oracle_refs") or [])
+    if knowledge is not None:
+        for ref in oracles:
+            requirements = (knowledge.get(ref) or {}).get("condition_requirements")
+            if isinstance(requirements, dict):
+                names.update(requirements)
+    providers = definitions(case, app)
+    selected = {name: providers.get(name) for name in sorted(names)} if isinstance(providers, dict) else providers
+    return oracles, names, selected
+
+
+def _provider_target_refs(value):
+    if isinstance(value, dict):
+        yield value.get("target")
+        if isinstance(value.get("scope"), dict):
+            yield from value["scope"].values()
+        for child in value.values():
+            yield from _provider_target_refs(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _provider_target_refs(child)
+
+
 def dependency_hash(case: dict, app, knowledge) -> str:
     """用例引用的外部定义的指纹：content_hash 只覆盖用例文件本身，但目标选择器、展开后的 flow/recipe 步骤、
     页面状态/打断定义、判据语义或其直接冲突项、被引用模板字节改了，旧重放不再作数。
     有效判据的确认状态、历史不计入（确认之后不必重新重放）；废弃/无效使旧重放失效。
     result_contract 绑定结果语义，旧引擎的阻塞/产品候选不能充当新契约的确定重放。"""
-    from .conditions import definitions
     from .params import Params
     from .readrefs import has_read_ref
 
-    steps, targets, oracles, used_conditions, templates = [], {}, set(), set(), {}
+    steps, targets, templates = [], {}, {}
+    oracles, used_conditions, conditions = _condition_references(case, app, knowledge)
     # Never load secrets or evaluate run-generated data just to fingerprint files.
     data = {k: v for k, v in (case.get("test_data") or {}).items()
             if not (isinstance(v, dict) and ("secret" in v or "template" in v))}
@@ -91,51 +127,25 @@ def dependency_hash(case: dict, app, knowledge) -> str:
                     path = (app.dir / file).resolve()
                     templates[file] = sha256_file(path) if path.is_file() else None
 
-    def want_guard(guard):
-        if isinstance(guard, dict) and isinstance(guard.get("condition"), str):
-            used_conditions.add(guard["condition"])
-
-    def want_provider_targets(value):
-        if isinstance(value, dict):
-            want(value.get("target"))
-            # Scope values are target references (vehicle/task/account identity).
-            if isinstance(value.get("scope"), dict):
-                for target in value["scope"].values():
-                    want(target)
-            for child in value.values():
-                want_provider_targets(child)
-        elif isinstance(value, list):
-            for child in value:
-                want_provider_targets(child)
-
     for s, parent, where in iter_case_steps(case, app):
         steps.append([where, {k: v for k, v in s.items() if k != "_lint_cycle"}])
         local = (params.subst(parent.get("params", {})) if parent and parent.get("action") == "flow"
                  else s.get("_flow_params"))
         want(s.get("target"), local, substitute=True)
-        want_guard(s.get("when"))
-        want_guard(s.get("dismiss_obstruction_when"))
-        oracles.update(s.get("oracle_refs") or [])
     for a in case.get("assertions", []):
         want(a.get("target"))
         want(a.get("within"))
-        want_guard(a.get("guard"))
-        oracles.update(a.get("oracle_refs") or [])
     facts = {}
     for kid, item in sorted(knowledge.dependency_items(oracles).items()):
         keys = ("expected", "applies_to", "condition_requirements")
         if kid in oracles:
             keys += ("statement", "kind", "subject")
         facts[kid] = {k: item.get(k) for k in keys}
-        requirements = item.get("condition_requirements")
-        if kid in oracles and isinstance(requirements, dict):
-            used_conditions.update(requirements)
         if item_status(item) not in ACTIVE:
             facts[kid]["inactive"] = True
-    providers = definitions(case, app)
-    conditions = {name: providers.get(name) for name in sorted(used_conditions)} if isinstance(providers, dict) else providers
     for provider in conditions.values() if isinstance(conditions, dict) else []:
-        want_provider_targets(provider)
+        for ref in _provider_target_refs(provider):
+            want(ref)
     for state in app.states.states.values():
         want(state.get("require_target"))
         want(state.get("navigation_context_target"))
@@ -145,6 +155,7 @@ def dependency_hash(case: dict, app, knowledge) -> str:
     return sha256_obj({"steps": steps, "targets": targets, "states": app.states.states,
                        "interrupts": app.states.interrupts, "oracles": facts, "conditions": conditions,
                        **({"templates": templates} if templates else {}), "result_contract": 7,
+                       **({"condition_evidence_contract": 1} if used_conditions else {}),
                        **({"read_references_contract": 1} if has_read_ref(case) else {})})[:12]
 
 
@@ -369,8 +380,8 @@ def assertion_scope_issues(case: dict, app) -> list:
     return issues
 
 
-def hypothesis_targets(case: dict, app) -> list:
-    """用例（含流程/recipe 展开）会用到的 status=hypothesis 目标：原工程没有、未经真机校准的控件。"""
+def hypothesis_targets(case: dict, app, knowledge=None) -> list:
+    """实际用到的 hypothesis 目标；资产 lint 传 knowledge 以包含规则的条件前提。"""
     used = []
     for s, _, _ in iter_case_steps(case, app):
         t = s.get("target")
@@ -378,6 +389,12 @@ def hypothesis_targets(case: dict, app) -> list:
             used.append(t)
     for a in case.get("assertions", []):
         for t in (a.get("target"), a.get("within")):
+            target = app.targets.get(t) if isinstance(t, str) else None
+            if isinstance(target, dict) and target.get("status") == "hypothesis" and t not in used:
+                used.append(t)
+    _, _, conditions = _condition_references(case, app, knowledge)
+    for provider in conditions.values() if isinstance(conditions, dict) else []:
+        for t in _provider_target_refs(provider):
             target = app.targets.get(t) if isinstance(t, str) else None
             if isinstance(target, dict) and target.get("status") == "hypothesis" and t not in used:
                 used.append(t)
@@ -513,7 +530,7 @@ def lint(case: dict, app, knowledge, policy=None, runs_dir: Optional[Path] = Non
             issues.append({"field": "layout_requirements", "problem": f"{k} 不能在启动前判定，可用 {list(REQUIREMENT_KEYS)}；"
                                                                      "是否分栏请写成步骤后的断言"})
     issues += _lint_effects(case, app, policy)
-    hyp = hypothesis_targets(case, app)
+    hyp = hypothesis_targets(case, app, knowledge)
     if hyp:
         issues.append({"field": "targets", "problem": f"用到未经真机校准的假设目标 {hyp}（status=hypothesis）："
                                                       "先在真机上校准选择器并改为 calibrated_on_device，才能晋级"})
