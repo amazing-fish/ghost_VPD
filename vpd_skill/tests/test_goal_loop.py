@@ -8,6 +8,7 @@ import json
 import pytest
 
 from conftest import confirm, world
+from verdict_fixtures import NAV_RULE
 from vpdtest import cases as C
 from vpdtest.cli import HANDLERS, build_parser
 from vpdtest.knowledge import KnowledgeStore, applicability
@@ -449,16 +450,28 @@ def test_clipped_text_is_not_visible_evidence():
 
 # ---- 知识检索：区分产品要求 / 操作经验 / 现场观察，适用范围未知就写未知 ----
 
-def test_knowledge_search_roles_and_applicability(ws):
-    out = search(ws, "收藏 重命名", "qiankun_hm", facts={"app_version": "1.0.26.100", "device_form": "bar"})
+def test_knowledge_search_roles_and_applicability(verdict_ws):
+    ws = verdict_ws
+    kn = KnowledgeStore(ws.root)
+    observed = "K-TEST-SEARCH-OBS"
+    kn.add({"id": observed, "kind": "product_rule", "subject": "pytest.search.observation",
+            "statement": "合成检索观察来源规则", "expected": "synthetic-search",
+            "applies_to": {"app": "motor_hm", "app_version": "synthetic-debug-build"},
+            "source": {"type": "observation", "ref": "tests/test_goal_loop.py synthetic contract"}})
+    facts = {"app_version": "3.0.3.200", "device_form": "bar"}
+    out = search(ws, f"{NAV_RULE} {observed} tab_my", "motor_hm", facts=facts)
     by_ref = {r["ref"]: r for rows in out["results"].values() for r in rows}
-    assert by_ref["K-AV-010"]["role"] == "observation" and by_ref["K-AV-010"]["applicability"] == "unknown"
-    assert by_ref["K-QK-USR-003"]["role"] == "requirement" and by_ref["K-QK-USR-003"]["can_be_oracle"] is False
-    assert any(r.startswith("target:") and by_ref[r]["callable"].startswith("act tap --target") for r in by_ref)
+    assert by_ref[observed]["role"] == "observation" and by_ref[observed]["applicability"] == "unknown"
+    assert by_ref[NAV_RULE]["role"] == "requirement" and by_ref[NAV_RULE]["can_be_oracle"] is False
+    assert by_ref["target:tab_my"]["callable"].startswith("act tap --target")
     assert out["usable_oracles"] == [] and out["gaps"]
-    # 标为 product_rule 但来源是单次观察：如实归为现场观察
-    k12 = search(ws, "K-AV-012", "qiankun_hm")["results"]["observation"][0]
-    assert k12["ref"] == "K-AV-012" and "现场观察" in k12["note"]
+    assert "现场观察" in by_ref[observed]["note"]
+    # Only this temporary synthetic rule changes status; unknown scope still cannot be an Oracle.
+    kn.confirm(observed, reviewer="pytest-synthetic", basis="仅合成检索分类契约，非产品确认")
+    confirmed = search(ws, observed, "motor_hm", facts=facts)
+    row = confirmed["results"]["requirement"][0]
+    assert row["ref"] == observed and row["applicability"] == "unknown"
+    assert row["can_be_oracle"] is False and confirmed["usable_oracles"] == []
 
 
 def test_in_page_failure_text_is_flagged_as_ui_alert(ws, tmp_path):
