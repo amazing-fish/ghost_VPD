@@ -59,20 +59,27 @@ def content_hash(case: dict) -> str:
     return sha256_obj(body)[:12]
 
 
-def _condition_references(case: dict, app, knowledge=None):
+def _condition_references(case: dict, app, knowledge=None, *, strict=False):
     """Actual guards and direct Oracle requirements share one provider selection."""
     from .conditions import definitions
     oracles, names = set(), set()
-    for step, _, _ in iter_case_steps(case, app):
+    def collect_refs(row, where):
+        refs = row.get("oracle_refs")
+        if strict and refs is not None and (not isinstance(refs, list)
+                                           or any(not isinstance(ref, str) or not ref for ref in refs)):
+            raise ValueError(f"{where}.oracle_refs 须为列表，元素须为非空知识 ID 字符串")
+        oracles.update(refs or [])
+
+    for step, _, where in iter_case_steps(case, app, strict=strict):
         for guard in (step.get("when"), step.get("dismiss_obstruction_when")):
             if isinstance(guard, dict) and isinstance(guard.get("condition"), str):
                 names.add(guard["condition"])
-        oracles.update(step.get("oracle_refs") or [])
-    for assertion in case.get("assertions", []):
+        collect_refs(step, where)
+    for index, assertion in enumerate(case.get("assertions", [])):
         guard = assertion.get("guard")
         if isinstance(guard, dict) and isinstance(guard.get("condition"), str):
             names.add(guard["condition"])
-        oracles.update(assertion.get("oracle_refs") or [])
+        collect_refs(assertion, f"assertions.{assertion.get('id', index)}")
     if knowledge is not None:
         for ref in oracles:
             requirements = (knowledge.get(ref) or {}).get("condition_requirements")
@@ -93,6 +100,35 @@ def _provider_target_refs(value):
     elif isinstance(value, list):
         for child in value:
             yield from _provider_target_refs(child)
+
+
+def knowledge_references(ws, kid: str) -> dict:
+    """Read current case declarations for a confirmation response; never run or rewrite assets."""
+    out = {"scope": "workspace_case_declarations", "status": "complete", "cases": [], "errors": [],
+           "tests": "not_scanned",
+           "note": "当前 cases/*.json 的显式引用，用于选择后续核对范围；运行判定、复验需求和审核状态沿原门禁计算"}
+    apps = {}
+    try:
+        paths = sorted((ws.root / "cases").glob("*.json"))
+    except Exception as exc:
+        out.update(status="incomplete", errors=[{"case": None, "error": str(exc)}])
+        return out
+    for path in paths:
+        try:
+            case = read_json(path)
+            app_id = case["app"]
+            if app_id not in apps:
+                apps[app_id] = ws.app(app_id)
+            refs, _, _ = _condition_references(case, apps[app_id], strict=True)
+            uses = ["oracle_refs"] if kid in refs else []
+            if any(entry and entry.get("id") == kid for entry in case.get("knowledge_used") or []):
+                uses.append("knowledge_used")
+            if uses:
+                out["cases"].append({"case": case.get("id", path.stem), "app": app_id, "uses": uses})
+        except Exception as exc:
+            out["status"] = "incomplete"
+            out["errors"].append({"case": path.stem, "error": str(exc)})
+    return out
 
 
 def dependency_hash(case: dict, app, knowledge) -> str:
@@ -270,18 +306,25 @@ def preflight_batch(ws, case_ids: list) -> list:
     return [require_review(ws, ws.load_case(cid), knowledge, policy=policy) for cid in case_ids]
 
 
-def iter_case_steps(case: dict, app):
+def iter_case_steps(case: dict, app, *, strict=False):
     """步骤、清理、安全停止和引用的 flow/recipe 共用来源；保留可定位的字段路径。"""
     def walk(step, parent, where, ancestry=()):
         action = step.get("action")
         children, key = [], None
         if action == "flow":
             key = (action, step.get("flow"))
-            children = (app.flows.get(key[1]) or {}).get("steps", [])
+            flow = app.flows.get(key[1])
+            if strict and (not isinstance(flow, dict) or not isinstance(flow.get("steps"), list)):
+                raise ValueError(f"{where}: flows.json 中没有可展开流程 {key[1]}")
+            children = (flow or {}).get("steps", [])
         elif action == "ensure_state":
             key = (action, step.get("state"))
+            if strict and not isinstance(app.states.recipes.get(key[1]), list):
+                raise ValueError(f"{where}: 没有到达 {key[1]} 的可展开 recipe")
             children = app.states.recipes.get(key[1], [])
         if key is not None and key in ancestry:
+            if strict:
+                raise ValueError(f"{where}: flow/recipe 存在递归引用")
             yield {**step, "_lint_cycle": True}, parent, where
             return
         yield step, parent, where
