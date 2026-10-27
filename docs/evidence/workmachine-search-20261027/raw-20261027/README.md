@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | `session-s293/steps.jsonl` | 每步一条：`seq/ts/step/result/input_value`；`result` 内含 `attempts[]`（`locate`、`dispatch`、`policy`）、`recoveries`、`adapted`、`outcome`、`final_obs` | 与 CLI 的 `result` 字段同源 |
 | `session-s293/events.jsonl` | 事件流：`act_request`（含 `request`，即 `select/side_effect/allow_input/text` 实参）、`attempt`、`dispatch`、`revalidate`、`clear_text`、`act_result`（`outcome/effect_unknown/dispatched/obs_before/obs_after`） | 与 CLI 顶层 `action_status`/`dispatched` 同源 |
-| `session-s293/trees/*.json.gz`、`session-s293/screens/*.png` | 每次 observe 的 AA 树（gzip 无损）与截图 | CLI 不产出，属 obs 证据 |
+| `session-s293/trees/*.json`、`session-s118/trees/*.json` | 每次 observe 的 `obs/<id>/tree.json` **逐字节副本**（未 gzip、未改写） | CLI 不产出，属 obs 证据 |
 
 **不做的事**：不把 `steps.jsonl` + `events.jsonl` 拼装成一份「完整 CLI 返回」冒充原件；缺的就是缺。
 
@@ -18,15 +18,15 @@
 
 | seq | step_id | 实际查询 | 结果 | obs_before | obs_after | 结果 obs | 本目录文件 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 14 | `A14` | `1号车位` | passed | `obs-0042` | `obs-0045` | `obs-0046` | `trees/obs-0042,obs-0045`、`screens/obs-0046` |
-| 15 | `A15` | `I1` | passed | `obs-0047` | `obs-0050` | `obs-0051` | `trees/obs-0050`、`screens/obs-0051` |
-| 16 | `A16` | `1号停车点` | passed | `obs-0052` | `obs-0055` | `obs-0056` | `trees/obs-0055`、`screens/obs-0056` |
-| 17 | `A17` | `333` | passed | `obs-0057` | `obs-0060` | `obs-0061` | `trees/obs-0060`、`screens/obs-0061` |
-| 18 | `A18` | `ZZZ999`（空结果） | passed | `obs-0062` | `obs-0065` | `obs-0066` | `trees/obs-0065`、`screens/obs-0066` |
+| 14 | `A14` | `1号车位` | passed | `obs-0042` | `obs-0045` | `obs-0046` | `trees/obs-0042-tree.json`、`trees/obs-0045-tree.json`（与 obs-0046 同 sha） |
+| 15 | `A15` | `I1` | passed | `obs-0047` | `obs-0050` | `obs-0051` | `trees/obs-0050-tree.json`（与 obs-0051 同 sha） |
+| 16 | `A16` | `1号停车点` | passed | `obs-0052` | `obs-0055` | `obs-0056` | `trees/obs-0055-tree.json`（与 obs-0056 同 sha） |
+| 17 | `A17` | `333` | passed | `obs-0057` | `obs-0060` | `obs-0061` | `trees/obs-0060-tree.json`（与 obs-0061 同 sha） |
+| 18 | `A18` | `ZZZ999`（空结果） | passed | `obs-0062` | `obs-0065` | `obs-0066` | `trees/obs-0065-tree.json`（与 obs-0066 同 sha） |
 
 - 五次都走同一声明：`select=id=__SearchField__search_input`、`side_effect=navigation`、`allow_input=true`（见 `events.jsonl` 的 `act_request.request`）。
 - `obs_after` 与「结果 obs」是同一页面的两次 observe，AA 树 sha256 相同（例：`obs-0045` 与 `obs-0046` 树同 sha），所以只存一份树。
-- 每份文件的 sha256 与原始路径见 `MANIFEST.json`；截图未全部收录（只放结果页 5 张），未收录的原件指纹按需补。
+- 每份文件的 sha256 与原始路径见 `MANIFEST.json`；**截图只登记指纹、不入库**（9 张：结果页 5 张 + 本轮 s118 页面 4 张，原件留执行机），需要时按指纹核对。
 
 ## session-s118 新实测（本轮，6HQ0226505000341 / 由度金闽园 / 赛力斯M9 F2A=2681）
 
