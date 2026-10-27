@@ -113,6 +113,36 @@ def test_empty_reference_list_is_not_an_assertion_of_no_test_impact(reference_ri
     assert code == 0 and _references(out)["cases"] == []
 
 
+@pytest.mark.parametrize("placement", ["step", "assertion"])
+@pytest.mark.parametrize("value", [NAV_RULE, {NAV_RULE: True}, [123], [""]])
+def test_invalid_oracle_reference_declarations_are_incomplete(reference_rig, capsys, placement, value):
+    ws, _ = reference_rig
+    good = _case(reference_rig, "TC-SYNTHETIC-GOOD", assertions=[{"id": "A1", "oracle_refs": [NAV_RULE]}])
+    changes = ({"steps": [{"id": "S1", "action": "wait", "oracle_refs": value}]} if placement == "step"
+               else {"assertions": [{"id": "A1", "at": "S1", "type": "state_is", "state": "car_tab",
+                                      "oracle_refs": value}]})
+    bad = _case(reference_rig, "TC-SYNTHETIC-BROKEN", **changes)
+    before = ws.case_path(bad["id"]).read_bytes()
+    code, out = _confirm(ws, capsys)
+    assert code == 0 and out["status"] == "confirmed"
+    refs = _references(out, status="incomplete")
+    assert any(r["case"] == good["id"] and "oracle_refs" in r["uses"] for r in refs["cases"])
+    assert bad["id"] in json.dumps(refs["errors"])
+    assert ws.case_path(bad["id"]).read_bytes() == before
+
+
+@pytest.mark.parametrize("placement", ["step", "assertion"])
+@pytest.mark.parametrize("value", [None, []])
+def test_explicitly_absent_oracle_references_remain_complete(reference_rig, capsys, placement, value):
+    ws, _ = reference_rig
+    changes = ({"steps": [{"id": "S1", "action": "wait", "oracle_refs": value}]} if placement == "step"
+               else {"assertions": [{"id": "A1", "at": "S1", "type": "state_is", "state": "car_tab",
+                                      "oracle_refs": value}]})
+    _case(reference_rig, "TC-SYNTHETIC-NO-REFERENCES", **changes)
+    code, out = _confirm(ws, capsys)
+    assert code == 0 and _references(out)["cases"] == []
+
+
 @pytest.mark.parametrize("broken", ["json", "unknown_app", "missing_flow", "recursive_flow", "missing_recipe",
                                     "empty_flow", "missing_flow_steps", "null_flow_steps", "object_flow_steps",
                                     "object_recipe"])

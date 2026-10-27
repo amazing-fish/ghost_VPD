@@ -541,7 +541,8 @@ lint 会指出非法声明，审核和晋级沿用该门禁；不自动改写存
 `knowledge confirm` 成功返回的知识原字段外附 `references`，只读扫描当前工作区 `cases/*.json`。
 `cases[].uses` 区分展开 flow/recipe、纳入 cleanup/safe_stop 后的 `oracle_refs` 与精确 `knowledge_used[].id` 说明引用；
 后者仅用于理解作者声明。`tests: not_scanned` 明确没有分析测试依赖；此摘要用于选择核对范围，
-实际判定、重放与审核仍沿原门禁。解析、APP 或 flow 等扫描错误列入 `errors` 并标 `incomplete`，
+实际判定、重放与审核仍沿原门禁。声明 `oracle_refs` 使用字符串列表；解析、引用形状、APP 或 flow
+等扫描错误列入 `errors` 并标 `incomplete`，
 摘要在确认写入前采集；确认自身的评审人/依据校验保持，摘要不写入知识或用例、不执行设备动作。
 
 生成资产新增 `origin.type=session/exploration`；旧资产按 status、sources、history 与主步骤/cleanup/safe_stop

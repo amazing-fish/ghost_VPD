@@ -63,16 +63,23 @@ def _condition_references(case: dict, app, knowledge=None, *, strict=False):
     """Actual guards and direct Oracle requirements share one provider selection."""
     from .conditions import definitions
     oracles, names = set(), set()
-    for step, _, _ in iter_case_steps(case, app, strict=strict):
+    def collect_refs(row, where):
+        refs = row.get("oracle_refs")
+        if strict and refs is not None and (not isinstance(refs, list)
+                                           or any(not isinstance(ref, str) or not ref for ref in refs)):
+            raise ValueError(f"{where}.oracle_refs 须为列表，元素须为非空知识 ID 字符串")
+        oracles.update(refs or [])
+
+    for step, _, where in iter_case_steps(case, app, strict=strict):
         for guard in (step.get("when"), step.get("dismiss_obstruction_when")):
             if isinstance(guard, dict) and isinstance(guard.get("condition"), str):
                 names.add(guard["condition"])
-        oracles.update(step.get("oracle_refs") or [])
-    for assertion in case.get("assertions", []):
+        collect_refs(step, where)
+    for index, assertion in enumerate(case.get("assertions", [])):
         guard = assertion.get("guard")
         if isinstance(guard, dict) and isinstance(guard.get("condition"), str):
             names.add(guard["condition"])
-        oracles.update(assertion.get("oracle_refs") or [])
+        collect_refs(assertion, f"assertions.{assertion.get('id', index)}")
     if knowledge is not None:
         for ref in oracles:
             requirements = (knowledge.get(ref) or {}).get("condition_requirements")
