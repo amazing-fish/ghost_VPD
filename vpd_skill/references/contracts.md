@@ -220,8 +220,21 @@ navigation，并用 `navigation_context_target` 引用既有搜索输入目标�
 满足这些结构证据时才覆盖带稳定 ID 的全局车控关键词误分类。其他全局规则和页面级限制不豁免；
 结果记录 `navigation_source` 的状态、搜索输入、筛选组与接收者索引，命中记录区分 policy/state 及规则ID。
 注册目标的自填字段、单独页面名称或全页存在搜索文案不能代替这些证据。该离线修复不确认标签筛选产品规则，
-实际设备的完整父链未随Issue提供，本实现只支持上述可核结构契约，不声称真实布局已校准；不满足时继续拒发并现场核对。
+原#84实现时未取得实际设备完整父链，只按上述结构契约交付；不满足时继续拒发并现场核对。后续原树的离线核验见下文，不能代替设备执行。
 修改后旧审核/重放按既有 policy/engine/context 绑定重新核对。
+
+`qk_tag_elevator` 沿现有静态 XPath 注册，只提供空查询下的「电梯口」导航接收者。
+1f70cc5 的 6HQ/session-s120/obs-0009 原树离线可核：唯一 SearchPoiPage 中的实际 SearchField 为空，
+筛选父链为 `Row#my_location_and_filter_view/Scroll/Row/__Common__/Row`；电梯口接收者 Row49，充电桩 Row53。
+目标要求已知单栏、唯一页/字段/筛选组、字段 `@text=''`（缺失或空白不等于空值），
+同组恰好两枚 Image+Text 标签，明确的可点击/非可点击标记及未显式隐藏的祖先。
+重复组先在 XPath 结构中拒绝，屏外副本不能因几何过滤而被忽略；最终接收行须完整可见。
+消费者动作须使用 `revalidate: true`；普通 tap 并不自动增加新观测，遮挡/解锁触发的 Dispatcher 刷新仍重新定位。
+XPath 不替代输入框几何检查或业务后置：业务验收还须在同一终态核当前 `qk_spot_search`、
+`target_text_equals(qk_search_input, expected='')`、真实标签选中及同一结果组的独立字段关系，不能仅等4秒或全树拼证。
+电梯口本身不命中受控关键词，沿普通 navigation 门禁；现有充电桩来源和 Policy 不变，不新增同名充电桩目标或豁免。
+本目标保持 `unverified`；测试含83节点原树的属性投影与合成 Executor→Dispatcher 路径，均不是新目标真机执行。
+它不启用存档 TC-QK-235、不导入/确认其知识，不证明标签结果、组合规则、列表完整性或新增正式覆盖。
 
 **不确定页面与通用确认（#43）**：页面限制取 `active`、全窗 `candidates`、各栏候选与旧记录 `state` 的并集；
 歧义仍是歧义，不为取规则制造 active。默认「确定/确认/OK」（可由 policy 的 `generic_confirmation_text` 配置）
