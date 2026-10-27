@@ -1,0 +1,1633 @@
+{
+  "format_version": 1,
+  "kind": "manual_case_baseline_source_delta",
+  "previous_baseline": {
+    "id": "onebox-9month-20261026",
+    "snapshot": "onebox-9month-20261026.json",
+    "snapshot_sha256": "33934cd5b8b656aaa2e6164e531f8570b1d5805078bdb88043bf864d9b38846f",
+    "issue": "https://github.com/amazing-fish/ghost_VPD/issues/102"
+  },
+  "current_baseline": {
+    "id": "onebox-10month-20261027",
+    "snapshot": "onebox-10month-20261027.json",
+    "snapshot_sha256": "ea00916cb38cf949ae0e87f8703703873bce46a37607a0cfc405323994c23f0a",
+    "issue": "https://github.com/amazing-fish/ghost_VPD/issues/106"
+  },
+  "comparison": {
+    "identity_key": [
+      "group",
+      "name",
+      "scenario"
+    ],
+    "fields": [
+      "level",
+      "场景",
+      "预置条件",
+      "测试步骤",
+      "预期结果",
+      "备注"
+    ],
+    "boundary": "Only the listed source fields are compared. OCT IDs, formatting and newly published automation markers are not semantic field changes. Matching does not migrate asset acceptance."
+  },
+  "summary": {
+    "common_rows": 149,
+    "unchanged_rows": 144,
+    "changed_rows": 5,
+    "added_rows": 1,
+    "removed_rows": 2,
+    "common_unique_names": 142
+  },
+  "matches": [
+    {
+      "previous_row": "UI-01",
+      "current_row": "OCT-UI-01",
+      "name": "车端隐私未同意",
+      "group": "界面显示",
+      "scenario": "点击泊车代驾 › 自检异常页",
+      "previous_text_sha256": "1e2f2f61c3e8b8ba92bdb5e9393cfb22e64af3b3f468a7c5820d1dfd1d694c7d",
+      "current_text_sha256": "a5a9ba768f3bdeb9374b1de488f8df5aed883a1c18f8dd315df113c7851aa78d",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-02",
+      "current_row": "OCT-UI-02",
+      "name": "车端定位权限没开",
+      "group": "界面显示",
+      "scenario": "点击泊车代驾 › 自检异常页",
+      "previous_text_sha256": "8276f2f323801d4c8456f7577e73fb4516c70faf2c8b310f45229870a9f834d2",
+      "current_text_sha256": "e4198f3d680fb44f0c2914dd2d00549af99eeb4dde95b1ef3a839e822a39dc68",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-03",
+      "current_row": "OCT-UI-03",
+      "name": "授权账号无定位权限",
+      "group": "界面显示",
+      "scenario": "点击泊车代驾 › 自检异常页",
+      "previous_text_sha256": "abac3cd48d04c3adc04a38ee7682888779416b281a8a71d79556e548419f9941",
+      "current_text_sha256": "50ea550b9dfc0dca77a8fd5671020e29f759501b691657013c04c79d5553f9e4",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-04",
+      "current_row": "OCT-UI-04",
+      "name": "进入VPD的地图",
+      "group": "界面显示",
+      "scenario": "点击泊车代驾 › 进入地图",
+      "previous_text_sha256": "d272eddaf9a6e57775bcf6bf24f03f49952e2996ff35c43f145b426f24630c71",
+      "current_text_sha256": "c3915d792f374a7558a820f76c84902342438cdbc75c65e280276635fec6b05d",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-05",
+      "current_row": "OCT-UI-05",
+      "name": "进入不支持VPD的楼层",
+      "group": "界面显示",
+      "scenario": "点击泊车代驾 › 进入地图",
+      "previous_text_sha256": "39b59c52c15c9c77fcf8fea06ee669fd82999a50dd5ce33c807e7468e3af4889",
+      "current_text_sha256": "01fd07e45b6bca9810aa97105a22818994a280587c31093703c6ac500f5a5177",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-06",
+      "current_row": "OCT-UI-06",
+      "name": "非高阶包（进阶包）进入VPD",
+      "group": "界面显示",
+      "scenario": "点击泊车代驾 › 进入地图",
+      "previous_text_sha256": "127e8213249d67c9cba2f1256477aea1de45e331167f064d27322a8732d3c9de",
+      "current_text_sha256": "511a5301ea127e51f339c8d17f1830f6bbe5a34befb1f9ac9b4e7e21975d7a6e",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-07",
+      "current_row": "OCT-UI-07",
+      "name": "高阶包进入AVP图",
+      "group": "界面显示",
+      "scenario": "点击泊车代驾 › 进入地图",
+      "previous_text_sha256": "2942559ea95f3938ac8b19a67847ff1072bf4908b1600e5a9a45e41126f75d42",
+      "current_text_sha256": "c156d9a61a116a4d613cac627d2d01c270e52dd82e0d8bfe3cab8ef0f7367526",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-08",
+      "current_row": "OCT-UI-08",
+      "name": "车位号显示",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 车位显示",
+      "previous_text_sha256": "64a5dbee28f4dff464e10c45746b237b157a6a346f214e2beeee68644262edc5",
+      "current_text_sha256": "688e6b1496179b346f7b7fab09d37a2474f98131e266f14ac6ebbbc45a3a8a02",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-09",
+      "current_row": "OCT-UI-09",
+      "name": "充电车位显示",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 车位显示",
+      "previous_text_sha256": "95b667d76e26166f4c960192035f6fc28ebe3ea1bed87ea5ab8c217f804c8e69",
+      "current_text_sha256": "3737ff4d3c2c8d837741e5381cd001b42597dfd87ec4013f8252d03e384313ca",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-10",
+      "current_row": "OCT-UI-10",
+      "name": "机械车位显示",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 车位显示",
+      "previous_text_sha256": "3b3496d8097ec4d8e4572935faf472d74e1e58d6948213ff92221b37eb841a92",
+      "current_text_sha256": "b981ae04894584d9c282445f0f54fcf6839dcb05d9e04edd64c307b8c5f976b6",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-11",
+      "current_row": "OCT-UI-11",
+      "name": "分区显示",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 车位显示",
+      "previous_text_sha256": "86c4a5395d4e59c70a7c2e7e60dee3f1668e68244593f5b767d2c69ebc50f29d",
+      "current_text_sha256": "60194f2ba8474fe6f8343f16d9d42493d67fc84117897974b2fe25c844c48ce8",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-12",
+      "current_row": "OCT-UI-12",
+      "name": "单双行道显示",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 道路显示",
+      "previous_text_sha256": "5ef0028a9382bd8db62f0fa29abe05e438e2728c50adba0b5ec28bdaf9cb4bd8",
+      "current_text_sha256": "c6f03cadaee39a084a55406ea90ed9acfe7a9a0d17eb330308549a0c6f2a9d78",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-13",
+      "current_row": "OCT-UI-13",
+      "name": "显示坡道",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 道路显示",
+      "previous_text_sha256": "60c4369a0a0128c757b0bf88d5411ac745df19c78b9fde66198c5d1d3ecbe322",
+      "current_text_sha256": "960c539c58b5af0c8ade72ae561c4b417a88997d73ab41c0ed08041baaeb4d12",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-14",
+      "current_row": "OCT-UI-14",
+      "name": "底图SD图显示",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 地图显示",
+      "previous_text_sha256": "d8abf98ea06233a6833de70652ca399d1d89fe5c774a286904e846bc90efe603",
+      "current_text_sha256": "86a67339adc5bad85e838ca94e53b4c9179e0f3c7a4c9313eb948421b202191f",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-15",
+      "current_row": "OCT-UI-15",
+      "name": "RC图增强显示",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 地图显示",
+      "previous_text_sha256": "15e30313c1cd3e3391e6e32b562462275696c8564cfaa12e74281cdcfa4d47e2",
+      "current_text_sha256": "afe60c909ca9eaeda172a7e0f3798ba21c75243242a3445ec445ee1cb3620cfe",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-16",
+      "current_row": "OCT-UI-16",
+      "name": "VPD图范围显示",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 地图显示",
+      "previous_text_sha256": "0cebd51efa9910b159ecde188aaefcb49e264fc0c719af6ee840c51022ec42c7",
+      "current_text_sha256": "e5dc989a2dc46336e7a11b4a6fa343e78276fab5be5ec010c64355564fd9dac7",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-17",
+      "current_row": "OCT-UI-17",
+      "name": "AVP图是否可以点击车位",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 地图显示",
+      "previous_text_sha256": "98fd4c2448cf40c4b70ac2d68eaea0724f2d996ea545777ed639b84540d9c721",
+      "current_text_sha256": "b05eae4943b60a36a5652ecf5950cc0cceebe890940b3bf28c9de3a83a1c578a",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-18",
+      "current_row": "OCT-UI-18",
+      "name": "拖动缩放地图",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 地图显示",
+      "previous_text_sha256": "afdb09a02bed3b682deca15296a8f298de97de9d5ccb63af077ce47a7c18f3d7",
+      "current_text_sha256": "655bca62f01040d1790cd6fb026e6be0d50dd3ff6257c8d4096d2391210dc8a2",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-19",
+      "current_row": "OCT-UI-19",
+      "name": "VPD图楼层显示",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 楼层显示",
+      "previous_text_sha256": "683f13b11d4903310e23ae02109ee787409ff0a21487ad66549d74a11c74fc13",
+      "current_text_sha256": "e50bc7d3883e10d044af794c0fd0a06c67ab47667543068272184ce88e167c75",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-20",
+      "current_row": "OCT-UI-20",
+      "name": "VPD图切换楼层",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 楼层显示",
+      "previous_text_sha256": "ac1288f250f5ae10cc443389ca785621ccade08f8f83dd32a83e0bdfba8202f4",
+      "current_text_sha256": "e909bf9343c3b00152560c09bfd2569b3bbb51dc75649725fa8ae85613b61cb2",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-21",
+      "current_row": "OCT-UI-21",
+      "name": "算路终点图标",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 楼层显示",
+      "previous_text_sha256": "4f21d6d4ec4f73258833677214dc118bd270f0820d490ecd82503bd096717b8c",
+      "current_text_sha256": "8bdfe1b0e0e2737b50c3fc8c249be841398fe2958545cb1d3dde3f583c9eb8ee",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-22",
+      "current_row": "OCT-UI-22",
+      "name": "停泊中气泡显示",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 车辆状态显示",
+      "previous_text_sha256": "309f94fe7a6091dc29e545b9acdd52e89e5a6d6fb890fcb3e0e3b2cd9c5c1468",
+      "current_text_sha256": "43449ed94e98aaaaadfbac4fdd770bd0b3cfdc9f9719748106b706b24dbc0638",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-23",
+      "current_row": "OCT-UI-23",
+      "name": "智驾中气泡显示",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 车辆状态显示",
+      "previous_text_sha256": "7c234e4b11fa44e01735ab4237c8697a7df819bf1dd85f8cb59b186dcec1ca84",
+      "current_text_sha256": "c368c3082fe784a32118a36f0973c22660b770ba8c264e475c7414dabe2a91f4",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-24",
+      "current_row": "OCT-UI-24",
+      "name": "行驶查看车辆位置和状态(L1/B1)",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 车辆状态显示",
+      "previous_text_sha256": "00a4440322ea94e4dbd827ae7fc41a8e4d182498849d5867ecfef7a7c818b4b2",
+      "current_text_sha256": "b53775351677243c8155d6e60981ef1ad7c42acf0751ef157b0bc6c8bf198bd5",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-25",
+      "current_row": "OCT-UI-25",
+      "name": "点击回自车按钮",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 视角切换",
+      "previous_text_sha256": "e7f519371cda7ed6cef6fc670726afe0902ef89efed7e9b52feecb4a103515d4",
+      "current_text_sha256": "162e3e13dd8e071a7d64979fe000a20ccf2b91c9d68d65ceb0ecd505e8ca7911",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-26",
+      "current_row": "OCT-UI-26",
+      "name": "点击地图全览按钮",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 视角切换",
+      "previous_text_sha256": "7fbe0506b71e798176581fff31c2513ba5acf5cd17bc285854e35c8e7a5f4adc",
+      "current_text_sha256": "7c5309b90e0dcfc6058ee7d4631a630540128b5960d6e0701144a85fc1618e37",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-27",
+      "current_row": "OCT-UI-27",
+      "name": "点击路线全览按钮",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 视角切换",
+      "previous_text_sha256": "9bb25090952c682560b5e74b33bddea92a5cbf5fa3cefdeea4538ba276881b84",
+      "current_text_sha256": "0b59a65701215156fad75fb4b5490f7d6785ca46435c928da61bfcaf44df9529",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-28",
+      "current_row": "OCT-UI-28",
+      "name": "进入地图视角",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 视角切换",
+      "previous_text_sha256": "10d987a12995aa7b27eb33c4dcd1ca37e86aa17289a66d22e10d85dd5cc589fc",
+      "current_text_sha256": "1b047d3cbe1535f5d6b379708e0484aeb50d520184f8cc4b4cae2fc344183349",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-29",
+      "current_row": "OCT-UI-29",
+      "name": "点击反馈按钮",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 反馈按钮",
+      "previous_text_sha256": "9d22f4b20162b746ab46d0b7e9ea80abf401333a9ebdb6beb6cea172fa996bf9",
+      "current_text_sha256": "dbc5029475e11cd429238fe4ba3c8216654f106ed451185e50b7ccd9a412fb87",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-30",
+      "current_row": "OCT-UI-30",
+      "name": "点击支持区域按钮进入二级页面",
+      "group": "界面显示",
+      "scenario": "地图界面显示 › 支持区域按钮",
+      "previous_text_sha256": "41e9d0b040d0b478d84895547115e1a79ed229aab41c8c8fe7541750c8e1f752",
+      "current_text_sha256": "1d4aabd6dfdd6ea77d70115601721e230402f1d24e0ba4ad06cfd424c6f1eea1",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-31",
+      "current_row": "OCT-UI-31",
+      "name": "VPD图停车场名称",
+      "group": "界面显示",
+      "scenario": "卡片区域显示 › POI显示",
+      "previous_text_sha256": "e8022a92f827c4ada558f2ae631e6d5cbd4bdf722bc1487358f2e2df1e652dff",
+      "current_text_sha256": "521725b483ec443e6320817d78ac00d49b46b27da54101424f81d772fde32962",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-32",
+      "current_row": "OCT-UI-32",
+      "name": "VPD图车位数量",
+      "group": "界面显示",
+      "scenario": "卡片区域显示 › POI显示",
+      "previous_text_sha256": "c61599c95bf331c2b40374ba977c30c7cb91fa343b1cb014e5076444a8f02d42",
+      "current_text_sha256": "ab72cb2a24f5a0865b9273185e69255c634c1b86bc6ff99b0452807e30d1b38b",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-33",
+      "current_row": "OCT-UI-33",
+      "name": "图外地点名称显示",
+      "group": "界面显示",
+      "scenario": "卡片区域显示 › POI显示",
+      "previous_text_sha256": "a6fed94c9d62337d844cdb5e17fcf1b7cf53a0b642d9c01e5e8347c8b99dc9a9",
+      "current_text_sha256": "557c04fd3e90d095bc5f12e997f856eb269fba5955a2cc77cbd95d123865c54e",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-34",
+      "current_row": "OCT-UI-34",
+      "name": "点击进入搜索二级页面",
+      "group": "界面显示",
+      "scenario": "卡片区域显示 › 搜索框",
+      "previous_text_sha256": "f81dd7443d8bec3d4db4b464a29afaec8a5df5739ec6db74f86f50d1fb980d43",
+      "current_text_sha256": "471521acfe8d33291aded65cfbc2f26994b3f927aac44c1f62f14a6c8500e27e",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-35",
+      "current_row": "OCT-UI-35",
+      "name": "快捷算路显示",
+      "group": "界面显示",
+      "scenario": "卡片区域显示 › 快捷算路区域",
+      "previous_text_sha256": "e01d9138ce2057fad817fb813aa74a054226448947e75b2304789f482291df61",
+      "current_text_sha256": "bfd85f07165cd471901efd7a833a59f98e384586f189f4690778b17aabc794d4",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-36",
+      "current_row": "OCT-UI-36",
+      "name": "漫游找车位(法规不显示)",
+      "group": "界面显示",
+      "scenario": "卡片区域显示 › 快捷算路区域",
+      "previous_text_sha256": "16d29e68fe912e1ec88bdca79a5b816d06dade1c4047558e2f8542593f4faecf",
+      "current_text_sha256": "49b5c51f16305c2aa681507ba531f4f3a12ab7158d611558386f3de56d316ed2",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-37",
+      "current_row": "OCT-UI-37",
+      "name": "列表按规则显示收藏、推荐信息",
+      "group": "界面显示",
+      "scenario": "卡片区域显示 › 常去地点列表",
+      "previous_text_sha256": "6fd051641c1183e18ab4780ad5408b0b90d9870118bc46e682dd8562421e693c",
+      "current_text_sha256": "a81cf259f773f5e916784db2f3bcdb7fb77b97dd4e541709e576bdd0117c7de7",
+      "changed_fields": {
+        "测试步骤": {
+          "previous": "1、进入泊车代驾首页 / 2、查看首页收藏列表 / 3、点击“收藏夹”",
+          "current": "进入泊车代驾功能"
+        },
+        "预期结果": {
+          "previous": "1、首页收藏列表按新UI规则只显示4个收藏 / 2、其余收藏不直接展示，需点击“收藏夹”进入查看 / 3、收藏夹内显示所有园区的收藏车位",
+          "current": "按顺序显示收藏点和推荐点"
+        },
+        "备注": {
+          "previous": "9月更新：首页收藏列表UI调整，首页只显示4个，其余点击“收藏夹”查看，收藏夹包含所有园区的收藏车位",
+          "current": null
+        }
+      }
+    },
+    {
+      "previous_row": "UI-40",
+      "current_row": "OCT-UI-38",
+      "name": "车辆停泊位置",
+      "group": "界面显示",
+      "scenario": "卡片区域显示 › 泊车位姿信息",
+      "previous_text_sha256": "faa66011526e2f9f62cd166014943ba9ce7211e8eef5df353804c122e24c86d7",
+      "current_text_sha256": "39e692c95e8645210b35ccabf2fe0c9486e9546deda2d3397701bbebb5be798f",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-41",
+      "current_row": "OCT-UI-39",
+      "name": "泊车图片且能切换视角",
+      "group": "界面显示",
+      "scenario": "卡片区域显示 › 泊车位姿信息",
+      "previous_text_sha256": "be50a81700d3061324fb691cbb66a105b47b8ddac86b8ac78a5a03951d46b260",
+      "current_text_sha256": "ec9115d95637d4c8fe4a6d9286e74d7215e828520b3899fc8b76d4950d931590",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-42",
+      "current_row": "OCT-UI-40",
+      "name": "停车下电查看位置和图片(L1/B1)",
+      "group": "界面显示",
+      "scenario": "卡片区域显示 › 泊车位姿信息",
+      "previous_text_sha256": "0fbb067a2c1a38c2d89065ef9fe561c46278e8bc7047ab06086626b72262a146",
+      "current_text_sha256": "ac0b98038072fe26870e3959c240befdb545af6dd903357b3ad5f66eeb9612ef",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "UI-43",
+      "current_row": "OCT-UI-41",
+      "name": "点击放大图片/滑动",
+      "group": "界面显示",
+      "scenario": "卡片区域显示 › 泊车位姿信息",
+      "previous_text_sha256": "40013513b1ace79e104b37e8800f18580f2147e29396c51d4ab0243cb0faf368",
+      "current_text_sha256": "8e12e153e4842434a1d197b0381ddf9dfa464a53bbe636b873db958775e23aa1",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-01",
+      "current_row": "OCT-RT-01",
+      "name": "搜索车位号",
+      "group": "算路",
+      "scenario": "搜索界面 › 搜索终点",
+      "previous_text_sha256": "d9d699aee7c7efd642d30815f7fa2e6aa071d6b84510223032a0a69ef33ab0b9",
+      "current_text_sha256": "c7768b90eb820bd379964a6c23e105ca1e2c8e3c96a7d85cc6ee0467d2c199d4",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-02",
+      "current_row": "OCT-RT-02",
+      "name": "搜索收藏信息",
+      "group": "算路",
+      "scenario": "搜索界面 › 搜索终点",
+      "previous_text_sha256": "b377d83c08d3f66d09790c4e7d0623c287448fc1dbccf802749f40deec7970a9",
+      "current_text_sha256": "b4cffdd870379cb2c60ec958062a800b2ba3bbcd0b5a9df60041b5c6e73dce25",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-03",
+      "current_row": "OCT-RT-03",
+      "name": "搜索楼层",
+      "group": "算路",
+      "scenario": "搜索界面 › 搜索终点",
+      "previous_text_sha256": "662f60c34ba2ce316e0a67b78996c276f4cbb81778954d35fcfd220c30b44038",
+      "current_text_sha256": "e0e7009fcc30506c153af4c383159dd17b87762a40292a8988915070229ebb7b",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-04",
+      "current_row": "OCT-RT-04",
+      "name": "搜索标签",
+      "group": "算路",
+      "scenario": "搜索界面 › 搜索终点",
+      "previous_text_sha256": "c12ff4cdb795dc9719d8ddb5f951de382938e9b2971c50198376ce763ecb2341",
+      "current_text_sha256": "8bac36c8398b4fcaaa3f1e40848d01be48719450eb0c162f0706599fb413e9a8",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-05",
+      "current_row": "OCT-RT-05",
+      "name": "进入编辑",
+      "group": "算路",
+      "scenario": "搜索界面 › 点击搜索结果",
+      "previous_text_sha256": "5aa86db44413916d11ef2b62e3571e47c7253a069e101c6d34602d52f5889245",
+      "current_text_sha256": "66298ff226d0e153f9151b12b830437bc81be2d6cb6cd5d40b23854b4fab1c5d",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-06",
+      "current_row": "OCT-RT-06",
+      "name": "直接算路",
+      "group": "算路",
+      "scenario": "搜索界面 › 点击去这里",
+      "previous_text_sha256": "7670150c6c8d39caa9f961539a27af91b04c763dc9f8066fa903ed84dffb1416",
+      "current_text_sha256": "05ed96d6a3d47183361c56b90f208be235a0398c2f408b7b9f87272b8110b9d7",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-07",
+      "current_row": "OCT-RT-07",
+      "name": "选择车位算路",
+      "group": "算路",
+      "scenario": "路线规划 › 非漫游算路",
+      "previous_text_sha256": "7b9b6a52d8ffbe79dc149b4b194a3c89881e9286448443aa9165883da13cc808",
+      "current_text_sha256": "b10ceb9b748325f9e1ea6c66784ebd865898d6a9601894f4e4c0d448bc7d2c99",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-08",
+      "current_row": "OCT-RT-08",
+      "name": "选择路点算路",
+      "group": "算路",
+      "scenario": "路线规划 › 非漫游算路",
+      "previous_text_sha256": "8c2e3b5435d9d2363fbe0eb7d70bf743f5f915225d653a0ba6c3056264425670",
+      "current_text_sha256": "29d9e631192d98d3b14f223448604a45ad0aced5db8a7f3a8c178697429de991",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-09",
+      "current_row": "OCT-RT-09",
+      "name": "进入页面，查询车端算路",
+      "group": "算路",
+      "scenario": "路线规划 › 非漫游算路",
+      "previous_text_sha256": "290b7e1fb592f7aa5048316b5bad17c256b0f71166f2d8fe46e7e6e8518233d5",
+      "current_text_sha256": "0f7010e32b845fd602b9ebbc6d0114c60f51948ff7e5def5e8ad8b90cefbba04",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-10",
+      "current_row": "OCT-RT-10",
+      "name": "车端主动算路流转",
+      "group": "算路",
+      "scenario": "路线规划 › 非漫游算路",
+      "previous_text_sha256": "8a69399f648a175c1f7bd38e864bebb97929b7070829bb247582d11e029aba6c",
+      "current_text_sha256": "433929c45e205401bc26705d07ef8f04cdb7024ba68e7f5b22e4605367c9a532",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-11",
+      "current_row": "OCT-RT-11",
+      "name": "主驾有人算路",
+      "group": "算路",
+      "scenario": "路线规划 › 非漫游算路",
+      "previous_text_sha256": "92dbb2daa4482ef0a041e3eb891d5179af7c0f3ecfec11e035e6f3831a76bc0c",
+      "current_text_sha256": "6f5befc9c158713597b95d4f0bb184834627f30ba4b48ccc597dec4e24c26392",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-12",
+      "current_row": "OCT-RT-12",
+      "name": "车端偏航算路流转",
+      "group": "算路",
+      "scenario": "路线规划 › 非漫游算路",
+      "previous_text_sha256": "fe6944e2e86f2c1057cf8fe8dcaf7ae7ce8de5d3cca798e7ea2d3a3a810e3fe1",
+      "current_text_sha256": "ba9cc4d60691b7096b8cd210f35fbd89282f436646c99166fa9449b88630c61d",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-13",
+      "current_row": "OCT-RT-13",
+      "name": "EPD授权算路流转",
+      "group": "算路",
+      "scenario": "路线规划 › 非漫游算路",
+      "previous_text_sha256": "1f9ea7993cc139ad996e6255c21d5dcae0b10abf9b27d35f08197fa22c0a186f",
+      "current_text_sha256": "a351dd6991c170096e1385445b526b7a3c3a04d91662831b55cdb28c13be609c",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-14",
+      "current_row": "OCT-RT-14",
+      "name": "退出页面算路清除",
+      "group": "算路",
+      "scenario": "路线规划 › 非漫游算路",
+      "previous_text_sha256": "766e609682d8cf135ab072f92b8d10a5f81c9c8364fc02dca6b87908bc20d34b",
+      "current_text_sha256": "07b14304c1097a70ed3dce2d0a999f6acd35678adb01c929bc985908b8edc21a",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-15",
+      "current_row": "OCT-RT-15",
+      "name": "重算路",
+      "group": "算路",
+      "scenario": "路线规划 › 非漫游算路",
+      "previous_text_sha256": "124591e4544642058f23c0721818a557a2f9394f923fb815f1206293778bf7f6",
+      "current_text_sha256": "029f4b676757c174d3a1444dc4e2160143eef3d5da34f1a6f7898440aa973d6d",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-16",
+      "current_row": "OCT-RT-17",
+      "name": "跨层算路",
+      "group": "算路",
+      "scenario": "路线规划 › 非漫游算路",
+      "previous_text_sha256": "b2b59116167490a1d451d12f4345b8d48035497b75ec4fb06e480d4c7b521323",
+      "current_text_sha256": "e3c2e5084ba41c856a2b253e18ff18d89bf5735f17fab52d6afb3603e5ba04d1",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-17",
+      "current_row": "OCT-RT-18",
+      "name": "终点坡道算路",
+      "group": "算路",
+      "scenario": "路线规划 › 非漫游算路",
+      "previous_text_sha256": "6b6e76ea45c7423a0768a953177b6154998dc508dcbd4245ceb4c1344b5079a9",
+      "current_text_sha256": "358178bb7f051db9a6090fe3a1e900f88dae86e6ea222556b02da332578ee07a",
+      "changed_fields": {
+        "level": {
+          "previous": "L3",
+          "current": "L2"
+        }
+      }
+    },
+    {
+      "previous_row": "RT-18",
+      "current_row": "OCT-RT-19",
+      "name": "一键泊入算路",
+      "group": "算路",
+      "scenario": "路线规划 › 非漫游算路",
+      "previous_text_sha256": "9ebefa4980bd4075e6a2402e5710c9605a8fe94e5b443661d5ff20d3b6c86325",
+      "current_text_sha256": "823c7329d7fb9c022a6b3cbbb794a3943d2fbd30350969f450a8ef19ed0a3bcf",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-19",
+      "current_row": "OCT-RT-20",
+      "name": "车位被占转漫游",
+      "group": "算路",
+      "scenario": "路线规划 › 漫游算路",
+      "previous_text_sha256": "c64be6e53b3170729ca8eedbbad598438ebefbe7687da27406a1ee28c8647f63",
+      "current_text_sha256": "1afde2d71009db0022049608262693927a4fa44bd16ee91a964068c44778e3e8",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-20",
+      "current_row": "OCT-RT-21",
+      "name": "漫游到终点重算路",
+      "group": "算路",
+      "scenario": "路线规划 › 漫游算路",
+      "previous_text_sha256": "98e55e1503e12f38085513d11a062a07d5d014d3041a693611b51b44707721d8",
+      "current_text_sha256": "c0dcc46a6e76f0335be0621d1ced8c3e1418633d3d329316f0fe6339a8df1688",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-21",
+      "current_row": "OCT-RT-22",
+      "name": "车位被占转收藏车位",
+      "group": "算路",
+      "scenario": "路线规划 › 漫游算路",
+      "previous_text_sha256": "97ea22e7ffda584d1b30dce6f53fb4a41034e36bdc37704c6568d1a6197ad831",
+      "current_text_sha256": "7efaad6ea77bbd8bede8458842134a7284e43d18a7f544d438d1467adc96cd83",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-22",
+      "current_row": "OCT-RT-23",
+      "name": "文案及视频",
+      "group": "算路",
+      "scenario": "路线规划 › 二次确认界面",
+      "previous_text_sha256": "31ac623e581505f07146eadd0fb0ce9e5e4f7eccaf39aa77ab69adf7709fcdb5",
+      "current_text_sha256": "5c5a8f1db7960cf190fe9303ae6b1e698a1c066f58f494c842cb834e6f1835dd",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-23",
+      "current_row": "OCT-RT-24",
+      "name": "取消确认",
+      "group": "算路",
+      "scenario": "路线规划 › 二次确认界面",
+      "previous_text_sha256": "28464dcc28e7efc4b78c195e08941d962d100e4d230a6f13554f5a576978633c",
+      "current_text_sha256": "271c61309e08fff9e1b2cfd61bdb3d0c1aaa4ab457dd131eccc7dea81ffc646c",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-24",
+      "current_row": "OCT-RT-25",
+      "name": "巡航中点击新目标",
+      "group": "算路",
+      "scenario": "路线规划 › 新替老算路",
+      "previous_text_sha256": "e5b553c91075c31754a2544347bcc69ae5afd329e6ee7002c68353ca42ab59f2",
+      "current_text_sha256": "8b453363edead7e3ae3741ec110ff8c41361297e2ee32cd890c218c7f91fef1e",
+      "changed_fields": {
+        "level": {
+          "previous": "L3",
+          "current": "L1"
+        },
+        "备注": {
+          "previous": "9月更新：新替老暂时已下线，暂停执行",
+          "current": null
+        }
+      }
+    },
+    {
+      "previous_row": "RT-25",
+      "current_row": "OCT-RT-26",
+      "name": "巡航中搜索新位置",
+      "group": "算路",
+      "scenario": "路线规划 › 新替老算路",
+      "previous_text_sha256": "0ace5a03b65832088e7f632e6551fc3eeb187ff2e136855993e504979f01549f",
+      "current_text_sha256": "0e9c8953ebc0956c0fb39c774cfd4d602fd54ce6b794a424ef160e4c7ad77c48",
+      "changed_fields": {
+        "level": {
+          "previous": "L3",
+          "current": "L1"
+        },
+        "备注": {
+          "previous": "标签查询、收藏车位等搜索 / 9月更新：新替老暂时已下线，暂停执行",
+          "current": "标签查询、收藏车位等搜索"
+        }
+      }
+    },
+    {
+      "previous_row": "RT-26",
+      "current_row": "OCT-RT-27",
+      "name": "不支持新替老场景",
+      "group": "算路",
+      "scenario": "路线规划 › 新替老算路",
+      "previous_text_sha256": "b129cf023ebf879fbf17f86f3e3c8f2a2d175892beba77dc107479012e8949f4",
+      "current_text_sha256": "6b95d8ea35a0baa382c3ade34d43828feadaf27584034d6b498ec6049eacfea9",
+      "changed_fields": {
+        "level": {
+          "previous": "L3",
+          "current": "L2"
+        },
+        "备注": {
+          "previous": "9月更新：新替老暂时已下线，暂停执行",
+          "current": null
+        }
+      }
+    },
+    {
+      "previous_row": "RT-27",
+      "current_row": "OCT-RT-28",
+      "name": "算路起/终点包含不支持楼层",
+      "group": "算路",
+      "scenario": "文案提示 › 不支持激活",
+      "previous_text_sha256": "7a046e6200deebeff4b63e17864e40d8e903dc91a4d50b8d2bbefb6b7caf7c4f",
+      "current_text_sha256": "779bcf862f238078286ad291cc0e7e83259bba3b63fe2d4025fce026b48c86a9",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-28",
+      "current_row": "OCT-RT-29",
+      "name": "充电中算路",
+      "group": "算路",
+      "scenario": "文案提示 › 不支持激活",
+      "previous_text_sha256": "bbdd9d3b291d7bb876536f0b0559f67f77d7eddfa9ba046b61d8e58f29730914",
+      "current_text_sha256": "d7354b8e93badee340d15158faa1743b0be07c078c2be55996f4773219deb21c",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-29",
+      "current_row": "OCT-RT-30",
+      "name": "升级中算路",
+      "group": "算路",
+      "scenario": "文案提示 › 不支持激活",
+      "previous_text_sha256": "0d3e482a4fb068b4cf8a9d66abccdaa2a866296f57c466d3c814d914d1aaedee",
+      "current_text_sha256": "cd91c1ce00f7c18602964f220fdcb54153b1fa6badb9613a38f1a493169997e8",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-30",
+      "current_row": "OCT-RT-31",
+      "name": "亲友用车中算路",
+      "group": "算路",
+      "scenario": "文案提示 › 不支持激活",
+      "previous_text_sha256": "2060cfc71271df4565135dc1715b34e94d3e69d00f7b7ff2ae05ac890d725ef9",
+      "current_text_sha256": "df91a16eba2f78162bfb4dea8cfa381b0ddd6ed2de23385cbf69911ca5182ca8",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-31",
+      "current_row": "OCT-RT-32",
+      "name": "非P档算路(非VPD过程中)",
+      "group": "算路",
+      "scenario": "文案提示 › 不支持激活",
+      "previous_text_sha256": "36559ff5ab6e3218a7d93bfe2db20b50be6f44c08234a79edfbfbbaffa82652f",
+      "current_text_sha256": "0ac20bed6d9f6160911b513ce01cad3e4f02ad9e7405c92ec019e5aa28f68373",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-32",
+      "current_row": "OCT-RT-33",
+      "name": "超时等其他异常",
+      "group": "算路",
+      "scenario": "文案提示 › 算路失败提示",
+      "previous_text_sha256": "ad1f65146083bd5362b85c3393f49cd2a6ba754d212ae36663c98a80080c7fe6",
+      "current_text_sha256": "bf5a0b4e713109b152d7f370b0ccbbef3d47452607607e1cf78f98262913a310",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "RT-33",
+      "current_row": "OCT-RT-34",
+      "name": "拓扑不通",
+      "group": "算路",
+      "scenario": "文案提示 › 算路失败提示",
+      "previous_text_sha256": "1cd906572369e3f82b2797e5216fb1ac962403d6cce8a4217756def88d51d19f",
+      "current_text_sha256": "8fa212be9e183946e07ea1a97f0f62f88384fff9c33563def46a990ac8410082",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CC-01",
+      "current_row": "OCT-CC-01",
+      "name": "主动启动",
+      "group": "巡航控车",
+      "scenario": "交互操作 › 控车指令",
+      "previous_text_sha256": "09378cf492dec8ad5314dedf652df204d249da4c794eb5611c5b4287390dd9c2",
+      "current_text_sha256": "d89d2a0167e42f5b215418b52b3efac8854a7a127b06938e183c9fca05f5f202",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CC-02",
+      "current_row": "OCT-CC-02",
+      "name": "主动暂停",
+      "group": "巡航控车",
+      "scenario": "交互操作 › 控车指令",
+      "previous_text_sha256": "2df7be603c6eb8b418d1fb1366bd88af9b15ef85002c5550d91beacc53e1d485",
+      "current_text_sha256": "e6efb1ab04ad422f484aaf75b91f73b6686a788a79dff5c31814247c33ee79e3",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CC-03",
+      "current_row": "OCT-CC-03",
+      "name": "主动继续",
+      "group": "巡航控车",
+      "scenario": "交互操作 › 控车指令",
+      "previous_text_sha256": "e8d73d5b7b2df12ad69f774a42e24edac815c8190623be703a7e5e8b9ac2572e",
+      "current_text_sha256": "dd5f3231dc3b3ef12521afcf0126c5c10b5c7a6575e6dfd6b5ae7660cc82a64d",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CC-04",
+      "current_row": "OCT-CC-04",
+      "name": "主动退出",
+      "group": "巡航控车",
+      "scenario": "交互操作 › 控车指令",
+      "previous_text_sha256": "2763dadf270f83684eb4a902f134459dae98bd0817333cfa6d7a7b4866580b4a",
+      "current_text_sha256": "370f51d841bf72a53736f03c570b8b37bc6c1f7bc6127677d5590ef2b462693a",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CC-05",
+      "current_row": "OCT-CC-05",
+      "name": "左滑返回",
+      "group": "巡航控车",
+      "scenario": "交互操作 › 返回首页",
+      "previous_text_sha256": "e1d3195222febb4bcbe9d3c17e43c522d5325e551b97542928fb4242eeb9eeb8",
+      "current_text_sha256": "2d1f4d6e46d23f1bc07a8ce87fbe5ba3bcc46ea859453fa8b777fb6101a19991",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CC-06",
+      "current_row": "OCT-CC-06",
+      "name": "算路流转/清除提示",
+      "group": "巡航控车",
+      "scenario": "巡航提示 › 被动提示",
+      "previous_text_sha256": "e02801cef1d99c058c2cf693158950ee602c0fa39b884b7057a90e47df55c6fc",
+      "current_text_sha256": "2cec75cb40cb4198096a1b0f830f7e12d5d840623efdacf4fdeab2cab76ead36",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CC-07",
+      "current_row": "OCT-CC-07",
+      "name": "状态切换提示",
+      "group": "巡航控车",
+      "scenario": "巡航提示 › 被动提示",
+      "previous_text_sha256": "7fcc39350b914ed4295751d1a2efa6f25ae44c851fd98f7d7ab060bec21fb6cf",
+      "current_text_sha256": "99792aa0e0f2795cdae9cc96b499497b67ba5c493b02bf3524552f06af65b175",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CC-08",
+      "current_row": "OCT-CC-08",
+      "name": "行人/障碍物提示",
+      "group": "巡航控车",
+      "scenario": "巡航提示 › 被动提示",
+      "previous_text_sha256": "59fd5df45d6e9d67612a635eb492881e7b6a4f967ff2ce80bccdd9ef69473393",
+      "current_text_sha256": "f1e12de698bc600af4488b5b24b9fb014cdfcf147d07ab716657bf9d76ecb6ef",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CC-09",
+      "current_row": "OCT-CC-09",
+      "name": "任务完成/退出提示",
+      "group": "巡航控车",
+      "scenario": "巡航提示 › 被动提示",
+      "previous_text_sha256": "efb2e12f201cb1292305be57a992043d20150a248d8a3655084040a8f68ab2d2",
+      "current_text_sha256": "5c216ef2845ef9f2fec208995b5965733999d68eac1f86431e4169431bb61207",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CC-10",
+      "current_row": "OCT-CC-10",
+      "name": "确认视频",
+      "group": "巡航控车",
+      "scenario": "影像显示 › 启动前",
+      "previous_text_sha256": "1ef9a3d5f92a82ba1c7d8fe46e1a39024936db82408b6165b547ecc5c927f204",
+      "current_text_sha256": "b604d2227aae3be1a384cc33c0defb56a834dd82c61a0ef7f5c46d5278c1ca96",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CC-11",
+      "current_row": "OCT-CC-11",
+      "name": "泊入&泊出全屏显示",
+      "group": "巡航控车",
+      "scenario": "影像显示 › 任务中",
+      "previous_text_sha256": "2fd8f4869fd51f85b2196adb6cec056b0b31c7518eb675d5624aa58bb7cc6ca0",
+      "current_text_sha256": "0ab4dad488b42e8eec6f552676dc02ae7755c5cffe93609f2b9b91ddd3861c1a",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CC-12",
+      "current_row": "OCT-CC-12",
+      "name": "巡航中半屏卡片显示",
+      "group": "巡航控车",
+      "scenario": "影像显示 › 任务中",
+      "previous_text_sha256": "7c43a4828f26d3ef56dccb19ae67859325f65316583dccec91bfb44d9144c1c5",
+      "current_text_sha256": "1daaa114c009799b46db8ba5465a6e45412ccbec5c582fce2a028b3d3ed3973d",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CC-13",
+      "current_row": "OCT-CC-13",
+      "name": "脱困中全屏显示",
+      "group": "巡航控车",
+      "scenario": "影像显示 › 任务中",
+      "previous_text_sha256": "8afe1721efd3eaf571146218f9ae5ede14e948faf0e93b4333ccc24aa76a59c8",
+      "current_text_sha256": "49dba646215136fdcb5c0e0ecf1a0927e5dece5a80e14a18c4c6e9f1adf16f6e",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CC-14",
+      "current_row": "OCT-CC-14",
+      "name": "查看停泊位姿",
+      "group": "巡航控车",
+      "scenario": "影像显示 › 首页",
+      "previous_text_sha256": "f8ac49d78aface1c9f810dc238587d19d91cb1e6fd21cd2ba1742f369d3cd83b",
+      "current_text_sha256": "03f999889106c183a1abcd2aeb59bf8af74e66a0db0d6d3790cc2858cfb255bb",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CC-15",
+      "current_row": "OCT-CC-15",
+      "name": "泊车统计",
+      "group": "巡航控车",
+      "scenario": "巡航总结页 › 行程总结",
+      "previous_text_sha256": "2be1fc1a0d26764ef228a3f5c6d895c7e7d1ef4d1bf41164e648406a55f702e1",
+      "current_text_sha256": "2b2a9ab4ef6e45ad54c4d5f6b1485b18c3d706662ce5eda6a0aef308f9ff9a14",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CC-16",
+      "current_row": "OCT-CC-16",
+      "name": "召唤统计",
+      "group": "巡航控车",
+      "scenario": "巡航总结页 › 行程总结",
+      "previous_text_sha256": "6c91a71e00d283f81082f5197232096cac216788b03acb8e0a1e193f937f1be8",
+      "current_text_sha256": "ce5a2e8e8c27e210ca05a1a09d371cf3e5997ca03525f79f9cc823c867742955",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CC-17",
+      "current_row": "OCT-CC-17",
+      "name": "完成图片",
+      "group": "巡航控车",
+      "scenario": "巡航总结页 › 停泊位姿",
+      "previous_text_sha256": "8c5476f8c25bbe871e1fdf14bcb52c48fb8c3ae5fb8709bd15b4f25b73c99c96",
+      "current_text_sha256": "254af6aba503849c7f5f7edcb3e30f34d21cd9f53efae6205a51273c54c6a807",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CC-18",
+      "current_row": "OCT-CC-18",
+      "name": "完成视频",
+      "group": "巡航控车",
+      "scenario": "巡航总结页 › 停泊位姿",
+      "previous_text_sha256": "83e8791d8f312fbd8bba85be5cde5fc84acb694b3ce50cd643c5b09be0b6eca1",
+      "current_text_sha256": "b7be333e865e5ecc46e1e61a5b01c660534b258c3cee1a3e7d7dc6c98dc09f86",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CC-19",
+      "current_row": "OCT-CC-19",
+      "name": "断网重连显示",
+      "group": "巡航控车",
+      "scenario": "异常场景显示 › 弱网场景",
+      "previous_text_sha256": "4a591508f39c55d55698701b2a2959081345ec2f2c575a7050ec80d1761c5c06",
+      "current_text_sha256": "d1bed9bdaf42629cb458dec39be4c8d90160ac4789c31170b3616d85b94de7bb",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CC-20",
+      "current_row": "OCT-CC-20",
+      "name": "切后台显示",
+      "group": "巡航控车",
+      "scenario": "异常场景显示 › 后台场景",
+      "previous_text_sha256": "9059406f76db0bdafc03e1e3f3d136f8684616c2f05fad61b5a3f181b3b2c84f",
+      "current_text_sha256": "1d34cec4ec6c00af4fcc6e52990cdb4161307646b229ddd47f423d368b561c90",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CC-21",
+      "current_row": "OCT-CC-21",
+      "name": "杀后台显示",
+      "group": "巡航控车",
+      "scenario": "异常场景显示 › 后台场景",
+      "previous_text_sha256": "52d9cc2fba4d1a4e443b2ffd97a29d0fff7125f5cf3c5d8bacf93473327907d7",
+      "current_text_sha256": "61d22d06466f28eaac7bf14e1a22c3fe0d71de9385612eb6bf94bea931294b73",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CP-01",
+      "current_row": "OCT-CP-01",
+      "name": "用例遍历",
+      "group": "兼容性",
+      "scenario": "系统 › 苹果ios",
+      "previous_text_sha256": "7f8f020a949a5ef739b38ffc41819b236c4c6d5e9270f9c1059574903982d7e0",
+      "current_text_sha256": "f198a3ba102986226459b2832f3b1810f81f7f625bcf67dbda55460b0391c91d",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CP-02",
+      "current_row": "OCT-CP-02",
+      "name": "用例遍历",
+      "group": "兼容性",
+      "scenario": "系统 › 安卓Android",
+      "previous_text_sha256": "4418232568a090fc94e438401c4bbd9fdde1c74ce77f0888ceeeb1bcc20ed79d",
+      "current_text_sha256": "a2defe67ea671aa75c67da7f84813824e2d70cccec1297debb3f13c3b4bd126c",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CP-03",
+      "current_row": "OCT-CP-03",
+      "name": "用例遍历",
+      "group": "兼容性",
+      "scenario": "系统 › 鸿蒙next",
+      "previous_text_sha256": "e8f21d992a4e7fb1ec17f9df055fe43443d7c09d723f59731586957fa09af4f5",
+      "current_text_sha256": "0ead9e57479b3e939155899a56769fa45beb1b3a1dfa9497d64e22b3f8807931",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CP-04",
+      "current_row": "OCT-CP-04",
+      "name": "用例遍历",
+      "group": "兼容性",
+      "scenario": "型号 › 直屏",
+      "previous_text_sha256": "af159a9ba82ef5b9df9fdf2ebee244fd173220fcff7792b092f58c277dae7be0",
+      "current_text_sha256": "ce26bfee63f45999cc9cddf485b9473228b0b66811d3f48405a02985a64e7fbc",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CP-05",
+      "current_row": "OCT-CP-05",
+      "name": "关注UI元素分布显示",
+      "group": "兼容性",
+      "scenario": "型号 › 小折叠",
+      "previous_text_sha256": "584f7028c48dcd3d8a63b77240b6083719e7ad9299ca40e51e11926bc5141b16",
+      "current_text_sha256": "0959feb61610e0e8e6e308982aaf60c5a1d37366a94b11e58e7be01451a5f13c",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CP-06",
+      "current_row": "OCT-CP-06",
+      "name": "关注部分卡片屏占比",
+      "group": "兼容性",
+      "scenario": "型号 › 宽折叠",
+      "previous_text_sha256": "56d1f644b898865d85ee174fa83072f7adea3367d317e586dbc83dbca3dc666f",
+      "current_text_sha256": "12ea28cf5c87597ea2ce49cd7f8a025af6390015ab866cfc68bbc6020019d25b",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CP-07",
+      "current_row": "OCT-CP-07",
+      "name": "关注展开、折叠显示",
+      "group": "兼容性",
+      "scenario": "型号 › 双折叠",
+      "previous_text_sha256": "e4383a3fdaa4daef3a4379cb32d7884e07a90b45a8e8ec6d87a02f11f8e61a49",
+      "current_text_sha256": "680f4f27bf7649048ed052fc4414aace67696422ec09709abf32caba376bc9d6",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CP-08",
+      "current_row": "OCT-CP-08",
+      "name": "关注不同展开形态",
+      "group": "兼容性",
+      "scenario": "型号 › 三折叠",
+      "previous_text_sha256": "12edfe393b0753c411017d92fb9d2aa3b52ec95237d7227b254e501fc8295830",
+      "current_text_sha256": "30aa947f65eb883b4f9db3e192f5c91dc3a17d8969a57821acb61c6e5a55d8af",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CP-09",
+      "current_row": "OCT-CP-09",
+      "name": "用例遍历",
+      "group": "兼容性",
+      "scenario": "车型/车厂 › 鸿蒙智行",
+      "previous_text_sha256": "71ef7004a7f3c67da21e2b21ff0d8ca6c01f198f5b62afdc176c812977ae4a98",
+      "current_text_sha256": "15d33d799b9a4961738314f395dc101887b1f8b588df8c6e3c01376285525bb7",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CP-10",
+      "current_row": "OCT-CP-10",
+      "name": "同鸿蒙智行",
+      "group": "兼容性",
+      "scenario": "车型/车厂 › AITO",
+      "previous_text_sha256": "3f5d5b495efea4a569352c9749f47c0530312092584baca6c45f48b7796da551",
+      "current_text_sha256": "7f4d04f0166796c3c213649ff0924271ab09bb589896c9e9fa934d6ab49d3bc4",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CP-11",
+      "current_row": "OCT-CP-11",
+      "name": "用例遍历",
+      "group": "兼容性",
+      "scenario": "车型/车厂 › 阿维塔",
+      "previous_text_sha256": "38f647df8ddbe0ddc50033acf7ecfbba3d3cdaaef4e08400bdf96b492fa456ed",
+      "current_text_sha256": "266e057d04c5987bb7008397a595c40d27aa0af2f18fb6b72dc42fa17c27c7a8",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CP-12",
+      "current_row": "OCT-CP-12",
+      "name": "用例遍历",
+      "group": "兼容性",
+      "scenario": "车型/车厂 › 其他车厂",
+      "previous_text_sha256": "5caf0aa4140b1fe0d6c2a131cc87d137d3b718964264e59ee19dc1b9aa027dd4",
+      "current_text_sha256": "76554f12fc976606f17d2ef2b003623735c7d6154c313fd1e386b5a4b7be7985",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CP-13",
+      "current_row": "OCT-CP-13",
+      "name": "用例遍历",
+      "group": "兼容性",
+      "scenario": "车型/车厂 › 乾崑APP",
+      "previous_text_sha256": "f34b9ab47e208396f7c4bd04e82b1d93c1bd0087ea52a4aa40fb9d2084dda951",
+      "current_text_sha256": "689732d93a9011b9e454bcf2d182fa65a00c6c6dd2f640935aabea2cd2480e70",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CP-14",
+      "current_row": "OCT-CP-14",
+      "name": "12月断代升级前后",
+      "group": "兼容性",
+      "scenario": "版本配套 › 手机版本",
+      "previous_text_sha256": "49b0285de1c5e85b03a3da897f3d1e214879ec75fd736a330aa2ea776ca30388",
+      "current_text_sha256": "1b84e95648c2c834c90a7130522ec68fbf2fbbd1f61bba39e9630c12d4b0965f",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CP-15",
+      "current_row": "OCT-CP-15",
+      "name": "3.0版本",
+      "group": "兼容性",
+      "scenario": "版本配套 › 车端版本",
+      "previous_text_sha256": "8da51febf742ba83bd1404b6f6c9ce676ff34ab9308845e4ce7c679f96f537a5",
+      "current_text_sha256": "827dc182b5bdd83d0cac7dfb2a678491f7fbbef0a17a26dbb8a3b92e4ded4557",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CP-16",
+      "current_row": "OCT-CP-16",
+      "name": "4.0版本",
+      "group": "兼容性",
+      "scenario": "版本配套 › 车端版本",
+      "previous_text_sha256": "9a534a49da3395b870e7a2edec540751521eaf069af172fc5176a0584a295633",
+      "current_text_sha256": "3fdb4457cf39055a61790c361d7e77c2bbab2c49b56909d522fc4cacfba7a365",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "CP-17",
+      "current_row": "OCT-CP-17",
+      "name": "5.0版本",
+      "group": "兼容性",
+      "scenario": "版本配套 › 车端版本",
+      "previous_text_sha256": "9f58c9b11268ec9f082cfa077dd57c5dc6190ac1a74da870da7564b797a712d3",
+      "current_text_sha256": "5cdae0b98706eadec4ddad4ce18dc57c1a328aeaacd7401a4ec0ae6a65f23403",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "OP-01",
+      "current_row": "OCT-OP-01",
+      "name": "自车位置/回自车",
+      "group": "其他页面",
+      "scenario": "支持区域界面 › 支持区域",
+      "previous_text_sha256": "35b359323ff2619700ec5de3414ae897c1541618d95e1d323d951866e49e8047",
+      "current_text_sha256": "5c459e498d04fa0dcfae91681cfcb161c652de32fe927b5e0ec0129e92cf8633",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "OP-02",
+      "current_row": "OCT-OP-02",
+      "name": "地图缩放/拖动",
+      "group": "其他页面",
+      "scenario": "支持区域界面 › 支持区域",
+      "previous_text_sha256": "029b41848b4445c213e02f706ff97c9b31ba96d43706a9ce4e5b9141bab9203b",
+      "current_text_sha256": "f9a0c1d821d2c048206daf73bdbc55a1d3a0210cef4223cad934b6eadd014d4a",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "OP-03",
+      "current_row": "OCT-OP-03",
+      "name": "城市显示/选择",
+      "group": "其他页面",
+      "scenario": "支持区域界面 › 支持区域",
+      "previous_text_sha256": "06b8952f596a72d76cdda9fdf50e9f4dc04c6c842502260936d1de57063b0847",
+      "current_text_sha256": "f89d76bd27f5edc04ee44e47be1e766f480e09829556207992ca594c7f578193",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "OP-04",
+      "current_row": "OCT-OP-04",
+      "name": "城市停车场搜索",
+      "group": "其他页面",
+      "scenario": "支持区域界面 › 支持区域",
+      "previous_text_sha256": "7952d5f1f30854df08c8b25cab97ee4ff5e19326c13e6b5e5873eb6438c52eef",
+      "current_text_sha256": "57f7c632d3b1fa9ccd0bf929ac960af713c40846263b92f700839dfcd366093b",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "OP-05",
+      "current_row": "OCT-OP-05",
+      "name": "点击扎标/列表跳转停车场",
+      "group": "其他页面",
+      "scenario": "支持区域界面 › 支持区域",
+      "previous_text_sha256": "91a79dac3c590a2b0241596053c078fdd890aa7d0d10b58de54b588495796f5f",
+      "current_text_sha256": "9f8608631d4960cd9ba76b63c26d9b3c995d14d315ed433c656f1ea5810eccff",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "OP-06",
+      "current_row": "OCT-OP-06",
+      "name": "停车场距离/当前停车场",
+      "group": "其他页面",
+      "scenario": "支持区域界面 › 支持区域",
+      "previous_text_sha256": "d21d25e2ab1532a36ceda4037d88e9a4715ae8614b26f2cd8a37a9bab810c44a",
+      "current_text_sha256": "abc2592a5e98aa9487c0ef7d3ae22dc76fe15fb6d3a427ae2a5724cdd9138033",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "OP-07",
+      "current_row": "OCT-OP-07",
+      "name": "停车场车位/楼层信息",
+      "group": "其他页面",
+      "scenario": "支持区域界面 › 支持区域",
+      "previous_text_sha256": "3b9d90c571b3bd3a66279686ac8478ce05339912b015c2de77d241e430167286",
+      "current_text_sha256": "5209b1764062c41b3a1b14e357eb9f8117ceb0a11f56e5ce612a6c99f019e4fe",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "OP-08",
+      "current_row": "OCT-OP-08",
+      "name": "楼层显示/切换",
+      "group": "其他页面",
+      "scenario": "支持区域界面 › 支持区域",
+      "previous_text_sha256": "f0e4b78d5ca9d668a3b5bfc386a631d38da82973db15d805b41dfb29177a33ef",
+      "current_text_sha256": "37f0f7edfb889d4104d90b374566467cdf42d611e86fae3937e6171921f5fc5f",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "OP-09",
+      "current_row": "OCT-OP-09",
+      "name": "显示去过的或公开停车场VPD图",
+      "group": "其他页面",
+      "scenario": "支持区域界面 › 支持区域",
+      "previous_text_sha256": "db47f786941f489e4516a6732ca0baecb8c228d0b3aa1e078c69381fe03db401",
+      "current_text_sha256": "66501b96a104c0855aa34598a44ca24c86fa62dda043bee53cf7570148b44898",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "OP-10",
+      "current_row": "OCT-OP-10",
+      "name": "异常提示（弱网/无停车场等）",
+      "group": "其他页面",
+      "scenario": "支持区域界面 › 支持区域",
+      "previous_text_sha256": "8e7f563d900239acb30b451a996f77655b159719a2de13f6170e95af9ef67e01",
+      "current_text_sha256": "c003c4a9fc997bce5d1424b1dae4f80ee4361b1427cd65b632b1ff83a7dd7355",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "OP-11",
+      "current_row": "OCT-OP-11",
+      "name": "地图显示热门停车场",
+      "group": "其他页面",
+      "scenario": "支持区域界面 › 点亮停车场",
+      "previous_text_sha256": "19bdbcbfac4409ec024a883c4f990de8b94be734e3368953139fb660f6d71998",
+      "current_text_sha256": "df4346744f498c5c65624fd01baf43bfa386aeb2404f8933ef68d1a54c6a23ac",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "OP-12",
+      "current_row": "OCT-OP-12",
+      "name": "数据展示",
+      "group": "其他页面",
+      "scenario": "支持区域界面 › 点亮停车场",
+      "previous_text_sha256": "0b7f47e9ffd33323ff3b5e6a85da8ec540a47b8fd6ab6e900d68d8de088c5ddc",
+      "current_text_sha256": "78851132cab1ef0bf606004373b05472372f929aa61d7aa9719e9fc460ad577b",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "OP-13",
+      "current_row": "OCT-OP-13",
+      "name": "使用数据增加",
+      "group": "其他页面",
+      "scenario": "支持区域界面 › 点亮停车场",
+      "previous_text_sha256": "932824e788d699f4b4fc21db4546e721e64af73f7ec18ab6d766468cb8cfd94f",
+      "current_text_sha256": "5b2a4f22073c678742749e5de3fffee7ed557d0ce117ca5257a634cf2467d226",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "PW-01",
+      "current_row": "OCT-PW-01",
+      "name": "休眠1min立即算路",
+      "group": "车辆上电状态",
+      "scenario": "车辆休眠重启 › 休眠",
+      "previous_text_sha256": "383830f6041b72722250d3140e372dca5f7a6fecfb46241506e386acb72aed24",
+      "current_text_sha256": "23703c9f38f69d8f295e7487a829595bfd85f4f975bcdb7281e1c2cb1f378c04",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "PW-02",
+      "current_row": "OCT-PW-02",
+      "name": "休眠3min立即算路",
+      "group": "车辆上电状态",
+      "scenario": "车辆休眠重启 › 休眠",
+      "previous_text_sha256": "a6fc7d07b44192c64e46a82ae4601d8b7e2b23a3afc91fba1f0a51ec3500a9d5",
+      "current_text_sha256": "26a606cd8eec4cbbf57f85b95cdc5bc59e7c705ee0e31688da9748dde09d8f2e",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "PW-03",
+      "current_row": "OCT-PW-03",
+      "name": "热启算路",
+      "group": "车辆上电状态",
+      "scenario": "车辆休眠重启 › 热启",
+      "previous_text_sha256": "0e4f0e18162d62fb4ce8af22da2f2aabe6d164caf6d2c4d782084fcd491dd52f",
+      "current_text_sha256": "88de93da219eabc09e3074197e32efa8985bf87ef60520cdf903a8407d419a88",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "PW-04",
+      "current_row": "OCT-PW-04",
+      "name": "冷启算路上电",
+      "group": "车辆上电状态",
+      "scenario": "车辆休眠重启 › 冷启",
+      "previous_text_sha256": "64afc68171f155ae50b5176d4d8c335b9b188a2d9da2777b247b3cb1327edd5d",
+      "current_text_sha256": "5feb7946b50e9674ff39cb43c6757c68c58377d8a7f21d6865dc2fa2ac87ebbf",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "PW-05",
+      "current_row": "OCT-PW-05",
+      "name": "哨兵态算路上电",
+      "group": "车辆上电状态",
+      "scenario": "哨兵使用 › 哨兵态",
+      "previous_text_sha256": "6b95fff4dc6a951c2dae1817809917b56ef81e375c72bba907b63a8ea7ae83a5",
+      "current_text_sha256": "379b87233fbe8b8a5213c9b6dc7168ef995a4c66b7e135a18238906da0324d0f",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "PW-06",
+      "current_row": "OCT-PW-06",
+      "name": "关闭哨兵3min算路上电",
+      "group": "车辆上电状态",
+      "scenario": "哨兵使用 › 关闭哨兵3min",
+      "previous_text_sha256": "36a76a2950061fb77ae6e8f0aabbf2e71a3bb7196591b58a97f9a91b1c067ee7",
+      "current_text_sha256": "77903f55dd644db33529bf53d5dda34df68356eff97fc68580af5a6c4003566b",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "PW-07",
+      "current_row": "OCT-PW-07",
+      "name": "升级后5min算路上电",
+      "group": "车辆上电状态",
+      "scenario": "升级后使用 › 升级后5min",
+      "previous_text_sha256": "5fbfc16d6eb6dc6f066fdec207a54c1acd971254da1ab6a93bea638f4974d8a4",
+      "current_text_sha256": "889b526f291a4a3c42b219fb43843fe42c1bd9f141b0e573e719735fc978b7be",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "PW-08",
+      "current_row": "OCT-PW-08",
+      "name": "3.0升级4.0算路上电",
+      "group": "车辆上电状态",
+      "scenario": "升级后使用 › 3.0升级4.0",
+      "previous_text_sha256": "d70205940bae2525b25d8b926aa3c8b4e49ceff69951f152a780629dffe1126c",
+      "current_text_sha256": "cbbaf69f91372b840392e5bd96535816efd73de797789f5573bbf934ce77df4f",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "PW-09",
+      "current_row": "OCT-PW-09",
+      "name": "下午4点后启动车辆",
+      "group": "车辆上电状态",
+      "scenario": "车端快速算路 › 快速算路",
+      "previous_text_sha256": "f0432fe3990101667ecb715d7f7992dec643bf0294eac331d9b81347384879ff",
+      "current_text_sha256": "e462134a538252e3b7a65269ffbad8a1b9d12fecb58d412427390e2bf2516c5c",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "LK-01",
+      "current_row": "OCT-LK-01",
+      "name": "单账户多手机",
+      "group": "车云手机建链",
+      "scenario": "账户 › 手机账户",
+      "previous_text_sha256": "61bbeb9aede12b9c90cca99f433f868515c1063654c4853eb2457caa7efc5941",
+      "current_text_sha256": "bd61a46da6f506cf975e55251f1c75ca703322cb2f25a44fc58e8b355da0c2fd",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "LK-02",
+      "current_row": "OCT-LK-02",
+      "name": "多账户多手机",
+      "group": "车云手机建链",
+      "scenario": "账户 › 手机账户",
+      "previous_text_sha256": "860c9e8a707635f21f1606dfad183e3d881bf65cce99d6e44f293e79b4a3af37",
+      "current_text_sha256": "2e7457146a4bb3b1c7b0e2a6047aa5da008d72b69e42707c6296db2bd80b5df1",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "LK-03",
+      "current_row": "OCT-LK-03",
+      "name": "控车权限转移",
+      "group": "车云手机建链",
+      "scenario": "账户 › 手机账户",
+      "previous_text_sha256": "dbc5f71d7822e735eb85d63c793bb5b980a5f156f4e6c795edef5abdee863c4e",
+      "current_text_sha256": "33d14287d4b862fb5bc004d9a316dfaf47b11b42d29eb008856505aaf4da7af8",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "LK-04",
+      "current_row": "OCT-LK-04",
+      "name": "和车端不同账号",
+      "group": "车云手机建链",
+      "scenario": "账户 › 手机账户",
+      "previous_text_sha256": "09ea934ede2ad20fcaed5b3c1cc8dcab8339343954a60268f6130a34a0ead0b1",
+      "current_text_sha256": "0209ec42a4502df2e17c68206771fec17978295a283ddca18c97b6b26cbeae7f",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "LK-05",
+      "current_row": "OCT-LK-05",
+      "name": "同车厂多辆车",
+      "group": "车云手机建链",
+      "scenario": "账户 › 手机账户",
+      "previous_text_sha256": "54b014f0454294fa4ebc53e22d5b9e6f205dfa0a80c4510531ee8b62fcb165a9",
+      "current_text_sha256": "aa15f12109981b5c615999e98450b9693ab95da4fc336da99234911aeedafbdd",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "LK-06",
+      "current_row": "OCT-LK-06",
+      "name": "车主账户",
+      "group": "车云手机建链",
+      "scenario": "账户 › 车端账户",
+      "previous_text_sha256": "ffc1c2f56c9b2ab5a3c2777546417aae5e09802c54bfec6ff6e03f1fc06977b0",
+      "current_text_sha256": "b466f575a501e17c078b798c7b494d195363de60f87ae5e467a90a172875bac2",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "LK-07",
+      "current_row": "OCT-LK-07",
+      "name": "授权账户",
+      "group": "车云手机建链",
+      "scenario": "账户 › 车端账户",
+      "previous_text_sha256": "3705488d4df014bcf3512c821b62b063c99b743b8133debec0be12c8f1ee1525",
+      "current_text_sha256": "ccd8e4407c97e5bddded16ac3a3cdfe5038a8c888ecb27e5da5af4616c971f41",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "LK-08",
+      "current_row": "OCT-LK-08",
+      "name": "临时账户",
+      "group": "车云手机建链",
+      "scenario": "账户 › 车端账户",
+      "previous_text_sha256": "c619090bf98debc98536aef43457df8d57b52f794170b298fc3b1c470ee63768",
+      "current_text_sha256": "7ede07f155d7179fab4d645becc9fac203ea11d2219b452ab3d8c670c2b61960",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "LK-09",
+      "current_row": "OCT-LK-09",
+      "name": "首次登陆证书同步",
+      "group": "车云手机建链",
+      "scenario": "账户 › 证书同步",
+      "previous_text_sha256": "5de584c72feb99fa1d76ed9c8a7742a609eb14dc958bd783ca840770d60e3cb7",
+      "current_text_sha256": "3939c393c8e8466aadc3f3a030547e7111c602f9ca35242199190754ecadb02c",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "DM-01",
+      "current_row": "OCT-DM-01",
+      "name": "选点收藏",
+      "group": "数据管理",
+      "scenario": "收藏偏好管理 › 收藏点/车位标签",
+      "previous_text_sha256": "756a7eb6f0e365c13515db552e60699d1129a37f7b1a678cfa158472b322496f",
+      "current_text_sha256": "5498505ce33b8342cdfd9fc6cedcab7f8b54633d3c412281d709c35d1aa41627",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "DM-02",
+      "current_row": "OCT-DM-02",
+      "name": "编辑信息",
+      "group": "数据管理",
+      "scenario": "收藏偏好管理 › 收藏点/车位标签",
+      "previous_text_sha256": "657c59bb1e8d6099683cd3614815671a0606b58045e2609bdc1740d360b3258f",
+      "current_text_sha256": "8372ac5a8cbe8d1a172c70c166f3d97f2d549482914a975f5222976b6745865d",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "DM-03",
+      "current_row": "OCT-DM-03",
+      "name": "跨端同步",
+      "group": "数据管理",
+      "scenario": "收藏偏好管理 › 收藏点/车位标签",
+      "previous_text_sha256": "b359867a2113f3f8d84f725e3fdd6ec6250839514569ea968a5641109f55bf30",
+      "current_text_sha256": "05946afd82607b9e7614c615bb797a61fda888a6662e857d21b84f3b49f37893",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "DM-04",
+      "current_row": "OCT-DM-04",
+      "name": "感知车位/自定义车位同步",
+      "group": "数据管理",
+      "scenario": "收藏偏好管理 › 收藏点/车位标签",
+      "previous_text_sha256": "bf2654b9ce55fd3fa5e4c2104c6ba68b52f352ba88e8afa4f57748ff32791469",
+      "current_text_sha256": "515dc8f7cac89d82e83e3a06abaca0f95345d30358502c659429f1bb6c1b5bca",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "DM-05",
+      "current_row": "OCT-DM-05",
+      "name": "列表显示推荐上下车点",
+      "group": "数据管理",
+      "scenario": "收藏偏好管理 › 推荐上下车点",
+      "previous_text_sha256": "b8e58c26581b803b6d302198900d36619bf3d5d90f1bfca08f120ea5e73eb0c0",
+      "current_text_sha256": "ad23aaf2d7f1c9e07e09c6a75d53f3a4bda03facb9f122298d69aec399b1a3f7",
+      "changed_fields": {}
+    },
+    {
+      "previous_row": "DM-06",
+      "current_row": "OCT-DM-06",
+      "name": "车位界面",
+      "group": "数据管理",
+      "scenario": "收藏偏好管理 › 泊入位姿偏好",
+      "previous_text_sha256": "fa756e20f41cfd912ff2890d9dc908f213eae0d27dd1596ee563fced6a7b9617",
+      "current_text_sha256": "1ed489becc8b69ee25e9d123e0b880f215b41667e647048c4876fa84dca9471f",
+      "changed_fields": {}
+    }
+  ],
+  "added": [
+    {
+      "current_row": "OCT-RT-16",
+      "name": "新替老算路",
+      "text_sha256": "d476b40eb5dc90af9ed6eed8d5cf1669bb390b762aadfae55c9633527a23e7d0"
+    }
+  ],
+  "removed": [
+    {
+      "previous_row": "UI-38",
+      "name": "就近泊车(选点附近有车位)",
+      "text_sha256": "9d5029cdd318ea89b4388291a7de885c233aa4e08fb78ab3278b05b949027500",
+      "retirement_authorized": false
+    },
+    {
+      "previous_row": "UI-39",
+      "name": "就近泊车(选点附近没车位)",
+      "text_sha256": "bef5ebec2b679efce41976f5f6061696e1d3420583f0368503ae1186f4d7e096",
+      "retirement_authorized": false
+    }
+  ],
+  "pending_source_decisions": [
+    {
+      "kind": "removed_rows_retirement_unconfirmed",
+      "previous_rows": [
+        "UI-38",
+        "UI-39"
+      ],
+      "detail": "两条就近泊车L0从十月来源消失，去向仍待确认；不自动从覆盖债务中扣除。"
+    },
+    {
+      "kind": "list_order_contract_unconfirmed",
+      "current_rows": [
+        "OCT-UI-37"
+      ],
+      "detail": "列表新预期已替代旧4条/收藏夹描述，但排序细则仍须独立确认。"
+    },
+    {
+      "kind": "pause_note_removed_from_source",
+      "previous_rows": [
+        "RT-24",
+        "RT-25",
+        "RT-26"
+      ],
+      "current_rows": [
+        "OCT-RT-25",
+        "OCT-RT-26",
+        "OCT-RT-27"
+      ],
+      "detail": "十月原文移除旧暂停执行备注，只记录来源变化，不证明功能已恢复或授权车辆动作。"
+    }
+  ],
+  "historical_asset_mapping": "onebox-9month-20261026-mapping.json remains a frozen September mapping at its original asset commit; this source crosswalk does not rewrite it.",
+  "formal_full_rows_accepted_by_this_package": 0,
+  "new_automated_cases_added_by_this_package": 0,
+  "runtime_consumption": "documentation_only; runtime, case, knowledge, policy and review data are unchanged"
+}
