@@ -1,0 +1,195 @@
+{
+  "id": "TC-QK-234",
+  "version": 1,
+  "status": "candidate",
+  "app": "qiankun_hm",
+  "title": "乾崑 VPD 按楼层搜索车位（用户裁定扩展维度：楼层）",
+  "purpose": "2026-10-24 用户裁定「搜索支持名称、车位号、标签、楼层等维度，且名称与车位号搜索不等价」中的**楼层**维度：在 VPD 搜索页输入楼层标识 B1，核验结果按层返回收藏车位行并回显名称+楼层+编号（1号车位 B1层 A138、2号车位 A137）。只覆盖「楼层词能检索出该层车位并回显身份」，不覆盖楼层车位全量正确性、排序规则、标签维度与算路；判据 K-QK-TC-234 为 unconfirmed，故整例结论只能 pending。",
+  "preconditions": [
+    "乾崑 APP 已登录（当前复用态）",
+    "当前无进行中的 VPD 任务（进入后为地图首页而非任务卡片页）",
+    "VPD 地图已加载且园区存在多个楼层：2026-10-24 启境1395 实测 由度金闽园（可用 L1、B1/共 2 层）",
+    "账号「常去地点」在该层有收藏车位：1号车位（B1层 A138）、2号车位（A137）",
+    "设备已解锁、亮屏、联网"
+  ],
+  "env_requirements": {},
+  "test_data": {
+    "floor_query": "B1",
+    "expect_spot_1": "1号车位",
+    "expect_spot_no_1": "A138",
+    "expect_spot_2": "2号车位"
+  },
+  "authorizations": [
+    "vpd_entry"
+  ],
+  "steps": [
+    {
+      "id": "S1",
+      "action": "stop_app",
+      "desc": "冷启动前置：结束目标 APP（不登出、不切车）"
+    },
+    {
+      "id": "S2",
+      "action": "launch",
+      "expect_state": "@in_app",
+      "timeout_s": 15,
+      "desc": "拉起乾崑 APP"
+    },
+    {
+      "id": "S3",
+      "action": "tap",
+      "target": "qk_tab_car",
+      "timeout_s": 10,
+      "critical": true,
+      "expect_state": "qk_car_tab",
+      "desc": "进「爱车」页"
+    },
+    {
+      "id": "S4",
+      "action": "tap",
+      "target": "qk_ads",
+      "timeout_s": 20,
+      "critical": true,
+      "expect_state": "qk_vpd_home",
+      "desc": "进入泊车代驾地图"
+    },
+    {
+      "id": "S5",
+      "action": "tap",
+      "target": "qk_search_entry",
+      "timeout_s": 10,
+      "critical": true,
+      "expect_state": "qk_spot_search",
+      "desc": "进入搜索二级页面"
+    },
+    {
+      "id": "S6",
+      "action": "input",
+      "target": "qk_search_input",
+      "text": "${var:floor_query}",
+      "timeout_s": 10,
+      "critical": true,
+      "desc": "输入楼层标识 B1（区别于名称/编号搜索维度）"
+    },
+    {
+      "id": "S7",
+      "action": "wait",
+      "duration_s": 3,
+      "desc": "等待结果列表"
+    }
+  ],
+  "assertions": [
+    {
+      "id": "A1",
+      "at": "S7",
+      "type": "text_present",
+      "text": "1号车位",
+      "exact": true,
+      "desc": "楼层搜索返回该层收藏车位并回显收藏名「1号车位」（2026-10-24 obs-0206）",
+      "oracle_refs": [
+        "K-QK-TC-234"
+      ]
+    },
+    {
+      "id": "A2",
+      "at": "S7",
+      "type": "text_present",
+      "text": "A138",
+      "exact": true,
+      "desc": "同一结果行给出车位号 A138，与收藏名同现即可确认是 1号车位 而非其它同层车位",
+      "oracle_refs": [
+        "K-QK-TC-234"
+      ]
+    },
+    {
+      "id": "A3",
+      "at": "S7",
+      "type": "text_present",
+      "text": "2号车位",
+      "exact": true,
+      "desc": "列表返回不止一条同层车位（2号车位），证明是按楼层枚举而非单词命中",
+      "oracle_refs": [
+        "K-QK-TC-234"
+      ]
+    },
+    {
+      "id": "A4",
+      "at": "S7",
+      "type": "text_present",
+      "text": "B1层",
+      "exact": true,
+      "desc": "结果行标注楼层 B1层，与查询词对应",
+      "oracle_refs": [
+        "K-QK-TC-234"
+      ]
+    },
+    {
+      "id": "A5",
+      "at": "S7",
+      "type": "visual_review",
+      "advisory": true,
+      "desc": "结果列表结构（建议）",
+      "prompt": "检查截图：结果是否按楼层列出多行车位（名称/楼层/编号/路线），是否出现「未找到」空态。只作建议"
+    }
+  ],
+  "cleanup": [
+    {
+      "id": "C1",
+      "action": "stop_app",
+      "desc": "结束目标 APP 并由执行器独立核验；未点路线、未改收藏、无车辆运动"
+    }
+  ],
+  "knowledge_used": [
+    {
+      "id": "K-QK-TC-234",
+      "use": "用户裁定的楼层维度判据：楼层词检索出该层车位并回显名称+编号",
+      "applicability": "unconfirmed",
+      "rationale": "applies_to 只写 app=qiankun_hm；unconfirmed 故记 pending。",
+      "steps": [
+        "S5",
+        "S6",
+        "S7"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "type": "user_ruling",
+      "ref": "2026-10-24 用户裁定：搜索支持名称/车位号/标签/楼层等维度；名称与车位号搜索不等价"
+    },
+    {
+      "type": "device_observation",
+      "ref": "2026-10-24 启境1395（…S01395（尾六位），乾崑 1.0.26.100，foldable）：session-default obs-0206（搜 B1 → 由度金闽园/1号车位 B1层 A138/2号车位 A137）"
+    },
+    {
+      "type": "text_case",
+      "ref": "OneBox「全量用例测试结果」第 60 行（算路/搜索界面/搜索终点「搜索楼层」L2）（本地导出 SHA-256 06ae5d08da2f40ffc1e16b1439c203198b96a2329170004e925bd151625ddabe）"
+    }
+  ],
+  "history": [
+    {
+      "ts": "2026-10-24T16:34:00+08:00",
+      "to": "draft",
+      "why": "按用户 2026-10-24 裁定新增楼层维度资产；复用既有 qk_search_entry/qk_search_input 目标，未新增目标或引擎能力；env_requirements 为空（纯文本可见性断言，形态无关）"
+    },
+    {
+      "ts": "2026-10-24T16:35:52.643+08:00",
+      "from": "draft",
+      "to": "candidate",
+      "by": null,
+      "hash": "7b57ee3e903b",
+      "replays": [],
+      "product_status": null
+    },
+    {
+      "ts": "2026-10-24T18:10:00+08:00",
+      "to": "candidate",
+      "why": "更正来源行号：按本地导出逐行核对，本资产对应的是第 60 行（算路/搜索界面/搜索终点「搜索楼层」L2）；此前记录的行号存在偏移（行号与用例名对不上），内容与步骤未变"
+    }
+  ],
+  "origin": {
+    "type": "user_ruling",
+    "ref": "2026-10-24 用户裁定（搜索维度扩展）",
+    "review_reason": "维度与锚点来自用户裁定+现场观察，需人工核对判据后谈晋级"
+  }
+}

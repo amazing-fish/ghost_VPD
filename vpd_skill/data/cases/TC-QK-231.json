@@ -1,0 +1,199 @@
+{
+  "id": "TC-QK-231",
+  "version": 2,
+  "status": "candidate",
+  "app": "qiankun_hm",
+  "title": "乾崑 VPD 按车位号搜索回显收藏车位名（原表第 59 行「编号侧」子范围）",
+  "purpose": "OneBox 原表第 59 行「搜索已经收藏的车位号和路点」的编号侧子范围：在 VPD 搜索页直接输入已收藏车位的编号 A138，验证结果行回显该车位的收藏名「1号车位」与楼层「B1层」，从而与 TC-QK-230（按名称搜出编号）构成名称↔编号往返绑定。不点「路线/去这里」、不发起算路、不改动收藏。判据沿用 K-QK-TC-059（unconfirmed，故整例结论只能 pending）；2026-10-24 用户裁定名称搜索与车位号搜索不等价、不能互替，故本条独立承担编号侧；标签/楼层等搜索维度尚未覆盖。",
+  "preconditions": [
+    "乾崑 APP 已登录（当前复用态；登出态时本条不成立，判环境阻塞）",
+    "当前无进行中的 VPD 任务：VPD 首页出现「搜索车位号设为目的地」（有任务时是任务卡片页，搜索入口不可达）",
+    "VPD 园区图已加载：2026-10-24 启境1395（车架号后六位 S01395）实测 由度金闽园 泊车代驾 共 695 个，车辆停泊于 C141 附近",
+    "账号「常去地点」已有收藏车位：本车实测为「1号车位 / 2号车位」，其中 1号车位 解析为 由度金闽园 B1层 A138（搜 A138 结果行回显「1号车位」）。旧工作机 A224 不适用于本车，禁止照搬",
+    "设备已解锁、亮屏、联网"
+  ],
+  "env_requirements": {},
+  "test_data": {
+    "spot_no": "A138",
+    "expect_spot_name": "1号车位",
+    "expect_floor": "B1层",
+    "park": "由度金闽园"
+  },
+  "authorizations": [
+    "vpd_entry"
+  ],
+  "steps": [
+    {
+      "id": "S1",
+      "action": "stop_app",
+      "desc": "冷启动前置：结束目标 APP，获得确定的起点（不登出、不切车）"
+    },
+    {
+      "id": "S2",
+      "action": "launch",
+      "expect_state": "@in_app",
+      "timeout_s": 15,
+      "desc": "拉起乾崑 APP（资源包等已登记良性弹窗由执行器按登记处置）"
+    },
+    {
+      "id": "S3",
+      "action": "tap",
+      "target": "qk_tab_car",
+      "timeout_s": 10,
+      "critical": true,
+      "expect_state": "qk_car_tab",
+      "desc": "进「爱车」页"
+    },
+    {
+      "id": "S4",
+      "action": "tap",
+      "target": "qk_ads",
+      "timeout_s": 20,
+      "critical": true,
+      "expect_state": "qk_vpd_home",
+      "desc": "点 ADS 进入泊车代驾地图（qk_vpd_home 签名含搜索入口且排除已知停车场加载失败）"
+    },
+    {
+      "id": "S5",
+      "action": "tap",
+      "target": "qk_search_entry",
+      "timeout_s": 10,
+      "critical": true,
+      "expect_state": "qk_spot_search",
+      "desc": "点搜索框进入搜索二级页面"
+    },
+    {
+      "id": "S6",
+      "action": "input",
+      "target": "qk_search_input",
+      "text": "${var:spot_no}",
+      "timeout_s": 10,
+      "critical": true,
+      "desc": "输入已收藏车位的编号 A138（编号侧，区别于 TC-QK-230 的按名称搜索）"
+    },
+    {
+      "id": "S7",
+      "action": "wait",
+      "duration_s": 3,
+      "desc": "等待搜索结果列表"
+    },
+    {
+      "id": "S8",
+      "action": "back",
+      "desc": "收起输入法键盘：搜索页首退只收键盘、页面不变，故不设后置条件"
+    }
+  ],
+  "assertions": [
+    {
+      "id": "A1",
+      "at": "S7",
+      "type": "text_present",
+      "text": "1号车位",
+      "exact": true,
+      "desc": "按编号 A138 搜索后，结果行回显该车位的收藏名「1号车位」（2026-10-24 启境1395 实测 obs-0165：由度金闽园 · 1号车位 · B1层）。这条是名称↔编号往返绑定的关键：名称搜索只回显编号、编号搜索回显名称",
+      "oracle_refs": [
+        "K-QK-TC-059"
+      ]
+    },
+    {
+      "id": "A2",
+      "at": "S7",
+      "type": "text_present",
+      "text": "B1层",
+      "exact": true,
+      "desc": "结果行给出楼层 B1层，与名称同现于同一结果行",
+      "oracle_refs": [
+        "K-QK-TC-059"
+      ]
+    },
+    {
+      "id": "A3",
+      "at": "S7",
+      "type": "text_present",
+      "text": "由度金闽园",
+      "exact": true,
+      "desc": "结果行给出本车所在园区名 由度金闽园，排除其它园区同名收藏",
+      "oracle_refs": [
+        "K-QK-TC-059"
+      ]
+    },
+    {
+      "id": "A4",
+      "at": "S7",
+      "type": "visual_review",
+      "advisory": true,
+      "desc": "结果行结构（建议）",
+      "prompt": "检查截图：是否只有唯一一条车位结果行、是否含收藏名/楼层/编号/「路线」入口、是否出现「未找到」或错误提示。只给建议，不作为缺陷结论"
+    }
+  ],
+  "cleanup": [
+    {
+      "id": "C1",
+      "action": "back",
+      "required": false,
+      "desc": "收起输入法键盘（搜索页首退只收键盘；不点路线、不改收藏）。非必需：本用例没有写用户数据，终态由 C2 独立核验"
+    },
+    {
+      "id": "C2",
+      "action": "stop_app",
+      "desc": "结束目标 APP，并由执行器独立核验进程结束"
+    }
+  ],
+  "knowledge_used": [
+    {
+      "id": "K-QK-TC-059",
+      "use": "原表第 59 行预期「搜索成功，显示结果」的直接判据：搜索已完成收藏的车位后结果列表显示该收藏项",
+      "applicability": "unconfirmed",
+      "rationale": "由 OneBox 原表预期整理，applies_to 仅 app=qiankun_hm，本次 facts（1.0.26.100 / foldable）不构成越界；但条目 unconfirmed，引擎按「判据未确认」记 pending，须用例/产品负责人一次 confirm。",
+      "steps": [
+        "S5",
+        "S6"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "type": "text_case",
+      "ref": "OneBox「全量用例测试结果」第 58 行（算路/搜索界面/搜索终点「搜索车位号」L1）（本地导出 SHA-256 06ae5d08da2f40ffc1e16b1439c203198b96a2329170004e925bd151625ddabe）"
+    },
+    {
+      "type": "device_observation",
+      "ref": "2026-10-24 启境1395（…S01395（尾六位），乾崑 1.0.26.100，foldable 1264x1848）：session-default obs-0165（搜 A138 → 由度金闽园/1号车位/B1层）、obs-0140（反向：搜 1号车位 → B1层/A138）"
+    },
+    {
+      "type": "case",
+      "ref": "TC-QK-230（按名称搜索侧；与本条构成往返回合，两条各自独立可重跑）"
+    }
+  ],
+  "history": [
+    {
+      "ts": "2026-10-24T15:52:00+08:00",
+      "to": "draft",
+      "why": "按 OneBox 第 59 行的编号侧新建：原表要求搜索「已经收藏的车位号」，此前 TC-QK-230 只做名称侧且结果行是否回显名称未知。2026-10-24 启境1395 实测发现搜索 A138 会回显收藏名「1号车位」，据此建立名称↔编号往返绑定断言（A1），并复用既有 qk_search_entry/qk_spot_search/qk_search_input 目标，未新增引擎能力"
+    },
+    {
+      "ts": "2026-10-24T16:28:00+08:00",
+      "to": "draft",
+      "why": "记录 2026-10-24 用户裁定：名称搜索≠车位号搜索，编号侧须独立覆盖（本条）；搜索还支持标签/楼层维度，作为缺口登记"
+    },
+    {
+      "ts": "2026-10-24T16:35:51.640+08:00",
+      "from": "draft",
+      "to": "candidate",
+      "by": null,
+      "hash": "50493b54a33e",
+      "replays": [],
+      "product_status": null
+    },
+    {
+      "ts": "2026-10-24T18:10:00+08:00",
+      "to": "candidate",
+      "why": "更正来源行号：按本地导出逐行核对，本资产对应的是第 58 行（算路/搜索界面/搜索终点「搜索车位号」L1）；此前记录的行号存在偏移（行号与用例名对不上），内容与步骤未变"
+    }
+  ],
+  "origin": {
+    "type": "text_case",
+    "ref": "OneBox 全量用例测试结果 第 59 行（编号侧子范围）",
+    "review_reason": "文字用例派生的子范围候选；需人工核对判据适用性与是否要求名称/编号两侧都覆盖后才谈晋级"
+  }
+}
