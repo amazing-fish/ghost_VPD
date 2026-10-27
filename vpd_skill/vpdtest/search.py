@@ -184,8 +184,10 @@ def search(ws, query: str, app_id: Optional[str] = None, roles: Optional[list] =
     rows = _items(ws, kn, terms, facts) + _docs(ws, terms) + _defects(ws, terms)
     if app_id:
         rows += _app_model(ws, app_id, terms)
-        rows = [r for r in rows if not (r.get("applies_to") or {}).get("app") or
-                (r["applies_to"]["app"] in ("*", app_id))]
+        # Only APP gates retrieval; keep version/form mismatches visible as diagnostics.
+        rows = [r for r in rows if applicability(
+            {"applies_to": {"app": (r.get("applies_to") or {}).get("app")}},
+            {"app": app_id})["status"] != "out_of_scope"]
     if roles:
         rows = [r for r in rows if r["role"] in roles]
     rows.sort(key=lambda r: -r["score"])
