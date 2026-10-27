@@ -1,12 +1,12 @@
 # 项目方向与执行安排（2026-10-27）
 
-本轮取证基线：`main @ c60b5b0354fa8d93ec5473cc483f982afb8c7161`。实际41份case（32份乾崑、9份motor；31 draft、10 exploration_record），100条知识；资产数量不代表已自动化覆盖的原表行数。
+本轮取证基线：`main @ dfcb3321d6d4d7d0690633d6566f0b6badefafff`。实际41份case（32份乾崑、9份motor；31 draft、10 exploration_record），100条知识；资产数量不代表已自动化覆盖的原表行数。
 
 - [PR #104](https://github.com/amazing-fish/ghost_VPD/pull/104) 已把242 v6标签搜索及清理链路补入main，不再使用“#100只合到业务分支、main仍v4”的旧结论。2026-10-26实机5/5检查、34次物理动作及恢复核验是历史证据，本轮未新增实机执行。九份既有人审决策按原范围保留；242 v6仍待资产人审，不进suite、不晋级。当前指纹改变后仍须检查审核绑定，不能把旧审核当新版本已验。
-- [PR #105](https://github.com/amazing-fish/ghost_VPD/pull/105) 已保存[#102](https://github.com/amazing-fish/ghost_VPD/issues/102)的九月151条转写快照与固定范围映射。其[最新更新](https://github.com/amazing-fish/ghost_VPD/issues/102#issuecomment-6431484668)指定后续以[#106](https://github.com/amazing-fish/ghost_VPD/issues/106)十月150条为准；#106当前为closed，但十月源快照尚未入仓。保留九月历史，按快照ID区分新旧，不以Issue关闭推断已同步。
-- 最新工作机问题[#107–#111的收敛](WORKMACHINE_SEARCH_20261027.md)：先修首页识别和坐标点击诊断，再交付真实收藏/搜索源件。字段规则、空白结果终态及两账号重放继续分账，工程修复新增正式覆盖为0。工作机session-s293新增ADS入口拒发；#107/#110本次分别因首页不可达/已登录而未复测。入口语义与数据绑定所需AA树仍未交付，见[最新索引](WORKMACHINE_SEARCH_EVIDENCE_20261027.md)。工程提交见[PR #112](https://github.com/amazing-fish/ghost_VPD/pull/112)与[PR #113](https://github.com/amazing-fish/ghost_VPD/pull/113)，合入以各PR远端状态为准；真机待验。
+- [PR #105](https://github.com/amazing-fish/ghost_VPD/pull/105) 已保存[#102](https://github.com/amazing-fish/ghost_VPD/issues/102)的九月151条转写快照与固定范围映射。其[最新更新](https://github.com/amazing-fish/ghost_VPD/issues/102#issuecomment-6431484668)指定后续以[#106](https://github.com/amazing-fish/ghost_VPD/issues/106)十月150条为准；#106当前为closed，但十月源快照尚未入仓；其完整评论可由维护侧直接获取，此来源工作不再等待工作机重导。#102按九月历史同步完成关闭，后续映射与验收承接#65。保留九月历史，按快照ID区分新旧，不以Issue关闭推断已同步。
+- 最新工作机问题[#107–#111的收敛](WORKMACHINE_SEARCH_20261027.md)：先修首页识别和坐标点击诊断，再交付真实收藏/搜索源件。字段规则、空白结果终态及两账号重放继续分账，工程修复新增正式覆盖为0。工作机session-s293新增ADS入口拒发；#107/#110本次分别因首页不可达/已登录而未复测。入口语义与数据绑定所需AA树仍未交付，见[最新索引](WORKMACHINE_SEARCH_EVIDENCE_20261027.md)。工程#112/#113与来源存档#115均已合；首页新入口与登录现场仍待验，#110剩余验收完整承接#64。
 
-逐例范围与既有证据见[K89交付](K89_0228_CASES.md)、[main补交付索引](evidence/K89_MAIN_DELIVERY_20261027.json)及[九月历史映射](baselines/README.md)。PR #36仅保留历史来源，不再整包合入。
+逐例范围与既有证据见[K89交付](K89_0228_CASES.md)、[main补交付索引](evidence/K89_MAIN_DELIVERY_20261027.json)及[九月历史映射](baselines/README.md)。PR #36已按被#41替代归档关闭，保留分支和历史来源，不再整包合入。#103按六阶段指南文档已记录归档，不表示六阶段已自动化。
 
 ## 交付目标与当前缺口
 
@@ -30,6 +30,15 @@
 | P2，独立几何缺陷 | [#82](https://github.com/amazing-fish/ghost_VPD/issues/82) | #85诊断已交付；947/1264矛盾仍须同帧独立窗口、祖先链与真实右缘按钮后置。保留列表/隐藏分页裁剪，不把诊断当几何适配 |
 | 后续业务切片 | [#65](https://github.com/amazing-fish/ghost_VPD/issues/65) | OP-03旧映射的“选择另一实际城市并恢复”仍是245未覆盖子范围；先对齐十月来源及当前现场，再写完整脚本。#103六阶段指导用于组织队列，不代表已有资产覆盖六阶段 |
 | 后续维护 | [#45](https://github.com/amazing-fish/ghost_VPD/issues/45) | 承接#9知识治理/测试隔离与#29方法论。按真实缺陷推进Legacy、Oracle资格和证据治理，不扩平行框架，不阻塞已有资产交付 |
+
+## 下一阶段：维护侧主导代码，工作机提供现场
+
+1. **先堵住跨行拼证（#111）**：限定文本断言到已登记、唯一、完整可见的当前树容器，纳入依赖和假设目标门禁，保留错误/未知语义；先用合成正反例交付工程能力。没有真实行容器前，来源档案不自动启用，完整#111仍开放。
+2. **再接读数与参数（#111）**：独立读取唯一有效值，关联来源步骤/obs，后继输入与断言按对应时点消费；缺值/歧义/错误不得输入占位串或旧值，不覆盖secret，不从搜索结果反推产品期望。运行期变量不冒充跨动作有效的condition/provider。
+
+维护侧承担工作机PR的完整diff、调用链、依赖、lint结果与证据资格审查，以及代码修复和离线回归；工作机主要负责原始AA/动作JSON/真实定义及最小实机复验。接管先固定HEAD及单一写入人，避免两端同时改同一分支；具体要求见[协作约定](ISSUE_COLLABORATION.md#工作机-pr-的交接与维护侧审查)。Codex/CI为补充，退出0或绿灯不代替实质审查。
+
+#102/#103已归档、#110迁入#64后的开放队列为12项；关闭历史/重复任务不增加正式覆盖。#107入口、#108字段、#109请求终态保留独立；#54触摸归属、#58手势、#82几何也不因表面相似而合并。十月150条来源由维护侧沿#65后续落库，九月不覆盖。
 
 ## 工程交付与架构收敛
 
