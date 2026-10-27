@@ -4,7 +4,7 @@
 
 - [PR #104](https://github.com/amazing-fish/ghost_VPD/pull/104) 已把242 v6标签搜索及清理链路补入main，不再使用“#100只合到业务分支、main仍v4”的旧结论。2026-10-26实机5/5检查、34次物理动作及恢复核验是历史证据，本轮未新增实机执行。九份既有人审决策按原范围保留；242 v6仍待资产人审，不进suite、不晋级。当前指纹改变后仍须检查审核绑定，不能把旧审核当新版本已验。
 - [PR #105](https://github.com/amazing-fish/ghost_VPD/pull/105) 已保存[#102](https://github.com/amazing-fish/ghost_VPD/issues/102)的九月151条转写快照与固定范围映射。其[最新更新](https://github.com/amazing-fish/ghost_VPD/issues/102#issuecomment-6431484668)指定后续以[#106](https://github.com/amazing-fish/ghost_VPD/issues/106)十月150条为准；#106当前为closed，但十月源快照尚未入仓。保留九月历史，按快照ID区分新旧，不以Issue关闭推断已同步。
-- 最新工作机问题[#107–#111的收敛](WORKMACHINE_SEARCH_20261027.md)：先修首页识别和坐标点击诊断，再交付真实收藏/搜索源件。字段规则、空白结果终态及两账号重放继续分账，工程修复新增正式覆盖为0。工程提交见[PR #112](https://github.com/amazing-fish/ghost_VPD/pull/112)与[PR #113](https://github.com/amazing-fish/ghost_VPD/pull/113)，合入以各PR远端状态为准；真机待验。
+- 最新工作机问题[#107–#111的收敛](WORKMACHINE_SEARCH_20261027.md)：先修首页识别和坐标点击诊断，再交付真实收藏/搜索源件。字段规则、空白结果终态及两账号重放继续分账，工程修复新增正式覆盖为0。工作机session-s293新增ADS入口拒发；#107/#110本次分别因首页不可达/已登录而未复测。入口语义与数据绑定所需AA树仍未交付，见[最新索引](WORKMACHINE_SEARCH_EVIDENCE_20261027.md)。工程提交见[PR #112](https://github.com/amazing-fish/ghost_VPD/pull/112)与[PR #113](https://github.com/amazing-fish/ghost_VPD/pull/113)，合入以各PR远端状态为准；真机待验。
 
 逐例范围与既有证据见[K89交付](K89_0228_CASES.md)、[main补交付索引](evidence/K89_MAIN_DELIVERY_20261027.json)及[九月历史映射](baselines/README.md)。PR #36仅保留历史来源，不再整包合入。
 
@@ -12,7 +12,7 @@
 
 交付单位是可独立判定、重复执行、证据可追溯的 **VPD 内功能用例**。沿用 `Observer → Executor/Dispatcher → Verdict → Case`；操作能力落在现有 `flow/state/targets/dialogs`，不新建另一套执行、规划或判定引擎。登录、解锁、系统弹窗及进入业务页属于前置能力，不能计作 VPD 功能覆盖。
 
-当前主线230仍是历史A224/C156的v2，231–239不存在。工作机230v5、231–239及配套targets/states/知识、形态迁移和当前证据索引仍未交付；先提交源件及content/deps/engine/policy/context、run/obs和cleanup索引，不用再建资产替代已有文件交付。历史“40份资产、4项replay_verified”的本地报告不是当前main库存；仅K-GEN-001无崩溃检查也不能证明业务完整通过。
+主线活跃230仍是历史A224/C156的v2，231–239未进入活跃目录。工作机230v5/231v2/234/235和两项新增知识已由[PR #115](https://github.com/amazing-fish/ghost_VPD/pull/115)交付为[完整来源存档](evidence/workmachine-search-20261027/README.md)，未启用：前三者仍缺同行身份绑定，235还缺qk_tag_elevator，知识来源类型待接入兼容。原件不是已验资产，新增正式覆盖0；232/233/236–239、真实targets/states、原始AA容器和指纹/清理索引继续补交，不能拿旧230替代v5。历史“40份资产、4项replay_verified”的本地报告不是当前main库存；仅K-GEN-001无崩溃检查也不能证明业务完整通过。
 
 最新来源改用十月[#106](https://github.com/amazing-fish/ghost_VPD/issues/106)及`OCT-`编号：来源报告相对九月新增1、消失2、同名变化5（4项优先级调整、收藏/推荐列表预期改写）。先保存可核对来源并复核受影响映射；消失的两项就近泊车L0去向与列表新预期尚需确认，不自行删掉覆盖债务。该来源报告的63项“自动化”标记及各端非空结果列不构成已执行覆盖。九月快照不覆写，历史143行分档不再作当前分母。判据未确认不阻止draft交付，确认也不追改旧pending。
 

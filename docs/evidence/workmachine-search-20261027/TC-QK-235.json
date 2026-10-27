@@ -1,0 +1,702 @@
+{
+  "id": "TC-QK-235",
+  "version": 1,
+  "status": "candidate",
+  "app": "qiankun_hm",
+  "title": "乾崑 VPD 按标签「电梯口」筛选（用户裁定扩展维度：标签）",
+  "purpose": "2026-10-24 用户裁定「搜索支持名称、车位号、标签、楼层等维度」中的**标签**维度：在 VPD 搜索页（搜索框为空）点标签「电梯口」，核验结果按标签返回该园区带此标签的点位行（形如「B1层-8号楼电梯口附近」）并给出「路线」入口。只覆盖「标签筛选能检索出带该标签的行」，不覆盖标签集合完整性、标签与车位属性对应、排序与算法；判据 K-QK-TC-235 为 unconfirmed，故整例结论只能 pending。",
+  "preconditions": [
+    "乾崑 APP 已登录（当前复用态）",
+    "当前无进行中的 VPD 任务（进入后为地图首页）",
+    "VPD 地图已加载且园区存在带「电梯口」标签的点位：2026-10-24 启境1395 实测 由度金闽园 有 5 条（B1层-5/6/8/9号楼电梯口附近、9号楼货梯口附近）",
+    "搜索框为空：带查询词（如 B1）时点同一标签结果为空白，因此必须从空搜索页进入",
+    "设备已解锁、亮屏、联网"
+  ],
+  "env_requirements": {},
+  "test_data": {
+    "tag": "电梯口",
+    "park": "由度金闽园",
+    "expect_row_fragment": "号楼电梯口附近"
+  },
+  "authorizations": [
+    "vpd_entry"
+  ],
+  "steps": [
+    {
+      "id": "S1",
+      "action": "stop_app",
+      "desc": "冷启动前置：结束目标 APP（不登出、不切车）"
+    },
+    {
+      "id": "S2",
+      "action": "launch",
+      "expect_state": "@in_app",
+      "timeout_s": 15,
+      "desc": "拉起乾崑 APP"
+    },
+    {
+      "id": "S3",
+      "action": "tap",
+      "target": "qk_tab_car",
+      "timeout_s": 10,
+      "critical": true,
+      "expect_state": "qk_car_tab",
+      "desc": "进「爱车」页"
+    },
+    {
+      "id": "S4",
+      "action": "tap",
+      "target": "qk_ads",
+      "timeout_s": 20,
+      "critical": true,
+      "expect_state": "qk_vpd_home",
+      "desc": "进入泊车代驾地图"
+    },
+    {
+      "id": "S5",
+      "action": "tap",
+      "target": "qk_search_entry",
+      "timeout_s": 10,
+      "critical": true,
+      "expect_state": "qk_spot_search",
+      "desc": "进入搜索二级页面（此时搜索框为空、下方有标签「电梯口」「充电桩」）"
+    },
+    {
+      "id": "S6",
+      "action": "tap",
+      "target": "qk_tag_elevator",
+      "timeout_s": 10,
+      "critical": true,
+      "desc": "点标签「电梯口」按标签筛选（不输入任何查询词）"
+    },
+    {
+      "id": "S7",
+      "action": "wait",
+      "duration_s": 4,
+      "desc": "等待标签结果列表渲染"
+    }
+  ],
+  "assertions": [
+    {
+      "id": "A1",
+      "at": "S7",
+      "type": "text_present",
+      "text": "号楼电梯口附近",
+      "exact": false,
+      "desc": "结果行是按标签命中的点位名（「B1层-8号楼电梯口附近」等），子串匹配以容纳不同楼栋号（2026-10-24 session-s1700 obs-0013）",
+      "oracle_refs": [
+        "K-QK-TC-235"
+      ]
+    },
+    {
+      "id": "A2",
+      "at": "S7",
+      "type": "text_present",
+      "text": "由度金闽园",
+      "exact": true,
+      "desc": "结果头部给出所在园区，证明结果来自当前园区而非全局推荐",
+      "oracle_refs": [
+        "K-QK-TC-235"
+      ]
+    },
+    {
+      "id": "A3",
+      "at": "S7",
+      "type": "text_present_any",
+      "any": [
+        "B1层-8号楼电梯口附近",
+        "B1层-9号楼电梯口附近",
+        "B1层-5号楼电梯口附近",
+        "B1层-6号楼电梯口附近"
+      ],
+      "desc": "至少一条电梯口标签点位以完整名称出现（四个楼栋任一），避免只命中园区标题里的词",
+      "oracle_refs": [
+        "K-QK-TC-235"
+      ]
+    },
+    {
+      "id": "A4",
+      "at": "S7",
+      "type": "visual_review",
+      "advisory": true,
+      "desc": "结果列表结构（建议）",
+      "prompt": "检查截图：结果是否列出多条带「电梯口」字样的点位行并带「路线」入口；是否出现空态「未找到」。只作建议"
+    }
+  ],
+  "cleanup": [
+    {
+      "id": "C1",
+      "action": "stop_app",
+      "desc": "结束目标 APP 并由执行器独立核验；未点路线、未改收藏、无车辆运动"
+    }
+  ],
+  "knowledge_used": [
+    {
+      "id": "K-QK-TC-235",
+      "use": "用户裁定的标签维度判据：标签筛选返回带该标签的点位行",
+      "applicability": "unconfirmed",
+      "rationale": "applies_to 只写 app=qiankun_hm；unconfirmed 故记 pending。空搜索词条件写在 preconditions 与 S5/S6 说明里。",
+      "steps": [
+        "S5",
+        "S6",
+        "S7"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "type": "user_ruling",
+      "ref": "2026-10-24 用户裁定：搜索支持名称/车位号/标签/楼层等维度"
+    },
+    {
+      "type": "device_observation",
+      "ref": "2026-10-24 启境1395（乾崑 1.0.26.100，foldable）：会话 session-s1700 obs-0009（空搜索页含 电梯口/充电桩 标签、历史记录为空）、obs-0013（点电梯口后 5 行标签点位）；对照 session-s1630 obs-0004（带查询词 B1 时点电梯口为空列表）"
+    },
+    {
+      "type": "text_case",
+      "ref": "OneBox「全量用例测试结果」第 61 行（算路/搜索界面/搜索终点「搜索标签」L1）（本地导出 SHA-256 06ae5d08da2f40ffc1e16b1439c203198b96a2329170004e925bd151625ddabe）"
+    }
+  ],
+  "history": [
+    {
+      "ts": "2026-10-24T16:46:00+08:00",
+      "to": "draft",
+      "why": "按用户 2026-10-24 裁定新增标签维度资产；新增目标 qk_tag_elevator（source=skill，unverified）；判据 K-QK-TC-235 unconfirmed；未新增引擎能力；env_requirements 为空（纯文本可见性断言，形态无关）。同类「充电桩」标签被 vehicle_control 拒，见 issue #84，本条不覆盖"
+    },
+    {
+      "ts": "2026-10-24T16:44:21.037+08:00",
+      "from": "draft",
+      "to": "candidate",
+      "by": null,
+      "hash": "a9b2d3dedb1c",
+      "replays": [],
+      "product_status": null
+    },
+    {
+      "ts": "2026-10-24T18:10:00+08:00",
+      "to": "candidate",
+      "why": "更正来源行号：按本地导出逐行核对，本资产对应的是第 61 行（算路/搜索界面/搜索终点「搜索标签」L1）；此前记录的行号存在偏移（行号与用例名对不上），内容与步骤未变"
+    }
+  ],
+  "origin": {
+    "type": "user_ruling",
+    "ref": "2026-10-24 用户裁定（搜索维度扩展：标签）",
+    "review_reason": "维度与锚点来自用户裁定+现场观察，需人工核对判据后谈晋级"
+  },
+  "replays": [
+    {
+      "run_id": "run-20261024-164159-7bf8",
+      "verdict": "pending",
+      "hash": "a9b2d3dedb1c",
+      "deps": "78808240bcb9",
+      "validation_level": "real_device",
+      "device": "hdc:6HQ0226505000341",
+      "ts": "2026-10-24T16:43:02.286+08:00",
+      "failure_signature": [],
+      "alerts": 0,
+      "not_verified": 0,
+      "facts": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100",
+        "device_form": "foldable"
+      },
+      "oracle_facts": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100",
+        "device_form": "foldable"
+      },
+      "assertions": [
+        {
+          "id": "A1",
+          "result": "pending",
+          "advisory": false,
+          "oracle_refs": [
+            "K-QK-TC-235"
+          ],
+          "oracle": {
+            "status": "unconfirmed",
+            "items": [
+              {
+                "id": "K-QK-TC-235",
+                "status": "unconfirmed",
+                "statement": "在 VPD 搜索页（搜索框为空）点击标签「电梯口」后，结果列表按标签返回该园区带此标签的地点/车位行：每行显示点位名称（形如「B1层-8号楼电梯口附近」）与园区信息，并带「路线」入口。本条只覆盖「标签筛选能检索出带该标签的行」，不覆盖标签集合完整性、标签与车位属性的正确对应、排序规则与算法结果。",
+                "source": "2026-10-24 用户裁定：搜索支持名称、车位号、标签、楼层等维度；本条目对应「标签」维度，现场观测 session-s1700 obs-0013",
+                "applies_to": {
+                  "app": "qiankun_hm"
+                },
+                "applicability": {
+                  "status": "applies",
+                  "unknown": [],
+                  "mismatch": []
+                },
+                "condition_requirements": {}
+              }
+            ],
+            "reason": "引用的知识尚未确认"
+          },
+          "facts": {
+            "app": "qiankun_hm",
+            "app_version": "1.0.26.100",
+            "device_form": "foldable"
+          },
+          "verified": false
+        },
+        {
+          "id": "A2",
+          "result": "pending",
+          "advisory": false,
+          "oracle_refs": [
+            "K-QK-TC-235"
+          ],
+          "oracle": {
+            "status": "unconfirmed",
+            "items": [
+              {
+                "id": "K-QK-TC-235",
+                "status": "unconfirmed",
+                "statement": "在 VPD 搜索页（搜索框为空）点击标签「电梯口」后，结果列表按标签返回该园区带此标签的地点/车位行：每行显示点位名称（形如「B1层-8号楼电梯口附近」）与园区信息，并带「路线」入口。本条只覆盖「标签筛选能检索出带该标签的行」，不覆盖标签集合完整性、标签与车位属性的正确对应、排序规则与算法结果。",
+                "source": "2026-10-24 用户裁定：搜索支持名称、车位号、标签、楼层等维度；本条目对应「标签」维度，现场观测 session-s1700 obs-0013",
+                "applies_to": {
+                  "app": "qiankun_hm"
+                },
+                "applicability": {
+                  "status": "applies",
+                  "unknown": [],
+                  "mismatch": []
+                },
+                "condition_requirements": {}
+              }
+            ],
+            "reason": "引用的知识尚未确认"
+          },
+          "facts": {
+            "app": "qiankun_hm",
+            "app_version": "1.0.26.100",
+            "device_form": "foldable"
+          },
+          "verified": false
+        },
+        {
+          "id": "A3",
+          "result": "pending",
+          "advisory": false,
+          "oracle_refs": [
+            "K-QK-TC-235"
+          ],
+          "oracle": {
+            "status": "unconfirmed",
+            "items": [
+              {
+                "id": "K-QK-TC-235",
+                "status": "unconfirmed",
+                "statement": "在 VPD 搜索页（搜索框为空）点击标签「电梯口」后，结果列表按标签返回该园区带此标签的地点/车位行：每行显示点位名称（形如「B1层-8号楼电梯口附近」）与园区信息，并带「路线」入口。本条只覆盖「标签筛选能检索出带该标签的行」，不覆盖标签集合完整性、标签与车位属性的正确对应、排序规则与算法结果。",
+                "source": "2026-10-24 用户裁定：搜索支持名称、车位号、标签、楼层等维度；本条目对应「标签」维度，现场观测 session-s1700 obs-0013",
+                "applies_to": {
+                  "app": "qiankun_hm"
+                },
+                "applicability": {
+                  "status": "applies",
+                  "unknown": [],
+                  "mismatch": []
+                },
+                "condition_requirements": {}
+              }
+            ],
+            "reason": "引用的知识尚未确认"
+          },
+          "facts": {
+            "app": "qiankun_hm",
+            "app_version": "1.0.26.100",
+            "device_form": "foldable"
+          },
+          "verified": false
+        },
+        {
+          "id": "A4",
+          "result": "pending",
+          "advisory": true,
+          "oracle_refs": [],
+          "facts": {
+            "app": "qiankun_hm",
+            "app_version": "1.0.26.100",
+            "device_form": "foldable"
+          },
+          "verified": false
+        }
+      ],
+      "execution": {
+        "status": "completed",
+        "errors": []
+      },
+      "product_verdict": "pending",
+      "product_failed": false,
+      "coverage": {
+        "assertions": [
+          {
+            "id": "A1",
+            "result": "pending",
+            "applicable": true,
+            "verified": false,
+            "guard": null,
+            "oracle": {
+              "status": "unconfirmed",
+              "items": [
+                {
+                  "id": "K-QK-TC-235",
+                  "status": "unconfirmed",
+                  "statement": "在 VPD 搜索页（搜索框为空）点击标签「电梯口」后，结果列表按标签返回该园区带此标签的地点/车位行：每行显示点位名称（形如「B1层-8号楼电梯口附近」）与园区信息，并带「路线」入口。本条只覆盖「标签筛选能检索出带该标签的行」，不覆盖标签集合完整性、标签与车位属性的正确对应、排序规则与算法结果。",
+                  "source": "2026-10-24 用户裁定：搜索支持名称、车位号、标签、楼层等维度；本条目对应「标签」维度，现场观测 session-s1700 obs-0013",
+                  "applies_to": {
+                    "app": "qiankun_hm"
+                  },
+                  "applicability": {
+                    "status": "applies",
+                    "unknown": [],
+                    "mismatch": []
+                  },
+                  "condition_requirements": {}
+                }
+              ],
+              "reason": "引用的知识尚未确认"
+            },
+            "facts": {
+              "app": "qiankun_hm",
+              "app_version": "1.0.26.100",
+              "device_form": "foldable"
+            }
+          },
+          {
+            "id": "A2",
+            "result": "pending",
+            "applicable": true,
+            "verified": false,
+            "guard": null,
+            "oracle": {
+              "status": "unconfirmed",
+              "items": [
+                {
+                  "id": "K-QK-TC-235",
+                  "status": "unconfirmed",
+                  "statement": "在 VPD 搜索页（搜索框为空）点击标签「电梯口」后，结果列表按标签返回该园区带此标签的地点/车位行：每行显示点位名称（形如「B1层-8号楼电梯口附近」）与园区信息，并带「路线」入口。本条只覆盖「标签筛选能检索出带该标签的行」，不覆盖标签集合完整性、标签与车位属性的正确对应、排序规则与算法结果。",
+                  "source": "2026-10-24 用户裁定：搜索支持名称、车位号、标签、楼层等维度；本条目对应「标签」维度，现场观测 session-s1700 obs-0013",
+                  "applies_to": {
+                    "app": "qiankun_hm"
+                  },
+                  "applicability": {
+                    "status": "applies",
+                    "unknown": [],
+                    "mismatch": []
+                  },
+                  "condition_requirements": {}
+                }
+              ],
+              "reason": "引用的知识尚未确认"
+            },
+            "facts": {
+              "app": "qiankun_hm",
+              "app_version": "1.0.26.100",
+              "device_form": "foldable"
+            }
+          },
+          {
+            "id": "A3",
+            "result": "pending",
+            "applicable": true,
+            "verified": false,
+            "guard": null,
+            "oracle": {
+              "status": "unconfirmed",
+              "items": [
+                {
+                  "id": "K-QK-TC-235",
+                  "status": "unconfirmed",
+                  "statement": "在 VPD 搜索页（搜索框为空）点击标签「电梯口」后，结果列表按标签返回该园区带此标签的地点/车位行：每行显示点位名称（形如「B1层-8号楼电梯口附近」）与园区信息，并带「路线」入口。本条只覆盖「标签筛选能检索出带该标签的行」，不覆盖标签集合完整性、标签与车位属性的正确对应、排序规则与算法结果。",
+                  "source": "2026-10-24 用户裁定：搜索支持名称、车位号、标签、楼层等维度；本条目对应「标签」维度，现场观测 session-s1700 obs-0013",
+                  "applies_to": {
+                    "app": "qiankun_hm"
+                  },
+                  "applicability": {
+                    "status": "applies",
+                    "unknown": [],
+                    "mismatch": []
+                  },
+                  "condition_requirements": {}
+                }
+              ],
+              "reason": "引用的知识尚未确认"
+            },
+            "facts": {
+              "app": "qiankun_hm",
+              "app_version": "1.0.26.100",
+              "device_form": "foldable"
+            }
+          }
+        ],
+        "verified": [],
+        "not_applicable": [],
+        "unverified": [
+          "A1",
+          "A2",
+          "A3"
+        ]
+      }
+    },
+    {
+      "run_id": "run-20261024-164302-3f2d",
+      "verdict": "pending",
+      "hash": "a9b2d3dedb1c",
+      "deps": "78808240bcb9",
+      "validation_level": "real_device",
+      "device": "hdc:6HQ0226505000341",
+      "ts": "2026-10-24T16:44:03.213+08:00",
+      "failure_signature": [],
+      "alerts": 0,
+      "not_verified": 0,
+      "facts": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100",
+        "device_form": "foldable"
+      },
+      "oracle_facts": {
+        "app": "qiankun_hm",
+        "app_version": "1.0.26.100",
+        "device_form": "foldable"
+      },
+      "assertions": [
+        {
+          "id": "A1",
+          "result": "pending",
+          "advisory": false,
+          "oracle_refs": [
+            "K-QK-TC-235"
+          ],
+          "oracle": {
+            "status": "unconfirmed",
+            "items": [
+              {
+                "id": "K-QK-TC-235",
+                "status": "unconfirmed",
+                "statement": "在 VPD 搜索页（搜索框为空）点击标签「电梯口」后，结果列表按标签返回该园区带此标签的地点/车位行：每行显示点位名称（形如「B1层-8号楼电梯口附近」）与园区信息，并带「路线」入口。本条只覆盖「标签筛选能检索出带该标签的行」，不覆盖标签集合完整性、标签与车位属性的正确对应、排序规则与算法结果。",
+                "source": "2026-10-24 用户裁定：搜索支持名称、车位号、标签、楼层等维度；本条目对应「标签」维度，现场观测 session-s1700 obs-0013",
+                "applies_to": {
+                  "app": "qiankun_hm"
+                },
+                "applicability": {
+                  "status": "applies",
+                  "unknown": [],
+                  "mismatch": []
+                },
+                "condition_requirements": {}
+              }
+            ],
+            "reason": "引用的知识尚未确认"
+          },
+          "facts": {
+            "app": "qiankun_hm",
+            "app_version": "1.0.26.100",
+            "device_form": "foldable"
+          },
+          "verified": false
+        },
+        {
+          "id": "A2",
+          "result": "pending",
+          "advisory": false,
+          "oracle_refs": [
+            "K-QK-TC-235"
+          ],
+          "oracle": {
+            "status": "unconfirmed",
+            "items": [
+              {
+                "id": "K-QK-TC-235",
+                "status": "unconfirmed",
+                "statement": "在 VPD 搜索页（搜索框为空）点击标签「电梯口」后，结果列表按标签返回该园区带此标签的地点/车位行：每行显示点位名称（形如「B1层-8号楼电梯口附近」）与园区信息，并带「路线」入口。本条只覆盖「标签筛选能检索出带该标签的行」，不覆盖标签集合完整性、标签与车位属性的正确对应、排序规则与算法结果。",
+                "source": "2026-10-24 用户裁定：搜索支持名称、车位号、标签、楼层等维度；本条目对应「标签」维度，现场观测 session-s1700 obs-0013",
+                "applies_to": {
+                  "app": "qiankun_hm"
+                },
+                "applicability": {
+                  "status": "applies",
+                  "unknown": [],
+                  "mismatch": []
+                },
+                "condition_requirements": {}
+              }
+            ],
+            "reason": "引用的知识尚未确认"
+          },
+          "facts": {
+            "app": "qiankun_hm",
+            "app_version": "1.0.26.100",
+            "device_form": "foldable"
+          },
+          "verified": false
+        },
+        {
+          "id": "A3",
+          "result": "pending",
+          "advisory": false,
+          "oracle_refs": [
+            "K-QK-TC-235"
+          ],
+          "oracle": {
+            "status": "unconfirmed",
+            "items": [
+              {
+                "id": "K-QK-TC-235",
+                "status": "unconfirmed",
+                "statement": "在 VPD 搜索页（搜索框为空）点击标签「电梯口」后，结果列表按标签返回该园区带此标签的地点/车位行：每行显示点位名称（形如「B1层-8号楼电梯口附近」）与园区信息，并带「路线」入口。本条只覆盖「标签筛选能检索出带该标签的行」，不覆盖标签集合完整性、标签与车位属性的正确对应、排序规则与算法结果。",
+                "source": "2026-10-24 用户裁定：搜索支持名称、车位号、标签、楼层等维度；本条目对应「标签」维度，现场观测 session-s1700 obs-0013",
+                "applies_to": {
+                  "app": "qiankun_hm"
+                },
+                "applicability": {
+                  "status": "applies",
+                  "unknown": [],
+                  "mismatch": []
+                },
+                "condition_requirements": {}
+              }
+            ],
+            "reason": "引用的知识尚未确认"
+          },
+          "facts": {
+            "app": "qiankun_hm",
+            "app_version": "1.0.26.100",
+            "device_form": "foldable"
+          },
+          "verified": false
+        },
+        {
+          "id": "A4",
+          "result": "pending",
+          "advisory": true,
+          "oracle_refs": [],
+          "facts": {
+            "app": "qiankun_hm",
+            "app_version": "1.0.26.100",
+            "device_form": "foldable"
+          },
+          "verified": false
+        }
+      ],
+      "execution": {
+        "status": "completed",
+        "errors": []
+      },
+      "product_verdict": "pending",
+      "product_failed": false,
+      "coverage": {
+        "assertions": [
+          {
+            "id": "A1",
+            "result": "pending",
+            "applicable": true,
+            "verified": false,
+            "guard": null,
+            "oracle": {
+              "status": "unconfirmed",
+              "items": [
+                {
+                  "id": "K-QK-TC-235",
+                  "status": "unconfirmed",
+                  "statement": "在 VPD 搜索页（搜索框为空）点击标签「电梯口」后，结果列表按标签返回该园区带此标签的地点/车位行：每行显示点位名称（形如「B1层-8号楼电梯口附近」）与园区信息，并带「路线」入口。本条只覆盖「标签筛选能检索出带该标签的行」，不覆盖标签集合完整性、标签与车位属性的正确对应、排序规则与算法结果。",
+                  "source": "2026-10-24 用户裁定：搜索支持名称、车位号、标签、楼层等维度；本条目对应「标签」维度，现场观测 session-s1700 obs-0013",
+                  "applies_to": {
+                    "app": "qiankun_hm"
+                  },
+                  "applicability": {
+                    "status": "applies",
+                    "unknown": [],
+                    "mismatch": []
+                  },
+                  "condition_requirements": {}
+                }
+              ],
+              "reason": "引用的知识尚未确认"
+            },
+            "facts": {
+              "app": "qiankun_hm",
+              "app_version": "1.0.26.100",
+              "device_form": "foldable"
+            }
+          },
+          {
+            "id": "A2",
+            "result": "pending",
+            "applicable": true,
+            "verified": false,
+            "guard": null,
+            "oracle": {
+              "status": "unconfirmed",
+              "items": [
+                {
+                  "id": "K-QK-TC-235",
+                  "status": "unconfirmed",
+                  "statement": "在 VPD 搜索页（搜索框为空）点击标签「电梯口」后，结果列表按标签返回该园区带此标签的地点/车位行：每行显示点位名称（形如「B1层-8号楼电梯口附近」）与园区信息，并带「路线」入口。本条只覆盖「标签筛选能检索出带该标签的行」，不覆盖标签集合完整性、标签与车位属性的正确对应、排序规则与算法结果。",
+                  "source": "2026-10-24 用户裁定：搜索支持名称、车位号、标签、楼层等维度；本条目对应「标签」维度，现场观测 session-s1700 obs-0013",
+                  "applies_to": {
+                    "app": "qiankun_hm"
+                  },
+                  "applicability": {
+                    "status": "applies",
+                    "unknown": [],
+                    "mismatch": []
+                  },
+                  "condition_requirements": {}
+                }
+              ],
+              "reason": "引用的知识尚未确认"
+            },
+            "facts": {
+              "app": "qiankun_hm",
+              "app_version": "1.0.26.100",
+              "device_form": "foldable"
+            }
+          },
+          {
+            "id": "A3",
+            "result": "pending",
+            "applicable": true,
+            "verified": false,
+            "guard": null,
+            "oracle": {
+              "status": "unconfirmed",
+              "items": [
+                {
+                  "id": "K-QK-TC-235",
+                  "status": "unconfirmed",
+                  "statement": "在 VPD 搜索页（搜索框为空）点击标签「电梯口」后，结果列表按标签返回该园区带此标签的地点/车位行：每行显示点位名称（形如「B1层-8号楼电梯口附近」）与园区信息，并带「路线」入口。本条只覆盖「标签筛选能检索出带该标签的行」，不覆盖标签集合完整性、标签与车位属性的正确对应、排序规则与算法结果。",
+                  "source": "2026-10-24 用户裁定：搜索支持名称、车位号、标签、楼层等维度；本条目对应「标签」维度，现场观测 session-s1700 obs-0013",
+                  "applies_to": {
+                    "app": "qiankun_hm"
+                  },
+                  "applicability": {
+                    "status": "applies",
+                    "unknown": [],
+                    "mismatch": []
+                  },
+                  "condition_requirements": {}
+                }
+              ],
+              "reason": "引用的知识尚未确认"
+            },
+            "facts": {
+              "app": "qiankun_hm",
+              "app_version": "1.0.26.100",
+              "device_form": "foldable"
+            }
+          }
+        ],
+        "verified": [],
+        "not_applicable": [],
+        "unverified": [
+          "A1",
+          "A2",
+          "A3"
+        ]
+      }
+    }
+  ]
+}
