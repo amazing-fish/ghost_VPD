@@ -89,6 +89,17 @@ $env:VPD_SECRET_QIANKUN_PHONE = '<账号>'; $env:VPD_SECRET_QIANKUN_PASSWORD = '
 探索/会话资产须经 `case review` 与人明确确认后的 `case approve --reviewer --basis` 才能晋级或批量使用；
 单条未审核诊断仍标 informal。审核不 confirm 产品要求、不授予设备动作，也不自动提升成熟度。
 
+`act` 的进程退出码 0 表示命令已处理，不能据此认定点击成功：读取 `action_status`、`dispatched`、
+`effect_unknown` 及 `result.outcome`。`policy_denied` / `dispatched=false` 是明确拒发。
+`--point x,y --basis <依据>` 的坐标是当前窗口内整数 **px**，不是 vp 或 0..1 比例；须先在同一会话 `observe`。
+真正送入 Dispatcher 的 APP 目标坐标记录在 `attempts[].dispatch_coordinates` 和 dispatch 事件的 `coordinates`，
+均写明 `system=px`；下发不等于控件状态已改变。
+
+乾崑已知一键登录页若协议 Checkbox 无 text/id，不用裸坐标绕过：在已授权账户操作的任务中，
+使用 `act tap --target qk_protocol_unchecked --authorize account_state`，随后 `observe` 核对该节点 `checked=true`。
+匿名后备定位只接受“欢迎登录”标题＋可点击“本机号码一键登录”按钮、无 Dialog、唯一可见且未勾选的匿名 Checkbox；
+其他页面、已勾选、多复选框或未知布局拒发。这只是受控单步替代路径，未扩展密码登录 flow 的条件，也不证明完整一键登录已经验收。
+
 回归、探索、单步决策、探索转用例、经验晋级的完整步骤见 [references/workflows.md](references/workflows.md)
 与 [references/knowledge-rsi.md](references/knowledge-rsi.md)。
 

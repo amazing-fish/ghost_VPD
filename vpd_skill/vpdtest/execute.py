@@ -1688,7 +1688,7 @@ def _found_node(loc: dict) -> Optional[dict]:
 def _resolved(loc: dict, obs: dict) -> dict:
     """执行证据：这次实际点在哪里、依据哪个节点、在什么屏幕形态下。用例里不写坐标，但证据里必须记下。"""
     lay = obs.get("layout") or {}
-    return {"point": loc.get("point"), "node": _found_node(loc), "bounds": loc.get("bounds"), "visible": loc.get("visible"),
+    return {"point": loc.get("point"), "coordinate_system": "px", "node": _found_node(loc), "bounds": loc.get("bounds"), "visible": loc.get("visible"),
             "visible_fraction": loc.get("visible_fraction"), "strategy": loc.get("strategy_kind"),
             "strategy_index": loc.get("strategy_index"), "container_point": bool(loc.get("container_point")),
             "obs": obs.get("obs_id"), "window_px": lay.get("window_px"), "layout_key": layout_key(lay),

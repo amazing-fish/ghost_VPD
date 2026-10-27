@@ -165,6 +165,15 @@ Dispatcher、secret映射及防重入记录。当前只有合成树验证，OH7�
 `postcondition_not_met`、`interrupted`、`anomaly`、`unobservable`、`budget_exhausted`、`invalid_step`、
 `target_disabled`（`require_enabled` 且控件置灰，阻塞·环境）、`monitor_abort`、`motion_timeout`（运动超过 `max_motion_s`）。
 agent 模式的 `--point` 记录提出时的窗口尺寸（`point_window`）；执行前窗口尺寸变了（旋转/折叠/分屏）就丢弃该坐标。
+CLI `--point` 只接受观测窗口内的两个非负整数像素 `x,y`，不是相对比例或vp；参数错误、缺 `--basis`
+或无同会话窗口证据均拒绝。APP 目标最终尝试下发的坐标（包含 Dispatcher 重定位后的位置）写入
+`attempt.dispatch_coordinates={system:"px",point:[x,y]}` 和 dispatch 事件 `coordinates`；PIN 不记录坐标。
+`act` 顶层 `action_status`、`dispatched`、`effect_unknown` 投影既有结果；退出码0仍仅表示命令完成。
+`dispatched` 包含辅助动作及未知回执，精确目标下发须同时核对该 attempt 的 `dispatch.sent`，不能把坐标证据当成UI效果。
+
+匿名 Checkbox 的裸 `--point` 不授予设置变更权限。乾崑 `qk_protocol_unchecked` 的后备树定位限已知一键登录页：
+欢迎标题、可点击一键登录按钮、无可见Dialog，且仅一个可见Checkbox，其text/id/description均空、checkable/clickable为true、checked为false。
+它复用现有 account_state 授权及下发复核；须下一次观测独立核对checked=true。此单步目标不扩展现有密码登录flow选支或证明完整登录。
 
 树策略发现目标被裁时，定位尝试与 `diagnosis` 的 `clipped_candidates` 最多保留5个候选，
 包含节点、可见矩形/比例、窗口和裁剪祖先链。`window_source=ui_tree_bounds` 明确表示窗口仍由
