@@ -7,7 +7,7 @@ from __future__ import annotations
 import re
 from typing import Optional
 
-from .tree import UiTree
+from .tree import UiTree, intersect
 from .util import sha256_obj
 
 VALID_BASIS = ("tree", "template", "point")
@@ -117,7 +117,8 @@ class Policy:
 
     def check_tap(self, tree: Optional[UiTree], point: tuple, basis: str, target: Optional[dict] = None,
                   state_deny: Optional[list] = None, authorized: Optional[set] = None, node=None,
-                  confirmation_sources: list | None = None) -> dict:
+                  confirmation_sources: list | None = None, layout: dict | None = None,
+                  foreground: str | None = None) -> dict:
         """判定一次点击。返回 {allowed, reason, label, deny}；不会抛异常。
         task 类随测试任务许可；其他类使用 authorized。只放行"目标声明了同一副作用"的命中。
         confirmation_sources 保持旧参数名，承载 StateModel 当前页面/弹窗动作依据，
@@ -195,6 +196,14 @@ class Policy:
             hits = [h for h in hits if not (
                 h.get("source") == "policy" and h.get("rule_id") == "vehicle_control_keywords"
                 and h["class"] == "vehicle_control" and h["text"].strip() == "充电桩")]
+        favorites = self._favorites_browse_source(tree, point, node, container, target, basis, layout, foreground)
+        if favorites:
+            rule = favorites["reclassified_rule"]
+            hits = [h for h in hits if not (
+                h.get("source") == "policy" and h.get("pattern") == rule["pattern"]
+                and h.get("class") == rule["class"] and h.get("reason") == rule["reason"]
+                and h.get("rule_id") == rule.get("rule_id") and h["text"].strip() == "收藏夹")]
+            navigation = favorites
         editable = any(n.type in EDITABLE_TYPES
                        for n in [node, container] + tree.ancestors(node))
         generic = [] if editable else [t for t in texts if self.confirmation_rx.fullmatch(t.strip())]
@@ -289,6 +298,71 @@ class Policy:
                 **({"navigation_source": navigation} if navigation else {}),
                 **({"authorized_by": effect, "authorization_source": "task_policy"} if effect in self.task_side_effects else {}),
                 **({"confirmation_source": confirmation} if confirmation else {})}
+
+    def _favorites_browse_source(self, tree, point, node, container, target, basis, layout, foreground):
+        """Only the observed Qiankun home 收藏夹 receiver is browse navigation.
+
+        No target review flag or caller-supplied confirmation source creates this
+        proof. Foreground comes from observation, and again from Dispatcher's
+        final query; absent current single-pane layout keeps the old denial.
+        """
+        bundle = "com.yinwang.qiankunapp.hm"
+        if (foreground != bundle or basis != "tree" or target.get("side_effect", "navigation") != "navigation"
+                or target.get("allow_input") or not isinstance(layout, dict) or layout.get("status") != "ok"
+                or type(layout.get("pane_count")) is not int or layout["pane_count"] != 1
+                or layout.get("panes") != [] or layout.get("window_px") != list(tree.screen_size() or ())
+                or tree.modal_layers()):
+            return None
+        pattern = "收藏|重命名|修改名称|标签|^删除$"
+        rules = [(rx, reason, cls, rid) for rx, reason, cls, rid in self.deny
+                 if rx.pattern == pattern and cls == "user_data"]
+        if len(rules) != 1:
+            return None  # Never discard a second rule, even with the same pattern/class.
+        homes = [n for n in tree.nodes if n.id == "VPD_HOME_VIEW"]
+        if len(homes) != 1:
+            return None
+        home = homes[0]
+        def complete(n):
+            return (n.parent is not None and all(a.enabled for a in [n, *tree.ancestors(n)]) and n.bounds is not None
+                    and tree.visible_lineage(n) and tree.visible_rect(n) == n.bounds)
+        if home.type != "Stack" or not complete(home):
+            return None
+        within = [n for n in tree.nodes if tree.is_within(n, home)]
+        headers = [n for n in within if "收藏及常去" in (n.text.strip(), n.description.strip())]
+        labels = [n for n in within if "收藏夹" in (n.text.strip(), n.description.strip())]
+        if len(headers) != 1 or not complete(headers[0]) or len(labels) != 1:
+            return None
+        header = headers[0]
+        if (header.type != "Text" or header.clickable
+                or str(header.attrs.get("longClickable", "")).strip().lower() in ("true", "1")
+                or {t.strip() for t in (header.text, header.description) if t.strip()} != {"收藏及常去"}
+                or any(a.type in EDITABLE_TYPES | self.deny_node_types | {"Button"}
+                       or (a.clickable and a.type not in ("Column", "Stack")) for a in tree.ancestors(header))):
+            return None
+        label = labels[0]
+        if (node.idx != label.idx or label.type != "Text" or label.parent != container.idx
+                or container.type != "Row" or not container.clickable or not complete(label) or not complete(container)):
+            return None
+        if any(intersect(n.bounds, home.bounds) != n.bounds for n in (header, label, container)):
+            return None  # A non-clipping Stack ancestor does not prove geometric ownership.
+        if any(a.type in EDITABLE_TYPES | self.deny_node_types | {"Button"} for a in tree.ancestors(label)):
+            return None
+        if any(n.attrs.get("bundleName") not in (None, "", bundle)
+               for n in [label, headers[0], *tree.ancestors(label), *tree.ancestors(headers[0])]):
+            return None
+        receiver = tree.touch_target(*point)
+        if receiver is None or receiver.idx != container.idx:
+            return None
+        nodes = [n for n in within if tree.is_within(n, container)]
+        if (any(n.type in EDITABLE_TYPES | self.deny_node_types for n in nodes)
+                or any(n.clickable and n.idx != container.idx for n in nodes)
+                or {t.strip() for n in nodes for t in (n.text, n.description) if t.strip()} != {"收藏夹"}):
+            return None
+        rx, reason, cls, rid = rules[0]
+        return {"kind": "favorites_browse_navigation", "foreground": foreground, "home_idx": home.idx,
+                "header_idx": headers[0].idx, "label_idx": label.idx, "container_idx": container.idx,
+                "reclassified_rule": {"pattern": rx.pattern, "reason": reason, "class": cls,
+                                      **({"rule_id": rid} if rid else {})}}
 
     def _search_filter_source(self, tree, point, container, texts, effect, sources):
         """Exact search-filter classification, not a general text/target exemption."""

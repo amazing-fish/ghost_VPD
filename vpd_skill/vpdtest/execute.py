@@ -407,7 +407,8 @@ class Executor:
                                        ctx.app.states.deny_for_page(obs["page"]), ctx.authorized,
                                        node=_tree_node(tree, loc),
                                        confirmation_sources=ctx.app.states.confirmation_sources(
-                                           tree, tid, target, obs["page"], obs.get("layout")))
+                                           tree, tid, target, obs["page"], obs.get("layout")),
+                                       layout=obs.get("layout"), foreground=obs.get("foreground"))
             att["policy"] = pol
             if not pol["allowed"]:
                 att["status"] = "policy_denied"
