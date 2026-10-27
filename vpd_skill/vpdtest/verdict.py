@@ -399,6 +399,40 @@ def evaluate_assertion(a: dict, steps: dict, load: Callable, knowledge, app, con
 
 
 def _evaluate_applicable(a: dict, steps: dict, load: Callable, knowledge, app) -> dict:
+    from .readrefs import has_read_ref, references, resolve_text
+    if not has_read_ref(a):
+        return _evaluate_bound(a, steps, load, knowledge, app)
+    fields = {"text_present": "text", "text_absent": "text", "text_present_any": "any"}
+    field = fields.get(a.get("type"))
+    out = {k: a.get(k) for k in ("id", "type", "at", "oracle_refs")}
+    if field is None or has_read_ref({k: v for k, v in a.items() if k != field}):
+        return {**out, "result": "error", "attribution": "tool", "stage": "read_reference",
+                "error_class": "invalid_read_reference", "reason": "read 引用位置无效"}
+    values = a.get(field) if field == "any" else [a.get(field)]
+    if not isinstance(values, list):
+        return {**out, "result": "error", "attribution": "tool", "stage": "read_reference",
+                "error_class": "invalid_read_reference", "reason": "read 引用文本结构无效"}
+    positions = {sid: i for i, sid in enumerate(steps)}
+    resolved, sources = [], []
+    for text in values:
+        refs, valid = references(text)
+        if not valid or any(positions.get(ref, len(steps)) >= positions.get(a.get("at"), -1) for ref in refs):
+            return {**out, "result": "error", "attribution": "tool", "stage": "read_reference",
+                    "error_class": "invalid_read_reference", "reason": "read 来源须在断言关联步骤之前"}
+        binding = resolve_text(text, steps) if refs else {"status": "available", "text": text, "sources": []}
+        sources.extend(binding["sources"])
+        if binding["status"] != "available":
+            error = binding.get("execution_error") or {}
+            return {**out, **error, "result": "error" if error else "pending", "reason": binding["reason"],
+                    "evidence": {"read_sources": sources}}
+        resolved.append(binding["text"])
+    bound = {**a, field: resolved if field == "any" else resolved[0]}
+    result = _evaluate_bound(bound, steps, load, knowledge, app)
+    result["evidence"] = {**result.get("evidence", {}), "read_sources": sources}
+    return result
+
+
+def _evaluate_bound(a: dict, steps: dict, load: Callable, knowledge, app) -> dict:
     out = {"id": a["id"], "type": a["type"], "desc": a.get("desc", ""), "advisory": bool(a.get("advisory")),
            "oracle_refs": a.get("oracle_refs", []), "severity": a.get("severity", "major"), "at": a.get("at")}
     step = steps.get(a.get("at"))

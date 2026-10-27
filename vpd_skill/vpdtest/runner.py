@@ -106,6 +106,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     ctx = RunContext(ws, app, device, store, overlay, mode="regression", policy=policy,
                      layout_cfg=context["layout"], dialogs=context["system_dialogs"].get("dialogs") or {})
     ctx.conditions = condition_defs
+    ctx.read_case = case
     # 使用审核检查的同一输入快照；前置检查后再绑定实测事实
     started = now_iso()
     # steps/title 供控制台进度面板显示总步数与标题；只记步骤 id 与动作名，不含目标/文字等内容
