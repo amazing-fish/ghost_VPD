@@ -22,6 +22,12 @@ DOC_ROLES = {  # knowledge/ 下 Markdown 文档的角色（按文件）
     "auto-vpd/atom-registry.md": "operation", "auto-vpd/map-interaction-knowledge.md": "operation",
     "auto-vpd/troubleshooting.md": "operation", "auto-vpd/device-knowledge.md": "observation",
     "auto-vpd/README.md": "background", "project-memory/project-knowledge.md": "background",
+    "vpd-kpi/README.md": "background", "vpd-kpi/business-cases.md": "background",
+    "vpd-kpi/step-scripts.md": "background", "vpd-kpi/weekly-report.md": "background",
+}
+# These rules have canonical items; retain the source for human provenance, including after retirement.
+STRUCTURED_DOC_SECTIONS = {
+    ("project-memory/project-knowledge.md", "1. 车外语音对讲：冻结业务规则（用例集的验收锚点）"),
 }
 
 
@@ -138,6 +144,8 @@ def _docs(ws, terms: list) -> list:
                     sections.append((heading, start, lines[start:i]))
                 heading, start = ln.lstrip("# ").strip(), i
         for head, at, body in sections:
+            if (rel, head) in STRUCTURED_DOC_SECTIONS:
+                continue
             text = "\n".join(body)
             sc = _score(text, terms, head)
             if not sc:
@@ -148,7 +156,9 @@ def _docs(ws, terms: list) -> list:
                         "statement": f"[{head}] " + body[hit].strip()[:160], "status": "unconfirmed_doc",
                         "source": {"type": "doc", "ref": f"data/knowledge/{rel}"}, "applicability": "unknown",
                         "note": "auto-vpd 文档来自内部 debug 版 phone_fc78649（阔折叠）的真机校准，其他版本/形态需重新观察"
-                        if rel.startswith("auto-vpd") else None,
+                        if rel.startswith("auto-vpd") else
+                        "2026-08~09 的 KPI 历史源材料；数字、SQL 与事件口径需独立核对当前事实，本仓未接取数或 SQL 执行"
+                        if rel.startswith("vpd-kpi/") else None,
                         "callable": "无（atom-registry 里的原子在 auto-vpd 工程 scripts/atoms.py，本仓库没有；"
                                     "用 act --select/--target 组合实现）" if rel.endswith("atom-registry.md") else None})
     return out
