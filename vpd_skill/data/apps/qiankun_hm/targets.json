@@ -1186,6 +1186,23 @@
         }
       ],
       "source": "run-20261026-042807-3774/obs-0035：search_list/List/__Common__/Row/Stack/Column为实际单园区结果组，园区标题Column和POI __Common__必须是该组直接子节点。仅K89、乾崑1.0.26.100、由度园区A207；跨园区拆分反例另测。"
+    },
+    "qk_search_name_result_row": {
+      "desc": "当前单栏搜索页中名称等于实际查询的唯一结果实体行（只读范围；须配对独立读值断言）",
+      "side_effect": "read_only",
+      "status": "unverified",
+      "min_visible_fraction": 1.0,
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//RelativeContainer[@id='SearchPoiPage'][count(//RelativeContainer[@id='SearchPoiPage'])=1][count(Search[@id='search_input']/SearchField[@id='__SearchField__search_input'][not(ancestor-or-self::*[translate(normalize-space(@visible),'FALSE','false')='false' or normalize-space(@visible)='0'])])=1][string-length(normalize-space(Search[@id='search_input']/SearchField[@id='__SearchField__search_input'][not(ancestor-or-self::*[translate(normalize-space(@visible),'FALSE','false')='false' or normalize-space(@visible)='0'])]/@text))>0][count(Column[@id='search_list']//Row[count(Image)=1 and count(Column)=2][count(Column[1]/__Common__[1]/Text)=1][Column[1]/__Common__[1]/Text[1][not(ancestor-or-self::*[translate(normalize-space(@visible),'FALSE','false')='false' or normalize-space(@visible)='0'])][@text=ancestor::RelativeContainer[@id='SearchPoiPage'][1]/Search[@id='search_input']/SearchField[@id='__SearchField__search_input'][not(ancestor-or-self::*[translate(normalize-space(@visible),'FALSE','false')='false' or normalize-space(@visible)='0'])]/@text]][not(.//Row[Image and Column[1]/__Common__[1]/Text[1]])][not(ancestor::Row[Image and Column[1]/__Common__[1]/Text[1]])][not(ancestor-or-self::*[translate(normalize-space(@visible),'FALSE','false')='false' or normalize-space(@visible)='0'])])=1]/Column[@id='search_list']//Row[count(Image)=1 and count(Column)=2][count(Column[1]/__Common__[1]/Text)=1][Column[1]/__Common__[1]/Text[1][not(ancestor-or-self::*[translate(normalize-space(@visible),'FALSE','false')='false' or normalize-space(@visible)='0'])][@text=ancestor::RelativeContainer[@id='SearchPoiPage'][1]/Search[@id='search_input']/SearchField[@id='__SearchField__search_input'][not(ancestor-or-self::*[translate(normalize-space(@visible),'FALSE','false')='false' or normalize-space(@visible)='0'])]/@text]][not(.//Row[Image and Column[1]/__Common__[1]/Text[1]])][not(ancestor::Row[Image and Column[1]/__Common__[1]/Text[1]])][not(ancestor-or-self::*[translate(normalize-space(@visible),'FALSE','false')='false' or normalize-space(@visible)='0'])]",
+          "when": {
+            "panes": 1
+          }
+        }
+      ],
+      "source": "skill：固定证据6c38eb4510c1de1cf8ef59618ee4b9e2c1aa800f的obs-0046/0056/0061名称搜索AA父链，tests/fixtures/qiankun_search_s293.json保留其节点投影；1f70cc5f82af892050ee5c0ba1a2934a1e43363b的6HQ/session-s120/obs-0012完整源树另作离线复核，同行为1号车位/B1层/B167/路线；未新增真机校准。",
+      "note": "仅定位名称维度，不解析编号或插值读值到XPath。当前SearchField文本只用于选行，不是产品Oracle；终态同一obs须成组核qk_spot_search、qk_search_input实际值精确等于独立读值、本行名称精确等于同一独立读值。同页已知重复名称（含屏外/被裁剪但未显式隐藏的实体行）、嵌套实体行、隐藏、缺/重复查询、非单栏不兜底。收藏来源、字段规则和两账号验收仍沿#111。"
     }
   }
 }

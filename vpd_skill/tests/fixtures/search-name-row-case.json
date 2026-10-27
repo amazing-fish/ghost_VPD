@@ -1,0 +1,90 @@
+{
+  "id": "TC-TEST-SEARCH-NAME-ROW",
+  "version": 1,
+  "status": "draft",
+  "app": "pytest_conditions",
+  "title": "合成独立读值、实际查询与名称结果同行约束",
+  "purpose": "仅测试现有Reader/Resolver/Verdict组合；非生产用例或真机覆盖",
+  "preconditions": [
+    "独立合成收藏页及搜索响应"
+  ],
+  "test_data": {},
+  "test_data_none": true,
+  "steps": [
+    {
+      "id": "S1",
+      "action": "launch",
+      "expect_state": "fixture_saved_places",
+      "retry": 0
+    },
+    {
+      "id": "R1",
+      "action": "read",
+      "target": "fixture_saved_name",
+      "read_scope": "self",
+      "retry": 0
+    },
+    {
+      "id": "S2",
+      "action": "tap",
+      "target": "fixture_open_search",
+      "expect_state": "qk_spot_search",
+      "retry": 0
+    },
+    {
+      "id": "S3",
+      "action": "input",
+      "target": "qk_search_input",
+      "text": "${read:R1}",
+      "clear": true,
+      "expect_state": "qk_spot_search",
+      "retry": 0
+    }
+  ],
+  "assertions": [
+    {
+      "id": "A-state",
+      "at": "S3",
+      "type": "state_is",
+      "state": "qk_spot_search",
+      "oracle_refs": [
+        "K-TEST-CONDITIONS-TASK"
+      ]
+    },
+    {
+      "id": "A-query",
+      "at": "S3",
+      "type": "text_present",
+      "text": "${read:R1}",
+      "exact": true,
+      "within": "qk_search_input",
+      "oracle_refs": [
+        "K-TEST-CONDITIONS-TASK"
+      ]
+    },
+    {
+      "id": "A-row",
+      "at": "S3",
+      "type": "text_present",
+      "text": "${read:R1}",
+      "exact": true,
+      "within": "qk_search_name_result_row",
+      "oracle_refs": [
+        "K-TEST-CONDITIONS-TASK"
+      ]
+    }
+  ],
+  "cleanup": [
+    {
+      "id": "C1",
+      "action": "stop_app",
+      "retry": 0
+    }
+  ],
+  "sources": [
+    {
+      "type": "text_case",
+      "ref": "tests/test_search_name_row.py synthetic only; not production Oracle"
+    }
+  ]
+}
