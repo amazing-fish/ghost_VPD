@@ -13,6 +13,12 @@ from vpdtest.util import read_json, read_jsonl, write_json
 
 @pytest.fixture
 def login_rig(ws, tmp_path, monkeypatch):
+    # Only the isolated fixture gets valid metadata for its synthetic review.
+    # Production declarations remain untouched; unknown does not confirm an Oracle.
+    case = ws.load_case("TC-QK-223")
+    for declaration in case["knowledge_used"]:
+        declaration["applicability"] = "unknown"
+    write_json(ws.case_path(case["id"]), case)
     # Synthetic selectors for otherwise layout-specific production targets.
     p = ws.root / "apps/qiankun_hm/targets.json"
     targets = read_json(p)

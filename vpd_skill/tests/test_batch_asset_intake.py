@@ -111,6 +111,17 @@ def test_unavailable_evidence_does_not_create_fake_obs_or_lint_success(ws):
         c = ws.load_case(cid)
         issues = C.lint(c, ws.app(c["app"]), kn, ws.policy(), runs_dir=ws.runs_dir)
         assert not [i for i in issues if i["field"] == "knowledge_used"]
+        # Keep historical production metadata unchanged and require its diagnostic;
+        # independently retain the original evidence/provider expectations below.
+        declarations = [i for i in issues if i["field"].startswith("knowledge_used[")
+                        and i["field"].endswith(".applicability")]
+        expected = {f"knowledge_used[{index}].applicability"
+                    for index, entry in enumerate(c.get("knowledge_used") or [])
+                    if "applicability" in entry and (not isinstance(entry["applicability"], str)
+                                                     or entry["applicability"] not in
+                                                     ("applies", "unknown", "out_of_scope"))}
+        assert {i["field"] for i in declarations} == expected
+        issues = [i for i in issues if i not in declarations]
         if issues:
             problems[cid] = issues
     assert set(problems) == {"TC-QK-218", "TC-QK-214", "TC-QK-216", "TC-QK-219", "TC-QK-227"}

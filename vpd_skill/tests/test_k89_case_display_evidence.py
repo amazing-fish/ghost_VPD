@@ -50,7 +50,16 @@ def _read(ws, case_id, step_id, tree):
 def test_assets_preserve_the_users_per_case_review_decisions(ws, number):
     case = ws.load_case(f"TC-QK-{number}")
     kn = KnowledgeStore(ws.root)
-    assert lint(case, ws.app(case["app"]), kn, ws.policy(), runs_dir=None) == []
+    issues = lint(case, ws.app(case["app"]), kn, ws.policy(), runs_dir=None)
+    if number == 242:
+        # Preserve the original scope declaration and pending human decision;
+        # its free text now has a precise metadata diagnostic, never an automatic migration.
+        assert case["knowledge_used"][0]["applicability"] == (
+            "qiankun_hm 1.0.26.100 / K89由度园区A207专用子范围")
+        assert len(issues) == 1 and issues[0]["field"] == "knowledge_used[0].applicability"
+        assert "rationale" in issues[0]["problem"]
+    else:
+        assert issues == []
     review = review_status(ws, case, kn)
     first = read_json(REPO / "docs/reviews/K89_20261026.json")
     followup = read_json(REPO / "docs/reviews/K89_20261026_FOLLOWUP.json")

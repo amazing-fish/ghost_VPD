@@ -55,6 +55,9 @@
 - `--allow-input` 的文字会原样记入会话（用于复测），**只用于非敏感测试数据**；账号密码只能走用例的 `{"secret": NAME}`。
 - `knowledge_used` 每项：`{"id": "K-AV-010", "use": "操作经验：常去地点里找收藏", "applicability": "unknown",
   "rationale": "来自 debug 版阔折叠，本机是直板 1.0.26.100，需现场核对", "steps": ["S7"]}`。
+  `applicability` 可省略；声明时仅用 `applies` / `unknown` / `out_of_scope`。`confirmed`、`unconfirmed`、
+  `calibrated` 等状态不属于适用性，具体范围和依据写在 `rationale`。lint、人工审核和晋级会报告非法声明；
+  既有资产需逐条核对，不自动映射状态或重新签字。该作者声明不替代运行时独立事实与 Oracle 资格检查。
 
 ## 单步决策（无 UI 树、未知页面、需要 Agent 选路时）
 

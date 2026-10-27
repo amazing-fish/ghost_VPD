@@ -27,7 +27,7 @@ def _kb_case(ws, rationale, cid="TC-REFSDIR-1"):
     case = {"id": cid, "version": 1, "status": "candidate", "app": "motor_hm", "title": "t", "purpose": "p",
             "preconditions": [], "env_requirements": {}, "test_data": {}, "test_data_none": True,
             "authorizations": [], "steps": [{"id": "S1", "action": "launch"}], "assertions": [],
-            "knowledge_used": [{"id": "K-AV-001", "use": "entry_success", "applicability": "适用",
+            "knowledge_used": [{"id": "K-AV-001", "use": "entry_success", "applicability": "applies",
                                 "rationale": rationale}],
             "cleanup": [], "sources": []}
     write_json(ws.root / "cases" / f"{cid}.json", case)
