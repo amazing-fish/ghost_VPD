@@ -1,0 +1,94 @@
+{
+  "session": "session-s120",
+  "seq": 9,
+  "step_id": "A9",
+  "result": {
+    "step_id": "A9",
+    "action": "stop_app",
+    "critical": true,
+    "oracle_refs": [],
+    "attempts": [
+      {
+        "n": 1,
+        "ts": "2026-10-27T21:55:51.069+08:00",
+        "action": "stop_app",
+        "step_id": "A9",
+        "_safety": false,
+        "motion_mark": 0,
+        "obs_before": "obs-0019",
+        "state_before": "qk_spot_search",
+        "dispatch_recheck": {
+          "preconditions": {},
+          "checks": {
+            "safety_hold": {
+              "active": false,
+              "evidence": null,
+              "exempt": false
+            },
+            "budget": {
+              "applicable": true,
+              "exempt": false,
+              "used": 5,
+              "max": 60
+            },
+            "motion": {
+              "applicable": true,
+              "exempt": false,
+              "over": false,
+              "locked": false
+            }
+          }
+        },
+        "dispatch": {
+          "op": "stop",
+          "sent": true,
+          "executor_ok": true,
+          "error_class": null,
+          "error": null,
+          "duration_ms": 422
+        },
+        "post": {
+          "obs_id": "obs-0020",
+          "expected": null,
+          "observed": "undetermined",
+          "met": true,
+          "execution_error": {},
+          "status": "ok",
+          "interrupts": [],
+          "suspected_crash": false,
+          "dialogs": [],
+          "anomalies": [],
+          "elapsed_s": 0.98,
+          "timeout_s": 8.0,
+          "polls": 1,
+          "dismissed": []
+        },
+        "obs_after": "obs-0020",
+        "status": "ok",
+        "stop_check": {
+          "process_alive": false,
+          "foreground": null,
+          "process_ended": true,
+          "foreground_restored": false,
+          "require_launcher": false,
+          "foreground_error": "foreground_unknown",
+          "process_error": null
+        }
+      }
+    ],
+    "recoveries": [],
+    "adapted": false,
+    "outcome": "passed",
+    "final_obs": "obs-0020"
+  },
+  "action_status": "ok",
+  "dispatched": true,
+  "effect_unknown": false,
+  "input_value_recorded": null,
+  "diagnosis": null,
+  "budget": {
+    "used": 6,
+    "max": 60,
+    "remaining": 54
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "session": "session-s120m",
+  "seq": 4,
+  "step_id": "A4",
+  "result": {
+    "step_id": "A4",
+    "action": "tap",
+    "critical": true,
+    "oracle_refs": [],
+    "attempts": [
+      {
+        "n": 1,
+        "ts": "2026-10-27T21:55:24.582+08:00",
+        "action": "tap",
+        "step_id": "A4",
+        "_safety": false,
+        "motion_mark": 0,
+        "obs_before": "obs-0010",
+        "state_before": "out_of_app",
+        "locate": {
+          "target": "qk_search_entry",
+          "status": "not_found",
+          "attempts": [
+            {
+              "index": 0,
+              "kind": "xpath",
+              "value": "//*[@text=\"搜索车位号设为目的地\" or @description=\"搜索车位号设为目的地\" or @text=\"搜索车位号设为起点\" or @description=\"搜索车位号设为起点\"]",
+              "status": "skipped_no_tree"
+            }
+          ],
+          "tree_status": null,
+          "obs": "obs-0010",
+          "layout_key": "sm/portrait"
+        },
+        "status": "target_unresolved"
+      }
+    ],
+    "recoveries": [],
+    "adapted": false,
+    "outcome": "blocked",
+    "attribution": "tool",
+    "reason": "目标未能可靠定位（已重新观察）",
+    "final_obs": "obs-0010",
+    "final_status": "target_unresolved",
+    "first_failure": {
+      "attempt": 1,
+      "status": "target_unresolved",
+      "obs_before": "obs-0010",
+      "obs_after": null,
+      "detail": {
+        "status": "target_unresolved",
+        "locate": {
+          "status": "not_found",
+          "target": "qk_search_entry",
+          "attempts": [
+            {
+              "index": 0,
+              "kind": "xpath",
+              "value": "//*[@text=\"搜索车位号设为目的地\" or @description=\"搜索车位号设为目的地\" or @text=\"搜索车位号设为起点\" or @description=\"搜索车位号设为起点\"]",
+              "status": "skipped_no_tree"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "action_status": "target_unresolved",
+  "dispatched": false,
+  "effect_unknown": false,
+  "input_value_recorded": null,
+  "diagnosis": {
+    "status": "target_unresolved",
+    "offscreen": 0,
+    "tree_status": null,
+    "state_before": "out_of_app",
+    "hint": "没有被测 APP 的 UI 树（APP 不在前台/被系统弹层遮住）：先 observe 确认前台，必要时 act launch"
+  },
+  "budget": {
+    "used": 3,
+    "max": 60,
+    "remaining": 57
+  }
+}

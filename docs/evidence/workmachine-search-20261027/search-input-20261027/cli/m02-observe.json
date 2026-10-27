@@ -1,0 +1,578 @@
+{
+  "session": "session-s120m",
+  "obs_dir": "C:\\temp\\ghost_vpd_v293\\vpd_skill\\runs\\session-s120m\\obs\\obs-0003",
+  "observation": {
+    "obs_id": "obs-0003",
+    "ts": "2026-10-27T21:53:13.436+08:00",
+    "label": "5MT-启动",
+    "device": "5MT0225B05000904",
+    "source": "hdc",
+    "foreground": "com.yinwang.qiankunapp.hm",
+    "process_alive": true,
+    "tree": {
+      "status": "ok",
+      "path": "obs/obs-0003/tree.json",
+      "nodes": 186
+    },
+    "screenshot": {
+      "status": "ok",
+      "path": "obs/obs-0003/screen.png",
+      "sha256": "644d8ad214dea367"
+    },
+    "foreground_after": "com.yinwang.qiankunapp.hm",
+    "fresh": true,
+    "screen_size": [
+      1320,
+      2848
+    ],
+    "layout": {
+      "status": "ok",
+      "window_px": [
+        1320,
+        2848
+      ],
+      "window_rect": [
+        0,
+        0,
+        1320,
+        2848
+      ],
+      "source": "ui_tree",
+      "density": 3.375,
+      "density_source": "hidumper DisplayManagerService",
+      "width_vp": 391.1,
+      "height_vp": 843.9,
+      "width_class": "sm",
+      "wide": false,
+      "orientation": "portrait",
+      "fold_status": "unknown",
+      "device_form": "bar",
+      "panes": [],
+      "pane_count": 1,
+      "min_visible_fraction": 0.5
+    },
+    "page": {
+      "candidates": [],
+      "interrupts": [],
+      "signature": "sig-b5beafbc3b",
+      "state": "unknown",
+      "active": [],
+      "hint": "未命中已声明状态：结合截图判断页面语义，必要时提议新增状态签名（需评审）"
+    },
+    "texts": [
+      "327",
+      "99+",
+      "推荐",
+      "动态",
+      "活动",
+      "现车选购",
+      "活动广场",
+      "安全报告",
+      "赛车游戏",
+      "乾崑科技",
+      "更多",
+      "弄",
+      "iOS update crashes a",
+      "全部",
+      "阿维塔",
+      "启境",
+      "一汽奥迪",
+      "问界",
+      "奕境",
+      "社区",
+      "ADS",
+      "爱车",
+      "商城",
+      "我的"
+    ],
+    "action_epoch": 1,
+    "clock_s": 1339590.031,
+    "scope": {
+      "app": "qiankun_hm",
+      "app_version": null
+    }
+  },
+  "ui_alerts": null,
+  "clickable": [
+    {
+      "label": "",
+      "type": "Search",
+      "id": null,
+      "center": [
+        511,
+        219
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "SearchField",
+      "id": "__SearchField__",
+      "center": [
+        518,
+        219
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Image",
+      "id": "__SearchField__Image__",
+      "center": [
+        122,
+        219
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "327",
+      "type": "Badge",
+      "id": null,
+      "center": [
+        1063,
+        219
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Image",
+      "id": "Mine_Column_Image_Add",
+      "center": [
+        1225,
+        219
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "推荐",
+      "type": "Column",
+      "id": null,
+      "center": [
+        115,
+        374
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "动态",
+      "type": "Column",
+      "id": null,
+      "center": [
+        311,
+        374
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "活动",
+      "type": "Column",
+      "id": null,
+      "center": [
+        500,
+        374
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Column",
+      "id": null,
+      "center": [
+        721,
+        374
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Column",
+      "id": null,
+      "center": [
+        996,
+        374
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Image",
+      "id": null,
+      "center": [
+        660,
+        848
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Column",
+      "id": null,
+      "center": [
+        352,
+        1157
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Column",
+      "id": null,
+      "center": [
+        399,
+        1157
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Column",
+      "id": null,
+      "center": [
+        447,
+        1157
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Column",
+      "id": null,
+      "center": [
+        494,
+        1157
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Column",
+      "id": null,
+      "center": [
+        541,
+        1157
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Column",
+      "id": null,
+      "center": [
+        588,
+        1157
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Column",
+      "id": null,
+      "center": [
+        636,
+        1157
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Column",
+      "id": null,
+      "center": [
+        683,
+        1157
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Column",
+      "id": null,
+      "center": [
+        730,
+        1157
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Column",
+      "id": null,
+      "center": [
+        777,
+        1157
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Column",
+      "id": null,
+      "center": [
+        825,
+        1157
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Column",
+      "id": null,
+      "center": [
+        872,
+        1157
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Column",
+      "id": null,
+      "center": [
+        919,
+        1157
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Column",
+      "id": null,
+      "center": [
+        966,
+        1157
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "现车选购",
+      "type": "Column",
+      "id": null,
+      "center": [
+        162,
+        1329
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "活动广场",
+      "type": "Column",
+      "id": null,
+      "center": [
+        494,
+        1329
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "安全报告",
+      "type": "Column",
+      "id": null,
+      "center": [
+        826,
+        1329
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "赛车游戏",
+      "type": "Column",
+      "id": null,
+      "center": [
+        1158,
+        1329
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "乾崑科技",
+      "type": "Row",
+      "id": null,
+      "center": [
+        687,
+        1790
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "弄",
+      "type": "Stack",
+      "id": null,
+      "center": [
+        324,
+        2237
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "iOS update crashes a",
+      "type": "Stack",
+      "id": null,
+      "center": [
+        892,
+        2237
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Stack",
+      "id": null,
+      "center": [
+        1255,
+        2237
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "全部",
+      "type": "Column",
+      "id": null,
+      "center": [
+        148,
+        1622
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "阿维塔",
+      "type": "Column",
+      "id": null,
+      "center": [
+        356,
+        1622
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "启境",
+      "type": "Column",
+      "id": null,
+      "center": [
+        565,
+        1622
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "一汽奥迪",
+      "type": "Column",
+      "id": null,
+      "center": [
+        793,
+        1622
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "问界",
+      "type": "Column",
+      "id": null,
+      "center": [
+        1022,
+        1622
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "奕境",
+      "type": "Column",
+      "id": null,
+      "center": [
+        1137,
+        1622
+      ],
+      "visible_fraction": 0.223,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Row",
+      "id": null,
+      "center": [
+        1266,
+        1622
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    }
+  ]
+}

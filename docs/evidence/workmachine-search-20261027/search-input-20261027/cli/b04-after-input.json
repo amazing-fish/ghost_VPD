@@ -1,0 +1,245 @@
+{
+  "session": "session-s120",
+  "obs_dir": "C:\\temp\\ghost_vpd_v293\\vpd_skill\\runs\\session-s120\\obs\\obs-0012",
+  "observation": {
+    "obs_id": "obs-0012",
+    "ts": "2026-10-27T21:49:38.586+08:00",
+    "label": "搜索页-输入1号车位后",
+    "device": "6HQ0226505000341",
+    "source": "hdc",
+    "foreground": "com.yinwang.qiankunapp.hm",
+    "process_alive": true,
+    "tree": {
+      "status": "ok",
+      "path": "obs/obs-0012/tree.json",
+      "nodes": 94
+    },
+    "screenshot": {
+      "status": "ok",
+      "path": "obs/obs-0012/screen.png",
+      "sha256": "48cd697c7bf4cf8a"
+    },
+    "foreground_after": "com.yinwang.qiankunapp.hm",
+    "fresh": true,
+    "screen_size": [
+      1264,
+      1848
+    ],
+    "layout": {
+      "status": "ok",
+      "window_px": [
+        1264,
+        1848
+      ],
+      "window_rect": [
+        0,
+        0,
+        1264,
+        1848
+      ],
+      "source": "ui_tree",
+      "density": 2.75,
+      "density_source": "hidumper DisplayManagerService",
+      "width_vp": 459.6,
+      "height_vp": 672.0,
+      "width_class": "sm",
+      "wide": false,
+      "orientation": "portrait",
+      "fold_status": "folded",
+      "device_form": "foldable",
+      "panes": [],
+      "pane_count": 1,
+      "min_visible_fraction": 0.5
+    },
+    "page": {
+      "candidates": [
+        "qk_spot_search"
+      ],
+      "interrupts": [],
+      "signature": "sig-88e8023f4a",
+      "state": "qk_spot_search",
+      "active": [
+        "qk_spot_search"
+      ]
+    },
+    "texts": [
+      "反馈",
+      "1号车位",
+      "电梯口",
+      "充电桩",
+      "由度金闽园",
+      "<100米",
+      "·",
+      "金闽路539号",
+      "当前园区",
+      "路线",
+      "B1层",
+      "B167"
+    ],
+    "action_epoch": 4,
+    "clock_s": 1339375.109,
+    "scope": {
+      "app": "qiankun_hm",
+      "app_version": null
+    }
+  },
+  "ui_alerts": null,
+  "clickable": [
+    {
+      "label": "",
+      "type": "Stack",
+      "id": null,
+      "center": [
+        632,
+        569
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Image",
+      "id": null,
+      "center": [
+        71,
+        184
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "反馈",
+      "type": "Stack",
+      "id": null,
+      "center": [
+        1193,
+        184
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "1号车位",
+      "type": "Search",
+      "id": "search_input",
+      "center": [
+        632,
+        184
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "1号车位",
+      "type": "SearchField",
+      "id": "__SearchField__search_input",
+      "center": [
+        637,
+        184
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Image",
+      "id": "__SearchField__Image__search_input",
+      "center": [
+        198,
+        184
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Button",
+      "id": "__SearchField__CancelButton__search_input",
+      "center": [
+        1066,
+        184
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "电梯口",
+      "type": "Row",
+      "id": null,
+      "center": [
+        157,
+        332
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "充电桩",
+      "type": "Row",
+      "id": null,
+      "center": [
+        405,
+        332
+      ],
+      "visible_fraction": 1.0,
+      "allowed": false,
+      "why": "命中受控文本「充电桩」：需授权 vehicle_control（且有在场监护人） 且目标声明 side_effect=vehicle_control"
+    },
+    {
+      "label": "由度金闽园",
+      "type": "Row",
+      "id": null,
+      "center": [
+        677,
+        546
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "路线",
+      "type": "Column",
+      "id": null,
+      "center": [
+        1187,
+        547
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "1号车位",
+      "type": "__Common__",
+      "id": "searchPoiSpot_1520878757",
+      "center": [
+        677,
+        762
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "路线",
+      "type": "Column",
+      "id": null,
+      "center": [
+        1187,
+        762
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    }
+  ]
+}

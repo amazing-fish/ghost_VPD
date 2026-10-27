@@ -1,0 +1,367 @@
+{
+  "session": "session-s120",
+  "obs_dir": "C:\\temp\\ghost_vpd_v293\\vpd_skill\\runs\\session-s120\\obs\\obs-0006",
+  "observation": {
+    "obs_id": "obs-0006",
+    "ts": "2026-10-27T21:47:49.251+08:00",
+    "label": "首页",
+    "device": "6HQ0226505000341",
+    "source": "hdc",
+    "foreground": "com.yinwang.qiankunapp.hm",
+    "process_alive": true,
+    "tree": {
+      "status": "ok",
+      "path": "obs/obs-0006/tree.json",
+      "nodes": 166
+    },
+    "screenshot": {
+      "status": "ok",
+      "path": "obs/obs-0006/screen.png",
+      "sha256": "507822b80e276936"
+    },
+    "foreground_after": "com.yinwang.qiankunapp.hm",
+    "fresh": true,
+    "screen_size": [
+      1264,
+      1848
+    ],
+    "layout": {
+      "status": "ok",
+      "window_px": [
+        1264,
+        1848
+      ],
+      "window_rect": [
+        0,
+        0,
+        1264,
+        1848
+      ],
+      "source": "ui_tree",
+      "density": 2.75,
+      "density_source": "hidumper DisplayManagerService",
+      "width_vp": 459.6,
+      "height_vp": 672.0,
+      "width_class": "sm",
+      "wide": false,
+      "orientation": "portrait",
+      "fold_status": "folded",
+      "device_form": "foldable",
+      "panes": [],
+      "pane_count": 1,
+      "min_visible_fraction": 0.5
+    },
+    "page": {
+      "candidates": [
+        "qk_vpd_home"
+      ],
+      "interrupts": [],
+      "signature": "sig-43330d928b",
+      "state": "qk_vpd_home",
+      "active": [
+        "qk_vpd_home"
+      ]
+    },
+    "texts": [
+      "ADS",
+      "10m",
+      "全览",
+      "由度金闽园",
+      "泊车代驾",
+      "共 695 个",
+      "搜索车位号设为目的地",
+      "我的位置",
+      "常去地点",
+      "附近充电站",
+      "默认车位",
+      "点击车位去设置",
+      "默认上车点",
+      "点击道路去设置",
+      "3号停车点",
+      ":",
+      "1号停车点",
+      "更多",
+      "沿途找车位",
+      "反馈",
+      "支持",
+      "区域",
+      "社区",
+      "爱车",
+      "商城",
+      "我的"
+    ],
+    "action_epoch": 2,
+    "clock_s": 1339265.828,
+    "scope": {
+      "app": "qiankun_hm",
+      "app_version": null
+    }
+  },
+  "ui_alerts": null,
+  "clickable": [
+    {
+      "label": "",
+      "type": "Stack",
+      "id": null,
+      "center": [
+        632,
+        869
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "全览",
+      "type": "__Common__",
+      "id": "overview_btn",
+      "center": [
+        1165,
+        587
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "搜索车位号设为目的地",
+      "type": "Row",
+      "id": null,
+      "center": [
+        531,
+        903
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "我的位置",
+      "type": "Column",
+      "id": null,
+      "center": [
+        1121,
+        903
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "常去地点",
+      "type": "Column",
+      "id": null,
+      "center": [
+        132,
+        1105
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "附近充电站",
+      "type": "Column",
+      "id": null,
+      "center": [
+        396,
+        1105
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "默认车位",
+      "type": "Row",
+      "id": null,
+      "center": [
+        353,
+        1253
+      ],
+      "visible_fraction": 1.0,
+      "allowed": false,
+      "why": "命中受控文本「默认车位」：目标须声明 side_effect=route_planning"
+    },
+    {
+      "label": "默认上车点",
+      "type": "Row",
+      "id": null,
+      "center": [
+        932,
+        1253
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "3号停车点",
+      "type": "Row",
+      "id": null,
+      "center": [
+        321,
+        1366
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": ":",
+      "type": "Column",
+      "id": null,
+      "center": [
+        599,
+        1366
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "1号停车点",
+      "type": "Row",
+      "id": null,
+      "center": [
+        900,
+        1366
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": ":",
+      "type": "Column",
+      "id": null,
+      "center": [
+        1176,
+        1366
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "更多",
+      "type": "Row",
+      "id": null,
+      "center": [
+        632,
+        1453
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "沿途找车位",
+      "type": "Row",
+      "id": null,
+      "center": [
+        632,
+        1585
+      ],
+      "visible_fraction": 1.0,
+      "allowed": false,
+      "why": "命中受控文本「沿途找车位」：目标须声明 side_effect=route_planning"
+    },
+    {
+      "label": "",
+      "type": "Image",
+      "id": null,
+      "center": [
+        99,
+        184
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "反馈",
+      "type": "Stack",
+      "id": null,
+      "center": [
+        1165,
+        184
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "支持",
+      "type": "Column",
+      "id": null,
+      "center": [
+        1033,
+        184
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "社区",
+      "type": "Column",
+      "id": null,
+      "center": [
+        126,
+        1702
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "ADS",
+      "type": "Column",
+      "id": null,
+      "center": [
+        378,
+        1702
+      ],
+      "visible_fraction": 1.0,
+      "allowed": false,
+      "why": "命中受控文本「ADS」：目标须声明 side_effect=vpd_entry"
+    },
+    {
+      "label": "爱车",
+      "type": "Column",
+      "id": null,
+      "center": [
+        630,
+        1702
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "商城",
+      "type": "Column",
+      "id": null,
+      "center": [
+        884,
+        1702
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "我的",
+      "type": "Column",
+      "id": null,
+      "center": [
+        1136,
+        1702
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    }
+  ]
+}

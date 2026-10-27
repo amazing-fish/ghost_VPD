@@ -1,0 +1,92 @@
+{
+  "session": "session-s120m",
+  "seq": 1,
+  "step_id": "A1",
+  "result": {
+    "step_id": "A1",
+    "action": "launch",
+    "critical": true,
+    "oracle_refs": [],
+    "attempts": [
+      {
+        "n": 1,
+        "ts": "2026-10-27T21:53:06.933+08:00",
+        "action": "launch",
+        "step_id": "A1",
+        "_safety": false,
+        "motion_mark": 0,
+        "obs_before": "obs-0001",
+        "state_before": "out_of_app",
+        "dispatch_recheck": {
+          "preconditions": {
+            "screen_locked": false,
+            "recover_unlock": true
+          },
+          "checks": {
+            "safety_hold": {
+              "active": false,
+              "evidence": null,
+              "exempt": false
+            },
+            "budget": {
+              "applicable": true,
+              "exempt": false,
+              "used": 0,
+              "max": 60
+            },
+            "motion": {
+              "applicable": true,
+              "exempt": false,
+              "over": false,
+              "locked": false
+            },
+            "screen_locked": {
+              "actual": false,
+              "expected": false
+            }
+          }
+        },
+        "dispatch": {
+          "op": "launch",
+          "sent": true,
+          "executor_ok": true,
+          "error_class": null,
+          "error": null,
+          "duration_ms": 297
+        },
+        "post": {
+          "obs_id": "obs-0002",
+          "expected": null,
+          "observed": "out_of_app",
+          "met": true,
+          "execution_error": {},
+          "status": "ok",
+          "interrupts": [],
+          "suspected_crash": false,
+          "dialogs": [],
+          "anomalies": [],
+          "elapsed_s": 0.75,
+          "timeout_s": 8.0,
+          "polls": 1,
+          "dismissed": []
+        },
+        "obs_after": "obs-0002",
+        "status": "ok"
+      }
+    ],
+    "recoveries": [],
+    "adapted": false,
+    "outcome": "passed",
+    "final_obs": "obs-0002"
+  },
+  "action_status": "ok",
+  "dispatched": true,
+  "effect_unknown": false,
+  "input_value_recorded": null,
+  "diagnosis": null,
+  "budget": {
+    "used": 1,
+    "max": 60,
+    "remaining": 59
+  }
+}

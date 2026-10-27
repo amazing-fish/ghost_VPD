@@ -1,0 +1,327 @@
+{
+  "session": "session-s120m",
+  "obs_dir": "C:\\temp\\ghost_vpd_v293\\vpd_skill\\runs\\session-s120m\\obs\\obs-0009",
+  "observation": {
+    "obs_id": "obs-0009",
+    "ts": "2026-10-27T21:54:02.530+08:00",
+    "label": "5MT-ADS落点",
+    "device": "5MT0225B05000904",
+    "source": "hdc",
+    "foreground": "com.yinwang.qiankunapp.hm",
+    "process_alive": true,
+    "tree": {
+      "status": "ok",
+      "path": "obs/obs-0009/tree.json",
+      "nodes": 159
+    },
+    "screenshot": {
+      "status": "ok",
+      "path": "obs/obs-0009/screen.png",
+      "sha256": "be47472eee9c6eb2"
+    },
+    "foreground_after": "com.yinwang.qiankunapp.hm",
+    "fresh": true,
+    "screen_size": [
+      1320,
+      2848
+    ],
+    "layout": {
+      "status": "ok",
+      "window_px": [
+        1320,
+        2848
+      ],
+      "window_rect": [
+        0,
+        0,
+        1320,
+        2848
+      ],
+      "source": "ui_tree",
+      "density": 3.375,
+      "density_source": "hidumper DisplayManagerService",
+      "width_vp": 391.1,
+      "height_vp": 843.9,
+      "width_class": "sm",
+      "wide": false,
+      "orientation": "portrait",
+      "fold_status": "unknown",
+      "device_form": "bar",
+      "panes": [],
+      "pane_count": 1,
+      "min_visible_fraction": 0.5
+    },
+    "page": {
+      "candidates": [],
+      "interrupts": [],
+      "signature": "sig-7acc2dda44",
+      "state": "unknown",
+      "active": [],
+      "hint": "未命中已声明状态：结合截图判断页面语义，必要时提议新增状态签名（需评审）"
+    },
+    "texts": [
+      "ADS",
+      "5m",
+      "停车区域",
+      "L1",
+      "B1",
+      "回自车",
+      "金桥出口加工区",
+      "泊车代驾",
+      "共 742 个",
+      "搜索",
+      "我的位置",
+      "开启智慧停车缴费",
+      "添加车牌后支付离场更便捷",
+      "立即体验",
+      "收藏及常去",
+      "附近充电站",
+      "333",
+      "默认",
+      ":",
+      "默认上车点",
+      "点击道路去设置",
+      "社区",
+      "爱车",
+      "商城",
+      "我的"
+    ],
+    "action_epoch": 3,
+    "clock_s": 1339639.218,
+    "scope": {
+      "app": "qiankun_hm",
+      "app_version": null
+    }
+  },
+  "ui_alerts": null,
+  "clickable": [
+    {
+      "label": "",
+      "type": "Stack",
+      "id": null,
+      "center": [
+        660,
+        1481
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "停车区域",
+      "type": "Column",
+      "id": null,
+      "center": [
+        128,
+        933
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "L1",
+      "type": "Row",
+      "id": null,
+      "center": [
+        129,
+        1074
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "B1",
+      "type": "Row",
+      "id": null,
+      "center": [
+        129,
+        1209
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "回自车",
+      "type": "__Common__",
+      "id": "overview_btn",
+      "center": [
+        1198,
+        1301
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "搜索",
+      "type": "Row",
+      "id": null,
+      "center": [
+        537,
+        1688
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "我的位置",
+      "type": "Column",
+      "id": null,
+      "center": [
+        1144,
+        1688
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "立即体验",
+      "type": "Button",
+      "id": null,
+      "center": [
+        1095,
+        2056
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Row",
+      "id": null,
+      "center": [
+        1216,
+        1943
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "收藏及常去",
+      "type": "Column",
+      "id": null,
+      "center": [
+        189,
+        2340
+      ],
+      "visible_fraction": 1.0,
+      "allowed": false,
+      "why": "命中受控文本「收藏及常去」：需授权 user_data 且目标声明 side_effect=user_data"
+    },
+    {
+      "label": "附近充电站",
+      "type": "Column",
+      "id": null,
+      "center": [
+        540,
+        2340
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "333",
+      "type": "Row",
+      "id": null,
+      "center": [
+        336,
+        2503
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": ":",
+      "type": "Column",
+      "id": null,
+      "center": [
+        619,
+        2502
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "默认上车点",
+      "type": "Row",
+      "id": null,
+      "center": [
+        969,
+        2521
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "社区",
+      "type": "Column",
+      "id": null,
+      "center": [
+        132,
+        2669
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "ADS",
+      "type": "Column",
+      "id": null,
+      "center": [
+        396,
+        2669
+      ],
+      "visible_fraction": 1.0,
+      "allowed": false,
+      "why": "命中受控文本「ADS」：目标须声明 side_effect=vpd_entry"
+    },
+    {
+      "label": "爱车",
+      "type": "Column",
+      "id": null,
+      "center": [
+        660,
+        2669
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "商城",
+      "type": "Column",
+      "id": null,
+      "center": [
+        924,
+        2669
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "我的",
+      "type": "Column",
+      "id": null,
+      "center": [
+        1188,
+        2669
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    }
+  ]
+}

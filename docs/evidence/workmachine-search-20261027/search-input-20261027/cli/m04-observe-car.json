@@ -1,0 +1,224 @@
+{
+  "session": "session-s120m",
+  "obs_dir": "C:\\temp\\ghost_vpd_v293\\vpd_skill\\runs\\session-s120m\\obs\\obs-0006",
+  "observation": {
+    "obs_id": "obs-0006",
+    "ts": "2026-10-27T21:53:44.648+08:00",
+    "label": "5MT-爱车页",
+    "device": "5MT0225B05000904",
+    "source": "hdc",
+    "foreground": "com.yinwang.qiankunapp.hm",
+    "process_alive": true,
+    "tree": {
+      "status": "ok",
+      "path": "obs/obs-0006/tree.json",
+      "nodes": 71
+    },
+    "screenshot": {
+      "status": "ok",
+      "path": "obs/obs-0006/screen.png",
+      "sha256": "004a2582004b9221"
+    },
+    "foreground_after": "com.yinwang.qiankunapp.hm",
+    "fresh": true,
+    "screen_size": [
+      1320,
+      2848
+    ],
+    "layout": {
+      "status": "ok",
+      "window_px": [
+        1320,
+        2848
+      ],
+      "window_rect": [
+        0,
+        0,
+        1320,
+        2848
+      ],
+      "source": "ui_tree",
+      "density": 3.375,
+      "density_source": "hidumper DisplayManagerService",
+      "width_vp": 391.1,
+      "height_vp": 843.9,
+      "width_class": "sm",
+      "wide": false,
+      "orientation": "portrait",
+      "fold_status": "unknown",
+      "device_form": "bar",
+      "panes": [],
+      "pane_count": 1,
+      "min_visible_fraction": 0.5
+    },
+    "page": {
+      "candidates": [
+        "qk_car_tab"
+      ],
+      "interrupts": [],
+      "signature": "sig-ad6e156064",
+      "state": "qk_car_tab",
+      "active": [
+        "qk_car_tab"
+      ]
+    },
+    "texts": [
+      "X6S增程",
+      "327",
+      "99+",
+      "探索",
+      "哨兵增强",
+      "查看哨兵视频和云瞰",
+      "查看",
+      "云瞰",
+      "查看车实况",
+      "授权",
+      "社区",
+      "ADS",
+      "爱车",
+      "商城",
+      "我的"
+    ],
+    "action_epoch": 2,
+    "clock_s": 1339621.421,
+    "scope": {
+      "app": "qiankun_hm",
+      "app_version": null
+    }
+  },
+  "ui_alerts": null,
+  "clickable": [
+    {
+      "label": "X6S增程",
+      "type": "Text",
+      "id": null,
+      "center": [
+        183,
+        225
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Image",
+      "id": null,
+      "center": [
+        354,
+        225
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "327",
+      "type": "Badge",
+      "id": null,
+      "center": [
+        1225,
+        225
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "哨兵增强",
+      "type": "GridItem",
+      "id": null,
+      "center": [
+        337,
+        826
+      ],
+      "visible_fraction": 1.0,
+      "allowed": false,
+      "why": "命中受控文本「哨兵增强」：需授权 vehicle_control（且有在场监护人） 且目标声明 side_effect=vehicle_control"
+    },
+    {
+      "label": "云瞰",
+      "type": "GridItem",
+      "id": null,
+      "center": [
+        984,
+        826
+      ],
+      "visible_fraction": 1.0,
+      "allowed": false,
+      "why": "命中受控文本「授权」：需授权 account_state 且目标声明 side_effect=account_state"
+    },
+    {
+      "label": "授权",
+      "type": "Text",
+      "id": "cameraAuth",
+      "center": [
+        808,
+        1015
+      ],
+      "visible_fraction": 1.0,
+      "allowed": false,
+      "why": "命中受控文本「授权」：需授权 account_state 且目标声明 side_effect=account_state"
+    },
+    {
+      "label": "社区",
+      "type": "Column",
+      "id": null,
+      "center": [
+        132,
+        2669
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "ADS",
+      "type": "Column",
+      "id": null,
+      "center": [
+        396,
+        2669
+      ],
+      "visible_fraction": 1.0,
+      "allowed": false,
+      "why": "命中受控文本「ADS」：目标须声明 side_effect=vpd_entry"
+    },
+    {
+      "label": "爱车",
+      "type": "Column",
+      "id": null,
+      "center": [
+        660,
+        2669
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "商城",
+      "type": "Column",
+      "id": null,
+      "center": [
+        924,
+        2669
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "我的",
+      "type": "Column",
+      "id": null,
+      "center": [
+        1188,
+        2669
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    }
+  ]
+}

@@ -1,0 +1,162 @@
+{
+  "issue": "#118",
+  "baseline": "main 8f148c5（含 #116 4f48860、#120 0b882a8）",
+  "note": "CLI 返回为本次运行的 stdout 原文；tree 为 obs 源文件逐字节副本；截图只登记指纹不入库",
+  "cli": {
+    "a01-launch.json": {
+      "bytes": 2271,
+      "sha256": "ade79b0242f0f29e1a22eb377466e21c4616610de697064de9c7cfc11375a709"
+    },
+    "a02-tap-ads.json": {
+      "bytes": 9177,
+      "sha256": "8fe56b3201a81f6332ea568ecf508ba544c39296b67c611a6e53ad8e56ce7c00"
+    },
+    "a03-tap-search-entry.json": {
+      "bytes": 9098,
+      "sha256": "bbeb621fcc51c474bd5d5e85a61ca427f1efc74be03ade933bf831bcb78fb540"
+    },
+    "a04-input-qk_search_input.json": {
+      "bytes": 9275,
+      "sha256": "5d4f20d64d2e8eae19e1984a7ab0792780f75cd7a42d431b8e225fbcb92d3f64"
+    },
+    "a05-clear-qk_search_input.json": {
+      "bytes": 2003,
+      "sha256": "b6a9ba8bf605f5cf52f794ae24bb7169ee2e5aae1617ab6eaf6e1ceb7feb3323"
+    },
+    "a06-clear-retry.json": {
+      "bytes": 1987,
+      "sha256": "f53e47485b9bc84ce45118dbe101ca000984137c8ae92b283e8dcf3c5984e99c"
+    },
+    "a07-input-qk_spot_search_input.json": {
+      "bytes": 9370,
+      "sha256": "30c651b7a1444c19da3dfe8035498be59c132bd6eae06aeafa8cb6fd9ee6b255"
+    },
+    "a08-clear-qk_spot_search_input.json": {
+      "bytes": 2003,
+      "sha256": "a7efe71e37b5d2e56d8985722ca9cbbb8a5286ff2f4ddfe05e8d99278c6e689a"
+    },
+    "a09-stop.json": {
+      "bytes": 2382,
+      "sha256": "dc9c5d93646e588675d648e693d34f6edc1f330780a00beedf09e8440339892e"
+    },
+    "b01-home.json": {
+      "bytes": 4866,
+      "sha256": "04d023c1f87a87d0c48352212f0b22846fd84d1af0c28a23898534ca14f8ee5d"
+    },
+    "b02-home.json": {
+      "bytes": 7444,
+      "sha256": "15d7abd8d3a4034953a3d0619f5192681f8b24928adba90adff9ec18593bdf55"
+    },
+    "b03-search-page.json": {
+      "bytes": 5159,
+      "sha256": "4ab46c0653ec0a46586306eb295a51deea71c861811ab956796eae00ffa32649"
+    },
+    "b04-after-input.json": {
+      "bytes": 5135,
+      "sha256": "0a0be5fe57471a4c5e6f877de4a73e4cc8dc8b32645bdaa6f9152a45b452f6aa"
+    },
+    "b07-after-input333.json": {
+      "bytes": 4635,
+      "sha256": "baa68f71b8ca51fe2ae1db9c7fbca74a9357755e0db3fd69f9cc21b2f75fa1b2"
+    },
+    "m01-launch.json": {
+      "bytes": 2271,
+      "sha256": "12233d5115b80b7f93eeb4171c0be0754984038560377f9f3b70986ab118b421"
+    },
+    "m02-observe.json": {
+      "bytes": 11059,
+      "sha256": "07097a91235151061996d203d74481337683743c0f6f68f746896d2c394f05c8"
+    },
+    "m03-tap-car.json": {
+      "bytes": 8771,
+      "sha256": "232c30d125719e7140cfdd7e68ffd0f808b689e5058b202485e4fc5b52c6e151"
+    },
+    "m04-observe-car.json": {
+      "bytes": 4851,
+      "sha256": "8a3485f6c0254c7d15a5233ac02c0fecd962d521d2832fffd09e8e16675b1b9f"
+    },
+    "m05-tap-ads.json": {
+      "bytes": 9174,
+      "sha256": "0ac0e2da2dbe5ff3db148d51e8c3b28034afa39bf8f4553887cd70c87ffcbba3"
+    },
+    "m06-observe-ads.json": {
+      "bytes": 6732,
+      "sha256": "0bb6479360130d40c7fcab2578c7effafa7ea8ef4b6b22543f70953b08aae097"
+    },
+    "m07-entry-search-entry.json": {
+      "bytes": 2524,
+      "sha256": "ecb9aa42ef2963f554f4bf3fe72982ed5f0dbb3edbc251ff12278f24387a0ac8"
+    },
+    "m08-stop.json": {
+      "bytes": 2431,
+      "sha256": "2a9afd8f03a69429d198b1d5b9e34da09783966e36665c10fcff9146d46676ad"
+    }
+  },
+  "trees": {
+    "session-s120-obs-0006-tree.json": {
+      "source": "runs/session-s120/obs/obs-0006/tree.json",
+      "bytes": 657902,
+      "sha256": "eda1ae6d5f2fd0bc5126e27042480a4739efa329d165b28bc271704c43cb2f5d"
+    },
+    "session-s120-obs-0009-tree.json": {
+      "source": "runs/session-s120/obs/obs-0009/tree.json",
+      "bytes": 262996,
+      "sha256": "10ea7bb7904bac9fee2b08b8dfad780ec88035af7a4a78eddaef0e49408f6828"
+    },
+    "session-s120-obs-0012-tree.json": {
+      "source": "runs/session-s120/obs/obs-0012/tree.json",
+      "bytes": 368311,
+      "sha256": "f1a4f148ee21f97d28e0f98d229f6c238b88379291090c62ed38f4f1270d3ee3"
+    },
+    "session-s120-obs-0017-tree.json": {
+      "source": "runs/session-s120/obs/obs-0017/tree.json",
+      "bytes": 294822,
+      "sha256": "3af2b3179947cb01a5509174227bb98bd6687d54893b1e294c230947b55c4241"
+    },
+    "session-s120-obs-0018-tree.json": {
+      "source": "runs/session-s120/obs/obs-0018/tree.json",
+      "bytes": 294822,
+      "sha256": "3af2b3179947cb01a5509174227bb98bd6687d54893b1e294c230947b55c4241"
+    },
+    "session-s120m-obs-0006-tree.json": {
+      "source": "runs/session-s120m/obs/obs-0006/tree.json",
+      "bytes": 207451,
+      "sha256": "d383b2cbe82ca3c52cc726f8c7d2d11878c8f9aaba091c9521b1f085b67a2d23"
+    },
+    "session-s120m-obs-0009-tree.json": {
+      "source": "runs/session-s120m/obs/obs-0009/tree.json",
+      "bytes": 627240,
+      "sha256": "fbc95794a3a0e50a0a4b043f143a96c1c6d864b1b96945af674b372a5c1d0192"
+    }
+  },
+  "screens_not_included": {
+    "runs/session-s120/obs/obs-0006/screen.png": {
+      "bytes": 513477,
+      "sha256": "507822b80e2769361bc4d07a3f4d3ad4a741146df1aaefcf611d2c96143b5d4a"
+    },
+    "runs/session-s120/obs/obs-0009/screen.png": {
+      "bytes": 139677,
+      "sha256": "4ba83b50f8f25003db7b08262f99fbce8d4b02995ed53c6caf39e766c3e1bc22"
+    },
+    "runs/session-s120/obs/obs-0012/screen.png": {
+      "bytes": 213941,
+      "sha256": "48cd697c7bf4cf8acf6c77ec199b72c9bb7ff9c3ad3416f7593d0345e97a15e1"
+    },
+    "runs/session-s120/obs/obs-0017/screen.png": {
+      "bytes": 200058,
+      "sha256": "9ed8fb5aab7d1cd3707a618b9fe543d6d88c6e35e961227be5d54ced9c29243d"
+    },
+    "runs/session-s120/obs/obs-0018/screen.png": {
+      "bytes": 200248,
+      "sha256": "847d1dfb1bf31135e0aa694a838ad8412c038a9cca25928e03a01f48395c47ae"
+    },
+    "runs/session-s120m/obs/obs-0006/screen.png": {
+      "bytes": 765629,
+      "sha256": "004a2582004b9221817d1fdbdabdf330b2fdd37d3a75ad1c32be8f4967b675c0"
+    },
+    "runs/session-s120m/obs/obs-0009/screen.png": {
+      "bytes": 553607,
+      "sha256": "be47472eee9c6eb203364085a5c4c48ffcb2d104e3c0c85dcf3227a1c6893da5"
+    }
+  }
+}

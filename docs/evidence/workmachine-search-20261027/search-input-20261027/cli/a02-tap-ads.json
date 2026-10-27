@@ -1,0 +1,342 @@
+{
+  "session": "session-s120",
+  "seq": 2,
+  "step_id": "A2",
+  "result": {
+    "step_id": "A2",
+    "action": "tap",
+    "critical": true,
+    "oracle_refs": [],
+    "attempts": [
+      {
+        "n": 1,
+        "ts": "2026-10-27T21:47:37.194+08:00",
+        "action": "tap",
+        "step_id": "A2",
+        "_safety": false,
+        "motion_mark": 0,
+        "obs_before": "obs-0004",
+        "state_before": "qk_car_tab",
+        "locate": {
+          "target": "qk_ads",
+          "status": "found",
+          "point": [
+            378,
+            1757
+          ],
+          "bounds": [
+            350,
+            1743,
+            406,
+            1771
+          ],
+          "visible": [
+            350,
+            1743,
+            406,
+            1771
+          ],
+          "strategy_index": 0,
+          "strategy_kind": "text",
+          "basis": "tree",
+          "adapted": false,
+          "overlay_pref": null,
+          "visible_fraction": 1.0,
+          "primary_kind": "text",
+          "score": null,
+          "attempts": [
+            {
+              "index": 0,
+              "kind": "text",
+              "value": "ADS",
+              "matches": 1,
+              "visible_fraction": 1.0,
+              "status": "found",
+              "point": [
+                378,
+                1757
+              ],
+              "bounds": [
+                350,
+                1743,
+                406,
+                1771
+              ],
+              "visible": [
+                350,
+                1743,
+                406,
+                1771
+              ],
+              "node": {
+                "idx": 68,
+                "type": "Text",
+                "text": "ADS",
+                "id": "",
+                "bounds": [
+                  350,
+                  1743,
+                  406,
+                  1771
+                ],
+                "clickable": false,
+                "selected": false
+              }
+            }
+          ],
+          "obs": "obs-0004",
+          "layout_key": "sm/portrait"
+        },
+        "policy": {
+          "allowed": true,
+          "reason": "任务范围允许 vpd_entry，目标声明一致",
+          "label": "ADS",
+          "deny": null,
+          "authorized_by": "vpd_entry",
+          "authorization_source": "task_policy"
+        },
+        "resolved": {
+          "point": [
+            378,
+            1757
+          ],
+          "coordinate_system": "px",
+          "node": {
+            "idx": 68,
+            "type": "Text",
+            "text": "ADS",
+            "id": "",
+            "bounds": [
+              350,
+              1743,
+              406,
+              1771
+            ],
+            "clickable": false,
+            "selected": false
+          },
+          "bounds": [
+            350,
+            1743,
+            406,
+            1771
+          ],
+          "visible": [
+            350,
+            1743,
+            406,
+            1771
+          ],
+          "visible_fraction": 1.0,
+          "strategy": "text",
+          "strategy_index": 0,
+          "container_point": false,
+          "obs": "obs-0004",
+          "window_px": [
+            1264,
+            1848
+          ],
+          "layout_key": "sm/portrait",
+          "density": 2.75,
+          "device_form": "foldable",
+          "panes": 0
+        },
+        "foreground_check": {
+          "foreground": "com.yinwang.qiankunapp.hm",
+          "expected": [
+            "com.yinwang.qiankunapp.hm"
+          ],
+          "screen_locked": false
+        },
+        "state_recheck": {
+          "screen_locked": {
+            "actual": false,
+            "expected": false
+          },
+          "foreground": {
+            "actual": "com.yinwang.qiankunapp.hm",
+            "expected": [
+              "com.yinwang.qiankunapp.hm"
+            ],
+            "query_error": null
+          }
+        },
+        "dispatch_coordinates": {
+          "system": "px",
+          "point": [
+            378,
+            1757
+          ]
+        },
+        "dispatch_recheck": {
+          "preconditions": {
+            "screen_locked": false,
+            "foreground": [
+              "com.yinwang.qiankunapp.hm"
+            ],
+            "recover_unlock": true,
+            "target_subtree": true
+          },
+          "checks": {
+            "safety_hold": {
+              "active": false,
+              "evidence": null,
+              "exempt": false
+            },
+            "budget": {
+              "applicable": true,
+              "exempt": false,
+              "used": 1,
+              "max": 60
+            },
+            "motion": {
+              "applicable": true,
+              "exempt": false,
+              "over": false,
+              "locked": false
+            },
+            "screen_locked": {
+              "actual": false,
+              "expected": false
+            },
+            "foreground": {
+              "actual": "com.yinwang.qiankunapp.hm",
+              "expected": [
+                "com.yinwang.qiankunapp.hm"
+              ],
+              "query_error": null
+            },
+            "tap": {
+              "status": "ok",
+              "policy": {
+                "allowed": true,
+                "reason": "任务范围允许 vpd_entry，目标声明一致",
+                "label": "ADS",
+                "deny": null,
+                "authorized_by": "vpd_entry",
+                "authorization_source": "task_policy"
+              },
+              "touch": {
+                "allowed": true,
+                "basis": "receiver_ancestor",
+                "receiver": {
+                  "idx": 65,
+                  "type": "Column",
+                  "text": "",
+                  "id": "",
+                  "bounds": [
+                    251,
+                    1633,
+                    505,
+                    1771
+                  ],
+                  "clickable": true,
+                  "selected": false
+                },
+                "scope": {
+                  "idx": 68,
+                  "type": "Text",
+                  "text": "ADS",
+                  "id": "",
+                  "bounds": [
+                    350,
+                    1743,
+                    406,
+                    1771
+                  ],
+                  "clickable": false,
+                  "selected": false
+                }
+              }
+            },
+            "tap_attempts": [
+              {
+                "status": "ok",
+                "policy": {
+                  "allowed": true,
+                  "reason": "任务范围允许 vpd_entry，目标声明一致",
+                  "label": "ADS",
+                  "deny": null,
+                  "authorized_by": "vpd_entry",
+                  "authorization_source": "task_policy"
+                },
+                "touch": {
+                  "allowed": true,
+                  "basis": "receiver_ancestor",
+                  "receiver": {
+                    "idx": 65,
+                    "type": "Column",
+                    "text": "",
+                    "id": "",
+                    "bounds": [
+                      251,
+                      1633,
+                      505,
+                      1771
+                    ],
+                    "clickable": true,
+                    "selected": false
+                  },
+                  "scope": {
+                    "idx": 68,
+                    "type": "Text",
+                    "text": "ADS",
+                    "id": "",
+                    "bounds": [
+                      350,
+                      1743,
+                      406,
+                      1771
+                    ],
+                    "clickable": false,
+                    "selected": false
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "dispatch": {
+          "op": "tap",
+          "sent": true,
+          "executor_ok": true,
+          "error_class": null,
+          "error": null,
+          "duration_ms": 484
+        },
+        "post": {
+          "obs_id": "obs-0005",
+          "expected": null,
+          "observed": "qk_vpd_loading",
+          "met": true,
+          "execution_error": {},
+          "status": "ok",
+          "interrupts": [],
+          "suspected_crash": false,
+          "dialogs": [],
+          "anomalies": [],
+          "elapsed_s": 2.47,
+          "timeout_s": 8.0,
+          "polls": 1,
+          "dismissed": []
+        },
+        "obs_after": "obs-0005",
+        "status": "ok"
+      }
+    ],
+    "recoveries": [],
+    "adapted": false,
+    "outcome": "passed",
+    "final_obs": "obs-0005"
+  },
+  "action_status": "ok",
+  "dispatched": true,
+  "effect_unknown": false,
+  "input_value_recorded": null,
+  "diagnosis": null,
+  "budget": {
+    "used": 2,
+    "max": 60,
+    "remaining": 58
+  }
+}

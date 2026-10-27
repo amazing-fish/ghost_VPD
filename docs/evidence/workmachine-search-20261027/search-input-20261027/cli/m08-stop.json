@@ -1,0 +1,95 @@
+{
+  "session": "session-s120m",
+  "seq": 5,
+  "step_id": "A5",
+  "result": {
+    "step_id": "A5",
+    "action": "stop_app",
+    "critical": true,
+    "oracle_refs": [],
+    "attempts": [
+      {
+        "n": 1,
+        "ts": "2026-10-27T21:55:26.839+08:00",
+        "action": "stop_app",
+        "step_id": "A5",
+        "_safety": false,
+        "motion_mark": 0,
+        "obs_before": "obs-0011",
+        "state_before": "out_of_app",
+        "dispatch_recheck": {
+          "preconditions": {},
+          "checks": {
+            "safety_hold": {
+              "active": false,
+              "evidence": null,
+              "exempt": false
+            },
+            "budget": {
+              "applicable": true,
+              "exempt": false,
+              "used": 3,
+              "max": 60
+            },
+            "motion": {
+              "applicable": true,
+              "exempt": false,
+              "over": false,
+              "locked": false
+            }
+          }
+        },
+        "dispatch": {
+          "op": "stop",
+          "sent": true,
+          "executor_ok": true,
+          "error_class": null,
+          "error": null,
+          "duration_ms": 655
+        },
+        "post": {
+          "obs_id": "obs-0012",
+          "expected": null,
+          "observed": "out_of_app",
+          "met": true,
+          "execution_error": {},
+          "status": "ok",
+          "interrupts": [],
+          "suspected_crash": false,
+          "dialogs": [],
+          "anomalies": [],
+          "elapsed_s": 0.7,
+          "timeout_s": 8.0,
+          "polls": 1,
+          "dismissed": []
+        },
+        "obs_after": "obs-0012",
+        "status": "ok",
+        "stop_check": {
+          "process_alive": false,
+          "foreground": "com.tencent.wechat",
+          "process_ended": true,
+          "foreground_restored": false,
+          "require_launcher": false,
+          "foreground_error": null,
+          "process_error": null,
+          "foreign_foreground": "com.tencent.wechat"
+        }
+      }
+    ],
+    "recoveries": [],
+    "adapted": false,
+    "outcome": "passed",
+    "final_obs": "obs-0012"
+  },
+  "action_status": "ok",
+  "dispatched": true,
+  "effect_unknown": false,
+  "input_value_recorded": null,
+  "diagnosis": null,
+  "budget": {
+    "used": 4,
+    "max": 60,
+    "remaining": 56
+  }
+}

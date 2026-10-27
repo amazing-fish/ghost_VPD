@@ -1,0 +1,228 @@
+{
+  "session": "session-s120",
+  "obs_dir": "C:\\temp\\ghost_vpd_v293\\vpd_skill\\runs\\session-s120\\obs\\obs-0003",
+  "observation": {
+    "obs_id": "obs-0003",
+    "ts": "2026-10-27T21:46:59.207+08:00",
+    "label": "首页-起始",
+    "device": "6HQ0226505000341",
+    "source": "hdc",
+    "foreground": "com.yinwang.qiankunapp.hm",
+    "process_alive": true,
+    "tree": {
+      "status": "ok",
+      "path": "obs/obs-0003/tree.json",
+      "nodes": 81
+    },
+    "screenshot": {
+      "status": "ok",
+      "path": "obs/obs-0003/screen.png",
+      "sha256": "865f557b02fd94af"
+    },
+    "foreground_after": "com.yinwang.qiankunapp.hm",
+    "fresh": true,
+    "screen_size": [
+      1264,
+      1848
+    ],
+    "layout": {
+      "status": "ok",
+      "window_px": [
+        1264,
+        1848
+      ],
+      "window_rect": [
+        0,
+        0,
+        1264,
+        1848
+      ],
+      "source": "ui_tree",
+      "density": 2.75,
+      "density_source": "hidumper DisplayManagerService",
+      "width_vp": 459.6,
+      "height_vp": 672.0,
+      "width_class": "sm",
+      "wide": false,
+      "orientation": "portrait",
+      "fold_status": "folded",
+      "device_form": "foldable",
+      "panes": [],
+      "pane_count": 1,
+      "min_visible_fraction": 0.5
+    },
+    "page": {
+      "candidates": [
+        "qk_car_tab"
+      ],
+      "interrupts": [],
+      "signature": "sig-a22de80820",
+      "state": "qk_car_tab",
+      "active": [
+        "qk_car_tab"
+      ]
+    },
+    "texts": [
+      "赛力斯M9 F2A",
+      "2115",
+      "99+",
+      "探索",
+      "云鹊",
+      "小艺反馈问题处理进展",
+      "查看",
+      "哨兵增强",
+      "查看哨兵视频和云瞰",
+      "行车记录仪SD卡健康度",
+      "正常",
+      "容量 476.2GB",
+      "可存储视频 37.2小时",
+      "检测时间: 2026/09/02 13:12",
+      "社区",
+      "ADS",
+      "爱车",
+      "商城",
+      "我的"
+    ],
+    "action_epoch": 1,
+    "clock_s": 1339215.734,
+    "scope": {
+      "app": "qiankun_hm",
+      "app_version": null
+    }
+  },
+  "ui_alerts": null,
+  "clickable": [
+    {
+      "label": "赛力斯M9 F2A",
+      "type": "Text",
+      "id": null,
+      "center": [
+        225,
+        184
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "",
+      "type": "Image",
+      "id": null,
+      "center": [
+        441,
+        184
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "2115",
+      "type": "Badge",
+      "id": null,
+      "center": [
+        1187,
+        184
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "云鹊",
+      "type": "GridItem",
+      "id": null,
+      "center": [
+        321,
+        673
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "哨兵增强",
+      "type": "GridItem",
+      "id": null,
+      "center": [
+        942,
+        673
+      ],
+      "visible_fraction": 1.0,
+      "allowed": false,
+      "why": "命中受控文本「哨兵增强」：需授权 vehicle_control（且有在场监护人） 且目标声明 side_effect=vehicle_control"
+    },
+    {
+      "label": "行车记录仪SD卡健康度",
+      "type": "RelativeContainer",
+      "id": null,
+      "center": [
+        632,
+        1168
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "社区",
+      "type": "Column",
+      "id": null,
+      "center": [
+        126,
+        1702
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "ADS",
+      "type": "Column",
+      "id": null,
+      "center": [
+        378,
+        1702
+      ],
+      "visible_fraction": 1.0,
+      "allowed": false,
+      "why": "命中受控文本「ADS」：目标须声明 side_effect=vpd_entry"
+    },
+    {
+      "label": "爱车",
+      "type": "Column",
+      "id": null,
+      "center": [
+        630,
+        1702
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "商城",
+      "type": "Column",
+      "id": null,
+      "center": [
+        884,
+        1702
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    },
+    {
+      "label": "我的",
+      "type": "Column",
+      "id": null,
+      "center": [
+        1136,
+        1702
+      ],
+      "visible_fraction": 1.0,
+      "allowed": true,
+      "why": "通过"
+    }
+  ]
+}

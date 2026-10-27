@@ -1,0 +1,61 @@
+{
+  "session": "session-s120",
+  "seq": 6,
+  "step_id": "A6",
+  "result": {
+    "step_id": "A6",
+    "action": "input",
+    "critical": true,
+    "oracle_refs": [],
+    "attempts": [
+      {
+        "n": 1,
+        "ts": "2026-10-27T21:51:00.081+08:00",
+        "action": "input",
+        "step_id": "A6",
+        "_safety": false,
+        "motion_mark": 0,
+        "obs_before": "obs-0014",
+        "state_before": "qk_spot_search",
+        "status": "input_required",
+        "reason": "所选输入缺值或引用未解析；保留当前页面，补齐外部输入后重新观察重入",
+        "input": {
+          "ref": null,
+          "available": false
+        },
+        "action_required": "请补齐外部输入 ，然后重新运行并观察当前页面；不要从历史步骤号续发"
+      }
+    ],
+    "recoveries": [],
+    "adapted": false,
+    "action_required": "请补齐外部输入 ，然后重新运行并观察当前页面；不要从历史步骤号续发",
+    "outcome": "blocked",
+    "attribution": "environment",
+    "reason": "所选输入缺值或引用未解析；保留当前页面，补齐外部输入后重新观察重入",
+    "final_obs": "obs-0014",
+    "final_status": "input_required",
+    "first_failure": {
+      "attempt": 1,
+      "status": "input_required",
+      "obs_before": "obs-0014",
+      "obs_after": null,
+      "detail": {
+        "status": "input_required",
+        "action_required": "请补齐外部输入 ，然后重新运行并观察当前页面；不要从历史步骤号续发"
+      }
+    }
+  },
+  "action_status": "input_required",
+  "dispatched": false,
+  "effect_unknown": false,
+  "input_value_recorded": false,
+  "diagnosis": {
+    "status": "input_required"
+  },
+  "budget": {
+    "used": 4,
+    "max": 60,
+    "remaining": 56
+  },
+  "action_required": "请补齐外部输入 ，然后重新运行并观察当前页面；不要从历史步骤号续发"
+}
