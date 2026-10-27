@@ -590,3 +590,21 @@ Runner 根据被引用步骤的主 `dispatch` 或输入 `clear` 记录决定归�
 TC-QK-242 在修改前肯定读取同一POI的未选标签及搜索基线，添加步骤不重试；清理复用 flow，重新核同一POI，
 只在当前标签明确已选时撤回，再肯定读取面板未选及搜索恢复。标签状态未知时不猜测；最终 `stop_app` 独立执行。
 前置失败且添加动作未发时，归属门禁避免删除原有标签；已经可能发送后的清理失败仍照常阻断通过。
+
+### 乾崑收藏夹浏览入口
+
+`qk_favorites_entry` 只定位历史 AA 中 `VPD_HOME_VIEW` 下、直接属于 `Row` 的精确「收藏夹」文字，
+声明 `navigation`、保持 `unverified`。它与收藏、取消收藏、编辑、重命名、标签、删除的 `user_data` 写操作分开。
+
+Policy 保留原全局规则；仅当当前观测为乾崑前台、明确单 pane，唯一非根 `Stack#VPD_HOME_VIEW`、
+其「收藏及常去」标识及唯一「收藏夹」直接父 `Row` 均完整可见，且该 Row 是真实纯标签触摸接收者时，
+重新分类唯一旧 `user_data` 关键词规则的精确「收藏夹」命中。隐藏、裁剪、重复、编辑/设置控件、嵌套接收者、
+混合标签、弹窗、其他 APP 或未知 layout 不取得该依据；其他全局及页面限制完整保留，同形重复规则也拒绝。
+标题须为非点击/非长按的静态 `Text`，text/description 不可混入其他值，也不可从 Button、可编辑或设置控件祖先中借值。
+历史 AA 的普通可点击 Column 标题容器仍可用；标题与入口的祖先须 enabled，标题、文字及接收 Row 的完整 bounds 均须包含于首页 bounds。
+`read_only`、目标自填 review/source 及外部 confirmation_source 不产生豁免，不申请 `user_data` 授权。
+
+Executor 使用当前观测的 foreground/layout；Dispatcher 紧邻派发重新查询前台，并对当前树重新证明。
+未传入这些事实的旧调用保留拒绝，不把全局 `unknown` 页面升级为首页。`navigation_source` 记录结构节点及被重新分类的规则。
+这只交付浏览入口的受控点击能力；历史 AA 是结构投影，离线 Replay/fake bridge 不证明实机目的页或收藏内容。
+工作机仍须核入口点击后的实际列表；6HQ 的「常去地点/更多」没有按该入口处理，也不随本能力启用生产搜索资产。

@@ -97,7 +97,7 @@ class Dispatcher:
                 if not ok:
                     return self._reject(op, preconditions, checks, att)
             for attempt in range(2):
-                check = self._tap_check(tap)
+                check = self._tap_check(tap, checks.get("foreground", {}).get("actual"), op)
                 checks["tap"] = check
                 checks.setdefault("tap_attempts", []).append(check)
                 if check["status"] == "ok":
@@ -207,7 +207,7 @@ class Dispatcher:
             return self._reject(att["action"], {}, checks, att)
         return None
 
-    def _tap_check(self, tap):
+    def _tap_check(self, tap, foreground=None, op="tap"):
         tree, loc, target = tap["tree"], tap["loc"], tap["target"]
         if loc["status"] != "found":
             return {"status": "target_unresolved"}
@@ -225,7 +225,8 @@ class Dispatcher:
         policy = self.ctx.policy.check_tap(tree, loc["point"], loc["basis"], target,
                                            tap.get("state_deny"), self.ctx.authorized, node=node,
                                            confirmation_sources=self.ctx.app.states.confirmation_sources(
-                                               tree, tap.get("target_ref"), target, tap.get("page"), tap.get("layout")))
+                                               tree, tap.get("target_ref"), target, tap.get("page"), tap.get("layout")),
+                                           layout=tap.get("layout") if op == "tap" else None, foreground=foreground)
         return {"status": "ok" if policy["allowed"] else "policy_denied", "policy": policy, "touch": touch}
 
     def _reject(self, op, preconditions, checks, att):

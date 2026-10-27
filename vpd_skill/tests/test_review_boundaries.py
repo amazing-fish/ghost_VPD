@@ -109,7 +109,7 @@ def test_motion_timeout_is_checked_after_relocation(ws, tmp_path):
     taps = []
     ctx.device.tap = lambda *p: taps.append(p) or DeviceResult("tap", True, True)
     dispatcher = ctx.dispatcher
-    dispatcher._tap_check = lambda tap: {"status": "target_obscured" if not tap.get("refreshed") else "ok"}
+    dispatcher._tap_check = lambda tap, *facts: {"status": "target_obscured" if not tap.get("refreshed") else "ok"}
     def refresh():
         ctx._virtual_s += 2
         return {"refreshed": True, "loc": {"point": [10, 20]}}

@@ -548,6 +548,19 @@
         }
       ]
     },
+    "qk_favorites_entry": {
+      "desc": "VPD 首页「收藏及常去」区域的「收藏夹」浏览入口",
+      "side_effect": "navigation",
+      "status": "unverified",
+      "note": "仅浏览入口，不是收藏/取消收藏/编辑；需当前乾崑前台、单pane首页结构及纯标签真实接收者共同证明。session-s293 obs-0035为历史AA导出，未执行本目标的真机点击，目的页仍待复验；6HQ的常去地点/更多不视为等价入口。",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@id=\"VPD_HOME_VIEW\"]//Row/Text[@text=\"收藏夹\"][not(ancestor-or-self::*[translate(normalize-space(@visible),\"FALSE\",\"false\")=\"false\" or normalize-space(@visible)=\"0\"])]",
+          "source": "Issue111/118，证据分支6c38eb4 docs/evidence/workmachine-search-20261027/aa/obs-0035-favorites.json；维护侧仅核历史导出父链与接收者，非新真机执行"
+        }
+      ]
+    },
     "qk_spot_fav": {
       "desc": "车位卡片「收藏」",
       "side_effect": "user_data",
