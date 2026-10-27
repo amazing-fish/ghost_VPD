@@ -164,10 +164,23 @@ def _stale(obs) -> bool:
     return not obs or obs.get("fresh") is False or (obs.get("tree") or {}).get("status") == "stale"
 
 
+def _visible_lineage(tree, node) -> bool:
+    # Non-clipping hidden ancestors do not clip UiTree.visible_rect; an explicit
+    # hidden flag must still exclude their descendants from a scoped assertion.
+    return all(str(n.attrs.get("visible", "")).strip().lower() not in ("false", "0")
+               for n in [node, *tree.ancestors(node)])
+
+
 def _check(a: dict, obs: dict, tree: UiTree, app) -> tuple:
     """返回 (holds: bool|None, evidence: dict)。None 表示证据不足。"""
     t = a["type"]
     ev = {"obs": obs["obs_id"], "tree": obs.get("tree", {}).get("path"), "screenshot": obs.get("screenshot", {}).get("path")}
+    if "within" in a:
+        from .cases import assertion_scope_issues
+        problems = assertion_scope_issues({"assertions": [a]}, app)
+        if problems:
+            return None, {**ev, "execution_error": {"attribution": "tool", "stage": "assertion_scope",
+                          "error_class": "invalid_assertion_scope", "error": problems}, "reason": "断言范围定义无效"}
     if _stale(obs):
         return None, {**ev, "reason": "观测已过时，原始树仅作现场证据，不能用于产品判定"}
     if t == "state_is":
@@ -179,14 +192,48 @@ def _check(a: dict, obs: dict, tree: UiTree, app) -> tuple:
         return (st == a["state"] or a["state"] in (obs["page"].get("active") or [])), ev
     if tree is None or tree.status != "ok":
         return None, {**ev, "reason": f"UI 树不可用（{tree.status if tree else 'missing'}），不能据此判断有无"}
+    scope = None
+    if "within" in a:
+        if collection_error(obs):
+            return None, {**ev, "reason": "范围断言所需观测采集失败"}
+        from .locate import resolve
+        tid, target = app.target(a["within"])
+        try:
+            loc = resolve(tid, target, tree, None, app.dir, layout=obs.get("layout"))
+        except (TypeError, ValueError) as exc:
+            return None, {**ev, "execution_error": {"attribution": "tool", "stage": "assertion_scope",
+                          "error_class": "assertion_scope_error", "error": str(exc)}, "reason": "断言容器定位错误"}
+        ev["within"] = {"target": tid, "status": loc["status"], "strategy": loc.get("strategy_kind"),
+                        "bounds": loc.get("bounds"), "visible_fraction": loc.get("visible_fraction"),
+                        "attempts": loc.get("attempts", [])}
+        if loc["status"] == "error":
+            return None, {**ev, "execution_error": {"attribution": "tool", "stage": "assertion_scope",
+                          "error_class": "assertion_scope_error", "error": loc.get("attempts")},
+                          "reason": "断言容器定位错误"}
+        hit = next((x.get("node") for x in loc.get("attempts", []) if x.get("status") == "found"), None)
+        if (loc["status"] != "found" or not hit or type(hit.get("idx")) is not int
+                or not 0 <= hit["idx"] < len(tree.nodes)):
+            return None, {**ev, "reason": "断言容器未唯一、完整可见地定位，不能判断范围内有无文本"}
+        container = tree.nodes[hit["idx"]]
+        # Compare exact rectangles: the locator's rounded fraction can be 1.0
+        # while one pixel is clipped. A permissive target threshold cannot weaken
+        # the evidence needed to prove absence within the complete container.
+        if (container.parent is None or tree.visible_rect(container) != container.bounds
+                or not _visible_lineage(tree, container)):
+            return None, {**ev, "reason": "断言容器不是可信的可见子树，不回退到整页"}
+        ev["within"]["node"] = container.brief()
+        scope = [container]
+    def in_scope(node):
+        return tree.in_scope(node, scope) and (scope is None or _visible_lineage(tree, node))
     if t == "text_present_any":
         # 任一文本（子串）出现即成立，例如故障提示的几种可能措辞；措辞本身须来自已确认判据。
         # 只看可见矩形非空的节点：被列表裁到可视区外的条目用户看不到，不能当作"出现了"
-        hits = [x for x in a["any"] for n in tree.nodes if tree.visible_rect(n) and x in (n.text or "")]
+        hits = [x for x in a["any"] for n in tree.nodes
+                if tree.visible_rect(n) and in_scope(n) and x in (n.text or "")]
         ev["matched"] = sorted(set(hits))
         return bool(hits), ev
     if t in ("text_present", "text_absent"):
-        hits = tree.find_text(a["text"], exact=a.get("exact", True))
+        hits = [n for n in tree.find_text(a["text"], exact=a.get("exact", True)) if in_scope(n)]
         ev["matches"] = [n.brief() for n in hits[:3]]
         return (bool(hits) if t == "text_present" else not hits), ev
     if t in ("target_present", "target_absent", "target_text_equals", "node_selected", "target_enabled"):
@@ -414,9 +461,9 @@ def _evaluate_applicable(a: dict, steps: dict, load: Callable, knowledge, app) -
     oracle = knowledge.oracle_status(a.get("oracle_refs", []))
     out.update(evidence=ev, oracle=oracle)
     if holds is None:
-        error = collection_error(obs)
+        error = ev.get("execution_error") or collection_error(obs)
         if error:
-            return {**out, **error, "result": "error", "reason": "所需观测采集失败，不能给出产品结论"}
+            return {**out, **error, "result": "error", "reason": ev.get("reason") or "所需观测采集失败，不能给出产品结论"}
         return {**out, "result": "undeterminable", "reason": ev.get("reason", "证据不足以判定")}
     if oracle["status"] != "confirmed":
         return {**out, "result": "pending", "observed_holds": holds,

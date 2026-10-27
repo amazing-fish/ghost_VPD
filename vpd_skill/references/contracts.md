@@ -287,6 +287,21 @@ Agent `diagnosis.status` 消费最终 `final_status`，并以匹配最后尝试�
 断言类型：`state_is`、`text_present`、`text_absent`、`target_present`、`target_absent`、`target_text_equals`、
 `node_selected`、`visual_review`（永远是建议），以及：`text_present_any`（任一文字出现）、`text_seen` / `state_seen`（在该步骤的监视时间线里出现过，步骤没有监视时看它的终态观测；`expected: false` 表示整个窗口内都不应出现）、`target_enabled`（按 `enabled` 与 `enabled_by` 判断；`absent_is: "disabled"` 表示不出现也算不可用）、`value_present`（`read` 读到的值匹配正则）。每条非建议断言必须有 `oracle_refs` 指向知识条目；未确认时结果为 `pending`，并给出 `observed_holds`（观测本身是否成立）。
 
+`text_present`、`text_absent`、`text_present_any` 可显式声明 `within: "已登记容器目标ID"`，
+仅检查该目标在**当前步骤终态观测**中唯一定位的可见子树；例如多项文本断言都引用同一结果行目标，
+就不能分别借用相邻行的名称、楼层或编号。容器须使用有具体字符串值的 text/id/xpath 树策略，
+不接受内联范围、模板、裸坐标或这些策略的混合。该引用纳入依赖指纹及 hypothesis 目标门禁。
+
+范围定位不下发动作、不向上扩到可点击祖先，也不按落点反猜节点。容器必须完整可见，
+即原始 bounds 与当前可见矩形相同（不采用经过舍入的可见比例）；根节点、隐藏祖先、缺失、歧义、
+裁剪或过期都不足以判断范围内有无文本，尤其不能因找不到容器就让 `text_absent` 通过。
+明确的采集/解析或容器选择器错误仍为 `error`，未确认判据仍为 `pending`。
+未写 `within` 的既有文本断言保留全树语义。
+
+这里的范围只限定当前可见子树，不自动识别“同一实体”，也不证明列表完整、字段契约正确或数据绑定完成。
+生产结果行目标仍须依据真实 AA 父链校准；#111 的读数到参数绑定、独立产品期望和实机验收另行完成，
+本能力不自动启用来源存档中的 case，不 confirm/approve/rebind 既有资产。
+
 | 断言结果 | 条件 |
 |---|---|
 | `pass` / `fail` | 证据确定 + 判据全部 confirmed 且适用于本次运行 |

@@ -117,6 +117,7 @@ def dependency_hash(case: dict, app, knowledge) -> str:
         oracles.update(s.get("oracle_refs") or [])
     for a in case.get("assertions", []):
         want(a.get("target"))
+        want(a.get("within"))
         want_guard(a.get("guard"))
         oracles.update(a.get("oracle_refs") or [])
     facts = {}
@@ -281,7 +282,7 @@ def iter_case_steps(case: dict, app):
 
 def execution_structure_issues(case: dict, app) -> list:
     """lint、Runner 与选中的复合步骤共用；只核执行结构，不代替资产审核。"""
-    issues, seen, runtime_ids, child_counts, root_counts = [], {}, {}, {}, {}
+    issues, seen, runtime_ids, child_counts, root_counts = assertion_scope_issues(case, app), {}, {}, {}, {}
     main = {s.get("id"): s for s in case.get("steps", []) if isinstance(s.get("id"), str)}
     for i, cleanup in enumerate(case.get("cleanup", [])):
         if "after_dispatch" not in cleanup:
@@ -330,6 +331,37 @@ def execution_structure_issues(case: dict, app) -> list:
     return issues
 
 
+def assertion_scope_issues(case: dict, app) -> list:
+    """Only registered tree targets may scope the three terminal text checks."""
+    issues = []
+    for assertion in case.get("assertions", []):
+        if "within" not in assertion:
+            continue
+        field = f"assertions.{assertion.get('id', '?')}.within"
+        if assertion.get("type") not in ("text_present", "text_absent", "text_present_any"):
+            issues.append({"field": field, "problem": "within 只支持 text_present/text_absent/text_present_any"})
+        target_id = assertion["within"]
+        if not isinstance(target_id, str) or not target_id or target_id not in app.targets:
+            issues.append({"field": field, "problem": "within 须引用已登记的容器目标 ID"})
+            continue
+        target = app.targets[target_id]
+        strategies = target.get("strategies") if isinstance(target, dict) else None
+        if (not isinstance(strategies, list) or not strategies
+                or any(not isinstance(s, dict) or s.get("kind") not in TREE_KINDS
+                       or not isinstance(s.get("value"), str) or not s["value"] for s in strategies)):
+            issues.append({"field": field, "problem": "within 容器只支持带非空字符串 value 的 text/id/xpath 树定位策略"})
+        if assertion.get("type") == "text_present_any":
+            values = assertion.get("any")
+            if not isinstance(values, list) or not values or any(not isinstance(v, str) or not v for v in values):
+                issues.append({"field": field, "problem": "限定范围的 any 须为非空文本列表"})
+        elif assertion.get("type") in ("text_present", "text_absent"):
+            if not isinstance(assertion.get("text"), str) or not assertion["text"]:
+                issues.append({"field": field, "problem": "限定范围的 text 须为非空文本"})
+            if "exact" in assertion and type(assertion["exact"]) is not bool:
+                issues.append({"field": field, "problem": "限定范围的 exact 须为布尔值"})
+    return issues
+
+
 def hypothesis_targets(case: dict, app) -> list:
     """用例（含流程/recipe 展开）会用到的 status=hypothesis 目标：原工程没有、未经真机校准的控件。"""
     used = []
@@ -338,9 +370,10 @@ def hypothesis_targets(case: dict, app) -> list:
         if isinstance(t, str) and (app.targets.get(t) or {}).get("status") == "hypothesis" and t not in used:
             used.append(t)
     for a in case.get("assertions", []):
-        t = a.get("target")
-        if isinstance(t, str) and (app.targets.get(t) or {}).get("status") == "hypothesis" and t not in used:
-            used.append(t)
+        for t in (a.get("target"), a.get("within")):
+            target = app.targets.get(t) if isinstance(t, str) else None
+            if isinstance(target, dict) and target.get("status") == "hypothesis" and t not in used:
+                used.append(t)
     return used
 
 
