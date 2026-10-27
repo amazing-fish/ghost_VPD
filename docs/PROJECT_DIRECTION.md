@@ -1,38 +1,34 @@
 # 项目方向与执行安排（2026-10-27）
 
-> 本轮起点 main `4e960e9352afe56667484752a60b8ca51fdad70c` 已含 #96–#99，实际41份用例：32份乾崑、9份motor；31 draft、10 exploration_record，100条知识。
-> #100于2026-10-26合入了 `codex/k89-human-review-20261026`，未进入main；main仍为242 v4。
-> 本分支将#100的两次提交补到当前main基线上。补交付前的完整Git树与#100 HEAD `3a4d730` 相同，执行器、数据与审核绑定未再改语义。
-> 242 v6“给A207打楼梯口标签→搜索显示、选中、命中同一POI→撤回”的2026-10-26实机证据5/5通过，34次物理动作、清理恢复已核；本轮手机不在线，没有新实机运行。
-> 九条已有用户认可保持有效；242 v6资产人审仍待办，不进suite、不晋级。本次只是补入已实现能力，不计第11条新增资产或完整原表覆盖。
-> [#102](https://github.com/amazing-fish/ghost_VPD/issues/102)现已提供151条可引用基线，旧“缺原表”整体阻塞解除；稳定ID映射由独立工作包推进，不能凭名称或资产数量直接算覆盖。
-> 下一业务切片优先OP-03“选择另一实际城市并恢复”，补245仅选回上海未覆盖的行为；手机恢复前不预写未经现场验证的完整脚本。
-> 逐例边界见[K89交付](K89_0228_CASES.md)，补交付等价与当前设备边界见[证据](evidence/K89_MAIN_DELIVERY_20261027.json)。
-> 下文 `086a602` / 31份 / 90条是历史快照；工作机230v5/231–239源件缺口与#102基线可引用是不同事项，前者仍保留。
+本轮取证基线：`main @ c60b5b0354fa8d93ec5473cc483f982afb8c7161`。实际41份case（32份乾崑、9份motor；31 draft、10 exploration_record），100条知识；资产数量不代表已自动化覆盖的原表行数。
 
-核对基线：`main @ 086a60279b5e7e8b734247981d37c20b635f20cb`（#85/#86/#87/#92/#93/#94已合入）。开放Issue已从18归并为8个唯一任务；重复单原始证据保留，未完成验收迁入承接单，不计为修复或覆盖完成。具体合入状态以对应PR为准，未合入候选不计入上述基线。PR #36 仅保留历史来源，不再整包合入。历史实施范围从 Git 历史与对应 PR 追溯。
+- [PR #104](https://github.com/amazing-fish/ghost_VPD/pull/104) 已把242 v6标签搜索及清理链路补入main，不再使用“#100只合到业务分支、main仍v4”的旧结论。2026-10-26实机5/5检查、34次物理动作及恢复核验是历史证据，本轮未新增实机执行。九份既有人审决策按原范围保留；242 v6仍待资产人审，不进suite、不晋级。当前指纹改变后仍须检查审核绑定，不能把旧审核当新版本已验。
+- [PR #105](https://github.com/amazing-fish/ghost_VPD/pull/105) 已保存[#102](https://github.com/amazing-fish/ghost_VPD/issues/102)的九月151条转写快照与固定范围映射。其[最新更新](https://github.com/amazing-fish/ghost_VPD/issues/102#issuecomment-6431484668)指定后续以[#106](https://github.com/amazing-fish/ghost_VPD/issues/106)十月150条为准；#106当前为closed，但十月源快照尚未入仓。保留九月历史，按快照ID区分新旧，不以Issue关闭推断已同步。
+- 最新工作机问题[#107–#111的收敛](WORKMACHINE_SEARCH_20261027.md)：先修首页识别和坐标点击诊断，再交付真实收藏/搜索源件。字段规则、空白结果终态及两账号重放继续分账，工程修复新增正式覆盖为0。工程提交见[PR #112](https://github.com/amazing-fish/ghost_VPD/pull/112)与[PR #113](https://github.com/amazing-fish/ghost_VPD/pull/113)，合入以各PR远端状态为准；真机待验。
+
+逐例范围与既有证据见[K89交付](K89_0228_CASES.md)、[main补交付索引](evidence/K89_MAIN_DELIVERY_20261027.json)及[九月历史映射](baselines/README.md)。PR #36仅保留历史来源，不再整包合入。
 
 ## 交付目标与当前缺口
 
 交付单位是可独立判定、重复执行、证据可追溯的 **VPD 内功能用例**。沿用 `Observer → Executor/Dispatcher → Verdict → Case`；操作能力落在现有 `flow/state/targets/dialogs`，不新建另一套执行、规划或判定引擎。登录、解锁、系统弹窗及进入业务页属于前置能力，不能计作 VPD 功能覆盖。
 
-工作机最新报告本地40份资产：236–239四项replay_verified、230–235六项candidate、20 draft、10 exploration_record。四项晋级仅引用K-GEN-001验证无崩溃/ANR文案，不代表首页、搜索、楼层或支持区域内容已满足原表；作者的本地成熟度仍需源件与当前绑定复核。
+当前主线230仍是历史A224/C156的v2，231–239不存在。工作机230v5、231–239及配套targets/states/知识、形态迁移和当前证据索引仍未交付；先提交源件及content/deps/engine/policy/context、run/obs和cleanup索引，不用再建资产替代已有文件交付。历史“40份资产、4项replay_verified”的本地报告不是当前main库存；仅K-GEN-001无崩溃检查也不能证明业务完整通过。
 
-上述主干实际仍31份case（21 draft、10 exploration_record）及90条knowledge。230仍为历史A224/C156的v2，230v5、231–239九份新增、相关targets/states/知识和形态迁移未交付远端。先交付已有文件及源码/content/deps/engine/policy/context、run/obs与cleanup索引，不再用“只差确认”概括全部缺口，也不以再建资产代替交付。
-
-工作机本地原表导出SHA-256为`06ae5d08da2f40ffc1e16b1439c203198b96a2329170004e925bd151625ddabe`，本轮未重读现网。最新143行分档合计144，暂不据此发布覆盖率；资产数、行号子范围、产品结论和正式登记分开。判据未确认不阻止draft交付，确认也不追改旧pending。
+最新来源改用十月[#106](https://github.com/amazing-fish/ghost_VPD/issues/106)及`OCT-`编号：来源报告相对九月新增1、消失2、同名变化5（4项优先级调整、收藏/推荐列表预期改写）。先保存可核对来源并复核受影响映射；消失的两项就近泊车L0去向与列表新预期尚需确认，不自行删掉覆盖债务。该来源报告的63项“自动化”标记及各端非空结果列不构成已执行覆盖。九月快照不覆写，历史143行分档不再作当前分母。判据未确认不阻止draft交付，确认也不追改旧pending。
 
 ## 当前执行顺序
 
 | 优先级 | 工作包 | 交付与完成边界 |
 | --- | --- | --- |
-| P1，先交已有文件 | [#65](https://github.com/amazing-fish/ghost_VPD/issues/65) | 230v5、231–239及配套定义/形态迁移/当前证据索引先入仓；承接#34逐例验收与#52知识包，后者不阻塞第一交付包。原始run/树留执行机，规则确认不阻塞draft提交 |
-| P1，搜索验收 | [#80](https://github.com/amazing-fish/ghost_VPD/issues/80) | 名称/编号/实体身份各自核验；承接#83身份、#84的#86当前AA/充电桩校准、#88楼层/组合筛选/空态差异。实际查询和标签状态要取证，不能以改期望或归并关闭宣称通过 |
-| P1，登录与输入 | [#64](https://github.com/amazing-fish/ghost_VPD/issues/64) | 账密主路径/已登录复用、账号验证旁路、黑屏及真实输入来源；承接#31原始探索来源、人类确认及当前消费者校准。#93已交付限定拒发，unknown不保证已清空 |
+| P1，恢复可复跑入口 | [#107](https://github.com/amazing-fish/ghost_VPD/issues/107)、[#110](https://github.com/amazing-fish/ghost_VPD/issues/110) | 工程提交[#112](https://github.com/amazing-fish/ghost_VPD/pull/112)/[#113](https://github.com/amazing-fish/ghost_VPD/pull/113)，合入状态见PR；真机待验：首页已知起点/目的地两种文案均识别，仍排除加载失败/错误页面；核实point输入、实际点击与结果语义，明确拒发及无文本控件替代路径，不以设备命令返回成功证明复选框已改变 |
+| P1，先交已有文件与新来源 | [#65](https://github.com/amazing-fish/ghost_VPD/issues/65)、[#106](https://github.com/amazing-fish/ghost_VPD/issues/106) | 交付230v5、231–239及配套定义/形态迁移/证据索引；承接#34逐例验收与#52知识包。十月150条另存来源并核新旧差异，不覆写九月151条。原始run/树留执行机，确认不阻塞draft提交 |
+| P1，搜索验收 | [#80](https://github.com/amazing-fish/ghost_VPD/issues/80)、[#108](https://github.com/amazing-fish/ghost_VPD/issues/108)、[#109](https://github.com/amazing-fish/ghost_VPD/issues/109)、[#111](https://github.com/amazing-fish/ghost_VPD/issues/111) | 名称/编号维度独立；先取当前收藏与同一行实体身份，不照搬园区数据。路点编号证据有内部矛盾，字段预期不擅自确认；空白无请求终态保留pending。原#83身份、#84工具校准、#88楼层/组合筛选仍保留，实际查询/标签及充电桩当前AA校准不能由旧观察替代 |
+| P1，登录与输入 | [#64](https://github.com/amazing-fish/ghost_VPD/issues/64) | 账密主路径/已登录复用、账号验证旁路、黑屏及真实输入来源；承接#31来源、人审与当前消费者校准，#110复测一并回报。#93已交付限定拒发，unknown不保证已清空 |
 | P1，生产事实 | [#56](https://github.com/amazing-fish/ghost_VPD/issues/56) | 统一承接#89环境条件与#90业务事实，复用既有provider/guard；缺锚点不证明环境，历史首页/回自车不证明当前车辆图内。保留正反证、身份/时点/有效范围及Windows真机验收 |
 | P2，真实手势 | [#58](https://github.com/amazing-fish/ghost_VPD/issues/58) | 已知唯一滚动容器内的相对swipe、显式px/s速度及会话/重放一致；正式资产不写像素。AVM/地图表面归属与实际后置仍待独立校准，不能由basis或容器标签放行 |
 | P2，独立触摸缺陷 | [#54](https://github.com/amazing-fish/ghost_VPD/issues/54) | 取得当前目标/表面接收者身份及真实父链，再限定修复合法表面归属；不以surface_overlay字段或raw注入跳过策略 |
 | P2，独立几何缺陷 | [#82](https://github.com/amazing-fish/ghost_VPD/issues/82) | #85诊断已交付；947/1264矛盾仍须同帧独立窗口、祖先链与真实右缘按钮后置。保留列表/隐藏分页裁剪，不把诊断当几何适配 |
+| 后续业务切片 | [#65](https://github.com/amazing-fish/ghost_VPD/issues/65) | OP-03旧映射的“选择另一实际城市并恢复”仍是245未覆盖子范围；先对齐十月来源及当前现场，再写完整脚本。#103六阶段指导用于组织队列，不代表已有资产覆盖六阶段 |
 | 后续维护 | [#45](https://github.com/amazing-fish/ghost_VPD/issues/45) | 承接#9知识治理/测试隔离与#29方法论。按真实缺陷推进Legacy、Oracle资格和证据治理，不扩平行框架，不阻塞已有资产交付 |
 
 ## 工程交付与架构收敛
