@@ -37,7 +37,7 @@ SearchField#__SearchField__search_input [296,158][1037,293]
 - 入口页文本（`obs-0015`）：`金桥出口加工区 / 泊车代驾 / 共 742 个 / 搜索 / 我的位置 / 开智慧停车缴费 / 收藏及常去 / 沿途找车位 / 停泊位置 L1层-PR10 车位 …`，**没有**「搜索车位号设为起点/目的地」。
 - 因此 `qk_vpd_home` 的 `require_any_text`（主线 `b9a80c8` 起）在本页**两条都不满足**，`page.state=unknown`、`page.signature=sig-1c45fe0a47`，`candidates=[]`。
 - 可点容器 `Row[54,518][1020,707]`（`clickable=true`，内含 `Text 搜索`）是入口页搜索栏，点它进入搜索页（`text=搜索` 一次 passed，`actions/seq12`，动作终态为 `obs-0038`；后续独立观测 `obs-0039` 为 `page.state=qk_spot_search`）；但它**不是** `qk_search_entry`：声明 `vpd_entry` 会被 `task_semantics_unverified` 拒（`actions/seq08`/`seq09`）。
-- 结论：入口页与 VPD 首页是两个页面，主线没有覆盖「入口页 → 首页」这一跳的目标；这一跳的语义未登记，是本轮 #107 无法复测首页文案的直接原因。
+- 结论：本轮未取得经核验的 VPD 首页到达路径。两次声明 vpd_entry 的点按被拒是已知阻塞之一；现有证据不能证明园区卡可到首页，也不能把未知导航缺口归因于单一未登记语义。
 
 ## 4. states：本地与主线只差 `qk_vpd_home` 的识别条件
 
@@ -49,6 +49,6 @@ SearchField#__SearchField__search_input [296,158][1037,293]
 
 1. 搜索域用例若沿用 `qk_spot_search_input`，在本 build 上第一步就 `target_unresolved`；改用 `qk_k89_tag_search_input` 只是借用，需要新的通用定义。
 2. `qk_tag_elevator` 若要从存档转成活跃资产，必须先有**本园区实测的标签行 + 点击后结果**（本轮本园区只有「充电桩」一个标签）。
-3. 入口页 → VPD 首页这一跳要么登记一个受控目标（含 `vpd_entry` 语义），要么在用例前置里明确「首页需人工/其他路径到达」；这两条都属资产决策，不在本 PR 内决定。
+3. 先补首页到达路径及相应原始观测，确认真实页面作用后再决定目标与语义；在此之前只能把首页到达列作未满足前置，不预先登记 vpd_entry。本证据包不作该资产决策。
 
 以上是基于导出AA重建的只读验证；输入目标与状态签名修订另交代码PR，未在本证据包登记生产目标或确认产品规则。
