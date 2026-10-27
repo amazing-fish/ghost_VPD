@@ -89,7 +89,8 @@ def test_hidden_or_outside_window_labels_are_not_actionable(ws, label, visibilit
 
 def test_search_and_loading_pages_do_not_silently_count_as_home(ws):
     app = ws.app("qiankun_hm")
-    assert app.states.identify(_tree("输入目的地或车位号"), app.bundle, True)["state"] == "qk_spot_search"
+    # A placeholder alone is no longer a positive search signature.
+    assert app.states.identify(_tree("输入目的地或车位号"), app.bundle, True)["state"] == "unknown"
     page = app.states.identify(_tree(HOME_LABELS[1], "正在加载..."), app.bundle, True)
     assert not app.states.is_state(page, "qk_vpd_home")
 
@@ -110,8 +111,10 @@ def test_home_postcondition_then_search_navigation_uses_real_executor(ws, tmp_pa
              "display": {"density": 3.375, "device_form": "bar"}, "screens": {
                  "home": {"root": {"t": "Column", "b": [0, 0, 1320, 2848], "children": [
                      {"t": "Text", "text": label, "click": True, "b": [20, 100, 1300, 180], "go": "search"}]}},
-                 "search": {"root": {"t": "Column", "b": [0, 0, 1320, 2848], "children": [
-                     {"t": "Text", "text": "输入目的地或车位号", "b": [20, 100, 1300, 180]}]}}}}
+                 "search": {"root": {"t": "RelativeContainer", "id": "SearchPoiPage", "b": [0, 0, 1320, 2848], "children": [
+                     {"t": "Search", "id": "search_input", "b": [20, 100, 1300, 180], "children": [
+                         {"t": "SearchField", "id": "__SearchField__search_input", "text": "输入目的地或车位号",
+                          "b": [20, 100, 1300, 180]}]}]}}}}
     path = tmp_path / "home-variant.json"
     write_json(path, world)
     case = {"id": "TC-TEST-HOME-VARIANT", "version": 1, "status": "draft", "app": app.id,

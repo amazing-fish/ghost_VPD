@@ -148,23 +148,21 @@
     },
     "qk_spot_search": {
       "desc": "VPD 车位搜索页（输入目的地或车位号）",
-      "require_text": [
-        "输入目的地或车位号"
-      ],
       "effect_text": {
         "^充电桩$": "navigation"
       },
       "navigation_context_target": "qk_search_input",
       "navigation_note": "Issue84：只在当前搜索签名和已登记输入框均可核验，且实际可点击接收容器为纯充电桩标签时，覆盖全局裸充电关键词的误分类。页面级限制、真实充电及混合接收者不豁免；布局仍待当前实机复验。",
-      "source": "2026-10-13 量产版 1.0.26.100 真机 session-wk-qk4/obs-0046",
+      "source": "session-s293 obs-0039/0046/0051/0056/0061 导出AA（证据分支6c38eb4），维护侧离线核验 SearchPoiPage→Search→SearchField 结构；非新一次真机执行",
       "review": "pending",
-      "review_note": "输入框 SearchField 绝对路径见 qk_spot_search_input；联想行 L1层-XXX 车位+路线",
+      "review_note": "占位文案输入后消失，不能作为持续签名；require_target须当前唯一完整可见且同pane，输入目标为实际SearchField，修复版本实机复验仍待完成。",
       "calibration_claim": {
         "reported_status": "calibrated_on_device",
         "asset_head": "78d01a275c189708fd8b248de31caa91ddff0728",
         "evidence": "reference_only",
         "independent_check": "pending"
-      }
+      },
+      "require_target": "qk_search_input"
     },
     "qk_target_account_ready": {
       "desc": "当前已认证账户的密码管理入口显示目标绑定手机号；只读取，不请求安全验证码",

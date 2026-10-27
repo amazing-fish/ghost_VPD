@@ -16,9 +16,6 @@ from vpdtest.workspace import RunContext
 def test_230_reaches_second_search_without_backing_out_of_home(ws, tmp_path, monkeypatch, keyboard_open):
     fixture = load_world(WORLDS / "qiankun_hm_ready.json")
     fixture.pop("_path", None)
-    # Existing synthetic search screen predates the production page signature.
-    fixture["screens"]["qk_search"]["root"]["children"].append(
-        {"t": "Text", "b": [20, 260, 900, 295], "text": "输入目的地或车位号"})
     path = tmp_path / "search-return.json"
     write_json(path, fixture)
     app = ws.app("qiankun_hm")

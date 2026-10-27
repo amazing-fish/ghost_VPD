@@ -341,10 +341,11 @@
       "strategies": [
         {
           "kind": "xpath",
-          "value": "//*[@id=\"search_input\"]",
-          "source": "app/config/mhero_config.py:285 MHERO_HARMONY_CONFIG.parking_space_input_text"
+          "value": "//*[@id=\"SearchPoiPage\"]//Search[@id=\"search_input\"]/SearchField[@id=\"__SearchField__search_input\"][not(ancestor-or-self::*[translate(normalize-space(@visible),\"FALSE\",\"false\")=\"false\" or normalize-space(@visible)=\"0\"])]",
+          "source": "skill：session-s293 obs-0039/0046/0051/0056/0061 导出AA的父链；证据分支6c38eb4，维护侧离线结构核验，待修复版本实机复验"
         }
-      ]
+      ],
+      "status_note": "两通用目标指向 SearchPoiPage 下 Search#search_input 的实际 SearchField#__SearchField__search_input；输入查询只属 navigation，未改变policy。导出树唯一命中属于离线校准，status仍unverified。"
     },
     "qk_search_go": {
       "desc": "搜索结果中名称含 ${param:name} 的那一行的「去这里」",
@@ -727,15 +728,15 @@
     },
     "qk_spot_search_input": {
       "desc": "VPD 搜索页输入框（输入目的地或车位号，SearchField）",
-      "side_effect": "route_planning",
+      "side_effect": "navigation",
       "allow_input": true,
       "status": "unverified",
-      "status_note": "2026-10-13 量产版 1.0.26.100 真机 session-wk-qk4 obs-0046：//root/RelativeContainer/Search/SearchField bounds=[308,164][986,304]；placeholder=输入目的地或车位号",
+      "status_note": "两通用目标指向 SearchPoiPage 下 Search#search_input 的实际 SearchField#__SearchField__search_input；输入查询只属 navigation，未改变policy。导出树唯一命中属于离线校准，status仍unverified。",
       "strategies": [
         {
           "kind": "xpath",
-          "value": "//root/RelativeContainer/Search/SearchField",
-          "source": "skill：2026-10-13 量产版真机校准（session-wk-qk4/obs-0046）"
+          "value": "//*[@id=\"SearchPoiPage\"]//Search[@id=\"search_input\"]/SearchField[@id=\"__SearchField__search_input\"][not(ancestor-or-self::*[translate(normalize-space(@visible),\"FALSE\",\"false\")=\"false\" or normalize-space(@visible)=\"0\"])]",
+          "source": "skill：session-s293 obs-0039/0046/0051/0056/0061 导出AA的父链；证据分支6c38eb4，维护侧离线结构核验，待修复版本实机复验"
         }
       ],
       "calibration_claim": {

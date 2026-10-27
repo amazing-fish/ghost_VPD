@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 from .locate import resolve
+from .safety import TREE_KINDS
 from .tree import MODAL_TYPES, UiTree
 from .util import short_hash
 
@@ -67,6 +68,43 @@ class StateModel:
         self.states = data.get("states", {})
         self.interrupts = data.get("interrupts", {})
         self.recipes = data.get("recipes", {})
+        for sid, spec in self.states.items():
+            if "require_target" not in spec:
+                continue
+            ref = spec["require_target"]
+            declared = self.targets.get(ref) if isinstance(ref, str) and ref else None
+            strategies = declared.get("strategies") if isinstance(declared, dict) else None
+            if (not isinstance(strategies, list) or not strategies
+                    or any(not isinstance(s, dict) or s.get("kind") not in TREE_KINDS
+                           or not isinstance(s.get("value"), str) or not s["value"].strip()
+                           for s in strategies)):
+                raise ValueError(f"states.{sid}.require_target 须引用已登记且仅含非空 text/id/xpath 策略的目标")
+
+    def _target_node(self, ref, tree, scope=None, layout=None):
+        declared = self.targets.get(ref) if isinstance(ref, str) else None
+        if not declared:
+            return None
+        loc = resolve(ref, declared, tree, None, Path("."), layout=layout)
+        hit = next((a.get("node") for a in loc["attempts"] if a.get("status") == "found"), None)
+        node = tree.nodes[hit["idx"]] if loc["status"] == "found" and hit else None
+        if (node is None or node.parent is None or not tree.in_scope(node, scope)
+                or tree.visible_rect(node) != node.bounds or not tree.visible_lineage(node)):
+            return None
+        return node
+
+    def _matches(self, spec, tree, scope=None, layout=None):
+        panes = (layout or {}).get("panes") or []
+        if scope is None and "require_target" in spec and len(panes) > 1:
+            # A structural signature cannot combine text in one pane with an
+            # input in another, even when the whole-window text set matches.
+            return any(self._matches(spec, tree, [tree.nodes[p["node_idx"]]], layout)
+                       for p in panes if type(p.get("node_idx")) is int and 0 <= p["node_idx"] < len(tree.nodes))
+        return (_texts_match(spec, tree, scope) and
+                ("require_target" not in spec or
+                 self._target_node(spec["require_target"], tree, scope, layout) is not None))
+
+    def _candidates(self, tree, scope=None, layout=None):
+        return [sid for sid, spec in self.states.items() if self._matches(spec, tree, scope, layout)]
 
     def identify(self, tree: Optional[UiTree], foreground: Optional[str], alive: Optional[bool],
                  layout: Optional[dict] = None, foreground_error: Optional[str] = None) -> dict:
@@ -86,7 +124,7 @@ class StateModel:
                     "interrupts": [], "candidates": [], "active": []}
         interrupts = [{"id": iid, "class": spec.get("class", "unknown"), "review": spec.get("review", "pending")}
                       for iid, spec in self.interrupts.items() if _texts_match(spec, tree)]
-        cands = [sid for sid, spec in self.states.items() if _texts_match(spec, tree)]
+        cands = self._candidates(tree, layout=layout)
         out = {"candidates": cands, "interrupts": interrupts, "signature": signature(tree)}
         dialogs = []
         for m in tree.modal_layers():
@@ -105,8 +143,7 @@ class StateModel:
             for p in panes:
                 node = tree.nodes[p["node_idx"]]
                 per.append({"pane": p["index"], "node_idx": p["node_idx"],
-                            "candidates": [sid for sid, spec in self.states.items()
-                                                               if _texts_match(spec, tree, [node])]})
+                            "candidates": self._candidates(tree, [node], layout)})
             out["panes"] = per
             if any(len(x["candidates"]) > 1 for x in per) or (len(cands) > 1 and not any(x["candidates"] for x in per)):
                 active, state = [], "ambiguous"
@@ -150,19 +187,35 @@ class StateModel:
             return []
         out = []
         page = page or {}
-        panes = page.get("panes") or []
-        scopes = [(p["node_idx"], p.get("candidates") or []) for p in panes
-                  if isinstance(p.get("node_idx"), int) and 0 <= p["node_idx"] < len(tree.nodes)]
-        if not panes:
+        reported_panes = page.get("panes") or []
+        panes = (layout or {}).get("panes") or []
+        scopes = []
+        if len(panes) > 1:
+            current = {p["node_idx"] for p in panes
+                       if type(p.get("node_idx")) is int and 0 <= p["node_idx"] < len(tree.nodes)}
+            reported = {p.get("node_idx"): p.get("candidates") or [] for p in reported_panes
+                        if type(p.get("node_idx")) is int}
+            # A previous page's node index is not a current pane capability.
+            # Require matching ownership from this layout before using its rules.
+            if len(current) == len(panes) and set(reported) == current:
+                scopes = [(p["node_idx"], reported[p["node_idx"]]) for p in panes]
+        elif not reported_panes:
             scopes = [(None, page.get("candidates") or page.get("active") or [page.get("state")])]
         for scope_idx, candidates in scopes:
+            scope = [tree.nodes[scope_idx]] if scope_idx is not None else None
+            current = self._candidates(tree, scope, layout)
+            # Recompute from this tree, including newly ambiguous candidates. Keep
+            # stale/unknown reported candidates as empty rules: dropping them can
+            # turn an uncertain old page into a positive single-candidate proof.
+            candidates = list(candidates) + current
             candidates = list(dict.fromkeys(sid for sid in candidates if isinstance(sid, str)))
             if candidates:
                 # 空规则也保留：一个候选知道按钮效果，不能代表另一个未知候选。
                 out.append({"kind": "state_confirmation_candidates", "scope_idx": scope_idx,
                             "candidates": [{"state": sid, "rules": [
                                 {"pattern": pattern, "class": effect}
-                                for pattern, effect in self.states.get(sid, {}).get("effect_text", {}).items()]}
+                                for pattern, effect in self.states.get(sid, {}).get("effect_text", {}).items()]
+                                if sid in current else []}
                                 for sid in candidates]})
             if (len(candidates) == 1 and page.get("state") not in
                     (None, "unknown", "ambiguous", "undetermined", "out_of_app")
@@ -173,13 +226,9 @@ class StateModel:
                          for pattern, effect in spec.get("effect_text", {}).items() if effect == "navigation"]
                 ref = spec.get("navigation_context_target")
                 declared = self.targets.get(ref) if isinstance(ref, str) else None
-                scope = [tree.nodes[scope_idx]] if scope_idx is not None else None
-                if rules and declared and _texts_match(spec, tree, scope):
-                    loc = resolve(ref, declared, tree, None, Path("."), layout=layout)
-                    found = loc["attempts"][-1].get("node") if loc.get("status") == "found" else None
-                    context = tree.nodes[found["idx"]] if found else None
-                    if (context and context.type in ("SearchField", "TextInput") and tree.shown(context)
-                            and tree.in_scope(context, scope)):
+                if rules and declared and sid in current:
+                    context = self._target_node(ref, tree, scope, layout)
+                    if context and context.type in ("SearchField", "TextInput"):
                         out.append({"kind": "state_navigation_context", "state": sid, "scope_idx": scope_idx,
                                     "context_node_idx": context.idx, "rules": rules})
         for modal in tree.modal_layers():

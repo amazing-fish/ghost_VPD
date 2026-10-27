@@ -2391,7 +2391,7 @@
   "qk_search": {
    "stage": true,
    "root": {
-    "t": "Column",
+    "t": "RelativeContainer",
     "b": [
      0,
      0,
@@ -2409,7 +2409,7 @@
       ],
       "children": [
        {
-        "t": "Row",
+        "t": "Search",
         "b": [
          40,
          120,
@@ -2418,20 +2418,21 @@
         ],
         "children": [
          {
-          "t": "TextInput",
+          "t": "SearchField",
           "b": [
            60,
            130,
            1100,
            230
           ],
-          "id": "search_input",
+          "id": "__SearchField__search_input",
           "click": true,
           "bind": "search_q",
           "text_bound": "search_q",
           "text": ""
          }
-        ]
+        ],
+        "id": "search_input"
        }
       ]
      },
@@ -2580,7 +2581,8 @@
        }
       ]
      }
-    ]
+    ],
+    "id": "SearchPoiPage"
    }
   },
   "qk_route_planning": {

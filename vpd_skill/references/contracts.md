@@ -29,6 +29,23 @@
 监视按逐项 obs 引用检查新鲜度：有效命中可支持已出现事实；没有有效命中但有过时采样时为 undeterminable，不以证据缺口证明未出现。
 已离开目标 APP 为 out_of_app；末次前台未知为 undetermined，不用旧树制造后置通过。Observer 不自动重采，重试由调用方决定。
 
+### 状态结构锚点 `require_target`
+
+状态可声明 `require_target: "<已登记目标ID>"`，与原有文本条件共同满足才命中。该目标必须只含带非空
+`value` 的 text/id/xpath 树策略；非法类型、未知ID、空策略或模板/坐标来源在加载APP配置时拒绝。
+当前树中须唯一定位到非根、完整可见且无显式隐藏祖先的节点；分栏时，结构与文本条件须在同一栏成立。
+全窗存在多个输入锚点时保守不匹配，不借另一栏或任意可见父节点补证；定位失败不回退成空签名。
+
+`identify` 与动作依据共用当前树匹配。`confirmation_sources` 重算当前候选，包括新增歧义；旧页面报告中
+已不成立或未知的候选保留为空规则，不能通过过滤旧候选、忽略新候选制造确认语义。导航输入来源同样重核
+实际节点及当前pane，不沿用旧观测的正向来源。多栏正向依据须有当前layout，且page报告的栏归属与之匹配；布局缺失或变化时，旧node_idx不能充作当前栏权限。状态的 `require_target` 和 `navigation_context_target`
+所引用目标定义进入依赖指纹及hypothesis门禁；修改定位定义会使旧绑定失效，不自动重绑人审。
+
+乾崑 `qk_spot_search` 以已观测的 SearchPoiPage → Search#search_input → 实际SearchField结构识别，
+不依赖输入后消失的占位文案，也不把“充电桩”当所有园区必有词。两个通用输入目标均指该实际SearchField，
+查询输入的分类为navigation；策略本体不放宽，点击路线仍沿原规则。五份导出AA的离线重建及模拟桥回归
+不等于修复版本真机已校准，目标仍unverified；原始证据见Issue #118的固定分支commit `6c38eb4`。
+
 ### 窗口形态 `layout`
 
 | 字段 | 含义 |

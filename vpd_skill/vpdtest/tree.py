@@ -115,6 +115,11 @@ class UiTree:
         """用户实际看得到：visible 且可见矩形非空（被列表/滚动容器裁到可视区外的条目不算）。"""
         return n.visible and self._visibility()[n.idx] is not None
 
+    def visible_lineage(self, node: Node) -> bool:
+        """显式隐藏的非裁剪祖先也不能为子树提供可见证据；不改变 shown 的既有几何语义。"""
+        return all(str(n.attrs.get("visible", "")).strip().lower() not in ("false", "0")
+                   for n in [node, *self.ancestors(node)])
+
     def visible_texts(self) -> list:
         seen, out = set(), []
         for n in self.nodes:
