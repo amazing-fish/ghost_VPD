@@ -1,0 +1,113 @@
+{
+  "generated_for": "issue #118",
+  "note": "原始文件原样复制；树为源 tree.json 的逐字节副本（未 gzip、未改写）。截图只登记指纹不入库（二进制不适合走该通道，原件留在执行机）。",
+  "files": {
+    "session-s293/steps.jsonl": {
+      "source": "runs/session-s293/steps.jsonl",
+      "bytes": 82976,
+      "sha256": "cc0727c5876374fe7c57cca7739e50c3c1d0bd024e931be6fe307d8eea74805b"
+    },
+    "session-s293/events.jsonl": {
+      "source": "runs/session-s293/events.jsonl",
+      "bytes": 95288,
+      "sha256": "230cc455c7865f516c69adfe06f8ab752d91731f0ad1fac8b8868dd0a6987fee"
+    },
+    "session-s118/steps.jsonl": {
+      "source": "runs/session-s118/steps.jsonl",
+      "bytes": 20221,
+      "sha256": "9aa82e793aa92a9d6c8580f8ac81c3129604c48ace9995846da59d4023ebb05d"
+    },
+    "session-s118/events.jsonl": {
+      "source": "runs/session-s118/events.jsonl",
+      "bytes": 22388,
+      "sha256": "f8e025eaf5e124ae7d6b59c7814aa9c043bbc67b3e0923701ae41e0e6b90916e"
+    },
+    "session-s293/trees/obs-0042-tree.json": {
+      "source": "runs/session-s293/obs/obs-0042/tree.json",
+      "bytes": 246291,
+      "sha256": "ee5a89e151576214f3ba29b1e013dfff0a805f1f720bee1ce65f49e8231af72c"
+    },
+    "session-s293/trees/obs-0045-tree.json": {
+      "source": "runs/session-s293/obs/obs-0045/tree.json",
+      "bytes": 630198,
+      "sha256": "f837f748bfd5c1d3e796b729df927b8fad954cee05a9a6bc0ba013104eac0655"
+    },
+    "session-s293/trees/obs-0050-tree.json": {
+      "source": "runs/session-s293/obs/obs-0050/tree.json",
+      "bytes": 630233,
+      "sha256": "65f9720202607945120db731f57bf84f591235db38d1c19320d68edb167170ba"
+    },
+    "session-s293/trees/obs-0055-tree.json": {
+      "source": "runs/session-s293/obs/obs-0055/tree.json",
+      "bytes": 624975,
+      "sha256": "55e29bddd07f3d40a4a33417cb900452844f61baeea0f7687cc5daac3d587ab7"
+    },
+    "session-s293/trees/obs-0060-tree.json": {
+      "source": "runs/session-s293/obs/obs-0060/tree.json",
+      "bytes": 624993,
+      "sha256": "ca38787a19044067423ff4c52ddd8edbcea400dea59efe33908a89f8c57f1481"
+    },
+    "session-s293/trees/obs-0065-tree.json": {
+      "source": "runs/session-s293/obs/obs-0065/tree.json",
+      "bytes": 178725,
+      "sha256": "1359f5b051701f8ebb07971fe8b5de0cab36f55dd63474fa52debc5f22d1588d"
+    },
+    "session-s118/trees/obs-0010-tree.json": {
+      "source": "runs/session-s118/obs/obs-0010/tree.json",
+      "bytes": 430735,
+      "sha256": "7d06da938d6c335674f1ca425d18c1ade9902810aeb5959e49bdfe051e977af2"
+    },
+    "session-s118/trees/obs-0022-tree.json": {
+      "source": "runs/session-s118/obs/obs-0022/tree.json",
+      "bytes": 657978,
+      "sha256": "57948c5a4d4b5d39b94fd5662ba93c14833957989f1ff56fa21faa1dd2c39f58"
+    }
+  },
+  "not_included": {
+    "runs/session-s293/obs/obs-0046/screen.png": {
+      "bytes": 393937,
+      "sha256": "bd9b45a040d6e9b2ef40920dea88d949418fe98235342ede2206bf413431cd0f",
+      "note": "结果页截图，原件留执行机"
+    },
+    "runs/session-s293/obs/obs-0051/screen.png": {
+      "bytes": 388933,
+      "sha256": "cf7b5b300444da5136ff03990bc0be6c6c2868d80f21ab335c2b271e7e47a9e9",
+      "note": "结果页截图，原件留执行机"
+    },
+    "runs/session-s293/obs/obs-0056/screen.png": {
+      "bytes": 378962,
+      "sha256": "5a8b9e97e26f9b2ff599e61d5dc2dec377d5fe7b5f4f7b75d6f91419963f3477",
+      "note": "结果页截图，原件留执行机"
+    },
+    "runs/session-s293/obs/obs-0061/screen.png": {
+      "bytes": 409410,
+      "sha256": "a1c24f4b3d2da11ceb5315034870972a31a88011c2b0b2d7da14cf381a9b8863",
+      "note": "结果页截图，原件留执行机"
+    },
+    "runs/session-s293/obs/obs-0066/screen.png": {
+      "bytes": 239930,
+      "sha256": "d3a75217172630a659d280f324b4fde2c57ea7970245e55c8ec3143e911c96cf",
+      "note": "结果页截图，原件留执行机"
+    },
+    "runs/session-s118/obs/obs-0004/screen.png": {
+      "bytes": 871760,
+      "sha256": "8caadbb6777a947c7a95b36297e88431b516d178462ccad2a06ced84f8701a9a",
+      "note": "页面截图，原件留执行机"
+    },
+    "runs/session-s118/obs/obs-0010/screen.png": {
+      "bytes": 551235,
+      "sha256": "3256011b0cf4a57620ce5135825b854b7232e9477be67d25a445c28c86ec0a54",
+      "note": "页面截图，原件留执行机"
+    },
+    "runs/session-s118/obs/obs-0019/screen.png": {
+      "bytes": 653747,
+      "sha256": "c1d170516a2a9896d481605336ac5f24d2070e8b3b091ad9e1bdf15639c41f8e",
+      "note": "页面截图，原件留执行机"
+    },
+    "runs/session-s118/obs/obs-0022/screen.png": {
+      "bytes": 513536,
+      "sha256": "636ea007e6620113f6c9994b039e876d656574a39f6c6bfc2e20765e1d23b15f",
+      "note": "页面截图，原件留执行机"
+    }
+  }
+}
