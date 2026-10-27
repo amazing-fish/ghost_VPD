@@ -66,6 +66,7 @@ def dependency_hash(case: dict, app, knowledge) -> str:
     result_contract 绑定结果语义，旧引擎的阻塞/产品候选不能充当新契约的确定重放。"""
     from .conditions import definitions
     from .params import Params
+    from .readrefs import has_read_ref
 
     steps, targets, oracles, used_conditions, templates = [], {}, set(), set(), {}
     # Never load secrets or evaluate run-generated data just to fingerprint files.
@@ -143,7 +144,8 @@ def dependency_hash(case: dict, app, knowledge) -> str:
         want(interrupt.get("dismiss_target"), substitute=True)  # recovery uses _attempt → _target
     return sha256_obj({"steps": steps, "targets": targets, "states": app.states.states,
                        "interrupts": app.states.interrupts, "oracles": facts, "conditions": conditions,
-                       **({"templates": templates} if templates else {}), "result_contract": 7})[:12]
+                       **({"templates": templates} if templates else {}), "result_contract": 7,
+                       **({"read_references_contract": 1} if has_read_ref(case) else {})})[:12]
 
 
 # 审核覆盖审阅语义；成熟度/运行记录不使正常晋级或新重放自失效。
@@ -283,9 +285,11 @@ def iter_case_steps(case: dict, app):
             yield from walk(step, None, f"{source}.{step.get('id', f'{prefix}{i + 1}')}")
 
 
-def execution_structure_issues(case: dict, app) -> list:
+def execution_structure_issues(case: dict, app, *, read_sources=True) -> list:
     """lint、Runner 与选中的复合步骤共用；只核执行结构，不代替资产审核。"""
-    issues, seen, runtime_ids, child_counts, root_counts = assertion_scope_issues(case, app), {}, {}, {}, {}
+    from .readrefs import structure_issues as read_reference_issues
+    issues = assertion_scope_issues(case, app) + read_reference_issues(case, app, sources=read_sources)
+    seen, runtime_ids, child_counts, root_counts = {}, {}, {}, {}
     main = {s.get("id"): s for s in case.get("steps", []) if isinstance(s.get("id"), str)}
     for i, cleanup in enumerate(case.get("cleanup", [])):
         if "after_dispatch" not in cleanup:

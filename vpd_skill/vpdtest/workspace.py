@@ -91,6 +91,8 @@ class RunContext:
         self.conditions = definitions({}, app)
         if not isinstance(self.conditions, dict):
             raise ValueError("conditions 须为命名条件定义对象")  # noqa: TRY004 - invalid asset
+        self.read_case = None  # Runner声明的顶层read来源/消费者；不从旧run加载
+        self.read_inputs = {}  # 本次选中输入的只解析一次结果
         self.step_results = {}  # 完整步骤 ID → 本次执行结果，供 when 引用已执行的来源
         self.policy = policy or ws.policy()
         from .dispatch import Dispatcher

@@ -22,6 +22,7 @@ from .verdict import collection_error, error_attribution
 
 ENV_ERRORS = {"screen_locked", "screen_off", "device_offline", "app_missing", "tool_missing", "transport_unavailable"}
 STATUS_MAP = {
+    "read_source_unknown": ("pending", "requirement_unclear", "读取来源资格不足，未执行依赖输入"),
     "input_required": ("blocked", "environment", "所选输入缺少有效外部值，未定位或输入"),
     "clear_not_confirmed": ("error", "tool", "清空后目标仍显示非提示文字，未追加输入；请核对当前字段"),
     "preparation_error": ("error", "tool", "操作前弹窗处置失败"),
@@ -65,7 +66,7 @@ def classify(att: dict) -> tuple:
     error = att.get("execution_error") or (att.get("post") or {}).get("execution_error") or (att.get("locate") or {}).get("execution_error") or {}
     if st == "preparation_error":
         return "error", error.get("attribution", "tool"), att.get("reason", "操作前弹窗处置失败")
-    if st in ("condition_false", "condition_unknown", "condition_error"):
+    if st in ("condition_false", "condition_unknown", "condition_error", "read_source_unknown"):
         outcome, attribution, reason = STATUS_MAP[st]
         return outcome, error.get("attribution", attribution), att.get("reason", reason)
     if st in ("observation_failed", "unobservable", "foreground_unknown", "state_indeterminate", "target_stale", "target_unresolved", "stop_not_confirmed") and error:
@@ -152,6 +153,25 @@ class Executor:
     def run_step(self, step: dict, case_id: str) -> dict:
         """Operation selection never substitutes for an executed product check."""
         ctx, condition = self.ctx, None
+        from .readrefs import has_read_ref, resolve_text, structure_issues as read_reference_issues
+        # Invalid references fail before observation. Selected inputs with missing
+        # data cannot trigger positioning, clearing, or dialog recovery.
+        if has_read_ref(step) and not ctx.safety_hold:
+            declared = getattr(ctx, "read_case", None)
+            main = (declared or {}).get("steps", [])
+            original = next((s for s in main if s.get("id") == step.get("id")), None)
+            problems = read_reference_issues({"steps": [step]}, ctx.app, sources=False)
+            if declared:
+                problems += read_reference_issues(declared, ctx.app)
+            if (not declared or original is None or original.get("action") != "input"
+                    or original.get("text") != step.get("text") or step.get("_safety")
+                    or step.get("_flow_params") is not None or problems):
+                result = {"step_id": step["id"], "action": step["action"], "critical": True,
+                          "outcome": "blocked", "attribution": "tool", "final_status": "invalid_step",
+                          "reason": "read 引用只允许当前用例声明的顶层输入文本", "attempts": [], "recoveries": [],
+                          "adapted": False, "oracle_refs": step.get("oracle_refs", [])}
+                ctx.step_results[step["id"]] = result
+                return result
         conditional_step = bool(self._when_guards(step))
         # 保留既有暂停关口的优先级：未知条件不能触发取证或绕过安全停止。
         if self._when_guards(step) and not (ctx.safety_hold and not step.get("_safety")):
@@ -169,6 +189,23 @@ class Executor:
                           "attribution": error.get("attribution", "requirement_unclear")}
                 if error:
                     result["execution_error"] = error
+                ctx.step_results[step["id"]] = result
+                return result
+        # A false operation condition does not need a value. Once selected,
+        # missing reads stop before primitive preparation or any device action.
+        if has_read_ref(step) and not ctx.safety_hold:
+            binding = resolve_text(step["text"], ctx.step_results,
+                                   subst=(lambda text: ctx.params.subst(text)) if ctx.params else None)
+            ctx.read_inputs[step["id"]] = binding
+            if binding["status"] != "available":
+                result = {"step_id": step["id"], "action": step["action"], "critical": True if conditional_step else bool(step.get("critical", True)),
+                          "outcome": "error" if binding["status"] == "error" else "pending",
+                          "attribution": binding.get("execution_error", {}).get("attribution", "requirement_unclear"),
+                          "final_status": "read_source_" + binding["status"], "reason": binding["reason"],
+                          "attempts": [], "recoveries": [], "adapted": False,
+                          "oracle_refs": step.get("oracle_refs", []), "read_sources": binding["sources"]}
+                if binding.get("execution_error"):
+                    result["execution_error"] = binding["execution_error"]
                 ctx.step_results[step["id"]] = result
                 return result
         # 可选的是分支选择；内联动作与复合能力一旦选中，都必须完成。
@@ -198,7 +235,7 @@ class Executor:
             att["dispatch"] = {"sent": held.sent, "executor_ok": held.ok, "error_class": held.error_class}
             return self._summarize(step, [att], [])
         # 直接执行 flow/recipe 的调用方也先检查整段定义，不能先执行有效子步骤再发现后面的错误。
-        issues = execution_structure_issues({"steps": [step]}, self.ctx.app)
+        issues = execution_structure_issues({"steps": [step]}, self.ctx.app, read_sources=False)
         for child, _, where in iter_case_steps({"steps": [step]}, self.ctx.app):
             issues += [{**x, "field": where + "." + x["field"]}
                        for x in validate_input_obstruction(child, self.ctx.conditions)]
@@ -303,6 +340,16 @@ class Executor:
                 att["condition"] = loc["condition"]
             if loc["status"] != "found":
                 att["status"] = _unresolved(loc)
+                from .readrefs import used_sources
+                if step["id"] in used_sources(getattr(ctx, "read_case", None) or {}):
+                    if loc["status"] == "error" and not loc.get("execution_error"):
+                        att.update(status="observation_failed", obs_after=obs["obs_id"],
+                                   execution_error={"attribution": "tool", "stage": "read_source",
+                                                    "error_class": "read_source_locator_error", "error": loc.get("attempts")})
+                    elif loc["status"] in ("not_found", "ambiguous", "partially_visible") and not loc.get("execution_error"):
+                        reason = "读取来源目标未唯一、完整可见地定位"
+                        att.update(status="read_source_unknown", obs_after=obs["obs_id"], reason=reason,
+                                   read_binding={"status": "unavailable", "obs": obs["obs_id"], "reason": reason})
                 return att
             if self._when_guards(step):
                 previous = att.get("condition") or {}
@@ -315,9 +362,14 @@ class Executor:
                 if not self._check_condition(step, obs, tree, "read", att, condition):
                     return att
             att["measurement"] = _measure(tree, loc, step)
+            from .readrefs import qualify, used_sources
+            att["read_binding"] = qualify(tree, loc, step, obs, att["measurement"])
             ctx.store.event("measure", step=step["id"], **{k: v for k, v in att["measurement"].items() if k != "raw"})
             att.update(status="ok" if att["measurement"]["value"] is not None else "postcondition_not_met",
                        obs_after=obs["obs_id"])
+            if (step["id"] in used_sources(getattr(ctx, "read_case", None) or {})
+                    and att["read_binding"]["status"] != "available"):
+                att.update(status="read_source_unknown", reason=att["read_binding"]["reason"])
             return att
         if step.get("skip_if_absent") and kind in ("tap", "input"):
             # 可选步骤（例如"出现安全码输入框才输入"）：本页没有该文字就跳过，不算失败
@@ -414,8 +466,12 @@ class Executor:
         elif kind == "input":
             tid, target = self._target(step)
             raw = step.get("text", "")
-            text = ctx.params.subst(raw, step.get("_flow_params")) if ctx.params else raw
-            if not isinstance(text, str) or not text.strip() or re.search(r"\$\{(?:var|param|secret):[^}]*\}", text):
+            from .readrefs import has_read_ref
+            binding = getattr(ctx, "read_inputs", {}).get(step["id"]) if has_read_ref(raw) else None
+            text = binding["text"] if binding else ctx.params.subst(raw, step.get("_flow_params")) if ctx.params else raw
+            if binding:
+                att["read_sources"] = binding["sources"]
+            if not isinstance(text, str) or not text.strip() or (not binding and re.search(r"\$\{(?:var|param|secret|read):[^}]*\}", text)):
                 att.update(status="input_required", reason="所选输入缺值或引用未解析；保留当前页面，补齐外部输入后重新观察重入",
                            input={"ref": raw, "available": False},
                            action_required=f"请补齐外部输入 {raw}，然后重新运行并观察当前页面；不要从历史步骤号续发")
@@ -1531,6 +1587,9 @@ class Executor:
             out["dismissed"] = dismissed
         if last.get("measurement"):
             out["measurement"] = last["measurement"]
+        for field in ("read_binding", "read_sources"):
+            if field in last:
+                out[field] = last[field]
         if last.get("condition"):
             out["condition"] = last["condition"]
         if last.get("monitor"):

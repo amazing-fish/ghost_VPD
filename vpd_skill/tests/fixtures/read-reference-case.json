@@ -1,0 +1,22 @@
+{
+  "id": "TC-TEST-READ-REFERENCE",
+  "version": 1,
+  "status": "draft",
+  "app": "pytest_conditions",
+  "title": "合成读值绑定示例（仅pytest）",
+  "purpose": "独立读值作为查询输入，并在固定结果容器中校验同一文本",
+  "preconditions": ["tests/test_read_references.py构造的独立合成APP与Replay世界"],
+  "test_data": {},
+  "test_data_none": true,
+  "steps": [
+    {"id": "S1", "action": "launch", "expect_state": "dashboard", "retry": 0},
+    {"id": "R1", "action": "read", "target": "source", "read_scope": "self", "retry": 0},
+    {"id": "I1", "action": "input", "target": "query", "text": "${read:R1}", "retry": 0}
+  ],
+  "assertions": [
+    {"id": "A1", "at": "I1", "type": "text_present", "text": "${read:R1}",
+     "within": "result", "oracle_refs": ["K-TEST-CONDITIONS-TASK"]}
+  ],
+  "cleanup": [{"id": "C1", "action": "stop_app", "retry": 0}],
+  "sources": [{"type": "text_case", "ref": "tests/test_read_references.py synthetic only"}]
+}
