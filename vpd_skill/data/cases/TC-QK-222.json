@@ -81,14 +81,14 @@
     {
       "id": "K-QK-018",
       "use": "断网场景显示候选；缓存及网络转换未验",
-      "applicability": "unconfirmed",
       "rationale": "K-QK-018用于所列步骤；断网场景显示候选；缓存及网络转换未验。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
       "steps": [
         "S2",
         "S3"
       ],
       "reported_rationale": "test_goal 候选判据；session-wk-qk5/obs-0014 实测证据（F03/SUM 535km/更新于 2026/10/13 12:10——断网前时刻）",
-      "reported_use": "判据：断网爱车页显示缓存车辆数据（更新时间戳为断网前时刻）"
+      "reported_use": "判据：断网爱车页显示缓存车辆数据（更新时间戳为断网前时刻）",
+      "reported_applicability": "unconfirmed"
     }
   ],
   "sources": [

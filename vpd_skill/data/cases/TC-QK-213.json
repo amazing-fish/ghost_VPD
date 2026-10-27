@@ -99,12 +99,12 @@
     {
       "id": "K-QK-011",
       "use": "判据：登录态判定（无登录/注册入口+主界面可用）",
-      "applicability": "unconfirmed",
       "rationale": "K-QK-011 仅按其声明范围用于 S4；判据：登录态判定（无登录/注册入口+主界面可用）。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
       "steps": [
         "S4"
       ],
-      "reported_rationale": "test_goal 候选判据；2026-10-13 本机已完成登录（用户手动完成新设备短信验证）"
+      "reported_rationale": "test_goal 候选判据；2026-10-13 本机已完成登录（用户手动完成新设备短信验证）",
+      "reported_applicability": "unconfirmed"
     }
   ],
   "sources": [

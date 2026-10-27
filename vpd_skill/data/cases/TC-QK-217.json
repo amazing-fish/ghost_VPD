@@ -115,14 +115,14 @@
     {
       "id": "K-QK-017",
       "use": "已声明F03停泊场景的车名/停泊中/更新时间展示；完整性刷新未验",
-      "applicability": "unconfirmed",
       "rationale": "K-QK-017用于所列步骤；已声明F03停泊场景的车名/停泊中/更新时间展示；完整性刷新未验。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
       "steps": [
         "S3",
         "S4"
       ],
       "reported_rationale": "test_goal 候选判据；session-wk-qk4/obs-0009 实测证据（F03：SUM 645km、54/38 电量、1.7km 停泊中、车门未锁等3项提醒、更新于 2026/10/13 11:23）",
-      "reported_use": "判据：爱车页车辆信息元素清单（车名/位置停泊中/提醒/更新时间/车控入口/数字钥匙）"
+      "reported_use": "判据：爱车页车辆信息元素清单（车名/位置停泊中/提醒/更新时间/车控入口/数字钥匙）",
+      "reported_applicability": "unconfirmed"
     }
   ],
   "sources": [

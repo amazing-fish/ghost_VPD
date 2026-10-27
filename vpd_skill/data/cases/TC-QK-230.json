@@ -168,13 +168,14 @@
     {
       "id": "K-QK-TC-059",
       "use": "原表第 59 行预期「搜索成功，显示结果」的直接判据：按收藏名搜索后结果列表显示该收藏项",
-      "applicability": "unconfirmed",
+      "applicability": "applies",
       "rationale": "由 OneBox 原表预期整理，applies_to 仅 app=qiankun_hm，本次 facts（1.0.26.100 / foldable）不构成越界；但条目状态 unconfirmed，引擎按「判据未确认」记 pending，须用例/产品负责人一次 confirm。",
       "steps": [
         "S5",
         "S6",
         "S11"
-      ]
+      ],
+      "reported_applicability": "unconfirmed"
     },
     {
       "id": "K-QK-USR-003",

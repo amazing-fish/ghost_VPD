@@ -184,12 +184,12 @@
     {
       "id": "K-QK-011",
       "use": "背景：最终登录完成状态，Phase1不验证",
-      "applicability": "unconfirmed",
       "rationale": "K-QK-011 仅按其声明范围用于 S9；判据：登录成功判定（离开登录页+主界面导航可见）。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
       "steps": [
         "S14"
       ],
-      "reported_rationale": "test_goal 候选判据；applies_to 1.0.26.100 与本机一致"
+      "reported_rationale": "test_goal 候选判据；applies_to 1.0.26.100 与本机一致",
+      "reported_applicability": "unconfirmed"
     },
     {
       "id": "K-AV-002",
@@ -215,20 +215,20 @@
     {
       "id": "K-QK-USR-001",
       "use": "环境事实：测试账号 151****3183 下有问界 M5（末位 7885）",
-      "applicability": "confirmed",
       "rationale": "K-QK-USR-001 仅按其声明范围用于 本例步骤；环境事实：测试账号 151****3183 下有问界 M5（末位 7885）。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
       "steps": [],
-      "reported_rationale": "已确认知识；登录后 VPD 链路用例的目标车辆"
+      "reported_rationale": "已确认知识；登录后 VPD 链路用例的目标车辆",
+      "reported_applicability": "confirmed"
     },
     {
       "id": "K-QK-012",
       "use": "已触发短信挑战场景；保险箱仅实际触发时，未验设备信任",
-      "applicability": "unconfirmed",
       "rationale": "K-QK-012用于所列步骤；已触发短信挑战场景；保险箱仅实际触发时，未验设备信任。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
       "steps": [
         "S14"
       ],
-      "reported_use": "候选判据：新设备身份验证页与验证码框"
+      "reported_use": "候选判据：新设备身份验证页与验证码框",
+      "reported_applicability": "unconfirmed"
     }
   ],
   "sources": [

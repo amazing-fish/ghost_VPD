@@ -196,7 +196,6 @@
     {
       "id": "K-QK-016",
       "use": "限定金桥L1-A43地图和目的地场景",
-      "applicability": "unconfirmed",
       "rationale": "K-QK-016用于所列步骤；限定金桥L1-A43地图和目的地场景。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
       "steps": [
         "S5",
@@ -205,17 +204,18 @@
         "S9"
       ],
       "reported_rationale": "test_goal 候选判据；session-wk-qk4/obs-0063-0075（联想：0/A/1 多行、A43 唯一行）→obs-0079（任务卡片 我的爱车 L1层-A43 车位 泊入车位+故障态）实测证据",
-      "reported_use": "判据：车位搜索联想格式（L1层-XXX 车位+路线按钮）与点路线发起算路出任务卡片（泊入车位）"
+      "reported_use": "判据：车位搜索联想格式（L1层-XXX 车位+路线按钮）与点路线发起算路出任务卡片（泊入车位）",
+      "reported_applicability": "unconfirmed"
     },
     {
       "id": "K-QK-USR-002",
       "use": "判据：车辆故障态算路结果不能激活（开始不可用）",
-      "applicability": "confirmed",
       "rationale": "K-QK-USR-002 仅按其声明范围用于 S9；判据：车辆故障态算路结果不能激活（开始不可用）。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
       "steps": [
         "S9"
       ],
-      "reported_rationale": "已确认知识；F03 实测故障态（泊车代驾辅助暂不可用/VPD功能故障）与之一致"
+      "reported_rationale": "已确认知识；F03 实测故障态（泊车代驾辅助暂不可用/VPD功能故障）与之一致",
+      "reported_applicability": "confirmed"
     }
   ],
   "sources": [

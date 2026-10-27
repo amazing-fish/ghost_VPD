@@ -104,24 +104,25 @@
     {
       "id": "K-QK-013",
       "use": "候选首页入口与已知加载失败排除；不证明完整地图就绪",
-      "applicability": "unconfirmed",
       "rationale": "K-QK-013仅用于所列入口检查；默认车位不是健康首页普遍标记，已知停车场数据失败不能当正常进入。原作者引用保留reported_rationale，独立产品依据与完整地图就绪仍待验。",
       "steps": [
         "S4",
         "S5"
       ],
-      "reported_rationale": "test_goal 候选判据；session-wk-qk3/obs-0019-0021 与 session-wk-qk4/obs-0038（搜索车位号设为目的地/默认车位/推荐车位/沿途找车位/金桥出口加工区72+共742个）实测证据"
+      "reported_rationale": "test_goal 候选判据；session-wk-qk3/obs-0019-0021 与 session-wk-qk4/obs-0038（搜索车位号设为目的地/默认车位/推荐车位/沿途找车位/金桥出口加工区72+共742个）实测证据",
+      "reported_applicability": "unconfirmed"
     },
     {
       "id": "K-QK-015",
       "use": "背景：活动沿途任务，本例无任务不验证恢复",
-      "applicability": "unconfirmed",
+      "applicability": "out_of_scope",
       "rationale": "K-QK-015用于所列步骤；背景：活动沿途任务，本例无任务不验证恢复。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
       "steps": [
         "S4"
       ],
       "reported_rationale": "test_goal 候选判据；run-20261013-111134-3476/obs-0012 实测证据，双分支断言设计依据",
-      "reported_use": "判据：有活动任务时进 ADS 直达任务卡片页"
+      "reported_use": "判据：有活动任务时进 ADS 直达任务卡片页",
+      "reported_applicability": "unconfirmed"
     }
   ],
   "sources": [

@@ -129,12 +129,12 @@
     {
       "id": "K-MOT-007",
       "use": "判据：未登录态「我的」页显示注册/登录入口与未绑定占位",
-      "applicability": "unconfirmed",
       "rationale": "K-MOT-007 仅按其声明范围用于 S2；判据：未登录态「我的」页显示注册/登录入口与未绑定占位。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
       "steps": [
         "S2"
       ],
-      "reported_rationale": "test_goal 来源候选判据，未经产品确认；applies_to 为本机 3.0.1.281，与实测一致"
+      "reported_rationale": "test_goal 来源候选判据，未经产品确认；applies_to 为本机 3.0.1.281，与实测一致",
+      "reported_applicability": "unconfirmed"
     }
   ],
   "sources": [
