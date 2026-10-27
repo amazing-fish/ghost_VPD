@@ -1,79 +1,63 @@
-# 项目方向与执行安排（2026-10-27）
+# 项目方向与执行安排
 
-本轮取证基线：`main @ 4f48860e4bcfe3e055a4e73a91e76f94a77fe33a`。实际41份case（32份乾崑、9份motor；31 draft、10 exploration_record），100条知识；资产数量不代表已自动化覆盖的原表行数。
+本页按对应代码基线维护工程能力、下一步验收和责任归属；具体运行须另记实际commit、APP/build、设备及来源资格。
+工作机搜索的剩余验收见[搜索交接](WORKMACHINE_SEARCH_20261027.md)，手工用例以[十月来源及跨月差异](baselines/README.md)为准。
+工程合入、动作发送、产品结论、资产成熟度和正式覆盖分别记账；以下交付不增加正式业务覆盖。
+交付单位仍是可独立判定、重复执行、证据可追溯的VPD内功能用例；登录、解锁、系统弹窗和进入业务页属于前置能力。
 
-- [PR #104](https://github.com/amazing-fish/ghost_VPD/pull/104) 已把242 v6标签搜索及清理链路补入main，不再使用“#100只合到业务分支、main仍v4”的旧结论。2026-10-26实机5/5检查、34次物理动作及恢复核验是历史证据，本轮未新增实机执行。九份既有人审决策按原范围保留；242 v6仍待资产人审，不进suite、不晋级。当前指纹改变后仍须检查审核绑定，不能把旧审核当新版本已验。
-- [PR #105](https://github.com/amazing-fish/ghost_VPD/pull/105) 已保存[#102](https://github.com/amazing-fish/ghost_VPD/issues/102)的九月151条转写快照与固定范围映射。其[最新更新](https://github.com/amazing-fish/ghost_VPD/issues/102#issuecomment-6431484668)指定后续以[#106](https://github.com/amazing-fish/ghost_VPD/issues/106)十月150条为准；#106当前为closed，但十月源快照尚未入仓；其完整评论可由维护侧直接获取，此来源工作不再等待工作机重导。#102按九月历史同步完成关闭，后续映射与验收承接#65。保留九月历史，按快照ID区分新旧，不以Issue关闭推断已同步。
-- 最新工作机问题[#107–#111的收敛](WORKMACHINE_SEARCH_20261027.md)：先修首页识别和坐标点击诊断，再交付真实收藏/搜索源件。字段规则、空白结果终态及两账号重放继续分账，工程修复新增正式覆盖为0。工作机session-s293新增ADS入口拒发；#107/#110本次分别因首页不可达/已登录而未复测。工作机已通过[#118](https://github.com/amazing-fish/ghost_VPD/issues/118)补交8份AA结构导出和6份动作原记录，证据固定于分支commit `6c38eb4`，尚未入main；源tree/screenshot字节与5次输入动作原记录仍未交付。入口语义与运行期数据绑定仍未完成。工程#112/#113与来源存档#115均已合；首页新入口与登录现场仍待验，#110剩余验收完整承接#64。
+## 已交付能力与使用边界
 
-逐例范围与既有证据见[K89交付](K89_0228_CASES.md)、[main补交付索引](evidence/K89_MAIN_DELIVERY_20261027.json)及[九月历史映射](baselines/README.md)。PR #36已按被#41替代归档关闭，保留分支和历史来源，不再整包合入。#103按六阶段指南文档已记录归档，不表示六阶段已自动化。
-
-## 交付目标与当前缺口
-
-交付单位是可独立判定、重复执行、证据可追溯的 **VPD 内功能用例**。沿用 `Observer → Executor/Dispatcher → Verdict → Case`；操作能力落在现有 `flow/state/targets/dialogs`，不新建另一套执行、规划或判定引擎。登录、解锁、系统弹窗及进入业务页属于前置能力，不能计作 VPD 功能覆盖。
-
-主线活跃230仍是历史A224/C156的v2，231–239未进入活跃目录。工作机230v5/231v2/234/235和两项新增知识已由[PR #115](https://github.com/amazing-fish/ghost_VPD/pull/115)交付为[完整来源存档](evidence/workmachine-search-20261027/README.md)，未启用：前三者仍缺同行身份绑定，235还缺qk_tag_elevator，知识来源类型待接入兼容。原件不是已验资产，新增正式覆盖0；232/233/236–239、真实targets/states校准和指纹/清理索引继续补交；AA结构导出已由#118接收但未入main，不能拿旧230替代v5。历史“40份资产、4项replay_verified”的本地报告不是当前main库存；仅K-GEN-001无崩溃检查也不能证明业务完整通过。
-
-最新来源改用十月[#106](https://github.com/amazing-fish/ghost_VPD/issues/106)及`OCT-`编号：来源报告相对九月新增1、消失2、同名变化5（4项优先级调整、收藏/推荐列表预期改写）。先保存可核对来源并复核受影响映射；消失的两项就近泊车L0去向与列表新预期尚需确认，不自行删掉覆盖债务。该来源报告的63项“自动化”标记及各端非空结果列不构成已执行覆盖。九月快照不覆写，历史143行分档不再作当前分母。判据未确认不阻止draft交付，确认也不追改旧pending。
-
-## 当前执行顺序
-
-| 优先级 | 工作包 | 交付与完成边界 |
+| 工程交付 | 当前可用范围 | 不能据此宣布完成的验收 |
 | --- | --- | --- |
-| P1，恢复可复跑入口 | [#107](https://github.com/amazing-fish/ghost_VPD/issues/107)、[#64](https://github.com/amazing-fish/ghost_VPD/issues/64) | 工程提交[#112](https://github.com/amazing-fish/ghost_VPD/pull/112)/[#113](https://github.com/amazing-fish/ghost_VPD/pull/113)，合入状态见PR；真机待验：首页已知起点/目的地两种文案均识别，仍排除加载失败/错误页面；核实point输入、实际点击与结果语义，明确拒发及无文本控件替代路径，不以设备命令返回成功证明复选框已改变 |
-| P1，先交已有文件与新来源 | [#65](https://github.com/amazing-fish/ghost_VPD/issues/65)、[#106](https://github.com/amazing-fish/ghost_VPD/issues/106) | 交付230v5、231–239及配套定义/形态迁移/证据索引；承接#34逐例验收与#52知识包。十月150条另存来源并核新旧差异，不覆写九月151条。原始run/树留执行机，确认不阻塞draft提交 |
-| P1，搜索验收 | [#80](https://github.com/amazing-fish/ghost_VPD/issues/80)、[#108](https://github.com/amazing-fish/ghost_VPD/issues/108)、[#109](https://github.com/amazing-fish/ghost_VPD/issues/109)、[#111](https://github.com/amazing-fish/ghost_VPD/issues/111) | 名称/编号维度独立；先取当前收藏与同一行实体身份，不照搬园区数据。路点编号证据有内部矛盾，字段预期不擅自确认；空白无请求终态保留pending。原#83身份、#84工具校准、#88楼层/组合筛选仍保留，实际查询/标签及充电桩当前AA校准不能由旧观察替代 |
-| P1，登录与输入 | [#64](https://github.com/amazing-fish/ghost_VPD/issues/64) | 账密主路径/已登录复用、账号验证旁路、黑屏及真实输入来源；承接#31来源、人审与当前消费者校准，#110复测一并回报。#93已交付限定拒发，unknown不保证已清空 |
-| P1，生产事实 | [#56](https://github.com/amazing-fish/ghost_VPD/issues/56) | 统一承接#89环境条件与#90业务事实，复用既有provider/guard；缺锚点不证明环境，历史首页/回自车不证明当前车辆图内。保留正反证、身份/时点/有效范围及Windows真机验收 |
-| P2，真实手势 | [#58](https://github.com/amazing-fish/ghost_VPD/issues/58) | 已知唯一滚动容器内的相对swipe、显式px/s速度及会话/重放一致；正式资产不写像素。AVM/地图表面归属与实际后置仍待独立校准，不能由basis或容器标签放行 |
-| P2，独立触摸缺陷 | [#54](https://github.com/amazing-fish/ghost_VPD/issues/54) | 取得当前目标/表面接收者身份及真实父链，再限定修复合法表面归属；不以surface_overlay字段或raw注入跳过策略 |
-| P2，独立几何缺陷 | [#82](https://github.com/amazing-fish/ghost_VPD/issues/82) | #85诊断已交付；947/1264矛盾仍须同帧独立窗口、祖先链与真实右缘按钮后置。保留列表/隐藏分页裁剪，不把诊断当几何适配 |
-| 后续业务切片 | [#65](https://github.com/amazing-fish/ghost_VPD/issues/65) | OP-03旧映射的“选择另一实际城市并恢复”仍是245未覆盖子范围；先对齐十月来源及当前现场，再写完整脚本。#103六阶段指导用于组织队列，不代表已有资产覆盖六阶段 |
-| 后续维护 | [#45](https://github.com/amazing-fish/ghost_VPD/issues/45) | 承接#9知识治理/测试隔离与#29方法论。按真实缺陷推进Legacy、Oracle资格和证据治理，不扩平行框架，不阻塞已有资产交付 |
+| [#112](https://github.com/amazing-fish/ghost_VPD/pull/112)、[#113](https://github.com/amazing-fish/ghost_VPD/pull/113) | 首页起点/目的地文案识别；坐标下发事实、最终坐标及受控协议框诊断 | 金桥实际到达路径、自然出现的起点分支、登录协议框checked后置；签名不证明车辆图内 |
+| [#116](https://github.com/amazing-fish/ghost_VPD/pull/116) | 文本断言限定到唯一、完整可见的已登记当前树容器，拒绝跨行拼证 | 真实实体、列表完整性及字段产品契约 |
+| [#120](https://github.com/amazing-fish/ghost_VPD/pull/120) | 两个搜索输入目标指向实际SearchField；空/非空查询共用结构状态依据，输入按navigation处理 | 清空中间值、实际新值及各现场后置；输入成功不证明搜索业务通过 |
+| [#121](https://github.com/amazing-fish/ghost_VPD/pull/121) | 本次运行中更早、合格的独立read值可供后继输入和范围文本断言消费；保留源步骤/obs | 真实收藏集合/空态、实体字段、名称与编号维度及两账号/园区重放 |
+| [#122](https://github.com/amazing-fish/ghost_VPD/pull/122) | 十月150条源快照及逐行跨月对应已入仓，九月151条保持历史 | 来源缺项、消失用例去向、列表新规则及逐例验收；63个非空自动化标记不是覆盖 |
+| [#123](https://github.com/amazing-fish/ghost_VPD/pull/123) | 未验证名称结果行目标按当前查询精确选取唯一同行，计入符合结构的已知屏外同名行；配套断言组核状态、实际输入及独立读值 | 不提供真实收藏源，不覆盖编号查询，不自动启用230 v5或扩大资产人审范围 |
+| [#125](https://github.com/amazing-fish/ghost_VPD/pull/125) | 当前乾崑前台、单栏首页及纯收藏夹接收行共同证明浏览tap，收窄宽泛收藏关键词误判 | 目标仍unverified；不证明完整收藏内容，不放行输入/清空或其他写入 |
+| [#126](https://github.com/amazing-fish/ghost_VPD/pull/126) | 登记空查询下的受限电梯口目标，拒绝text/originalText冲突并在新观测撤权 | 目标仍unverified；不启用235，不证明标签选中、结果集合或组合规则 |
 
-## 下一阶段：维护侧主导代码，工作机提供现场
+具体语法、限制和合成示例见[执行契约](../vpd_skill/references/contracts.md)。以上能力沿既有
+`Observer → Executor/Dispatcher → Verdict → Case`交付，不增设平行执行、规划或判定引擎。
+[#124](https://github.com/amazing-fish/ghost_VPD/pull/124)已合，条件肯定证据与身份来源、同栏状态签名及条件实际引用的假设目标门禁已收紧；生产事实提供者仍沿#56验收。
+收藏夹浏览与电梯口目标均保持unverified；入口工程不替代实机校准、独立收藏来源或标签业务验收。
 
-1. **先堵住跨行拼证（#111，PR #116）**：限定文本断言到已登记、唯一、完整可见的当前树容器，纳入依赖和假设目标门禁，保留错误/未知语义。工程能力已由#116合入main `4f48860`，原5个合入授权已用5/5；真实行容器需另行校准，来源档案不自动启用。
-2. **当前代码包：输入目标与非空查询状态（#111）**：五份搜索树上的旧绝对XPath均失配；另一个通用输入目标命中Search包装而非SearchField。本包将两目标指向实际SearchField，并修正查询输入误标为route_planning；新增require_target结构签名，避免占位文案消失后退为unknown。状态识别与动作依据共用当前树匹配，补齐两种状态目标引用的依赖，复用UiTree显式可见祖先判断。本包仍待PR审查与合入；离线导出树及模拟桥回归不代替真机，不放宽policy、不借K89目标成熟度。
-3. **再接读数与参数（#111）**：独立读取唯一有效值，关联来源步骤/obs，后继输入与范围断言按对应时点消费；缺值/歧义/错误不得输入占位串或旧值，不覆盖secret，不从搜索结果反推产品期望。运行期变量不冒充跨动作有效的condition/provider。
+## 下一阶段：完成真实来源与最小业务闭环
 
-工作机以Issue及评论交付现场证据与最小实机复验；维护侧负责代码、PR以及完整diff、调用链、依赖、lint结果和证据资格审查。接管先固定commit及单一写入人；具体要求见[协作约定](ISSUE_COLLABORATION.md#工作机-issue-交接与维护侧审查)。Codex/CI为补充，退出0或绿灯不代替实质审查。工作机证据PR #117已关闭、未合入；#118只承接已有原件、5次输入完整返回与最小现场复验，代码归#111。#107工程识别修复已交，现场只核真实到达路径及自然出现的首页文案，不为凑两种改变账户或园区。
+当前缺口已从“实现通用读值绑定”转为“取得独立、可校准的真实来源，并修订生产消费者”。
+活跃230仍是历史v2；[来源存档](evidence/workmachine-search-20261027/README.md)中的230 v5、231 v2、234、235及两项知识未自动启用。
+首页“收藏及常去”的混合卡不独立证明完整收藏集合、收藏类型、楼层或编号；不能把查询结果反过来当搜索期望。
 
-#102/#103已归档、#110迁入#64后剩12项；加入工作机新交接#118后当前开放Issue为13项。重复#119已归并#118；关闭历史/重复任务不增加正式覆盖。#107入口、#108字段、#109请求终态保留独立；#54触摸归属、#58手势、#82几何也不因表面相似而合并。十月150条来源由维护侧沿#65后续落库，九月不覆盖。
-
-## 工程交付与架构收敛
-
-以下已交付工程不应重新列为待实施：
-
-- #59/#60/#68：执行错误、适用条件及复合结果独立投影；#69/#70：ensure_state终态与共用结构检查。
-- #61/#62/#63：211/212经验归入flow/state，现有消费者使用ensure_state；211/212仍为operation_reference_only，不计业务执行口径。来源确认及生产校准统一沿#64（原#31已归并）。
-- #71/#72/#73：Python3.12与双平台CI、实际判据/模板依赖绑定、Console证据层级。
-- #66/#76：已知选择菜单及延迟遮挡的受控恢复；#77/#79：PIN发送未知的防重入与按设备显式启用的空白键盘识别；#78：USB单选弹窗的一次受控关闭。它们不证明所有现场分支均已验收。
-- #51/#67：任务范围入口/算路许可及预算可观测性；#49/#55已关闭。入口与算路不逐次请求授权；PIN解锁沿既有授权，其他副作用仍按当前策略。
-- #85/#86：裁剪与最终拒发诊断、未知坐标接收者拒发、限定搜索筛选导航语义；对应1395真机校准仍待完成。#87补两项探索成熟度门禁的生产判据隔离和有效重放前置，不改变生产知识。
-- #92：状态后置失败、恢复及清理的同观测诊断，保持原归因、Oracle与接管；调度facts与产品oracle_facts分开。#93：来源可核的非提示文字在追加前拒发，刷新后重核；unknown/secret不承诺已清空。两包不补足#56承接的环境/业务事实来源，也不代表1395真机已验收。
-- #81：TC-QK-230 draft及返回首页导航修复；产品判据、1395 fixture、结果身份、按资产来源核对必要的人审及确定重放仍待验收。
-
-本批渐进重构收敛同一事实的来源和消费者：UiTree提供几何，StateModel提供当前页面动作依据，Policy判动作语义，Dispatcher下发前复核，必要时重定位并重算，后置观察证实声明效果。#82的CLI保留初检审计、展示最终拒发；#84复用已有来源通道，不新增另一套配置或执行路径。具体契约见[执行契约](../vpd_skill/references/contracts.md)，职责与剩余技术债见[架构审计](ARCHITECTURE_REVIEW.md)。
-
-## 前置、选支与产品结果
-
-先根据当前、有效、独立于被测结果的证据选分支，再应用该分支的产品断言：
-
-| 前置证据 | 处理 | 结论与覆盖 |
+| 单一验收归属 | 维护侧下一步 | 工作机提供的现场及完成边界 |
 | --- | --- | --- |
-| 明确满足 | 执行适用分支 | 适用且已确认判据及有效结果证据才得出pass/fail |
-| 明确不满足 | not_applicable | 不计失败、通过或覆盖 |
-| 缺失、过期、矛盾 | 适用性未知 | 继续取证或pending，不能跳过制造通过 |
-| 采集/执行异常 | error，保留阶段与归因 | 与产品结论分开，不计覆盖 |
-| 策略、预算或外部输入正常交接 | blocked | 不机械改为error |
+| [#65 来源与总账](https://github.com/amazing-fish/ghost_VPD/issues/65) | 接收已有源件、配套定义/形态迁移，逐例核content/deps/engine/policy/context、人审和清理；不再等待十月快照重导 | 补232/233/236–239等尚缺原件与来源缺项。既有候选、知识、历史差异和完整业务验收继续记账，来源存档不等于覆盖 |
+| [#111 数据驱动实现](https://github.com/amazing-fish/ghost_VPD/issues/111) | 校准真实收藏源及行目标，将独立读值、实际输入和同一行断言接入生产消费者 | 完整收藏/明确空态、实体身份、名称与编号独立来源及两账号/园区复验；通用能力或名称同行切片不完成整单 |
+| [#80 搜索业务](https://github.com/amazing-fish/ghost_VPD/issues/80) | 消费#65来源及#111能力，保留车辆/园区/实体身份、楼层、标签、组合筛选和清理口径 | 当前查询及真实接收者、结果/空态、同名异实体和组合负例；原#83/#84/#88条款仍保留，不能用单个名称成功替代 |
+| [#108 字段](https://github.com/amazing-fish/ghost_VPD/issues/108)、[#109 空白终态](https://github.com/amazing-fish/ghost_VPD/issues/109) | 分别接入独立字段契约、请求/加载终态及空态要求 | 原始行与字段归属、该次请求终态；材料矛盾或终态不足保持pending，不擅自确认编号可选或产品缺陷 |
+| [#118 现场（承接#107）](https://github.com/amazing-fish/ghost_VPD/issues/118)、[#64 登录与输入](https://github.com/amazing-fish/ghost_VPD/issues/64) | 维护实际到达路径、账密主路径/已登录复用、输入/清空及协议框契约；#110剩余条款已由#64承接 | #118统一交接最小现场。自然出现的起点分支再验，不为造现场强制登出/切园区；清空未知不等于已清空 |
+| [#56 生产事实](https://github.com/amazing-fish/ghost_VPD/issues/56) | 沿既有provider/guard补独立正反证及身份、时点、动作有效范围，不建新事实总线 | Windows实测；首页/回自车/历史记录或业务`--env`不证明当前车辆图内，事实不足不制造NA或通过 |
+| [#54 触摸归属](https://github.com/amazing-fish/ghost_VPD/issues/54)、[#58 手势](https://github.com/amazing-fish/ghost_VPD/issues/58)、[#82 几何](https://github.com/amazing-fish/ghost_VPD/issues/82) | 分别处理表面接收者、真实手势和同帧窗口/裁剪；保留独立验收 | 实际父链/窗口、工具版本/帮助与px/s、真实表面后置；诊断、截图变化、basis或raw注入不代替证明 |
+| [#45 治理与维护](https://github.com/amazing-fish/ghost_VPD/issues/45) | 按真实缺陷推进知识依赖/测试隔离、Legacy、Oracle资格与证据治理 | 判据确认、资产人审和当前重放独立办理，不以文档或Issue关闭扩大批准范围 |
 
-全部分支不适用不得聚合为passed。`conditions`、`step.when`、`assertion.guard`及规则的`condition_requirements`共用现有契约；来源关联obs、时间及APP/build/车辆/任务/账户范围，不跨可能下发的动作缓存。业务`--env`仅作调度声明，不能代替现场产品事实。K-QK-USR-002的故障条件不意味着已有健康/故障读取器；合成216不代表真机业务验收，历史raw run/verdict不改写。
+同一缺口只由表中的owner维护验收条款，其他Issue引用它；保留未满足独立目标，不为减少数量关闭任务。
+工作机只提交Issue/评论、原件及最小复验；维护侧修改代码、建PR、审完整diff和调用链，再按授权合入。
+接管、证据和单一写入人约定见[协作规则](ISSUE_COLLABORATION.md#工作机-issue-交接与维护侧审查)。
 
-## 执行与证据纪律
+## 判定和执行纪律
 
-动作发送、声明后置、产品结论、资产成熟度和正式覆盖分别记录。离线CI/Replay属于E1，不能冒充当前设备验收。产品确认、人审、重放资格及覆盖口径完整门槛见[工作流](../vpd_skill/references/workflows.md)与[协作约定](ISSUE_COLLABORATION.md)。
+先用当前、有效、独立于被测结果的证据确定适用分支，再执行产品断言：明确不适用为not_applicable；
+缺失、过期、矛盾为适用性未知，继续取证或pending；采集/执行异常保留error及归因；策略、预算或外部输入正常交接为blocked。
+全部分支不适用不得聚合为passed。产品pass/fail还须判据confirmed且适用；判据未确认不阻止原件或draft交付，确认不追改历史pending。
 
-`act swipe`沿#58支持已知唯一滚动容器内的相对起止位置及显式速度；当前可见区域现算像素，正式资产保存比例和容器语义。旧容器滚动与随机地图原子保持原义；像素point/basis、duration和未知表面仍显式拒绝，不静默改为普通滚动。设备`uitest uiInput swipe`末参数是速度px/s，不是毫秒；原#52经验校准统一沿#65，实际设备工具版本/帮助及同一表面后置仍须现场验证。raw HDC/uitest不作为绕过Dispatcher的默认自动化路径；截图变化不独立证明视角身份或遍历完整。
+离线CI/Replay属于E1，不能冒充当前设备验收。raw HDC/uitest不作为绕过Dispatcher的默认路径；
+车辆动作、其他副作用、清理及接管按[工作流](../vpd_skill/references/workflows.md)执行。
+`act swipe`已支持已知唯一滚动容器内的相对起止点及显式px/s；实际设备工具与表面效果仍沿#58核验。
+正式资产不写像素，未知表面不静默改为普通滚动。折叠态可继续取证，其他形态另行补测。
 
-折叠态可以继续取证，直板形态另行补测。新现场关键场景进入对应Issue；已知问题先复用现有Issue，避免重复建账。每个修复都以可核验行为与用例交付推进，不以代码行数衡量完成。
+## 历史与详细证据索引
+
+- [十月当前来源、九月历史映射](baselines/README.md)：快照ID区分版本；不覆盖九月，不把旧映射改前缀当新验收。
+- [工作机搜索源件存档](evidence/workmachine-search-20261027/README.md)与[session-s293历史现场](WORKMACHINE_SEARCH_EVIDENCE_20261027.md)：历史原件不随工程合入改写；后续材料及当前缺口沿#118和搜索交接登记。
+- [K89逐例交付](K89_0228_CASES.md)、[main补交付索引](evidence/K89_MAIN_DELIVERY_20261027.json)、[批次验收](BATCH_ASSET_ACCEPTANCE.md)：保留各自固定基线和批准范围，不作为实时库存。
+- [架构审计](ARCHITECTURE_REVIEW.md)：已有flow/state、错误归因、恢复、证据与成熟度工程的详细背景；新的改动仍落在现有链路。
