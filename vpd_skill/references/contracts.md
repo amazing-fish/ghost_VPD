@@ -532,6 +532,12 @@ N/A、未知、error、未触发操作与未执行均不计分支覆盖。逐断
 
 ## 4. 探索资产审核与运行准入（#30）
 
+`knowledge_used[].applicability` 是可选的作者适用性声明；给值时须为字符串 `applies` / `unknown` /
+`out_of_scope`。知识确认状态、目标校准状态及自由范围文本不属于该词表，理由写在 `rationale`。
+lint 会指出非法声明，审核和晋级沿用该门禁；不自动改写存量声明、批准或重绑资产。
+没有可用知识时仍可写 `{"id": null, "note": "..."}`。此字段仅记录作者解释，不参与运行时 Oracle 资格判定；
+实际资格仍按知识条目、独立事实及 guard 计算，单条非正式取证不因该元数据新增运行前置。
+
 生成资产新增 `origin.type=session/exploration`；旧资产按 status、sources、history 与主步骤/cleanup/safe_stop
 的 from_session/from_transition 联合识别。仅手改 status 或已有 reviewer 来源不解除审核要求。
 `case approve` 为旧探索资产补持久 origin；不会自动审核现有资产。

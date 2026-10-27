@@ -562,9 +562,14 @@ def lint(case: dict, app, knowledge, policy=None, runs_dir: Optional[Path] = Non
     # Issue #14：支持可解析的 run/session + obs 证据引用，不能一刀切禁止 obs 编号——
     # 不可解析的引用（裸编号、锚点目录未留存该观测）才拦。稳定引用 = 知识 ID / 步骤 ID，
     # 或「run 目录名/会话名 + obs 编号」且证据确实还在。
-    for k in case.get("knowledge_used") or []:
+    for index, k in enumerate(case.get("knowledge_used") or []):
         if not k:
             continue
+        if "applicability" in k and (not isinstance(k["applicability"], str)
+                                     or k["applicability"] not in ("applies", "unknown", "out_of_scope")):
+            issues.append({"field": f"knowledge_used[{index}].applicability", "problem":
+                "适用性声明仅可为 applies / unknown / out_of_scope；确认状态写在知识条目，范围和依据写在 rationale。"
+                "此声明不替代运行时独立判据适用性判断"})
         bad = unresolvable_obs_refs(str(k.get("rationale") or ""), runs_dir)
         if bad:
             issues.append({"field": "knowledge_used", "problem":

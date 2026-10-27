@@ -125,7 +125,7 @@ def _lint_case(ws, **kw):
 def test_rationale_citing_bare_obs_ids_is_flagged(ws):
     """裸 obs 编号没有 run/session 锚点：重放后必过期，拦下。"""
     issues = _lint_case(ws, knowledge_used=[
-        {"id": "K-AV-001", "use": "entry_success", "applicability": "适用", "rationale": "obs-0010 显示入口成功"}])
+        {"id": "K-AV-001", "use": "entry_success", "applicability": "applies", "rationale": "obs-0010 显示入口成功"}])
     hit = [i for i in issues if i["field"] == "knowledge_used" and "obs-0010" in i["problem"]]
     assert hit and "稳定标识" in hit[0]["problem"]
 
@@ -135,7 +135,7 @@ def test_resolvable_run_obs_reference_passes(ws):
     obs_dir = ws.runs_dir / "run-20261008-201507-4990" / "obs" / "obs-0007"
     obs_dir.mkdir(parents=True)
     issues = _lint_case(ws, knowledge_used=[
-        {"id": "K-AV-001", "use": "entry_success", "applicability": "适用",
+        {"id": "K-AV-001", "use": "entry_success", "applicability": "applies",
          "rationale": "run-20261008-201507-4990 的 obs-0007 显示入口成功"}])
     assert not any(i["field"] == "knowledge_used" for i in issues)
 
@@ -145,7 +145,7 @@ def test_anchored_obs_ref_with_missing_evidence_is_flagged(ws):
     加个 run- 前缀不能绕过 check-refs。"""
     (ws.runs_dir / "run-20261008-201507-4990" / "obs" / "obs-0007").mkdir(parents=True)
     issues = _lint_case(ws, knowledge_used=[
-        {"id": "K-AV-001", "use": "entry_success", "applicability": "适用",
+        {"id": "K-AV-001", "use": "entry_success", "applicability": "applies",
          "rationale": "run-20261008-201507-4990 的 obs-0010 显示入口成功"}])
     hit = [i for i in issues if i["field"] == "knowledge_used" and "obs-0010" in i["problem"]]
     assert hit and "未留存该观测" in hit[0]["problem"]
@@ -154,14 +154,14 @@ def test_anchored_obs_ref_with_missing_evidence_is_flagged(ws):
 def test_knowledge_id_containing_obs_digits_is_not_flagged(ws):
     """K-QK-OBS-201 是知识 ID（稳定标识，正是规则要求的引用形式）：不能当观测编号误拦。"""
     issues = _lint_case(ws, knowledge_used=[
-        {"id": "K-QK-001 / K-AV-001", "use": "判据候选", "applicability": "not_applicable",
+        {"id": "K-QK-001 / K-AV-001", "use": "判据候选", "applicability": "unknown",
          "rationale": "两者冲突且本机数据加载后「默认车位」消失（K-QK-OBS-201）"}])
     assert not any(i["field"] == "knowledge_used" and "obs" in i["problem"] for i in issues)
 
 
 def test_stable_rationale_references_pass(ws):
     issues = _lint_case(ws, knowledge_used=[
-        {"id": "K-AV-001", "use": "entry_success", "applicability": "适用",
+        {"id": "K-AV-001", "use": "entry_success", "applicability": "applies",
          "rationale": "run-20261008-201507-4990 步骤 S3 观测：入口出现"}])
     assert not any(i["field"] == "knowledge_used" for i in issues)
 
