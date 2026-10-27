@@ -226,7 +226,7 @@ navigation，并用 `navigation_context_target` 引用既有搜索输入目标�
 `qk_tag_elevator` 沿现有静态 XPath 注册，只提供空查询下的「电梯口」导航接收者。
 1f70cc5 的 6HQ/session-s120/obs-0009 原树离线可核：唯一 SearchPoiPage 中的实际 SearchField 为空，
 筛选父链为 `Row#my_location_and_filter_view/Scroll/Row/__Common__/Row`；电梯口接收者 Row49，充电桩 Row53。
-目标要求已知单栏、唯一页/字段/筛选组、字段 `@text=''`（缺失或空白不等于空值），
+目标要求已知单栏、唯一页/字段/筛选组、字段 `@text=''`（缺失或空白不等于空值）；若 `originalText` 存在也须原样为空串，冲突来源不授权点击。
 同组恰好两枚 Image+Text 标签，明确的可点击/非可点击标记及未显式隐藏的祖先。
 重复组先在 XPath 结构中拒绝，屏外副本不能因几何过滤而被忽略；最终接收行须完整可见。
 消费者动作须使用 `revalidate: true`；普通 tap 并不自动增加新观测，遮挡/解锁触发的 Dispatcher 刷新仍重新定位。

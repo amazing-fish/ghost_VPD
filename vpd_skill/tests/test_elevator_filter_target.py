@@ -181,7 +181,9 @@ def test_uncertain_context_or_receiver_never_dispatches(ws, tmp_path, change):
 
 
 @pytest.mark.parametrize("refresh,revoke", [("predispatch", "query"), ("dispatch-relocate", "query"),
-                                            ("dispatch-relocate", "peer")])
+                                            ("dispatch-relocate", "peer"),
+                                            ("predispatch", "original-text"),
+                                            ("dispatch-relocate", "original-text")])
 def test_new_observation_retracts_filter_eligibility(ws, tmp_path, monkeypatch, refresh, revoke):
     ctx = _context(ws, tmp_path, "overlay" if refresh == "dispatch-relocate" else None)
     observe = ctx.observe
@@ -193,6 +195,8 @@ def test_new_observation_retracts_filter_eligibility(ws, tmp_path, monkeypatch, 
                 root["children"].pop()  # Remove the overlay: it cannot explain the later rejection.
             if revoke == "query":
                 _parts(root)[1]["text"] = "B1"
+            elif revoke == "original-text":
+                _parts(root)[1]["attrs"]["originalText"] = "B1"
             else:
                 _parts(root)[4]["children"].pop()  # The pure double-label group no longer exists.
             seen.append(label)
@@ -236,6 +240,30 @@ def test_missing_or_nonempty_raw_field_text_is_not_an_actual_empty_query(ws, val
         field["attributes"]["text"] = value
     loc = resolve(TARGET, app.targets[TARGET], UiTree(raw), None, app.dir, layout={"pane_count": 1})
     assert loc["status"] == "not_found"
+
+
+@pytest.mark.parametrize("value", ["B1", "123", " "])
+def test_conflicting_original_text_does_not_authorize_an_empty_query_tap(ws, tmp_path, value):
+    ctx = _context(ws, tmp_path)
+    field = _parts(ctx.device.world["screens"]["home"]["root"])[1]
+    assert field["text"] == ""
+    field["attrs"]["originalText"] = value
+    result = _tap(ctx)
+    assert result["outcome"] == "blocked", result
+    assert not any(event["sent"] for event in _events(ctx))
+    assert ctx.device.current_screen() == "home"
+
+
+@pytest.mark.parametrize("value", [None, ""])
+def test_absent_or_empty_original_text_preserves_the_observed_empty_query(ws, tmp_path, value):
+    ctx = _context(ws, tmp_path)
+    field = _parts(ctx.device.world["screens"]["home"]["root"])[1]
+    if value is None:
+        field["attrs"].pop("originalText", None)
+    else:
+        field["attrs"]["originalText"] = value
+    assert _tap(ctx)["outcome"] == "passed"
+    assert len(_events(ctx)) == 1 and _events(ctx)[0]["sent"] is True
 
 
 @pytest.mark.parametrize("layout", [{}, {"pane_count": None}, {"pane_count": 2}])
