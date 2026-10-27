@@ -1,0 +1,140 @@
+{
+  "desc": "对园区卡行中心 (660,432) 点按并声明 vpd_entry：完整拒绝返回",
+  "session": "session-s293",
+  "step_record": {
+    "seq": 4,
+    "ts": "2026-10-27T17:36:00.598+08:00",
+    "step": {
+      "id": "A4",
+      "action": "tap",
+      "retry": 0,
+      "timeout_s": 25.0,
+      "expect_state": "qk_vpd_home",
+      "interval_s": 2,
+      "point": [
+        660,
+        432
+      ],
+      "point_window": [
+        1320,
+        2848
+      ],
+      "target": {
+        "label": "agent:obs-0015：泊车代驾卡行 Row[54,401][1266,464] 中心，树中无可点父节点故用卡行中心",
+        "strategies": [],
+        "side_effect": "vpd_entry"
+      },
+      "text": null
+    },
+    "result": {
+      "step_id": "A4",
+      "action": "tap",
+      "critical": true,
+      "oracle_refs": [],
+      "attempts": [
+        {
+          "n": 1,
+          "ts": "2026-10-27T17:35:56.482+08:00",
+          "action": "tap",
+          "step_id": "A4",
+          "_safety": false,
+          "motion_mark": 0,
+          "obs_before": "obs-0016",
+          "state_before": "unknown",
+          "locate": {
+            "target": "inline:agent:obs-0015：泊车代驾卡行 Row[54,401][1266,464] 中心，树中无可点父节点故用卡行中心",
+            "status": "found",
+            "point": [
+              660,
+              432
+            ],
+            "bounds": null,
+            "visible": null,
+            "strategy_index": null,
+            "strategy_kind": "point",
+            "basis": "point",
+            "adapted": false,
+            "overlay_pref": null,
+            "visible_fraction": null,
+            "primary_kind": null,
+            "score": null,
+            "attempts": [
+              {
+                "index": null,
+                "kind": "point",
+                "value": [
+                  660,
+                  432
+                ],
+                "status": "found",
+                "point": [
+                  660,
+                  432
+                ],
+                "basis": "agent_proposed"
+              }
+            ],
+            "obs": "obs-0016",
+            "layout_key": "sm/portrait"
+          },
+          "policy": {
+            "allowed": false,
+            "reason": "当前控件没有 vpd_entry 的精确动作标签或具体确认来源，不能取得任务许可",
+            "label": "",
+            "deny": {
+              "class": "task_semantics_unverified",
+              "effect": "vpd_entry"
+            }
+          },
+          "status": "policy_denied"
+        }
+      ],
+      "recoveries": [],
+      "adapted": false,
+      "outcome": "blocked",
+      "attribution": "tool",
+      "reason": "动作被安全策略拒绝",
+      "final_obs": "obs-0016",
+      "final_status": "policy_denied",
+      "first_failure": {
+        "attempt": 1,
+        "status": "policy_denied",
+        "obs_before": "obs-0016",
+        "obs_after": null,
+        "detail": {
+          "status": "policy_denied",
+          "policy": {
+            "allowed": false,
+            "reason": "当前控件没有 vpd_entry 的精确动作标签或具体确认来源，不能取得任务许可",
+            "label": "",
+            "deny": {
+              "class": "task_semantics_unverified",
+              "effect": "vpd_entry"
+            }
+          },
+          "locate": {
+            "status": "found",
+            "target": "inline:agent:obs-0015：泊车代驾卡行 Row[54,401][1266,464] 中心，树中无可点父节点故用卡行中心",
+            "attempts": [
+              {
+                "index": null,
+                "kind": "point",
+                "value": [
+                  660,
+                  432
+                ],
+                "status": "found",
+                "point": [
+                  660,
+                  432
+                ],
+                "basis": "agent_proposed"
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "note": "step_record 为执行器原始 steps.jsonl 记录，未改写；raw runs 留在执行机 C:/temp/ghost_vpd_v293/vpd_skill/runs/session-s293"
+}

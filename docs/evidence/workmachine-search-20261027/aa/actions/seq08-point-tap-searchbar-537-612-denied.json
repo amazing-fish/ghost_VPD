@@ -1,0 +1,140 @@
+{
+  "desc": "对入口页可点 Row[54,518][1020,707] 中心 (537,612) 点按并声明 vpd_entry：完整拒绝返回",
+  "session": "session-s293",
+  "step_record": {
+    "seq": 8,
+    "ts": "2026-10-27T17:40:33.246+08:00",
+    "step": {
+      "id": "A8",
+      "action": "tap",
+      "retry": 0,
+      "timeout_s": 20.0,
+      "expect_state": "qk_vpd_home",
+      "interval_s": 2,
+      "point": [
+        537,
+        612
+      ],
+      "point_window": [
+        1320,
+        2848
+      ],
+      "target": {
+        "label": "agent:obs-0026：可点 Row[54,518][1020,707]（搜索 bar）中心；用于验证能否由此进 VPD 首页",
+        "strategies": [],
+        "side_effect": "vpd_entry"
+      },
+      "text": null
+    },
+    "result": {
+      "step_id": "A8",
+      "action": "tap",
+      "critical": true,
+      "oracle_refs": [],
+      "attempts": [
+        {
+          "n": 1,
+          "ts": "2026-10-27T17:40:29.149+08:00",
+          "action": "tap",
+          "step_id": "A8",
+          "_safety": false,
+          "motion_mark": 0,
+          "obs_before": "obs-0027",
+          "state_before": "unknown",
+          "locate": {
+            "target": "inline:agent:obs-0026：可点 Row[54,518][1020,707]（搜索 bar）中心；用于验证能否由此进 VPD 首页",
+            "status": "found",
+            "point": [
+              537,
+              612
+            ],
+            "bounds": null,
+            "visible": null,
+            "strategy_index": null,
+            "strategy_kind": "point",
+            "basis": "point",
+            "adapted": false,
+            "overlay_pref": null,
+            "visible_fraction": null,
+            "primary_kind": null,
+            "score": null,
+            "attempts": [
+              {
+                "index": null,
+                "kind": "point",
+                "value": [
+                  537,
+                  612
+                ],
+                "status": "found",
+                "point": [
+                  537,
+                  612
+                ],
+                "basis": "agent_proposed"
+              }
+            ],
+            "obs": "obs-0027",
+            "layout_key": "sm/portrait"
+          },
+          "policy": {
+            "allowed": false,
+            "reason": "当前控件没有 vpd_entry 的精确动作标签或具体确认来源，不能取得任务许可",
+            "label": "搜索",
+            "deny": {
+              "class": "task_semantics_unverified",
+              "effect": "vpd_entry"
+            }
+          },
+          "status": "policy_denied"
+        }
+      ],
+      "recoveries": [],
+      "adapted": false,
+      "outcome": "blocked",
+      "attribution": "tool",
+      "reason": "动作被安全策略拒绝",
+      "final_obs": "obs-0027",
+      "final_status": "policy_denied",
+      "first_failure": {
+        "attempt": 1,
+        "status": "policy_denied",
+        "obs_before": "obs-0027",
+        "obs_after": null,
+        "detail": {
+          "status": "policy_denied",
+          "policy": {
+            "allowed": false,
+            "reason": "当前控件没有 vpd_entry 的精确动作标签或具体确认来源，不能取得任务许可",
+            "label": "搜索",
+            "deny": {
+              "class": "task_semantics_unverified",
+              "effect": "vpd_entry"
+            }
+          },
+          "locate": {
+            "status": "found",
+            "target": "inline:agent:obs-0026：可点 Row[54,518][1020,707]（搜索 bar）中心；用于验证能否由此进 VPD 首页",
+            "attempts": [
+              {
+                "index": null,
+                "kind": "point",
+                "value": [
+                  537,
+                  612
+                ],
+                "status": "found",
+                "point": [
+                  537,
+                  612
+                ],
+                "basis": "agent_proposed"
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "note": "step_record 为执行器原始 steps.jsonl 记录，未改写；raw runs 留在执行机 C:/temp/ghost_vpd_v293/vpd_skill/runs/session-s293"
+}

@@ -1,0 +1,58 @@
+{
+  "note": "工作机本地工作树（ghost_vpd_pr2，本地 main 68f3d2c，19 个未推送提交）中存在、主线 dfcb332 未定义的 4 个 target。原样转录，未做任何修改；它们不是已评审资产，也不在本 PR 装进 data/apps。",
+  "source": {
+    "worktree": "C:/temp/ghost_vpd_pr2",
+    "local_main": "68f3d2c",
+    "bundle": "local-main-19commits.bundle"
+  },
+  "targets": {
+    "qk_tag_elevator": {
+      "desc": "VPD 搜索页的标签筛选「电梯口」（点击后按标签返回该园区带此标签的地点行；空搜索词下有效）",
+      "side_effect": "navigation",
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "电梯口",
+          "source": "skill：2026-10-24 启境1395 真机 session-s1700 obs-0009（搜索页标签）/obs-0013（点击后 5 行电梯口标签点位）"
+        }
+      ]
+    },
+    "qk_floor_b1": {
+      "desc": "VPD 首页左侧楼层控件「B1」（需先把底部 sheet 向下拖露出 停车区域/L1/B1 控件列）",
+      "side_effect": "navigation",
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"B1\"]",
+          "source": "skill：2026-10-24 启境1395 真机 session-s1730 obs-0006（swipe down 后出现 停车区域/L1/B1）"
+        }
+      ]
+    },
+    "qk_floor_l1": {
+      "desc": "VPD 首页左侧楼层控件「L1」（需先把底部 sheet 向下拖露出 停车区域/L1/B1 控件列）",
+      "side_effect": "navigation",
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"L1\"]",
+          "source": "skill：2026-10-24 启境1395 真机 session-s1730 obs-0006（swipe down 后出现 停车区域/L1/B1）"
+        }
+      ]
+    },
+    "qk_support_area": {
+      "desc": "VPD 首页右上「支持区域」按钮（1.0.26.100 实测：文案被拆成「支持」「区域」两个 Text 节点，整词「支持区域」定位不到；点「支持」可进入二级页）",
+      "side_effect": "navigation",
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "支持",
+          "source": "skill：2026-10-24 启境1395 真机 obs-0191（树中为 支持/区域 两节点，整词不支持）/obs-0195（点「支持」进入支持区域二级页）"
+        }
+      ]
+    }
+  }
+}

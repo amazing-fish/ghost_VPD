@@ -1,0 +1,667 @@
+{
+  "desc": "在 ADS tab 上重按已注册入口 qk_ads：dispatch 已下发但 postcondition 未满足，页面停在入口页",
+  "session": "session-s293",
+  "step_record": {
+    "seq": 3,
+    "ts": "2026-10-27T17:34:59.782+08:00",
+    "step": {
+      "id": "A3",
+      "action": "tap",
+      "retry": 0,
+      "timeout_s": 20.0,
+      "expect_state": "qk_vpd_home",
+      "interval_s": 2,
+      "target": "qk_ads",
+      "text": null
+    },
+    "result": {
+      "step_id": "A3",
+      "action": "tap",
+      "critical": true,
+      "oracle_refs": [],
+      "attempts": [
+        {
+          "n": 1,
+          "ts": "2026-10-27T17:34:32.513+08:00",
+          "action": "tap",
+          "step_id": "A3",
+          "_safety": false,
+          "motion_mark": 0,
+          "obs_before": "obs-0009",
+          "state_before": "unknown",
+          "locate": {
+            "target": "qk_ads",
+            "status": "found",
+            "point": [
+              396,
+              2736
+            ],
+            "bounds": [
+              363,
+              2719,
+              430,
+              2754
+            ],
+            "visible": [
+              363,
+              2719,
+              430,
+              2754
+            ],
+            "strategy_index": 0,
+            "strategy_kind": "text",
+            "basis": "tree",
+            "adapted": false,
+            "overlay_pref": null,
+            "visible_fraction": 1.0,
+            "primary_kind": "text",
+            "score": null,
+            "attempts": [
+              {
+                "index": 0,
+                "kind": "text",
+                "value": "ADS",
+                "matches": 1,
+                "visible_fraction": 1.0,
+                "status": "found",
+                "point": [
+                  396,
+                  2736
+                ],
+                "bounds": [
+                  363,
+                  2719,
+                  430,
+                  2754
+                ],
+                "visible": [
+                  363,
+                  2719,
+                  430,
+                  2754
+                ],
+                "node": {
+                  "idx": 178,
+                  "type": "Text",
+                  "text": "ADS",
+                  "id": "",
+                  "bounds": [
+                    363,
+                    2719,
+                    430,
+                    2754
+                  ],
+                  "clickable": false,
+                  "selected": false
+                }
+              }
+            ],
+            "obs": "obs-0009",
+            "layout_key": "sm/portrait"
+          },
+          "policy": {
+            "allowed": true,
+            "reason": "任务范围允许 vpd_entry，目标声明一致",
+            "label": "ADS",
+            "deny": null,
+            "authorized_by": "vpd_entry",
+            "authorization_source": "task_policy"
+          },
+          "resolved": {
+            "point": [
+              396,
+              2736
+            ],
+            "coordinate_system": "px",
+            "node": {
+              "idx": 178,
+              "type": "Text",
+              "text": "ADS",
+              "id": "",
+              "bounds": [
+                363,
+                2719,
+                430,
+                2754
+              ],
+              "clickable": false,
+              "selected": false
+            },
+            "bounds": [
+              363,
+              2719,
+              430,
+              2754
+            ],
+            "visible": [
+              363,
+              2719,
+              430,
+              2754
+            ],
+            "visible_fraction": 1.0,
+            "strategy": "text",
+            "strategy_index": 0,
+            "container_point": false,
+            "obs": "obs-0009",
+            "window_px": [
+              1320,
+              2848
+            ],
+            "layout_key": "sm/portrait",
+            "density": 3.375,
+            "device_form": "bar",
+            "panes": 0
+          },
+          "foreground_check": {
+            "foreground": "com.yinwang.qiankunapp.hm",
+            "expected": [
+              "com.yinwang.qiankunapp.hm"
+            ],
+            "screen_locked": false
+          },
+          "state_recheck": {
+            "screen_locked": {
+              "actual": false,
+              "expected": false
+            },
+            "foreground": {
+              "actual": "com.yinwang.qiankunapp.hm",
+              "expected": [
+                "com.yinwang.qiankunapp.hm"
+              ],
+              "query_error": null
+            }
+          },
+          "dispatch_coordinates": {
+            "system": "px",
+            "point": [
+              396,
+              2736
+            ]
+          },
+          "dispatch_recheck": {
+            "preconditions": {
+              "screen_locked": false,
+              "foreground": [
+                "com.yinwang.qiankunapp.hm"
+              ],
+              "recover_unlock": true,
+              "target_subtree": true
+            },
+            "checks": {
+              "safety_hold": {
+                "active": false,
+                "evidence": null,
+                "exempt": false
+              },
+              "budget": {
+                "applicable": true,
+                "exempt": false,
+                "used": 1,
+                "max": 60
+              },
+              "motion": {
+                "applicable": true,
+                "exempt": false,
+                "over": false,
+                "locked": false
+              },
+              "screen_locked": {
+                "actual": false,
+                "expected": false
+              },
+              "foreground": {
+                "actual": "com.yinwang.qiankunapp.hm",
+                "expected": [
+                  "com.yinwang.qiankunapp.hm"
+                ],
+                "query_error": null
+              },
+              "tap": {
+                "status": "ok",
+                "policy": {
+                  "allowed": true,
+                  "reason": "任务范围允许 vpd_entry，目标声明一致",
+                  "label": "ADS",
+                  "deny": null,
+                  "authorized_by": "vpd_entry",
+                  "authorization_source": "task_policy"
+                },
+                "touch": {
+                  "allowed": true,
+                  "basis": "receiver_ancestor",
+                  "receiver": {
+                    "idx": 175,
+                    "type": "Column",
+                    "text": "",
+                    "id": "",
+                    "bounds": [
+                      264,
+                      2585,
+                      528,
+                      2754
+                    ],
+                    "clickable": true,
+                    "selected": true
+                  },
+                  "scope": {
+                    "idx": 178,
+                    "type": "Text",
+                    "text": "ADS",
+                    "id": "",
+                    "bounds": [
+                      363,
+                      2719,
+                      430,
+                      2754
+                    ],
+                    "clickable": false,
+                    "selected": false
+                  }
+                }
+              },
+              "tap_attempts": [
+                {
+                  "status": "ok",
+                  "policy": {
+                    "allowed": true,
+                    "reason": "任务范围允许 vpd_entry，目标声明一致",
+                    "label": "ADS",
+                    "deny": null,
+                    "authorized_by": "vpd_entry",
+                    "authorization_source": "task_policy"
+                  },
+                  "touch": {
+                    "allowed": true,
+                    "basis": "receiver_ancestor",
+                    "receiver": {
+                      "idx": 175,
+                      "type": "Column",
+                      "text": "",
+                      "id": "",
+                      "bounds": [
+                        264,
+                        2585,
+                        528,
+                        2754
+                      ],
+                      "clickable": true,
+                      "selected": true
+                    },
+                    "scope": {
+                      "idx": 178,
+                      "type": "Text",
+                      "text": "ADS",
+                      "id": "",
+                      "bounds": [
+                        363,
+                        2719,
+                        430,
+                        2754
+                      ],
+                      "clickable": false,
+                      "selected": false
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "dispatch": {
+            "op": "tap",
+            "sent": true,
+            "executor_ok": true,
+            "error_class": null,
+            "error": null,
+            "duration_ms": 468
+          },
+          "post": {
+            "obs_id": "obs-0014",
+            "expected": "qk_vpd_home",
+            "observed": "unknown",
+            "met": false,
+            "execution_error": {},
+            "status": "postcondition_not_met",
+            "interrupts": [],
+            "suspected_crash": false,
+            "dialogs": [],
+            "anomalies": [],
+            "elapsed_s": 21.36,
+            "timeout_s": 20.0,
+            "polls": 5,
+            "dismissed": [],
+            "state_diagnostics": {
+              "diag_only": true,
+              "expected": "qk_vpd_home",
+              "signature": {
+                "require_any_text": [
+                  "搜索车位号设为目的地",
+                  "搜索车位号设为起点"
+                ],
+                "forbid_text": [
+                  "开始",
+                  "暂停",
+                  "继续"
+                ],
+                "forbid_text_pattern": [
+                  "路线规划中",
+                  "停车场信息加载失败"
+                ]
+              },
+              "obs": "obs-0014",
+              "observed": {
+                "state": "unknown",
+                "candidates": [],
+                "active": [],
+                "panes": null
+              },
+              "tree": {
+                "status": "ok",
+                "path": "obs/obs-0014/tree.json"
+              },
+              "require_text": {
+                "scope": "whole_window_visible_text",
+                "available": true,
+                "required": [],
+                "present": [],
+                "missing": []
+              }
+            }
+          },
+          "obs_after": "obs-0014",
+          "status": "postcondition_not_met",
+          "action_required": true,
+          "effect_unknown": false
+        }
+      ],
+      "recoveries": [],
+      "adapted": false,
+      "action_required": "原步骤已下发或部分执行，恢复未重放原动作；请核对现场后人工接管",
+      "outcome": "fail_candidate",
+      "attribution": "product",
+      "reason": "动作后预期状态未出现；状态诊断（仅文本证据，非环境证明）：当前unknown，未声明require_text锚点；观测obs-0014",
+      "state_diagnostics": {
+        "diag_only": true,
+        "expected": "qk_vpd_home",
+        "signature": {
+          "require_any_text": [
+            "搜索车位号设为目的地",
+            "搜索车位号设为起点"
+          ],
+          "forbid_text": [
+            "开始",
+            "暂停",
+            "继续"
+          ],
+          "forbid_text_pattern": [
+            "路线规划中",
+            "停车场信息加载失败"
+          ]
+        },
+        "obs": "obs-0014",
+        "observed": {
+          "state": "unknown",
+          "candidates": [],
+          "active": [],
+          "panes": null
+        },
+        "tree": {
+          "status": "ok",
+          "path": "obs/obs-0014/tree.json"
+        },
+        "require_text": {
+          "scope": "whole_window_visible_text",
+          "available": true,
+          "required": [],
+          "present": [],
+          "missing": []
+        }
+      },
+      "final_obs": "obs-0014",
+      "final_status": "postcondition_not_met",
+      "first_failure": {
+        "attempt": 1,
+        "status": "postcondition_not_met",
+        "obs_before": "obs-0009",
+        "obs_after": "obs-0014",
+        "detail": {
+          "status": "postcondition_not_met",
+          "policy": {
+            "allowed": true,
+            "reason": "任务范围允许 vpd_entry，目标声明一致",
+            "label": "ADS",
+            "deny": null,
+            "authorized_by": "vpd_entry",
+            "authorization_source": "task_policy"
+          },
+          "dispatch": {
+            "op": "tap",
+            "sent": true,
+            "executor_ok": true,
+            "error_class": null,
+            "error": null,
+            "duration_ms": 468
+          },
+          "dispatch_recheck": {
+            "preconditions": {
+              "screen_locked": false,
+              "foreground": [
+                "com.yinwang.qiankunapp.hm"
+              ],
+              "recover_unlock": true,
+              "target_subtree": true
+            },
+            "checks": {
+              "safety_hold": {
+                "active": false,
+                "evidence": null,
+                "exempt": false
+              },
+              "budget": {
+                "applicable": true,
+                "exempt": false,
+                "used": 1,
+                "max": 60
+              },
+              "motion": {
+                "applicable": true,
+                "exempt": false,
+                "over": false,
+                "locked": false
+              },
+              "screen_locked": {
+                "actual": false,
+                "expected": false
+              },
+              "foreground": {
+                "actual": "com.yinwang.qiankunapp.hm",
+                "expected": [
+                  "com.yinwang.qiankunapp.hm"
+                ],
+                "query_error": null
+              },
+              "tap": {
+                "status": "ok",
+                "policy": {
+                  "allowed": true,
+                  "reason": "任务范围允许 vpd_entry，目标声明一致",
+                  "label": "ADS",
+                  "deny": null,
+                  "authorized_by": "vpd_entry",
+                  "authorization_source": "task_policy"
+                },
+                "touch": {
+                  "allowed": true,
+                  "basis": "receiver_ancestor",
+                  "receiver": {
+                    "idx": 175,
+                    "type": "Column",
+                    "text": "",
+                    "id": "",
+                    "bounds": [
+                      264,
+                      2585,
+                      528,
+                      2754
+                    ],
+                    "clickable": true,
+                    "selected": true
+                  },
+                  "scope": {
+                    "idx": 178,
+                    "type": "Text",
+                    "text": "ADS",
+                    "id": "",
+                    "bounds": [
+                      363,
+                      2719,
+                      430,
+                      2754
+                    ],
+                    "clickable": false,
+                    "selected": false
+                  }
+                }
+              },
+              "tap_attempts": [
+                {
+                  "status": "ok",
+                  "policy": {
+                    "allowed": true,
+                    "reason": "任务范围允许 vpd_entry，目标声明一致",
+                    "label": "ADS",
+                    "deny": null,
+                    "authorized_by": "vpd_entry",
+                    "authorization_source": "task_policy"
+                  },
+                  "touch": {
+                    "allowed": true,
+                    "basis": "receiver_ancestor",
+                    "receiver": {
+                      "idx": 175,
+                      "type": "Column",
+                      "text": "",
+                      "id": "",
+                      "bounds": [
+                        264,
+                        2585,
+                        528,
+                        2754
+                      ],
+                      "clickable": true,
+                      "selected": true
+                    },
+                    "scope": {
+                      "idx": 178,
+                      "type": "Text",
+                      "text": "ADS",
+                      "id": "",
+                      "bounds": [
+                        363,
+                        2719,
+                        430,
+                        2754
+                      ],
+                      "clickable": false,
+                      "selected": false
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "action_required": true,
+          "locate": {
+            "status": "found",
+            "target": "qk_ads",
+            "attempts": [
+              {
+                "index": 0,
+                "kind": "text",
+                "value": "ADS",
+                "matches": 1,
+                "visible_fraction": 1.0,
+                "status": "found",
+                "point": [
+                  396,
+                  2736
+                ],
+                "bounds": [
+                  363,
+                  2719,
+                  430,
+                  2754
+                ],
+                "visible": [
+                  363,
+                  2719,
+                  430,
+                  2754
+                ],
+                "node": {
+                  "idx": 178,
+                  "type": "Text",
+                  "text": "ADS",
+                  "id": "",
+                  "bounds": [
+                    363,
+                    2719,
+                    430,
+                    2754
+                  ],
+                  "clickable": false,
+                  "selected": false
+                }
+              }
+            ]
+          },
+          "post": {
+            "expected": "qk_vpd_home",
+            "observed": "unknown",
+            "interrupts": [],
+            "suspected_crash": false,
+            "state_diagnostics": {
+              "diag_only": true,
+              "expected": "qk_vpd_home",
+              "signature": {
+                "require_any_text": [
+                  "搜索车位号设为目的地",
+                  "搜索车位号设为起点"
+                ],
+                "forbid_text": [
+                  "开始",
+                  "暂停",
+                  "继续"
+                ],
+                "forbid_text_pattern": [
+                  "路线规划中",
+                  "停车场信息加载失败"
+                ]
+              },
+              "obs": "obs-0014",
+              "observed": {
+                "state": "unknown",
+                "candidates": [],
+                "active": [],
+                "panes": null
+              },
+              "tree": {
+                "status": "ok",
+                "path": "obs/obs-0014/tree.json"
+              },
+              "require_text": {
+                "scope": "whole_window_visible_text",
+                "available": true,
+                "required": [],
+                "present": [],
+                "missing": []
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "note": "step_record 为执行器原始 steps.jsonl 记录，未改写；raw runs 留在执行机 C:/temp/ghost_vpd_v293/vpd_skill/runs/session-s293"
+}

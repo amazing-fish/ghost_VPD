@@ -1,0 +1,93 @@
+{
+  "desc": "注册目标 qk_spot_search_input 在本机搜索页 locate not_found：targets 失配的实际返回",
+  "session": "session-s293",
+  "step_record": {
+    "seq": 13,
+    "ts": "2026-10-27T17:47:22.223+08:00",
+    "step": {
+      "id": "A13",
+      "action": "input",
+      "retry": 0,
+      "timeout_s": 8,
+      "interval_s": 2,
+      "target": "qk_spot_search_input",
+      "text": null,
+      "clear": true,
+      "text_len": 4
+    },
+    "result": {
+      "step_id": "A13",
+      "action": "input",
+      "critical": true,
+      "oracle_refs": [],
+      "attempts": [
+        {
+          "n": 1,
+          "ts": "2026-10-27T17:47:18.236+08:00",
+          "action": "input",
+          "step_id": "A13",
+          "_safety": false,
+          "motion_mark": 0,
+          "obs_before": "obs-0040",
+          "state_before": "qk_spot_search",
+          "policy": {
+            "allowed": true,
+            "reason": "通过"
+          },
+          "locate": {
+            "target": "qk_spot_search_input",
+            "status": "not_found",
+            "attempts": [
+              {
+                "index": 0,
+                "kind": "xpath",
+                "value": "//root/RelativeContainer/Search/SearchField",
+                "matches": 0,
+                "status": "not_found"
+              }
+            ],
+            "tree_status": "ok",
+            "obs": "obs-0040",
+            "layout_key": "sm/portrait"
+          },
+          "status": "target_unresolved"
+        }
+      ],
+      "recoveries": [],
+      "adapted": false,
+      "outcome": "blocked",
+      "attribution": "tool",
+      "reason": "目标未能可靠定位（已重新观察）",
+      "final_obs": "obs-0040",
+      "final_status": "target_unresolved",
+      "first_failure": {
+        "attempt": 1,
+        "status": "target_unresolved",
+        "obs_before": "obs-0040",
+        "obs_after": null,
+        "detail": {
+          "status": "target_unresolved",
+          "policy": {
+            "allowed": true,
+            "reason": "通过"
+          },
+          "locate": {
+            "status": "not_found",
+            "target": "qk_spot_search_input",
+            "attempts": [
+              {
+                "index": 0,
+                "kind": "xpath",
+                "value": "//root/RelativeContainer/Search/SearchField",
+                "matches": 0,
+                "status": "not_found"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "input_value": "1号车位"
+  },
+  "note": "step_record 为执行器原始 steps.jsonl 记录，未改写；raw runs 留在执行机 C:/temp/ghost_vpd_v293/vpd_skill/runs/session-s293"
+}

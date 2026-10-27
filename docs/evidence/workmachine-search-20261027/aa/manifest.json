@@ -1,0 +1,160 @@
+{
+  "session": "session-s293",
+  "runtime_base": "293a4964bd0ce24370ea35d3b5339b1b9781e396",
+  "repo_base": "dfcb3321d6d4d7d0690633d6566f0b6badefafff",
+  "device": "5MT0225B05000904 / SGT-AL10 / OpenHarmony-7.0.0.111 / 1320x2848 / com.yinwang.qiankunapp.hm 1.0.26.100",
+  "export_method": "读 runs/session-s293/obs/<obs>/{tree,observation}.json 与 steps.jsonl 原始记录，逐节点保留属性与父子路径；未手写摘要",
+  "obs_map": {
+    "obs-0015-entry-region.json": {
+      "obs": "obs-0015",
+      "label": "入口页",
+      "raw_tree": "runs/session-s293/obs/obs-0015/tree.json",
+      "raw_tree_sha256": "a189c767000dc3771d6ce8a8df2a1aba35af5a84ad2e24694f836130a57c6f83",
+      "raw_screen_sha256": "7a42cd60e83df9ea174c9c7713f4adf08a0ed6b1918be5cf796fdd92cfe0b4f2"
+    },
+    "obs-0028-entry-region.json": {
+      "obs": "obs-0028",
+      "label": "被拒动作时刻",
+      "raw_tree_sha256": "a189c767000dc3771d6ce8a8df2a1aba35af5a84ad2e24694f836130a57c6f83",
+      "raw_screen_sha256": "80ec00de16d15a7622ade21afe3f2c03b1dbcc93eb3953539b63adfae47bdb54"
+    },
+    "obs-0039-search-page.json": {
+      "obs": "obs-0039",
+      "label": "搜索页",
+      "raw_tree_sha256": "ee5a89e151576214f3ba29b1e013dfff0a805f1f720bee1ce65f49e8231af72c",
+      "raw_screen_sha256": "0ea430552a436e06aaaa8f86fb190a5170201dd742070173f81465db564b7941"
+    },
+    "obs-0035-favorites.json": {
+      "obs": "obs-0035",
+      "label": "收藏及常去",
+      "raw_tree_sha256": "f52914b25e4a9142174c61f47d9081f29a777b98ba73eef1759e2d2c141ab510",
+      "raw_screen_sha256": "be4d10b35cfcbe105c17b623acfc1bea3f8a977954d211604ff5b46235f859d1"
+    },
+    "obs-0046-name-search.json": {
+      "obs": "obs-0046",
+      "query": "1号车位",
+      "dimension": "name",
+      "raw_tree_sha256": "f837f748bfd5c1d3e796b729df927b8fad954cee05a9a6bc0ba013104eac0655",
+      "raw_screen_sha256": "bd9b45a040d6e9b2ef40920dea88d949418fe98235342ede2206bf413431cd0f"
+    },
+    "obs-0051-id-search.json": {
+      "obs": "obs-0051",
+      "query": "I1",
+      "dimension": "spot_id",
+      "raw_tree_sha256": "65f9720202607945120db731f57bf84f591235db38d1c19320d68edb167170ba",
+      "raw_screen_sha256": "cf7b5b300444da5136ff03990bc0be6c6c2868d80f21ab335c2b271e7e47a9e9"
+    },
+    "obs-0056-spot-name-search.json": {
+      "obs": "obs-0056",
+      "query": "1号停车点",
+      "dimension": "name(waypoint)",
+      "raw_tree_sha256": "55e29bddd07f3d40a4a33417cb900452844f61baeea0f7687cc5daac3d587ab7",
+      "raw_screen_sha256": "5a8b9e97e26f9b2ff599e61d5dc2dec377d5fe7b5f4f7b75d6f91419963f3477"
+    },
+    "obs-0061-default-spot-search.json": {
+      "obs": "obs-0061",
+      "query": "333",
+      "dimension": "name(default spot)",
+      "raw_tree_sha256": "ca38787a19044067423ff4c52ddd8edbcea400dea59efe33908a89f8c57f1481",
+      "raw_screen_sha256": "a1c24f4b3d2da11ceb5315034870972a31a88011c2b0b2d7da14cf381a9b8863"
+    }
+  },
+  "actions": {
+    "source": "runs/session-s293/steps.jsonl",
+    "sequence": [
+      "seq03 tap qk_ads(fail_candidate)",
+      "seq04 point 660,432 denied",
+      "seq08 point 537,612 denied",
+      "seq09 deny reason",
+      "seq12 tap text=搜索 passed",
+      "seq13 input qk_spot_search_input target_unresolved"
+    ]
+  },
+  "field_availability": {
+    "aa_keys_present": "见各 artifact nodes[].attributes（本机树共 33 键）",
+    "visible_key": "存在：入口页 191 节点中 190 个带 visible（全 true）；结果页 149 节点中 4 个 false",
+    "editable_key": "不存在：本机 AA 树无 editable 键，可输入性不能用该键断言"
+  },
+  "files": {
+    "README.md": {
+      "path": "docs/evidence/workmachine-search-20261027/aa/README.md",
+      "bytes": 4393,
+      "sha256": "a1e666e1e3f97c2e86a7c0489cf5208c5a96ed847d3d931c256648e367527cd6"
+    },
+    "actions/seq03-tap-qk_ads-entry-page.json": {
+      "path": "docs/evidence/workmachine-search-20261027/aa/actions/seq03-tap-qk_ads-entry-page.json",
+      "bytes": 19738,
+      "sha256": "e0d6f67b3f2e0a3db23b88edf38a3888485c98b048f8a568ae24dd1acf4cdc7e"
+    },
+    "actions/seq04-point-tap-card-660-432-denied.json": {
+      "path": "docs/evidence/workmachine-search-20261027/aa/actions/seq04-point-tap-card-660-432-denied.json",
+      "bytes": 4115,
+      "sha256": "411634dc028519d83f20b369e66c58548e0ab0056b0d2ad14323eafadceeaf1d"
+    },
+    "actions/seq08-point-tap-searchbar-537-612-denied.json": {
+      "path": "docs/evidence/workmachine-search-20261027/aa/actions/seq08-point-tap-searchbar-537-612-denied.json",
+      "bytes": 4150,
+      "sha256": "f3d2e131c7585d3727c12235fd8a4275db434b09afd6cf5a28c934d48bb6f669"
+    },
+    "actions/seq09-point-tap-deny-reason.json": {
+      "path": "docs/evidence/workmachine-search-20261027/aa/actions/seq09-point-tap-deny-reason.json",
+      "bytes": 3837,
+      "sha256": "05517834b90835eedbfd99fa5d4e0336d10f2fc3c07a8df40eaf176b8edd57f5"
+    },
+    "actions/seq12-tap-search-passed.json": {
+      "path": "docs/evidence/workmachine-search-20261027/aa/actions/seq12-tap-search-passed.json",
+      "bytes": 10452,
+      "sha256": "f1b4beb5da48bc1c10ed1562a98c74f719a22ce09695120afe890b25ec6636fa"
+    },
+    "actions/seq13-input-qk_spot_search_input-unresolved.json": {
+      "path": "docs/evidence/workmachine-search-20261027/aa/actions/seq13-input-qk_spot_search_input-unresolved.json",
+      "bytes": 2655,
+      "sha256": "600c96dc5561d357cc296c257edb59073eebef0f2e656d73a132439922e2cdfa"
+    },
+    "obs-0015-entry-region.json": {
+      "path": "docs/evidence/workmachine-search-20261027/aa/obs-0015-entry-region.json",
+      "bytes": 51005,
+      "sha256": "d1b03023e937243e1e52513c7dfe4c9628214862f4abc883803e30e9af037fb7"
+    },
+    "obs-0028-entry-region.json": {
+      "path": "docs/evidence/workmachine-search-20261027/aa/obs-0028-entry-region.json",
+      "bytes": 50929,
+      "sha256": "e6614b377c5db2ca8dcc1037558bf20fbddcb45af7ff767d9c1fff75cb05ceb4"
+    },
+    "obs-0035-favorites.json": {
+      "path": "docs/evidence/workmachine-search-20261027/aa/obs-0035-favorites.json",
+      "bytes": 216851,
+      "sha256": "08438e726b7a464e6117f80482932338ddeefb12d0f1b3d6cf6c1e83443587b9"
+    },
+    "obs-0039-search-page.json": {
+      "path": "docs/evidence/workmachine-search-20261027/aa/obs-0039-search-page.json",
+      "bytes": 70825,
+      "sha256": "39c2527164d9fa6ef27cd3b53206aa58f5ac6c9e728ab86981433d65b12b2a34"
+    },
+    "obs-0046-name-search.json": {
+      "path": "docs/evidence/workmachine-search-20261027/aa/obs-0046-name-search.json",
+      "bytes": 145353,
+      "sha256": "d946fc7c83dc4b2e091b130f7fda73a7f3233dde82a2ece483b7aad583e6195e"
+    },
+    "obs-0051-id-search.json": {
+      "path": "docs/evidence/workmachine-search-20261027/aa/obs-0051-id-search.json",
+      "bytes": 145370,
+      "sha256": "7b3d688387dbfe3516b0d5fdedb67d9a65c39fd07aa877e5008c5d5153e53bf7"
+    },
+    "obs-0056-spot-name-search.json": {
+      "path": "docs/evidence/workmachine-search-20261027/aa/obs-0056-spot-name-search.json",
+      "bytes": 144239,
+      "sha256": "4dc7024680bc39acd45d735314d12cb43e8d5525084dafd2237181b48e9edd44"
+    },
+    "obs-0061-default-spot-search.json": {
+      "path": "docs/evidence/workmachine-search-20261027/aa/obs-0061-default-spot-search.json",
+      "bytes": 144239,
+      "sha256": "4456a4ed987783336b0b472ad21e1b36e61b81a2010908e03abe9d32d92b9a6c"
+    },
+    "targets-states-diff.md": {
+      "path": "docs/evidence/workmachine-search-20261027/aa/targets-states-diff.md",
+      "bytes": 6108,
+      "sha256": "496117cabbcc987f5f52b337a0697a9c0d562069c5e8cec9f0d5e4eb7003136a"
+    }
+  }
+}

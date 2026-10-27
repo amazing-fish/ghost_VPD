@@ -1,0 +1,385 @@
+{
+  "desc": "入口页 text=搜索 点按成功，到达搜索页（obs-0038→obs-0039）",
+  "session": "session-s293",
+  "step_record": {
+    "seq": 12,
+    "ts": "2026-10-27T17:46:37.888+08:00",
+    "step": {
+      "id": "A12",
+      "action": "tap",
+      "retry": 0,
+      "timeout_s": 8,
+      "interval_s": 2,
+      "target": {
+        "label": "select:text=搜索",
+        "strategies": [
+          {
+            "kind": "text",
+            "value": "搜索"
+          }
+        ],
+        "side_effect": "navigation",
+        "origin": "agent_select"
+      },
+      "revalidate": true,
+      "text": null
+    },
+    "result": {
+      "step_id": "A12",
+      "action": "tap",
+      "critical": true,
+      "oracle_refs": [],
+      "attempts": [
+        {
+          "n": 1,
+          "ts": "2026-10-27T17:46:27.098+08:00",
+          "action": "tap",
+          "step_id": "A12",
+          "_safety": false,
+          "motion_mark": 0,
+          "obs_before": "obs-0036",
+          "state_before": "unknown",
+          "locate": {
+            "target": "inline:select:text=搜索",
+            "status": "found",
+            "point": [
+              277,
+              612
+            ],
+            "bounds": [
+              216,
+              577,
+              338,
+              648
+            ],
+            "visible": [
+              216,
+              577,
+              338,
+              648
+            ],
+            "strategy_index": 0,
+            "strategy_kind": "text",
+            "basis": "tree",
+            "adapted": false,
+            "overlay_pref": null,
+            "visible_fraction": 1.0,
+            "primary_kind": "text",
+            "score": null,
+            "attempts": [
+              {
+                "index": 0,
+                "kind": "text",
+                "value": "搜索",
+                "matches": 1,
+                "visible_fraction": 1.0,
+                "status": "found",
+                "point": [
+                  277,
+                  612
+                ],
+                "bounds": [
+                  216,
+                  577,
+                  338,
+                  648
+                ],
+                "visible": [
+                  216,
+                  577,
+                  338,
+                  648
+                ],
+                "node": {
+                  "idx": 48,
+                  "type": "Text",
+                  "text": "搜索",
+                  "id": "",
+                  "bounds": [
+                    216,
+                    577,
+                    338,
+                    648
+                  ],
+                  "clickable": false,
+                  "selected": false
+                }
+              }
+            ],
+            "obs": "obs-0037",
+            "revalidated_from": "obs-0036"
+          },
+          "revalidate": {
+            "obs": "obs-0037",
+            "status": "found",
+            "before": {
+              "idx": 48,
+              "type": "Text",
+              "text": "搜索",
+              "id": "",
+              "bounds": [
+                216,
+                577,
+                338,
+                648
+              ],
+              "clickable": false,
+              "selected": false
+            },
+            "after": {
+              "idx": 48,
+              "type": "Text",
+              "text": "搜索",
+              "id": "",
+              "bounds": [
+                216,
+                577,
+                338,
+                648
+              ],
+              "clickable": false,
+              "selected": false
+            },
+            "drift": 0.0,
+            "same_node": true,
+            "result": "same"
+          },
+          "policy": {
+            "allowed": true,
+            "reason": "通过",
+            "label": "搜索",
+            "deny": null
+          },
+          "resolved": {
+            "point": [
+              277,
+              612
+            ],
+            "coordinate_system": "px",
+            "node": {
+              "idx": 48,
+              "type": "Text",
+              "text": "搜索",
+              "id": "",
+              "bounds": [
+                216,
+                577,
+                338,
+                648
+              ],
+              "clickable": false,
+              "selected": false
+            },
+            "bounds": [
+              216,
+              577,
+              338,
+              648
+            ],
+            "visible": [
+              216,
+              577,
+              338,
+              648
+            ],
+            "visible_fraction": 1.0,
+            "strategy": "text",
+            "strategy_index": 0,
+            "container_point": false,
+            "obs": "obs-0037",
+            "window_px": [
+              1320,
+              2848
+            ],
+            "layout_key": "sm/portrait",
+            "density": 3.375,
+            "device_form": "bar",
+            "panes": 0
+          },
+          "foreground_check": {
+            "foreground": "com.yinwang.qiankunapp.hm",
+            "expected": [
+              "com.yinwang.qiankunapp.hm"
+            ],
+            "screen_locked": false
+          },
+          "state_recheck": {
+            "screen_locked": {
+              "actual": false,
+              "expected": false
+            },
+            "foreground": {
+              "actual": "com.yinwang.qiankunapp.hm",
+              "expected": [
+                "com.yinwang.qiankunapp.hm"
+              ],
+              "query_error": null
+            }
+          },
+          "dispatch_coordinates": {
+            "system": "px",
+            "point": [
+              277,
+              612
+            ]
+          },
+          "dispatch_recheck": {
+            "preconditions": {
+              "screen_locked": false,
+              "foreground": [
+                "com.yinwang.qiankunapp.hm"
+              ],
+              "recover_unlock": true,
+              "target_subtree": true
+            },
+            "checks": {
+              "safety_hold": {
+                "active": false,
+                "evidence": null,
+                "exempt": false
+              },
+              "budget": {
+                "applicable": true,
+                "exempt": false,
+                "used": 6,
+                "max": 60
+              },
+              "motion": {
+                "applicable": true,
+                "exempt": false,
+                "over": false,
+                "locked": false
+              },
+              "screen_locked": {
+                "actual": false,
+                "expected": false
+              },
+              "foreground": {
+                "actual": "com.yinwang.qiankunapp.hm",
+                "expected": [
+                  "com.yinwang.qiankunapp.hm"
+                ],
+                "query_error": null
+              },
+              "tap": {
+                "status": "ok",
+                "policy": {
+                  "allowed": true,
+                  "reason": "通过",
+                  "label": "搜索",
+                  "deny": null
+                },
+                "touch": {
+                  "allowed": true,
+                  "basis": "receiver_ancestor",
+                  "receiver": {
+                    "idx": 45,
+                    "type": "Row",
+                    "text": "",
+                    "id": "",
+                    "bounds": [
+                      54,
+                      518,
+                      1020,
+                      707
+                    ],
+                    "clickable": true,
+                    "selected": false
+                  },
+                  "scope": {
+                    "idx": 48,
+                    "type": "Text",
+                    "text": "搜索",
+                    "id": "",
+                    "bounds": [
+                      216,
+                      577,
+                      338,
+                      648
+                    ],
+                    "clickable": false,
+                    "selected": false
+                  }
+                }
+              },
+              "tap_attempts": [
+                {
+                  "status": "ok",
+                  "policy": {
+                    "allowed": true,
+                    "reason": "通过",
+                    "label": "搜索",
+                    "deny": null
+                  },
+                  "touch": {
+                    "allowed": true,
+                    "basis": "receiver_ancestor",
+                    "receiver": {
+                      "idx": 45,
+                      "type": "Row",
+                      "text": "",
+                      "id": "",
+                      "bounds": [
+                        54,
+                        518,
+                        1020,
+                        707
+                      ],
+                      "clickable": true,
+                      "selected": false
+                    },
+                    "scope": {
+                      "idx": 48,
+                      "type": "Text",
+                      "text": "搜索",
+                      "id": "",
+                      "bounds": [
+                        216,
+                        577,
+                        338,
+                        648
+                      ],
+                      "clickable": false,
+                      "selected": false
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "dispatch": {
+            "op": "tap",
+            "sent": true,
+            "executor_ok": true,
+            "error_class": null,
+            "error": null,
+            "duration_ms": 468
+          },
+          "post": {
+            "obs_id": "obs-0038",
+            "expected": null,
+            "observed": "qk_spot_search",
+            "met": true,
+            "execution_error": {},
+            "status": "ok",
+            "interrupts": [],
+            "suspected_crash": false,
+            "dialogs": [],
+            "anomalies": [],
+            "elapsed_s": 2.83,
+            "timeout_s": 8.0,
+            "polls": 1,
+            "dismissed": []
+          },
+          "obs_after": "obs-0038",
+          "status": "ok"
+        }
+      ],
+      "recoveries": [],
+      "adapted": false,
+      "outcome": "passed",
+      "final_obs": "obs-0038"
+    }
+  },
+  "note": "step_record 为执行器原始 steps.jsonl 记录，未改写；raw runs 留在执行机 C:/temp/ghost_vpd_v293/vpd_skill/runs/session-s293"
+}
