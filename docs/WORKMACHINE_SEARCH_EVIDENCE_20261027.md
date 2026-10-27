@@ -1,7 +1,7 @@
 # 工作机搜索域：源件交付与同次现场证据索引（2026-10-27）
 
 配合 [WORKMACHINE_SEARCH_20261027](WORKMACHINE_SEARCH_20261027.md) 的「工作机只需补齐这些输入」。
-本文件只登记**本轮实际执行**的基线与观测，不把任一 obs 写成产品结论；判据确认、资产人审与当前版本重放仍按各自流程。
+本文件登记**工作机报告的本轮执行**基线与观测；维护侧仅复核源件、引用和离线行为，尚未取得原始树/截图，不据索引认证 E2/E3 或清理后置。任一 obs 都不自动构成产品结论；判据确认、资产人审与当前版本重放仍按各自流程。
 
 - 源代码基线：main `293a496`（#112/#113/#114 已合入），验证工作树为另建 worktree，`workspace` 指新目录（`doctor` 输出），未复用旧工作树数据。
 - 设备：`hdc:5MT0225B05000904` / SGT-AL10 / OpenHarmony-7.0.0.111 / 直板 1320×2848 / 乾崑 `com.yinwang.qiankunapp.hm` 1.0.26.100。
@@ -12,13 +12,17 @@
 
 | 文件 | 版本 | 说明 |
 | --- | --- | --- |
-| `TC-QK-230.json` | v5 | 搜索收藏车位/路点（名称维度）；A1/A2/A5/A6/A7 + 2 条建议断言 |
-| `TC-QK-231.json` | v2 | 按车位号搜索（编号维度，独立覆盖） |
-| `TC-QK-234.json` | v1 | 楼层维度搜索 |
-| `TC-QK-235.json` | v1 | 标签维度搜索 |
-| `knowledge/items.json` | +2 | `K-QK-TC-234`、`K-QK-TC-235`（均 unconfirmed，仅作文本来源） |
+| `evidence/workmachine-search-20261027/TC-QK-230.json` | v5 | 搜索收藏车位/路点（名称维度）；A1/A2/A5/A6/A7 全树断言 + 2 条建议断言；未实现同行关系 |
+| `evidence/workmachine-search-20261027/TC-QK-231.json` | v2 | 按车位号搜索（编号维度，独立覆盖） |
+| `evidence/workmachine-search-20261027/TC-QK-234.json` | v1 | 楼层维度搜索 |
+| `evidence/workmachine-search-20261027/TC-QK-235.json` | v1 | 标签维度搜索 |
+| `evidence/workmachine-search-20261027/knowledge-additions.json` | 2条原记录 | `K-QK-TC-234`、`K-QK-TC-235`（均 unconfirmed，仅作文本来源） |
 
-四条用例 `case lint` 均 ok。均为 `draft/candidate`，未附审核结论；230 的断言仍绑定取证园区（见下「未满足条款」）。
+原工作机报告称四条 `case lint` 均 ok；维护侧在原 HEAD `ddcbcfb` 完整复核：230/231/234 无 lint 问题，235 的 S6 报 `qk_tag_elevator` 未登记。CLI 退出 0 不等于 `issues=[]`。
+
+**本 PR 现在只交付来源存档**：[四份原始源件与两条新增知识](evidence/workmachine-search-20261027/README.md)，不放入活跃 case/knowledge 目录。四份 case 保留原始字节；两项知识保留原始字段与 unconfirmed。现行库存仍 41 case / 100 knowledge，活跃230仍v2；存档v5与它分开，不相互冒充。
+
+Codex 还复现了234的相邻行假阳性：`1号车位/A999` 与 `2号车位/A138` 可分别满足全树断言。230/231有同类身份绑定缺口，因此一并仅保全原件，等 #111 的真实行容器/参数绑定后再接入。本次没有实现“同一行绑定”，也没有新增可执行覆盖。原件历史不是本次现场的完整重放。
 
 ## 同次现场证据
 
@@ -53,7 +57,7 @@
 
 ## 清理后置
 
-`act stop_app` → `outcome=passed`；随后用 hdc 独立核对 `pidof com.yinwang.qiankunapp.hm` 为空（无残留进程）。应用内可达路径未遗留算路/控车状态：`沿途找车位` 触发过一次算路，`act back` 已退回入口页且未点「开始」（`obs-0032` 止于 `qk_route_result`）。
+工作机报告：`act stop_app` → `outcome=passed`；随后用 hdc 独立核对 `pidof com.yinwang.qiankunapp.hm` 为空（无残留进程）。现场记录称 `沿途找车位` 触发过一次算路，`act back` 已退回入口页且未点「开始」（`obs-0032` 止于 `qk_route_result`）。维护侧未取得原始材料，保留此作者记录，不升级为独立清理验收。
 
 ## 未满足条款（不因本交付关闭）
 
@@ -61,3 +65,7 @@
 2. #109 缺请求/加载终态与空态要求。
 3. #108 缺独立字段契约来源。
 4. #111 断言数据绑定未实现；`K-QK-TC-059` 仍 unconfirmed。
+
+## 维护侧后续缺口
+
+补 `session-s293` 的入口拒发完整 act JSON、obs-0015/0028 AA树、成功搜索入口与obs-0039，以及收藏obs-0035和结果obs-0046/0051/0056/0061的原始AA容器；目前只有作者文字索引，无法据此校准目标或认证E2/E3。保留原始证据，按仓库既有取证与凭据外置规则交付。#109 早期“1号车位空白”已由工作机更正为可能输入未生效，不再作为空结果佐证；ZZZ999 仍缺请求终态。

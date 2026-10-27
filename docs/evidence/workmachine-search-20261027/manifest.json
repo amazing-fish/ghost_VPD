@@ -1,0 +1,48 @@
+{
+  "origin_head": "ddcbcfb450312416a197a371e235cd5a062376b5",
+  "runtime_base": "293a4964bd0ce24370ea35d3b5339b1b9781e396",
+  "delivery": "source_archive_only",
+  "files": [
+    {
+      "path": "docs/evidence/workmachine-search-20261027/TC-QK-230.json",
+      "origin_path": "vpd_skill/data/cases/TC-QK-230.json",
+      "version": 5,
+      "sha256": "2f69356ea7529366991423df3708ed0f277a336aa26da13d630fd462bf1fccaf",
+      "git_blob_sha": "8a3cdd718e50ba4913a59b4da9bdf4996bba6560",
+      "active": false
+    },
+    {
+      "path": "docs/evidence/workmachine-search-20261027/TC-QK-231.json",
+      "origin_path": "vpd_skill/data/cases/TC-QK-231.json",
+      "version": 2,
+      "sha256": "76f538fa422cfe05356b4a52879bcb1745b7a63d4e7ca9287eec7801a87b37de",
+      "git_blob_sha": "378e3bbd38a2551016b700681c0372f6e4622d6a",
+      "active": false
+    },
+    {
+      "path": "docs/evidence/workmachine-search-20261027/TC-QK-234.json",
+      "origin_path": "vpd_skill/data/cases/TC-QK-234.json",
+      "version": 1,
+      "sha256": "6b3c7ff710913d005cefd21b05a3eb3c3eafb7110825b4b782ece55192bb2d5f",
+      "git_blob_sha": "2fea544dda0650e00eab5a30a174243612f7b379",
+      "active": false
+    },
+    {
+      "path": "docs/evidence/workmachine-search-20261027/TC-QK-235.json",
+      "origin_path": "vpd_skill/data/cases/TC-QK-235.json",
+      "version": 1,
+      "sha256": "a2c09d33f95538c499f2a3be8731808dd491851f2163c8369eecc0f1a82b59e3",
+      "git_blob_sha": "3340fe1a8e3f110b09673ed3aff19ac9954ae28c",
+      "active": false
+    }
+  ],
+  "knowledge_additions": {
+    "path": "docs/evidence/workmachine-search-20261027/knowledge-additions.json",
+    "origin_path": "vpd_skill/data/knowledge/items.json",
+    "ids": [
+      "K-QK-TC-234",
+      "K-QK-TC-235"
+    ],
+    "preservation": "Original records retained as JSON values, including source.type and unconfirmed status; not loaded into active knowledge."
+  }
+}
