@@ -71,7 +71,7 @@
     "screen": "runs/session-s293/obs/obs-0056/screen.png",
     "screen_sha256": "5a8b9e97e26f9b2ff599e61d5dc2dec377d5fe7b5f4f7b75d6f91419963f3477"
   },
-  "field_note": "attributes 原样取自 AA 树；若某键在本机树里不存在则该键不出现（本机树无 visible/editable 键，见 README）",
+  "field_note": "工作机导出的 AA 属性与路径；本文件为结构化导出而非源 tree.json 的逐字节副本。导出节点可见 visible，editable 未在导出键集中出现；源树完整键集及源 hash 由工作机报告，不能仅凭导出文件独立复算或推定未导出字段。",
   "node_count": 148,
   "nodes": [
     {

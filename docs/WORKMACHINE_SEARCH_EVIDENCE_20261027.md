@@ -72,12 +72,12 @@ Codex 还复现了234的相邻行假阳性：`1号车位/A999` 与 `2号车位/A
 
 ## 原始 AA 材料补交（同日 19:30 后，工作机）
 
-上表原只有 obs 编号与文字摘要，维护侧无法独立复核。现按 issue 要求补交**原始树与动作返回**：[`evidence/workmachine-search-20261027/aa/`](evidence/workmachine-search-20261027/aa/README.md)。
+上表原只有 obs 编号与文字摘要，维护侧无法独立复核。现按 issue 要求补交**AA结构导出与动作原记录**：[`evidence/workmachine-search-20261027/aa/`](evidence/workmachine-search-20261027/aa/README.md)。
 
 | 要求 | 交付 |
 | --- | --- |
 | `obs-0015`/`obs-0028` 入口区域 AA 原文及父链 | `aa/obs-0015-entry-region.json`、`aa/obs-0028-entry-region.json`（纵向 300–800 节点 + 到根祖先链，`in_region` 标记） |
-| 被拒动作的完整返回 JSON | `aa/actions/seq04-*`、`seq08-*`、`seq09-*`（含 `policy.reason`/`deny.class`/`attempts[].locate`） |
+| 被拒动作的 steps.jsonl 原始 step_record | `aa/actions/seq04-*`、`seq08-*`、`seq09-*`（含 `policy.reason`/`deny.class`/`attempts[].locate`） |
 | 成功进入搜索页的动作与 `obs-0039` | `aa/actions/seq12-tap-search-passed.json`、`aa/obs-0039-search-page.json` |
 | 收藏 `obs-0035`、结果 `obs-0046/0051/0056/0061` 的行容器及父链 | `aa/obs-0035-favorites.json`、`aa/obs-0046-name-search.json`、`aa/obs-0051-id-search.json`、`aa/obs-0056-spot-name-search.json`、`aa/obs-0061-default-spot-search.json` |
 | 真实 targets/states 差异 | `aa/targets-states-diff.md`、`aa/local-only-targets.json`、`aa/actions/seq13-*` |
@@ -85,9 +85,11 @@ Codex 还复现了234的相邻行假阳性：`1号车位/A999` 与 `2号车位/A
 ### 补交后可以确认的三件事
 
 1. **行容器身份是可算的，不用靠间距目测**：结果首行三个字段（名称/楼层/编号）的最近公共祖先是 `Column[266,818][1138,1044]`，其外层 `Row[165,818][1266,1045]` 同时包含该行 `路线` 按钮——所以「同一行」有明确的 AA 依据。四次查询（`obs-0046/0051/0056/0061`）首行结构同构，编号 `I1` 只在车位行出现。
-2. **`editable` 键在本机 AA 树里不存在**：本机树 33 个键中有 `visible`（入口页 191 节点 190 个带、全 true；结果页 149 节点 4 个 false），**没有 `editable`**。可输入性只能靠节点类型（`SearchField`）+ `focused`/`allow_input` 判断，别写 `editable` 断言。
-3. **`qk_spot_search_input` 在本 build 上必然失配**：登记的 `//root/RelativeContainer/Search/SearchField` 要求 `RelativeContainer` 是 root 直接子节点，而本机 root 下还有一层裸节点与整条 `Navigation` 链（`aa/actions/seq13-*`：`locate not_found`、`dispatched=false`）。同页 `SearchPoiPage` + `__SearchField__search_input` 的 id 都在，id 锚定能命中。
+2. **已核导出节点的属性并集为24键**，含visible、不含editable；源树33键为工作机声明，未携源字节，不能由本库独立认证。当前输入来源和权限仍按执行器契约核对。
+3. **`qk_spot_search_input` 在本 build 上必然失配**：登记的 `//root/RelativeContainer/Search/SearchField` 要求 `RelativeContainer` 是 root 直接子节点，而本机 root 下还有一层裸节点与整条 `Navigation` 链（`aa/actions/seq13-*`：`locate not_found`、未含 dispatch 记录）。同页 `SearchPoiPage` + `__SearchField__search_input` 的 id 都在，id 锚定能命中。
 
 `qk_tag_elevator` 的结论按材料写：**主线未定义**（`data/apps/qiankun_hm/targets.json` 0 命中），工作机本地工作树有 `text=电梯口` 的 unverified 定义（原文见 `aa/local-only-targets.json`），但本园区搜索页只出现「充电桩」一个标签（`obs-0039`），**本园区无该标签观测**。不搬一条 text 策略就宣称覆盖。
 
 以上仍是现场事实与失配清单：判据、人审、产品结论不变，`K-QK-TC-059` 仍 unconfirmed，235 仍缺可执行定义。
+
+维护侧已修正该目录的field_note/文件位置/manifest，并区分step_record与完整CLI返回、seq12终态obs-0038与后续obs-0039。主线状态重算显示四份非空查询结果为unknown，待独立states代码修订；本证据补交不等于生产定义已修复。
