@@ -321,20 +321,15 @@
       ]
     },
     "qk_spot_input": {
-      "desc": "VPD 首页搜索栏（1.0.26.100 真机文字「搜索车位号设为目的地」，原工程为「输入车位号设为目的地」）",
+      "desc": "VPD 首页搜索栏（已观察到「搜索车位号设为目的地/起点」；保留原工程「输入车位号设为目的地」）",
       "side_effect": "navigation",
       "status": "unverified",
       "source_flow": "app/service/vpd/vpd_harmony.py:17-54 input_parking_space",
       "strategies": [
         {
-          "kind": "text",
-          "value": "搜索车位号设为目的地",
-          "source": "真机 1.0.26.100：session-g1 obs-0001/obs-0016、session-qk-maint obs-0030"
-        },
-        {
           "kind": "xpath",
-          "value": "//*[@text=\"输入车位号设为目的地\"]",
-          "source": "app/config/mhero_config.py:282 MHERO_HARMONY_CONFIG.parking_space_input"
+          "value": "//*[@text=\"搜索车位号设为目的地\" or @description=\"搜索车位号设为目的地\" or @text=\"搜索车位号设为起点\" or @description=\"搜索车位号设为起点\" or @text=\"输入车位号设为目的地\"]",
+          "source": "目的地：1.0.26.100 session-g1 obs-0001/0016、session-qk-maint obs-0030；起点：#107 run-20261027-115537-5f61 obs-0016/0017；旧输入文案：app/config/mhero_config.py:282。单一精确查询保留跨文案歧义拒绝"
         }
       ]
     },
@@ -770,15 +765,15 @@
       }
     },
     "qk_search_entry": {
-      "desc": "VPD 首页「搜索车位号设为目的地」入口",
+      "desc": "VPD 首页「搜索车位号设为目的地/起点」入口（精确已知文案）",
       "side_effect": "navigation",
       "status": "unverified",
       "status_note": "2026-10-13 量产版真机 session-wk-qk4/obs-0038→0046 命中并进入搜索页",
       "strategies": [
         {
-          "kind": "text",
-          "value": "搜索车位号设为目的地",
-          "source": "skill：2026-10-13 量产版真机校准（session-wk-qk4）"
+          "kind": "xpath",
+          "value": "//*[@text=\"搜索车位号设为目的地\" or @description=\"搜索车位号设为目的地\" or @text=\"搜索车位号设为起点\" or @description=\"搜索车位号设为起点\"]",
+          "source": "目的地：2026-10-13 量产版 session-wk-qk4；起点：#107，2026-10-27 1.0.26.100 run-20261027-115537-5f61 obs-0016/0017。单一精确查询保留跨文案歧义拒绝"
         }
       ],
       "calibration_claim": {
