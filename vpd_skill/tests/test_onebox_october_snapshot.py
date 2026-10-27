@@ -2,6 +2,7 @@
 import hashlib
 import json
 import re
+import subprocess
 from collections import Counter
 from pathlib import Path
 
@@ -138,3 +139,41 @@ def test_incomplete_rules_and_removed_pause_notes_are_not_silently_resolved():
     assert DELTA["formal_full_rows_accepted_by_this_package"] == 0
     assert DELTA["new_automated_cases_added_by_this_package"] == 0
     assert DELTA["runtime_consumption"].startswith("documentation_only")
+
+
+def test_git_autocrlf_checkout_preserves_hash_bound_snapshot_bytes(tmp_path):
+    """Exercise Git's checkout conversion; reading JSON as text would hide it."""
+    repo = tmp_path / "checkout"
+    repo.mkdir(parents=True)
+
+    def git(*args):
+        return subprocess.run(
+            ["git", "-c", "core.autocrlf=true", "-c", "core.safecrlf=false",
+             "-c", "user.name=Baseline checkout fixture", "-c", "user.email=fixture@example.invalid",
+             "-c", "commit.gpgsign=false", *args],
+            cwd=repo, check=True, capture_output=True, text=True,
+        )
+
+    git("init", "--quiet")
+    attributes = (BASELINES.parents[1] / ".gitattributes").read_bytes()
+    # This positive control must undergo autocrlf conversion, proving that the
+    # fixture exercises a CRLF checkout even when pytest itself runs on Linux.
+    (repo / ".gitattributes").write_bytes(attributes + b"\ncontrol.json text\n")
+    control = repo / "control.json"
+    control.write_bytes(b'{"control": true}\n')
+    paths = []
+    for source in (PREVIOUS_PATH, CURRENT_PATH):
+        path = repo / "docs" / "baselines" / source.name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(source.read_bytes())
+        paths.append(path)
+    git("add", ".")
+    git("commit", "--quiet", "-m", "Freeze checkout fixture")
+    for path in [*paths, control]:
+        path.unlink()
+    git("checkout", "--", ".")
+    assert control.read_bytes() == b'{"control": true}\r\n'
+    for key, path in zip(("previous_baseline", "current_baseline"), paths):
+        actual = path.read_bytes()
+        assert hashlib.sha256(actual).hexdigest() == DELTA[key]["snapshot_sha256"], path.name
+        assert b"\r\n" not in actual, path.name
