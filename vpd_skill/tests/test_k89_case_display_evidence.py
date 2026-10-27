@@ -1,19 +1,24 @@
 """Case integration and same-row counterexamples, using synthetic UI only."""
 from copy import deepcopy
+from pathlib import Path
 
 import pytest
 from conftest import unconfirm
 
-from vpdtest.cases import lint, review_status
+from vpdtest import cases
+from vpdtest.cases import lint, require_review, review_status
 from vpdtest.execute import _measure
 from vpdtest.knowledge import KnowledgeStore
 from vpdtest.locate import resolve
 from vpdtest.params import Params
 from vpdtest.tree import UiTree
+from vpdtest.util import read_json
 from vpdtest.verdict import evaluate_assertion
 
 AREA = "由度金闽园地下停车场"
 OTHER = "华为练秋湖研发中心"
+REPO = Path(__file__).resolve().parents[2]
+ACCEPTED = {240, 241, 243, 244, 245, 246, 247, 248, 249}
 
 
 def _node(typ, text="", children=None, y=0):
@@ -47,11 +52,61 @@ def test_assets_preserve_the_users_per_case_review_decisions(ws, number):
     kn = KnowledgeStore(ws.root)
     assert lint(case, ws.app(case["app"]), kn, ws.policy(), runs_dir=None) == []
     review = review_status(ws, case, kn)
-    accepted = number in {240, 241, 243, 244, 245, 246, 247, 248, 249}
-    assert review["required"] and review["valid"] is accepted
+    first = read_json(REPO / "docs/reviews/K89_20261026.json")
+    followup = read_json(REPO / "docs/reviews/K89_20261026_FOLLOWUP.json")
+    decision = next(d for d in first["decisions"] if d["case"] == case["id"])
+    assert review["required"]
+    if number in ACCEPTED:
+        if number in {244, 248}:
+            assert followup["decisions"][str(number)].startswith("accept ")
+            reviewed = followup["reviewed_bindings"][str(number)]
+        else:
+            assert decision["decision"] == "accept"
+            reviewed = decision["reviewed_binding"]
+        archive = read_json(REPO / "docs/evidence/K89_TAG_ENGINE_20261026.json")
+        prior = next(r for r in archive["unchanged_cases"] if r["case"] == case["id"])
+        record = case["asset_review"]
+        assert record["schema"] == 1 and record["reviewer"] == first["reviewer"]
+        assert record["basis"] == prior["basis"]
+        assert record["binding"] == prior["after"]
+        assert {k: v for k, v in record["binding"].items() if k != "engine_hash"} == {
+            k: v for k, v in reviewed.items() if k != "engine_hash"}
+        # These are historical approvals, not permanent permission to run changed
+        # dependencies or engine bytes. Current validity has its own gate below.
+        assert review["record"] == record
+    else:
+        assert decision["decision"] == "change"
+        assert followup["decisions"][str(number)].startswith("clarify:")
+        assert case.get("asset_review") is None
+        assert review["state"] == "pending" and review["valid"] is False
     assert case["onebox_case_ref"]["full_row_coverage"] is False
     assert all(kn.get(ref)["status"] == "confirmed"
                for a in case["assertions"] for ref in a["oracle_refs"])
+
+
+@pytest.mark.parametrize("number", sorted(ACCEPTED))
+@pytest.mark.parametrize("change", ["dependency", "engine"])
+def test_historical_acceptance_cannot_authorize_changed_execution(ws, tmp_path, monkeypatch, number, change):
+    case = ws.load_case(f"TC-QK-{number}")
+    before = ws.case_path(case["id"]).read_bytes()
+    app = ws.app(case["app"])
+    current = review_status(ws, case, app=app)["current"]
+    if change == "dependency":
+        app.states.states["qk_vpd_home"]["forbid_text"].append("Synthetic changed home requirement")
+        changed_key = "dependency_hash"
+    else:
+        engine = tmp_path / "unreviewed-engine"
+        engine.mkdir()
+        (engine / "fixture.py").write_bytes(b"pass\n")
+        monkeypatch.setattr(cases, "__file__", str(engine / "fixture.py"))
+        changed_key = "engine_hash"
+    result = review_status(ws, case, app=app)
+    assert result["current"][changed_key] != current[changed_key]
+    assert result["current"][changed_key] != case["asset_review"]["binding"][changed_key]
+    assert result["required"] and result["valid"] is False and result["state"] == "stale"
+    with pytest.raises(PermissionError, match="审核失效"):
+        require_review(ws, case, app=app)
+    assert ws.case_path(case["id"]).read_bytes() == before
 
 
 @pytest.mark.parametrize("case_id,step_id,typ,good_fields", [
