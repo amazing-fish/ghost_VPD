@@ -554,7 +554,8 @@ def cmd_knowledge(ws: Workspace, a) -> dict:
     if a.k_cmd == "add":
         return kn.add(read_json(a.file))
     if a.k_cmd == "confirm":
-        return kn.confirm(a.id, a.reviewer, a.basis)
+        references = case_mod.knowledge_references(ws, a.id)
+        return {**kn.confirm(a.id, a.reviewer, a.basis), "references": references}
     if a.k_cmd == "resolve":
         return kn.resolve(a.subject, a.keep, a.reviewer, a.reason)
     if a.k_cmd == "import-repo":
