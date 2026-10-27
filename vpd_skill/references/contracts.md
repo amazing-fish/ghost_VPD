@@ -469,11 +469,16 @@ flow/recipe 汇总完成不能消除非关键子步骤的未恢复结果；已�
 ```
 
 - `kind=page/account/vehicle/task`。APP/build、设备、观测编号与采集时间随观测记录；account 必需当前账户身份目标，vehicle 必需车辆身份目标，task 必需车辆与任务身份目标。
-  身份目标必须在当前树唯一定位并读到非空可见 text，`--env` 的身份声明不能填补。生产已有条件文字不会被自动解析为读取器。
+  身份目标须为登记的非空 text/id/xpath 树策略，在当前树唯一定位到非根、完整可见且无显式隐藏祖先的节点，
+  并读到非空 text；裁掉1px即使定位比例舍入为1.0也不是完整身份来源。`--env` 不能填补，生产条件文字不会自动成为读取器。
 - `true` / `false` 各为独立肯定型 `text_present` / `text_present_any` / `target_present` / `state_is` 检查。
   正证命中且反证未命中为 true，反证命中且正证未命中为 false；两者都命中为冲突，都未命中为未知；历史来源即使同 epoch，也不能覆盖当前观测明确相反的独立证据。
   缺树、过期、缺身份或范围变化不能解释成 false。`target_enabled` 与 absence 不能作为“健康”的反推证据。
   作者与评审仍须核对语义独立：禁止用被测的开始可用、算路成功、预期提示本身定义场景前置。
+  条件文本与目标证据只消费非根、完整可见且祖先未隐藏的当前树节点；隐藏/裁剪文本不能充当正证或反证。
+  `state_is` 只重核观测已报告的确定状态及其独立肯定签名，按同一栏的当前归属匹配；不从 unknown/ambiguous
+  页面升级状态，纯 forbid 签名不能作肯定证据。此收紧只作用于条件消费，旧全局断言、页面识别和 UiTree.shown 语义不变。
+  定位/签名解析故障保留 `error`、原阶段与归因；缺目标/歧义/身份不可见仍是未知，来源与当前时点均核验。
 - `guard={condition,equals,at?}` 默认用断言所关联步骤的终态观测；`at` 显式引用另一已成功步骤的终态。
   所有当前 provider 都来自 UI，只有同一 `action_epoch`、相同 APP/build/身份范围的观测才可复用；任何实际或可能下发动作使旧条件失效，拒绝下发不失效。
   这是 UI 来源的有效性边界，不是把车辆真实状态永久绑定页面。可按具体事实声明正有限 `max_age_s`；没有统一默认秒数。
@@ -502,6 +507,11 @@ flow/recipe 汇总完成不能消除非关键子步骤的未恢复结果；已�
 `verdict.coverage` 按断言分别列 verified / not_applicable / unverified；只有适用且 confirmed 的 pass/fail 算该断言已验证。
 N/A、未知、error、未触发操作与未执行均不计分支覆盖。逐断言覆盖/Oracle/事实进入 replay 摘要，
 条件资产晋级须每条所需断言在当前指纹下至少两次真实 verified 的一致证据；共同断言通过不能替代未触发分支。
+实际 guard、展开步骤的 when/dismiss_obstruction_when 及直接引用规则的 condition_requirements
+所用 provider，其 scope 身份与 target_present 目标同时进入依赖指纹和 hypothesis 目标门禁；
+`status=hypothesis` 的来源目标须先真机校准，才能审核或晋级。未使用的 provider 不触发此门禁。
+  实际使用条件的资产依赖另绑定 `condition_evidence_contract=1`，旧的隐藏来源选支记录不能计为新语义重放；
+  未使用条件的资产依赖不因本项契约漂移，历史原始 run/verdict 不改写，资产人审仍独立绑定实际引擎。
 经验对照须有相同适用及已验证分支，不能通过跳过困难分支制造改善。
 
 旧无条件资产仍顺序执行。依赖契约升级使旧重放需重新积累；历史原始文件不改写。
