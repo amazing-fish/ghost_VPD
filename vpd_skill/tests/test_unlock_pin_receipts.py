@@ -75,5 +75,6 @@ def test_pin_receipt_controls_reentry_without_repeating_possible_input(
 
     events = read_jsonl(store.events_path)
     assert pin not in json.dumps([first, second, events], ensure_ascii=False)
+    assert all("coordinates" not in e for e in events if e.get("action") == "pin_digit")
     if guard.exists():
         assert pin not in guard.read_text(encoding="utf-8")

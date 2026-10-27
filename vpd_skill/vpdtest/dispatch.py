@@ -138,6 +138,10 @@ class Dispatcher:
             checks["condition"] = att["condition"]
             return self._reject(op, preconditions, checks, att)
         dev = self.device
+        if tap is not None and op in ("tap", "input_text"):
+            # Capture the final coordinates after any Dispatcher relocation; a failed/unknown
+            # receipt still records the attempted point without claiming its UI effect.
+            att["dispatch_coordinates"] = {"system": "px", "point": list(args[:2])}
         if op == "tap":
             result = dev.tap(*args)
         elif op == "swipe":
@@ -236,6 +240,8 @@ class Dispatcher:
                 "duration_ms": result.duration_ms}
         if not result.ok:
             data["raw"] = result.raw
+        if att.get("dispatch_coordinates"):
+            data["coordinates"] = att["dispatch_coordinates"]
         att["dispatch_recheck"] = {"preconditions": preconditions, "checks": checks}
         if self.store is not None:
             self.store.event("dispatch", step=att.get("step_id"), **data)

@@ -1,5 +1,17 @@
 # auto-vpd 实测踩坑手册（references/troubleshooting.md）
 
+## 当前工程补充：tap 定点结果与匿名协议控件（2026-10-27，#110；离线验证）
+
+`act tap --point 77,2528` 使用的是整数px，执行链并不按density换成vp，也不会静默忽略point。
+缺 `--basis` 或同会话先前 `observe` 会明确报参数错；有依据仍须通过policy。
+匿名Checkbox默认命中设置变更拒绝，JSON中的 `policy_denied` / `dispatched=false` 不能解释成点击成功，退出码0仅表示命令已处理。
+核对 `action_status`、`result.outcome`、`diagnosis.policy`；实际APP目标下发点在 `attempts[].dispatch_coordinates`（`system=px`）。
+
+对于同时显示“欢迎登录”及“本机号码一键登录”、无Dialog且唯一匿名未选Checkbox的已知乾崑登录页，
+可在账户操作已获授权后用 `act tap --target qk_protocol_unchecked --authorize account_state`，再 `observe` 读回checked属性。
+多复选框、已勾选、其他页面或未知布局会拒发；不增加raw注入旁路，不代表密码登录flow或完整一键登录已验收。
+本条依据#110现场节点报告及合成回归；真实点击后置仍须工作机校准，下文历史真机结论保持原取证时间。
+
 全部为 2026-09-27/28 NEXT 三折叠真机（6HQ0226505000341, 2584×1920, 状态栏高 107）
 实测结论，按出现频率排序。
 

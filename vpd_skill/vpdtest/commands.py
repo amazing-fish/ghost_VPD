@@ -233,6 +233,8 @@ def _cmd_act(ws: Workspace, a) -> dict:
     diag = diagnose(res)
     # cli 只看顶层 action_required 决定退出码 2：诊断里要求人工接管的，提到顶层
     return {"session": store.run_id, "seq": seq, "step_id": step_id, "result": _scrub_input(res),
+            "action_status": res.get("final_status") or last.get("status"),
+            "dispatched": dispatched(res), "effect_unknown": effect_unknown(res),
             "input_value_recorded": keep if step.get("action") == "input" else None, "diagnosis": diag,
             **_budget_status(ctx, res),
             **({"action_required": (diag or {}).get("action_required") or res["action_required"]}
@@ -281,7 +283,12 @@ def _act_step(ctx, store, a, step_id: str) -> dict:
             win = _last_window(store)
             if not win:
                 raise ValueError("--point 需要先在同一 session 内 observe：坐标只对观测时的窗口尺寸有效")
-            step["point"] = [int(v) for v in a.point.split(",")]
+            parts = a.point.split(",")
+            if len(parts) != 2 or any(not re.fullmatch(r"[0-9]+", v.strip()) for v in parts):
+                raise ValueError("--point 必须是两个非负整数像素 x,y（px，不是比例或vp）")
+            step["point"] = [int(v) for v in parts]
+            if any(value >= limit for value, limit in zip(step["point"], win)):
+                raise ValueError(f"--point {step['point']} 超出观测窗口 {win}（px）；请重新 observe 后定位")
             step["point_window"] = win  # 执行前窗口尺寸若已变化（旋转/折叠/分屏），执行器会丢弃该坐标
             step["target"] = {"label": f"agent:{a.basis}", "strategies": [], "side_effect": a.side_effect}
             if a.allow_input:
@@ -374,6 +381,9 @@ def diagnose(res: dict) -> Optional[dict]:
             last.get("policy") or last.get("policy_context"))
         if ((out["policy"] or {}).get("deny") or {}).get("class") == "no_receiver_at_point":
             out["hint"] = "未找到具体接收节点：核对本次观测的落点、被裁候选与窗口证据；不要改副作用声明或盲点绕过"
+        else:
+            out["hint"] = ("策略拒发不代表点击成功；查看 policy.reason/deny。无文本的设置控件须用限定当前页面的已登记目标，"
+                           "按其副作用授权；不要改用 raw HDC 绕过。")
     elif st == "postcondition_not_met":
         if (last.get("post") or {}).get("status") == st:
             out.setdefault("post", last["post"])

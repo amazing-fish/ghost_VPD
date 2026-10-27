@@ -66,7 +66,8 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--select", help="现场选择器（仅限有 UI 树的页面）：text=<文字> / text~=<包含> / id=<id> / xpath=<表达式>；"
                                     "多匹配/不可见/部分可见/执行前失效都不下发并返回诊断")
     a.add_argument("--within", help="--select 的查找范围：type=<控件类型> / id=<容器 id> / pane=first|last")
-    a.add_argument("--point", help="仅 tap/input：x,y，Agent 根据截图提议的坐标（须同时给 --basis，受 policy 约束）；swipe 不支持")
+    a.add_argument("--point", help="仅 tap/input：窗口内整数像素 x,y（px，不是0..1比例/vp）；须同会话先 observe 并给 --basis。"
+                                     "受接收者与 policy 校验；匿名 Checkbox 请用已登记目标，不是裸坐标绕过；swipe 不支持")
     a.add_argument("--basis", help="坐标依据说明")
     a.add_argument("--side-effect", default="navigation",
                    help="--select/--point 目标的副作用声明（例如 user_data），须与 --authorize 一致才会放行")
