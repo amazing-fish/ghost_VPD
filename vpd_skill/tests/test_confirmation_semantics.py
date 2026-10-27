@@ -287,3 +287,75 @@ def test_other_pane_effect_is_a_restriction_but_cannot_prove_unknown_confirmatio
     result = _check(ws, tree, node, "user_data", model.deny_for_page(page),
                     model.confirmation_sources(tree, page=page), ["user_data"])
     assert not result["allowed"] and result["deny"]["class"] == "confirmation_semantics_unknown"
+
+
+@pytest.mark.parametrize("change", ["anchor_disappeared", "new_ambiguous_candidate"])
+def test_old_page_cannot_supply_confirmation_proof_for_changed_current_candidates(ws, change):
+    from copy import deepcopy
+
+    old, _ = _tree(title="OLD")
+    raw = deepcopy(old.raw)
+    raw["children"][0]["children"][0]["attributes"]["id"] = "state-anchor"
+    old = UiTree(raw)
+    model = StateModel({"states": {
+        "old": {"require_target": "anchor", "effect_text": {"^确定$": "route_planning"}},
+        "new": {"require_text": ["NEW"], "effect_text": {"^确定$": "user_data"}},
+    }}, BUNDLE, {"anchor": {"strategies": [{"kind": "id", "value": "state-anchor"}]}})
+    page = model.identify(old, BUNDLE, True)
+    assert page["state"] == "old"
+    node = next(n for n in old.nodes if n.id == "confirm")
+    assert _check(ws, old, node, "route_planning", model.deny_for_page(page),
+                  model.confirmation_sources(old, page=page))["allowed"]
+    changed = deepcopy(raw)
+    if change == "anchor_disappeared":
+        changed["children"][0]["children"][0]["attributes"]["id"] = "other"
+    else:
+        changed["children"][0]["children"].append(_node("Text", "[10,50][190,80]", "NEW"))
+    current = UiTree(changed)
+    assert model.identify(current, BUNDLE, True)["state"] == (
+        "unknown" if change == "anchor_disappeared" else "ambiguous")
+    node = next(n for n in current.nodes if n.id == "confirm")
+    result = _check(ws, current, node, "route_planning", model.deny_for_page(page),
+                    model.confirmation_sources(current, page=page))
+    assert not result["allowed"] and result["deny"]["class"] == "confirmation_semantics_unknown"
+
+
+@pytest.mark.parametrize("supply_layout", [False, True])
+def test_old_pane_index_cannot_become_a_current_root_scope(ws, supply_layout):
+    tree = UiTree(_node("orgRoot", "[0,0][400,200]", children=[
+        _node("Column", "[0,0][200,200]", children=[
+            _node("Text", "[10,10][190,50]", "LEFT"),
+            _node("Button", "[10,100][190,150]", "确定", clickable="true")]),
+        _node("Column", "[200,0][400,200]", children=[
+            _node("SearchField", "[210,10][390,60]", id="input")])]))
+    model = StateModel({"states": {"search": {
+        "require_text": ["LEFT"], "require_target": "input",
+        "effect_text": {"^确定$": "route_planning"}}}}, BUNDLE,
+        {"input": {"strategies": [{"kind": "id", "value": "input"}]}})
+    layout = {"panes": [{"index": i, "node_idx": n.idx}
+                        for i, n in enumerate(n for n in tree.nodes if n.parent == 0)]}
+    assert model.identify(tree, BUNDLE, True, layout)["state"] == "unknown"
+    stale = {"state": "search", "candidates": ["search"], "panes": [
+        {"node_idx": 0, "candidates": ["search"]}]}
+    sources = model.confirmation_sources(tree, page=stale, layout=layout if supply_layout else None)
+    node = next(n for n in tree.nodes if n.text == "确定")
+    assert not _check(ws, tree, node, "route_planning", model.deny_for_page(stale), sources)["allowed"]
+    assert not sources
+
+
+def test_current_pane_ownership_retains_known_confirmation_semantics(ws):
+    tree = UiTree(_node("orgRoot", "[0,0][400,200]", children=[
+        _node("Column", "[0,0][200,200]", children=[
+            _node("Text", "[10,10][190,50]", "LEFT"),
+            _node("Button", "[10,100][190,150]", "确定", clickable="true")]),
+        _node("Column", "[200,0][400,200]", children=[
+            _node("Text", "[210,10][390,60]", "RIGHT")])]))
+    model = StateModel({"states": {"left": {
+        "require_text": ["LEFT"], "forbid_text": ["RIGHT"],
+        "effect_text": {"^确定$": "route_planning"}}}}, BUNDLE)
+    layout = {"panes": [{"index": i, "node_idx": n.idx}
+                        for i, n in enumerate(n for n in tree.nodes if n.parent == 0)]}
+    page = model.identify(tree, BUNDLE, True, layout)
+    sources = model.confirmation_sources(tree, page=page, layout=layout)
+    node = next(n for n in tree.nodes if n.text == "确定")
+    assert _check(ws, tree, node, "route_planning", model.deny_for_page(page), sources)["allowed"]

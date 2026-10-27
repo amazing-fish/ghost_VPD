@@ -1,6 +1,6 @@
 # ghost_VPD · Issue 驱动协作规范 v1.0
 
-适用范围：**Issue / PR 协作、证据与授权要求适用于整个 ghost_VPD 仓库**；设备执行规则按实际工作树分域。2026-10-13 主干 `0d20fe0` 已同时包含 Legacy 入口 `app/service/vpd/base.py::vpd_task_run()` 和 Skill 入口 `vpd_skill/vpdtest`（含统一 Dispatcher）；PR #2/#7/#8 已合入。两条设备执行链保持独立，不能假定 Legacy 自动获得 Skill 的授权、重检和运动看门狗能力。尚未合并的 PR #36 资产仍不属于主干能力。方向与成熟度快照见 [PROJECT_DIRECTION.md](PROJECT_DIRECTION.md)。
+适用范围：**Issue / PR 协作、证据与授权要求适用于整个 ghost_VPD 仓库**；设备执行规则按实际工作树分域。2026-10-13 主干 `0d20fe0` 已同时包含 Legacy 入口 `app/service/vpd/base.py::vpd_task_run()` 和 Skill 入口 `vpd_skill/vpdtest`（含统一 Dispatcher）；PR #2/#7/#8 已合入。两条设备执行链保持独立，不能假定 Legacy 自动获得 Skill 的授权、重检和运动看门狗能力。历史PR #36已按被#41替代关闭，未整包合入。方向与成熟度快照见 [PROJECT_DIRECTION.md](PROJECT_DIRECTION.md)。
 
 核心约束：**Issue 定义任务契约，Agent 负责实现及取证，PR 承载可审查变更，人工负责授权与产品判据确认。**
 

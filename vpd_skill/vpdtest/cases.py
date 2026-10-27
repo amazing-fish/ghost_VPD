@@ -135,6 +135,9 @@ def dependency_hash(case: dict, app, knowledge) -> str:
     conditions = {name: providers.get(name) for name in sorted(used_conditions)} if isinstance(providers, dict) else providers
     for provider in conditions.values() if isinstance(conditions, dict) else []:
         want_provider_targets(provider)
+    for state in app.states.states.values():
+        want(state.get("require_target"))
+        want(state.get("navigation_context_target"))
     for interrupt in app.states.interrupts.values():
         want(interrupt.get("dismiss_target"))
         want(interrupt.get("dismiss_target"), substitute=True)  # recovery uses _attempt → _target
@@ -371,6 +374,11 @@ def hypothesis_targets(case: dict, app) -> list:
             used.append(t)
     for a in case.get("assertions", []):
         for t in (a.get("target"), a.get("within")):
+            target = app.targets.get(t) if isinstance(t, str) else None
+            if isinstance(target, dict) and target.get("status") == "hypothesis" and t not in used:
+                used.append(t)
+    for state in app.states.states.values():
+        for t in (state.get("require_target"), state.get("navigation_context_target")):
             target = app.targets.get(t) if isinstance(t, str) else None
             if isinstance(target, dict) and target.get("status") == "hypothesis" and t not in used:
                 used.append(t)

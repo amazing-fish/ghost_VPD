@@ -2,6 +2,8 @@
 
 The hierarchy is a contract fixture, not a captured 1395 tree or product result.
 """
+from copy import deepcopy
+
 import pytest
 
 from test_goal_loop import _lab_world
@@ -23,7 +25,9 @@ def _tree(label="充电桩", marker=True, input_type="SearchField", extra=(), mo
           same_label_overlay=False, peer_hidden=False, same_group_duplicate=False):
     children = []
     if marker:
-        children += [_node(input_type, "[10,10][490,80]", "输入目的地或车位号", id="search_input")]
+        children += [_node("RelativeContainer", "[0,0][500,90]", id="SearchPoiPage", children=[
+            _node("Search", "[10,10][490,80]", id="search_input", children=[
+                _node(input_type, "[10,10][490,80]", "输入目的地或车位号", id="__SearchField__search_input")])])]
     leaves = [_node("Text", "[20,120][180,160]", label)]
     leaves += [_node("Text", f"[20,{170+i*20}][180,{185+i*20}]", text) for i, text in enumerate(extra)]
     if nested:
@@ -144,7 +148,7 @@ def test_filter_pair_in_another_pane_does_not_prove_navigation(ws):
 
 def test_ambiguous_registered_search_input_does_not_prove_context(ws):
     tree, node = _tree()
-    tree.raw["children"].append(_node("SearchField", "[10,300][490,370]", "输入目的地或车位号", id="search_input"))
+    tree.raw["children"].append(deepcopy(tree.raw["children"][0]))
     tree = UiTree(tree.raw)
     node = next(n for n in tree.nodes if n.text == "充电桩")
     assert not _check(ws, tree, node)["allowed"]
@@ -152,7 +156,10 @@ def test_ambiguous_registered_search_input_does_not_prove_context(ws):
 
 def _context(ws, tmp_path):
     spec = _lab_world(tmp_path, "search-chip", {"home": {"root": {"t": "Column", "b": [0,0,1320,2848], "children": [
-        {"t": "SearchField", "id": "search_input", "text": "输入目的地或车位号", "b": [40,100,1200,200]},
+        {"t": "RelativeContainer", "id": "SearchPoiPage", "b": [0,0,1320,240], "children": [
+            {"t": "Search", "id": "search_input", "b": [40,100,1200,200], "children": [
+                {"t": "SearchField", "id": "__SearchField__search_input", "text": "输入目的地或车位号",
+                 "b": [40,100,1200,200]}]}]},
         {"t": "Column", "b": [20,280,1000,460], "children": [
             {"t": "Button", "b": [40,300,400,440], "click": True, "go": "detail", "children": [
                 {"t": "Text", "text": "充电桩", "b": [60,320,380,420]}]},
@@ -178,7 +185,7 @@ def test_executor_and_dispatch_recheck_use_same_current_filter_semantics(ws, tmp
 
     def send(*args, **kwargs):
         if context_changes:
-            ctx.device.world["screens"]["home"]["root"]["children"][0]["id"] = "unknown_input"
+            ctx.device.world["screens"]["home"]["root"]["children"][0]["children"][0]["children"][0]["id"] = "unknown_input"
             # Supply a new current observation, as relocation/recovery does; Dispatcher must
             # derive its proof again, rather than reuse Executor's earlier positive result.
             obs, tree = ctx.observe("context-changed", screenshot=False)
