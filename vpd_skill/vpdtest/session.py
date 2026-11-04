@@ -430,7 +430,7 @@ def step_options(action: str, request: dict) -> dict:
     """现场执行和会话固化共用的参数语义；monitor 预期是结束条件。"""
     names = {"expect": "until_state" if action == "monitor" else "expect_state",
              "expect_text": "until_text" if action == "monitor" else "expect_text",
-             "duration": "duration_s", "interval": "interval_s", "watch": "watch"}
+             "duration": "duration_s", "interval": "interval_s", "watch": "watch", "capture_transient": "capture_transient"}
     return {field: request[key] for key, field in names.items() if request.get(key)}
 
 

@@ -1,5 +1,10 @@
 # 执行与资产契约
 
+短暂提示可由tap声明`capture_transient`，以动作前已就绪的帧流持续采集并由最终Dispatcher绑定触发。
+字段、证据与保守判定见[短提示与反馈用例交接](../../docs/USER_FEEDBACK_20261104_EXECUTION.md)；
+`transient_text_seen`只接受绑定窗口中同epoch、当前APP的新鲜完整原树肯定文字，画面独有提示保留视觉核验。
+未命中不能证明无提示；明确采集故障独立记error。采集动作不自动重发，也不证明后台日志上传。
+
 所有字段都落在 `runs/<run_id>/` 下：`run.json`（汇总）、`events.jsonl`（追加写的原始事件）、
 `obs/<obs_id>/`（每次观测独占创建：`observation.json`、`tree.json`、`screen.png`）、`report.md`。
 

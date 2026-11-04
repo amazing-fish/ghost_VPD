@@ -22,6 +22,8 @@ from .verdict import collection_error, error_attribution
 
 ENV_ERRORS = {"screen_locked", "screen_off", "device_offline", "app_missing", "tool_missing", "transport_unavailable"}
 STATUS_MAP = {
+    "transient_unavailable": ("blocked", "tool", "短提示帧源未就绪，触发动作未下发"),
+    "transient_capture_error": ("error", "tool", "短提示证据持久化失败；保留触发动作下发记录，不自动重试"),
     "read_source_unknown": ("pending", "requirement_unclear", "读取来源资格不足，未执行依赖输入"),
     "input_required": ("blocked", "environment", "所选输入缺少有效外部值，未定位或输入"),
     "clear_not_confirmed": ("error", "tool", "清空后目标仍显示非提示文字，未追加输入；请核对当前字段"),
@@ -247,7 +249,7 @@ class Executor:
         if step["action"] == "flow":
             return self._flow(step, case_id)
         # 监视是一段连续观测，整体重跑会重复计时，不重试
-        max_retry = 0 if step["action"] == "monitor" else min(int(step.get("retry", 1)), 2)
+        max_retry = 0 if step["action"] == "monitor" or "capture_transient" in step else min(int(step.get("retry", 1)), 2)
         attempts, recoveries, n, obstruction_used = [], [], 0, False
         while True:
             n += 1
@@ -275,6 +277,38 @@ class Executor:
 
     # ---- 单次尝试 ----
     def _attempt(self, step: dict, n: int, case_id: str) -> dict:
+        if "capture_transient" not in step:
+            return self._attempt_plain(step, n, case_id)
+        from .transient import TransientCapture
+        ctx = self.ctx
+        # Do not start collection for a held or motion-limited attempt.
+        if ctx.safety_hold or ctx.motion.locked() or ctx.actions >= ctx.policy.max_actions_per_run:
+            return self._attempt_plain(step, n, case_id)
+        capture = TransientCapture(ctx, step, n)
+        previous = getattr(ctx, "transient_capture", None)
+        try:
+            if not capture.start():
+                result = {"n": n, "ts": now_iso(), "action": step["action"], "step_id": step["id"],
+                          "status": "transient_unavailable", "reason": capture.summary.get("reason")}
+            else:
+                ctx.transient_capture = capture
+                result = self._attempt_plain(step, n, case_id)
+        finally:
+            ctx.transient_capture = previous
+            try:
+                summary = capture.finish()
+            except Exception as exc:
+                # A failed evidence write must not discard or repeat the tap.
+                summary = {**capture.summary, "status": "error", "frames": [],
+                           "error": f"{type(exc).__name__}: {exc}"}
+                if 'result' in locals() and result.get("status") == "ok":
+                    result.update(status="transient_capture_error", execution_error={
+                        "stage": "transient_capture", "attribution": "tool",
+                        "error_class": "transient_capture_error", "error": summary["error"]})
+        result["transient"] = summary
+        return result
+
+    def _attempt_plain(self, step: dict, n: int, case_id: str) -> dict:
         ctx, kind = self.ctx, step["action"]
         att = {"n": n, "ts": now_iso(), "action": kind, "step_id": step["id"], "_safety": bool(step.get("_safety"))}
         error = swipe_options_error(step)
@@ -778,7 +812,9 @@ class Executor:
                 if not self._cleared_input_ok(target, l, o, t, att, "dispatch_refresh"):
                     return None
             return pack(l, o, t)
-        return ctx.dispatcher.send(op, *loc["point"], *extra, preconditions={**ctx.dispatcher.app_conditions(att["action"]), "target_subtree": True}, att=att, tap=pack(loc, obs, tree), refresh=refresh)
+        capture = getattr(ctx, "transient_capture", None)
+        return ctx.dispatcher.send(op, *loc["point"], *extra, preconditions={**ctx.dispatcher.app_conditions(att["action"]), "target_subtree": True}, att=att, tap=pack(loc, obs, tree), refresh=refresh,
+                                   transient=capture if capture is not None and op == "tap" and capture.step_id == step["id"] else None)
 
     def _cleared_input_ok(self, target, loc, obs, tree, att, phase):
         """Reject known non-hint text, without treating unknown or empty UI text as an empty value."""

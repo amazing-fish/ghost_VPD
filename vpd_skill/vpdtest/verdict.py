@@ -448,9 +448,13 @@ def _evaluate_bound(a: dict, steps: dict, load: Callable, knowledge, app) -> dic
         if oracle["status"] != "confirmed":
             return {**out, "result": "pending", "observed_holds": holds, "reason": f"读数{'有效' if holds else '无效'}，但{oracle['reason']}"}
         return {**out, "result": "pass" if holds else "fail", "observed_holds": holds}
-    if a["type"] in ("text_seen", "state_seen"):
+    if a["type"] in ("text_seen", "state_seen", "transient_text_seen"):
         # 时间窗口类：在 monitor 时间线里找（运动中信息、TOR 接管提示、异常显示往往一闪而过，终态里看不到）
-        holds, ev = _seen(a, step, load)
+        if a["type"] == "transient_text_seen":
+            from .transient import seen
+            holds, ev = seen(a, step, load, app.bundle)
+        else:
+            holds, ev = _seen(a, step, load)
         oracle = knowledge.oracle_status(a.get("oracle_refs", []))
         out.update(evidence=ev, oracle=oracle)
         if holds is None:

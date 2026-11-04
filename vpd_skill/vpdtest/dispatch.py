@@ -76,7 +76,7 @@ class Dispatcher:
                 return False, checks
         return True, checks
 
-    def send(self, op, *args, preconditions, att=None, tap=None, refresh=None):
+    def send(self, op, *args, preconditions, att=None, tap=None, refresh=None, transient=None):
         """tap 提供树/定位/目标；遮挡时最多重新定位一次。PIN 不携带节点、坐标或值到事件。"""
         att = att if att is not None else {"action": op}
         checks = {}
@@ -142,6 +142,10 @@ class Dispatcher:
             # Capture the final coordinates after any Dispatcher relocation; a failed/unknown
             # receipt still records the attempted point without claiming its UI effect.
             att["dispatch_coordinates"] = {"system": "px", "point": list(args[:2])}
+        if transient is not None:
+            if not transient.mark_trigger():
+                att.update(status="transient_unavailable", reason=transient.summary.get("reason"))
+                return self._reject(op, preconditions, checks, att)
         if op == "tap":
             result = dev.tap(*args)
         elif op == "swipe":
@@ -161,6 +165,8 @@ class Dispatcher:
             result = dev.stop(*args)
         else:
             raise ValueError(f"未知物理动作 {op}")
+        if transient is not None:
+            transient.receipt(result)
         if result.sent is not False and op != "clear_text" and self.ctx is not None:
             self.ctx.actions += 1
         if not result.ok and result.error_class in ("budget_exhausted", "motion_timeout", "safety_hold"):
