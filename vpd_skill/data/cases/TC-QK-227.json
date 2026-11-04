@@ -171,24 +171,24 @@
     {
       "id": "K-QK-019",
       "use": "金桥地图中我的位置故障远距场景及模糊建议展示；不同有效行数量未验",
-      "applicability": "unconfirmed",
       "rationale": "K-QK-019用于所列步骤；金桥地图中我的位置故障远距场景及模糊建议展示；不同有效行数量未验。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
       "steps": [
         "S6",
         "S7"
       ],
       "reported_rationale": "test_goal 候选判据；session-wk-qk6/obs-0035 实测证据",
-      "reported_use": "判据：我的位置算路任务卡片 我的爱车→我的位置+故障态+车辆距离目的地较远"
+      "reported_use": "判据：我的位置算路任务卡片 我的爱车→我的位置+故障态+车辆距离目的地较远",
+      "reported_applicability": "unconfirmed"
     },
     {
       "id": "K-QK-USR-002",
       "use": "判据：车辆故障态算路结果不能激活（开始不可用）",
-      "applicability": "confirmed",
       "rationale": "K-QK-USR-002 仅按其声明范围用于 S7；判据：车辆故障态算路结果不能激活（开始不可用）。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
       "steps": [
         "S7"
       ],
-      "reported_rationale": "已确认知识；F03 实测故障态（泊车代驾辅助暂不可用）与之一致"
+      "reported_rationale": "已确认知识；F03 实测故障态（泊车代驾辅助暂不可用）与之一致",
+      "reported_applicability": "confirmed"
     }
   ],
   "sources": [

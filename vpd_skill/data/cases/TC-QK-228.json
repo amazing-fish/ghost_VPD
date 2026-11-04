@@ -169,7 +169,6 @@
     {
       "id": "K-QK-020",
       "use": "背景观察：作者报告的时间差，不是产品期限判据",
-      "applicability": "unconfirmed",
       "rationale": "K-QK-020 仅作为 S13、S14、S18、S19 的背景观察；原作者报告的时间差不是产品期限判据。原始材料未提供，过期条件与期限均待独立确认；历史描述保留于reported_rationale。",
       "steps": [
         "S13",
@@ -177,24 +176,24 @@
         "S18",
         "S19"
       ],
-      "reported_rationale": "test_goal 候选判据；两轮现场观测（11:07→11:16、12:04→12:15）一致"
+      "reported_rationale": "test_goal 候选判据；两轮现场观测（11:07→11:16、12:04→12:15）一致",
+      "reported_applicability": "unconfirmed"
     },
     {
       "id": "K-QK-014",
       "use": "沿途任务描述；开始非必需，故障终态/不可激活另按独立规则",
-      "applicability": "unconfirmed",
       "rationale": "K-QK-014用于所列步骤；沿途任务描述；开始非必需，故障终态/不可激活另按独立规则。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
       "steps": [
         "S11",
         "S12"
       ],
       "reported_rationale": "test_goal 候选判据；session 214 实测（A1 任务创建断言依据）",
-      "reported_use": "判据：沿途找车位一键算路任务卡片"
+      "reported_use": "判据：沿途找车位一键算路任务卡片",
+      "reported_applicability": "unconfirmed"
     },
     {
       "id": "K-QK-013",
       "use": "候选首页入口与已知加载失败排除；不证明完整地图就绪",
-      "applicability": "unconfirmed",
       "rationale": "K-QK-013仅用于所列入口检查；默认车位不是健康首页普遍标记，已知停车场数据失败不能当正常进入。原作者引用保留reported_rationale，独立产品依据与完整地图就绪仍待验。",
       "steps": [
         "S4",
@@ -204,7 +203,8 @@
       "reported_use": "判据：VPD 首页元素清单（A2 断言依据）",
       "reported_steps": [
         "S19"
-      ]
+      ],
+      "reported_applicability": "unconfirmed"
     }
   ],
   "sources": [

@@ -152,44 +152,44 @@
     {
       "id": "K-QK-013",
       "use": "候选首页入口与已知加载失败排除；不证明完整地图就绪",
-      "applicability": "unconfirmed",
       "rationale": "K-QK-013仅用于所列入口检查；默认车位不是健康首页普遍标记，已知停车场数据失败不能当正常进入。原作者引用保留reported_rationale，独立产品依据与完整地图就绪仍待验。",
       "steps": [
         "S5"
       ],
-      "reported_rationale": "test_goal 候选判据；2026-10-13 真机 session-wk-qk3/obs-0013 观测成立；有活动任务时进 ADS 直达任务卡片页（run-20261013-111134-3476/obs-0012 实测）"
+      "reported_rationale": "test_goal 候选判据；2026-10-13 真机 session-wk-qk3/obs-0013 观测成立；有活动任务时进 ADS 直达任务卡片页（run-20261013-111134-3476/obs-0012 实测）",
+      "reported_applicability": "unconfirmed"
     },
     {
       "id": "K-QK-USR-002",
       "use": "判据：车辆有故障时算路后不能激活（故障提示+开始不可用）",
-      "applicability": "confirmed",
       "rationale": "K-QK-USR-002 仅按其声明范围用于 S7；判据：车辆有故障时算路后不能激活（故障提示+开始不可用）。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
       "steps": [
         "S7"
       ],
-      "reported_rationale": "已确认知识；F03 实测 VPD功能故障（session-wk-qk3/obs-0025），本用例预期与之一致"
+      "reported_rationale": "已确认知识；F03 实测 VPD功能故障（session-wk-qk3/obs-0025），本用例预期与之一致",
+      "reported_applicability": "confirmed"
     },
     {
       "id": "K-QK-014",
       "use": "沿途任务描述；开始非必需，故障终态/不可激活另按独立规则",
-      "applicability": "unconfirmed",
       "rationale": "K-QK-014用于所列步骤；沿途任务描述；开始非必需，故障终态/不可激活另按独立规则。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
       "steps": [
         "S7"
       ],
       "reported_rationale": "test_goal 候选判据；session-wk-qk3/obs-0023、obs-0025 实测证据",
-      "reported_use": "判据：沿途找车位任务卡片与算路过程表现"
+      "reported_use": "判据：沿途找车位任务卡片与算路过程表现",
+      "reported_applicability": "unconfirmed"
     },
     {
       "id": "K-QK-006",
       "use": "风险注记：算路可能唤醒车辆",
-      "applicability": "unconfirmed",
       "rationale": "K-QK-006 仅按其声明范围用于 S6, S7；风险注记：算路可能唤醒车辆。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
       "steps": [
         "S6",
         "S7"
       ],
-      "reported_rationale": "实测观测到系统功能启动中5%（session-wk-qk3/obs-0023）；只到结果显示，不控车"
+      "reported_rationale": "实测观测到系统功能启动中5%（session-wk-qk3/obs-0023）；只到结果显示，不控车",
+      "reported_applicability": "unconfirmed"
     }
   ],
   "sources": [

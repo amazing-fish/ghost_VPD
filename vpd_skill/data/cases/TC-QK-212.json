@@ -116,7 +116,6 @@
     {
       "id": "K-QK-012",
       "use": "已触发短信挑战场景；保险箱仅实际触发时，未验设备信任",
-      "applicability": "unconfirmed",
       "rationale": "K-QK-012用于所列步骤；已触发短信挑战场景；保险箱仅实际触发时，未验设备信任。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
       "steps": [
         "S1",
@@ -124,17 +123,18 @@
         "S4"
       ],
       "reported_rationale": "test_goal 候选判据；页面结构有 run-20261013-104123-90c6 obs-0028 实测证据，验证通过预期未经产品确认",
-      "reported_use": "判据：新设备短信验证页结构与验证通过预期"
+      "reported_use": "判据：新设备短信验证页结构与验证通过预期",
+      "reported_applicability": "unconfirmed"
     },
     {
       "id": "K-QK-011",
       "use": "判据：登录完成判定（进入主界面导航可见）",
-      "applicability": "unconfirmed",
       "rationale": "K-QK-011 仅按其声明范围用于 S4；判据：登录完成判定（进入主界面导航可见）。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
       "steps": [
         "S4"
       ],
-      "reported_rationale": "test_goal 候选判据"
+      "reported_rationale": "test_goal 候选判据",
+      "reported_applicability": "unconfirmed"
     },
     {
       "id": "K-AV-002",

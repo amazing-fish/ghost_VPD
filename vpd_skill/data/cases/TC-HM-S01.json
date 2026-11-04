@@ -184,11 +184,11 @@
     {
       "id": "target:tab_my / state:my_tab",
       "use": "操作经验：ensure_state my_tab 的 recipe",
-      "applicability": "calibrated",
       "rationale": "states.json 中 my_tab 签名已在 3.0.3.200 真机校准",
       "steps": [
         "S1b"
-      ]
+      ],
+      "reported_applicability": "calibrated"
     }
   ],
   "sources": [

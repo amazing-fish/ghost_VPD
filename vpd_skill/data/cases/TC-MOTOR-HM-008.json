@@ -140,12 +140,12 @@
     {
       "id": "K-MOT-009",
       "use": "判据：我的页只读入口清单",
-      "applicability": "unconfirmed",
       "rationale": "K-MOT-009 仅按其声明范围用于 S3；判据：我的页只读入口清单。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
       "steps": [
         "S3"
       ],
-      "reported_rationale": "test_goal 候选判据；3.0.1.281 未登录态实测可见"
+      "reported_rationale": "test_goal 候选判据；3.0.1.281 未登录态实测可见",
+      "reported_applicability": "unconfirmed"
     },
     {
       "id": "K-MOT-002",

@@ -96,14 +96,14 @@
     {
       "id": "K-QK-017",
       "use": "已声明F03停泊场景的车名/停泊中/更新时间展示；完整性刷新未验",
-      "applicability": "unconfirmed",
       "rationale": "K-QK-017用于所列步骤；已声明F03停泊场景的车名/停泊中/更新时间展示；完整性刷新未验。独立依据与场景事实待核，作者历史引用和旧范围说明保留reported_rationale/reported_use。",
       "steps": [
         "S4",
         "S5"
       ],
       "reported_rationale": "test_goal 候选判据；session-wk-qk4/obs-0013、obs-0016、obs-0025 实测证据（F03+暂无车牌号/S01112/S01023/启境GX7 S01147/S01395，标题「被授权的车辆」）；切车点击被 policy account_state 模式（授权二字面匹配节标题）误报拦截——工具缺陷已记录待人工评审",
-      "reported_use": "判据：爱车页车辆名区点开车辆列表抽屉（F03+被授权的车辆，行含车架号后6位）"
+      "reported_use": "判据：爱车页车辆名区点开车辆列表抽屉（F03+被授权的车辆，行含车架号后6位）",
+      "reported_applicability": "unconfirmed"
     }
   ],
   "sources": [

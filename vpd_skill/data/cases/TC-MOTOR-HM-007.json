@@ -401,7 +401,6 @@
     {
       "id": "K-MOT-008",
       "use": "判据：未登录态五 tab 枚举与选中态切换",
-      "applicability": "unconfirmed",
       "rationale": "K-MOT-008 仅按其声明范围用于 S1, S2, S3, S4, S5, S6；判据：未登录态五 tab 枚举与选中态切换。原作者的现场引用保留于reported_rationale与sources，原始材料当前不可访问，不据此自动确认产品要求。",
       "steps": [
         "S1",
@@ -411,7 +410,8 @@
         "S5",
         "S6"
       ],
-      "reported_rationale": "test_goal 候选判据，未产品确认；applies_to 3.0.1.281 与本机一致；K-MOT-001（已确认）适用于 3.0.3.200 已登录态，本机不直接适用，仅作对照"
+      "reported_rationale": "test_goal 候选判据，未产品确认；applies_to 3.0.1.281 与本机一致；K-MOT-001（已确认）适用于 3.0.3.200 已登录态，本机不直接适用，仅作对照",
+      "reported_applicability": "unconfirmed"
     }
   ],
   "sources": [

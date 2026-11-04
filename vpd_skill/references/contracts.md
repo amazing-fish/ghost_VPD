@@ -542,6 +542,8 @@ N/A、未知、error、未触发操作与未执行均不计分支覆盖。逐断
 lint 会指出非法声明，审核和晋级沿用该门禁；不自动改写存量声明、批准或重绑资产。
 没有可用知识时仍可写 `{"id": null, "note": "..."}`。此字段仅记录作者解释，不参与运行时 Oracle 资格判定；
 实际资格仍按知识条目、独立事实及 guard 计算，单条非正式取证不因该元数据新增运行前置。
+显式格式归位可将旧的确认/校准状态原值保留为 `reported_applicability`，完整保留原作者说明；
+该历史字段不表达当前适用性。省略可选的 `applicability` 表示作者未另作范围声明，不从历史状态推断三值。
 
 `knowledge confirm` 成功返回的知识原字段外附 `references`，只读扫描当前工作区 `cases/*.json`。
 `cases[].uses` 区分展开 flow/recipe、纳入 cleanup/safe_stop 后的 `oracle_refs` 与精确 `knowledge_used[].id` 说明引用；
