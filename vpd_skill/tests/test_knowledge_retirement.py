@@ -3,6 +3,8 @@ import copy
 
 import pytest
 
+from verdict_fixtures import NAV_CASE
+
 from vpdtest import cases as C
 from vpdtest.knowledge import KnowledgeStore
 from vpdtest.search import search
@@ -27,7 +29,7 @@ def _state(kn, kid, state, missing=False):
 
 
 def _case(ws, kid):
-    case = ws.load_case("TC-MOTOR-HM-001")
+    case = ws.load_case(NAV_CASE)
     case.update(id="TC-RETIRE-TEST", status="candidate")
     for assertion in case["assertions"]:
         if not assertion.get("advisory"):
@@ -36,8 +38,8 @@ def _case(ws, kid):
 
 
 @pytest.mark.parametrize("state", ["superseded", "", None, 7, [], {}])
-def test_unknown_knowledge_status_never_confirms(ws, state):
-    kn = KnowledgeStore(ws.root)
+def test_unknown_knowledge_status_never_confirms(verdict_ws, state):
+    kn = KnowledgeStore(verdict_ws.root)
     kid, good = _rule(kn), _rule(kn, "K-RETIRE-GOOD")
     kn.confirm(good, reviewer="pytest")
     assert kn.oracle_status([good])["status"] == "confirmed"
@@ -50,16 +52,16 @@ def test_unknown_knowledge_status_never_confirms(ws, state):
         assert bad["status"] == "invalid" and bad["stored_status"] == state
 
 
-def test_missing_knowledge_status_is_invalid(ws):
-    kn = KnowledgeStore(ws.root)
+def test_missing_knowledge_status_is_invalid(verdict_ws):
+    kn = KnowledgeStore(verdict_ws.root)
     kid = _rule(kn)
     _state(kn, kid, None, missing=True)
     assert kn.oracle_status([kid])["status"] == "invalid"
 
 
 @pytest.mark.parametrize("state", ["deprecated", "superseded", None, [], {}])
-def test_confirm_refuses_retired_or_invalid_knowledge_without_writing(ws, state):
-    kn = KnowledgeStore(ws.root)
+def test_confirm_refuses_retired_or_invalid_knowledge_without_writing(verdict_ws, state):
+    kn = KnowledgeStore(verdict_ws.root)
     kid = _rule(kn)
     _state(kn, kid, state)
     before = kn.path.read_bytes()
@@ -69,11 +71,11 @@ def test_confirm_refuses_retired_or_invalid_knowledge_without_writing(ws, state)
 
 
 @pytest.mark.parametrize("state", ["deprecated", "superseded", None])
-def test_inactive_knowledge_is_searchable_only_as_history(ws, state):
-    kn = KnowledgeStore(ws.root)
+def test_inactive_knowledge_is_searchable_only_as_history(verdict_ws, state):
+    kn = KnowledgeStore(verdict_ws.root)
     kid = _rule(kn)
     _state(kn, kid, state)
-    result = search(ws, kid)
+    result = search(verdict_ws, kid)
     row = next(r for rows in result["results"].values() for r in rows if r["ref"] == kid)
     assert row["role"] == "background" and row["callable"] is None
     assert row["can_be_oracle"] is False and row["note"]
@@ -81,21 +83,21 @@ def test_inactive_knowledge_is_searchable_only_as_history(ws, state):
 
 
 @pytest.mark.parametrize("state", ["deprecated", "superseded"])
-def test_inactive_oracle_cannot_turn_observed_success_into_pass(ws, state):
-    kn = KnowledgeStore(ws.root)
+def test_inactive_oracle_cannot_turn_observed_success_into_pass(verdict_ws, state):
+    kn = KnowledgeStore(verdict_ws.root)
     kid = _rule(kn)
     _state(kn, kid, state)
     assertion = {"id": "A1", "type": "value_present", "at": "S1", "oracle_refs": [kid]}
     result = evaluate_assertion(assertion, {"S1": {"outcome": "passed", "measurement": {"value": 1}}},
-                                lambda _: None, kn, ws.app("motor_hm"))
+                                lambda _: None, kn, verdict_ws.app("motor_hm"))
     assert result["observed_holds"] is True and result["result"] == "pending"
     assert result["oracle"]["status"] == ("missing" if state == "deprecated" else "invalid")
 
 
-def test_confirmation_and_history_do_not_invalidate_active_dependencies(ws):
-    kn = KnowledgeStore(ws.root)
+def test_confirmation_and_history_do_not_invalidate_active_dependencies(verdict_ws):
+    kn = KnowledgeStore(verdict_ws.root)
     kid = _rule(kn)
-    case, app = _case(ws, kid), ws.app("motor_hm")
+    case, app = _case(verdict_ws, kid), verdict_ws.app("motor_hm")
     before = C.dependency_hash(case, app, kn)
     kn.confirm(kid, reviewer="pytest")
     assert C.dependency_hash(case, app, kn) == before
@@ -104,11 +106,12 @@ def test_confirmation_and_history_do_not_invalidate_active_dependencies(ws):
 
 
 @pytest.mark.parametrize("state", ["deprecated", "superseded"])
-def test_retirement_invalidates_replays_and_refuses_promotion(ws, state):
-    kn = KnowledgeStore(ws.root)
+def test_retirement_invalidates_replays_and_refuses_promotion(verdict_ws, state):
+    kn = KnowledgeStore(verdict_ws.root)
     kid = _rule(kn)
     kn.confirm(kid, reviewer="pytest")
-    case, app = _case(ws, kid), ws.app("motor_hm")
+    case, app = _case(verdict_ws, kid), verdict_ws.app("motor_hm")
+    assert not C.lint(case, app, kn, verdict_ws.policy(), runs_dir=verdict_ws.runs_dir)
     deps = C.dependency_hash(case, app, kn)
     case["replays"] = [{"run_id": f"run-retirement-{n}", "verdict": "passed", "hash": C.content_hash(case),
                         "deps": deps, "validation_level": "offline_replay"} for n in (1, 2)]
@@ -119,10 +122,10 @@ def test_retirement_invalidates_replays_and_refuses_promotion(ws, state):
     assert C.replay_basis(case, current)["ok"] is False
     issues = C.lint(case, app, kn)
     assert any(kid in issue["problem"] and "状态" in issue["problem"] for issue in issues)
-    write_json(ws.case_path(case["id"]), case)
-    with pytest.raises(PermissionError):
-        C.promote(ws, case["id"], "replay_verified", kn)
-    assert ws.load_case(case["id"])["status"] == "candidate"
+    write_json(verdict_ws.case_path(case["id"]), case)
+    with pytest.raises(PermissionError, match="用例不完整"):
+        C.promote(verdict_ws, case["id"], "replay_verified", kn)
+    assert verdict_ws.load_case(case["id"])["status"] == "candidate"
 
 
 def test_issue33_retirement_keeps_history_and_debug_scope(ws):
