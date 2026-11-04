@@ -26,7 +26,7 @@ GOAL_CONTRACT_TESTS = (
 @pytest.mark.parametrize("mutation", ["removed", "ineligible"])
 def test_verdict_contract_survives_production_corpus_changes(tmp_path, mutation):
     skill = tmp_path / "skill"
-    # 判定/检索契约和成熟度门禁不递归运行本模块；生产集成仍由外层全量执行。
+    # 判定/检索/错误消费契约和成熟度门禁不递归运行本模块；生产集成仍由外层全量执行。
     shutil.copytree(SKILL, skill, ignore=shutil.ignore_patterns(
         ".git", ".venv", "runs", "reports", "__pycache__", ".pytest_cache", ".ruff_cache"))
     path = skill / "data" / "knowledge" / "items.json"
@@ -42,6 +42,7 @@ def test_verdict_contract_survives_production_corpus_changes(tmp_path, mutation)
     env.pop("PYTEST_ADDOPTS", None)
     result = subprocess.run([sys.executable, "-m", "pytest", "-q", "-o", "addopts=",
                              "--basetemp", str(tmp_path / "child-pytest"), "tests/test_verdict.py",
+                             "tests/test_error_consumers.py",
                              "tests/test_goal_loop.py::test_knowledge_search_roles_and_applicability",
                              "tests/test_explore_promote.py::test_candidate_replay_and_regression_gates",
                              "tests/test_explore_promote.py::test_editing_case_invalidates_old_replays",
