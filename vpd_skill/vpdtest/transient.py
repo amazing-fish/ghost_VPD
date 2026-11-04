@@ -84,9 +84,9 @@ class TransientCapture:
                         "frame_time_basis": "host_monotonic_arrival_not_device_exposure",
                         "note": "变化驱动帧流不保证连续无缺口；未捕获不等于未提示；图片须结合语义检查"}
 
-    def problem(self, kind, detail):
+    def problem(self, kind, detail, *, force=False):
         with self.lock:
-            if not self.closed and len(self.problems) < 30:
+            if (not self.closed or force) and len(self.problems) < 30:
                 self.problems.append({"kind": kind, "detail": str(detail or "")[:500],
                                       "t": round(time.monotonic() - self.started, 6)})
 
@@ -176,14 +176,19 @@ class TransientCapture:
             remaining = self.trigger["clock"] + self.post_s - time.monotonic()
             if remaining > 0:
                 threading.Event().wait(remaining)
+        # The collection window is over before stopping the producer. The real
+        # stream loop reports socket shutdown as an error; this is not a capture
+        # failure. Keep all earlier problems and explicitly record stop failures.
+        with self.lock:
+            self.closed = True
         if self.source is not None:
             try:
                 self.source.stop()
                 thread = getattr(self.source, "_th", None)
                 if thread is not None and thread.is_alive():
-                    self.problem("source_stop_unconfirmed", "帧源线程尚未退出")
+                    self.problem("source_stop_unconfirmed", "帧源线程尚未退出", force=True)
             except Exception as exc:
-                self.problem("source_stop_error", exc)
+                self.problem("source_stop_error", exc, force=True)
         with self.lock:
             self.closed = True
             fg = self.ctx.device.foreground()

@@ -290,3 +290,60 @@ def test_capture_definition_rejects_motion_before_device_creation(verdict_ws,mon
     case=verdict_ws.load_case(NAV_CASE);case['steps'][2]['capture_transient']={'post_s':1}
     issues=execution_structure_issues(case,app)
     assert any('短提示' in x['problem'] for x in issues)
+
+
+def test_real_stream_normal_shutdown_is_not_a_capture_error(tmp_path):
+    """Actual stream recv/stop loop, synthetic socket pair, no device input."""
+    import socket
+    import threading
+    from vpdtest.console.frames import UitestStreamSource
+
+    _,ctx,_=capture(tmp_path)
+    receiver,sender=socket.socketpair()
+    holder={}
+    def factory(device,hub):
+        stream=UitestStreamSource('synthetic-socket-pair',hub,stall_s=0.2,max_failures=1)
+        def open_stream():
+            stream._sock=receiver
+            sender.sendall(fake_jpeg(body=b'baseline'))
+        stream._open=open_stream
+        holder['stream']=stream
+        return stream
+    cap=transient.TransientCapture(ctx,{'id':'SUBMIT','capture_transient':{'post_s':1,'ready_timeout_s':1}},1,
+                                  source_factory=factory)
+    observed=threading.Event()
+    frame=cap.frame
+    def on_frame(data):
+        frame(data)
+        if cap.trigger is not None:observed.set()
+    cap.frame=on_frame
+    try:
+        assert cap.start()
+        assert cap.mark_trigger()
+        cap.receipt(DeviceResult('tap',True,True))
+        sender.sendall(fake_jpeg(body=b'visual-only-toast'))
+        assert observed.wait(1)
+        out=cap.finish()
+        assert holder['stream'].hub.status=='error'  # Existing stream producer's expected shutdown signal.
+        assert out['status']=='captured'
+        assert not out['problems']
+        holds,ev=transient.seen({'pattern':'not-in-tree'},{'attempts':[{'transient':out}]},
+                                lambda _:(None,None),'test.app')
+        assert holds is None and 'execution_error' not in ev
+    finally:
+        if not cap.closed:cap.finish()
+        sender.close()
+
+
+def test_real_collection_error_before_shutdown_is_preserved(tmp_path):
+    cap,ctx,sources=capture(tmp_path)
+    assert cap.start()
+    assert cap.mark_trigger()
+    cap.receipt(DeviceResult('tap',True,True))
+    sources[0].hub.push(fake_jpeg(body=b'visual-only-toast'))
+    sources[0].hub.set_status('error','transport failed during collection')
+    out=cap.finish()
+    assert any(p['kind']=='error' and 'during collection' in p['detail'] for p in out['problems'])
+    holds,ev=transient.seen({'pattern':'not-in-tree'},{'attempts':[{'transient':out}]},
+                            lambda _:(None,None),'test.app')
+    assert holds is None and ev['execution_error']['error_class']=='transient_capture_error'
