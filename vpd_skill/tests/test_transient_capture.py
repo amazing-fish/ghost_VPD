@@ -324,7 +324,7 @@ def test_real_stream_normal_shutdown_is_not_a_capture_error(tmp_path):
         sender.sendall(fake_jpeg(body=b'visual-only-toast'))
         assert observed.wait(1)
         out=cap.finish()
-        assert holder['stream'].hub.status=='error'  # Existing stream producer's expected shutdown signal.
+        assert not holder['stream']._th.is_alive()  # Socket shutdown status differs by platform; termination is the contract.
         assert out['status']=='captured'
         assert not out['problems']
         holds,ev=transient.seen({'pattern':'not-in-tree'},{'attempts':[{'transient':out}]},
@@ -394,3 +394,17 @@ def test_forced_stop_failure_after_deadline_still_surfaces(tmp_path,monkeypatch)
     out=cap.finish()
     assert out['problems'][0]['kind']=='source_stop_error'
     assert not out['outside_window_problems']
+
+
+def test_expected_shutdown_status_does_not_create_capture_error_on_any_platform(tmp_path):
+    cap,ctx,sources=capture(tmp_path)
+    assert cap.start()
+    assert cap.mark_trigger()
+    cap.receipt(DeviceResult('tap',True,True))
+    sources[0].hub.push(fake_jpeg(body=b'visual-only-toast'))
+    sources[0].stop=lambda:sources[0].hub.set_status('error','intentional socket shutdown')
+    out=cap.finish()
+    assert not out['problems'] and not out['outside_window_problems']
+    holds,ev=transient.seen({'pattern':'not-in-tree'},{'attempts':[{'transient':out}]},
+                            lambda _:(None,None),'test.app')
+    assert holds is None and 'execution_error' not in ev
