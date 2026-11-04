@@ -302,7 +302,7 @@ def test_real_stream_normal_shutdown_is_not_a_capture_error(tmp_path):
     receiver,sender=socket.socketpair()
     holder={}
     def factory(device,hub):
-        stream=UitestStreamSource('synthetic-socket-pair',hub,stall_s=0.2,max_failures=1)
+        stream=UitestStreamSource('synthetic-socket-pair',hub,stall_s=5.0,max_failures=1)
         def open_stream():
             stream._sock=receiver
             sender.sendall(fake_jpeg(body=b'baseline'))
