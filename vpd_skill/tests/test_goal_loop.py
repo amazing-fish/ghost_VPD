@@ -8,7 +8,7 @@ import json
 import pytest
 
 from conftest import confirm, world
-from verdict_fixtures import NAV_RULE
+from verdict_fixtures import COPY_CASE, COPY_RULE, NAV_CASE, NAV_RULE, SETTINGS_RULE
 from vpdtest import cases as C
 from vpdtest.cli import HANDLERS, build_parser
 from vpdtest.knowledge import KnowledgeStore, applicability
@@ -263,60 +263,59 @@ def test_act_request_is_allowlisted_and_has_no_input_digest(ws, tmp_path):
 
 # ---- 判定修正 ----
 
-def test_required_assertion_on_missing_step_is_not_pass(ws):
-    confirm(ws, "K-MOT-001", "K-MOT-002")
-    case = ws.load_case("TC-MOTOR-HM-001")
+def test_required_assertion_on_missing_step_is_not_pass(verdict_ws):
+    confirm(verdict_ws, NAV_RULE, SETTINGS_RULE)
+    case = verdict_ws.load_case(NAV_CASE)
     case["assertions"].append({"id": "A9", "at": "S99", "type": "text_present", "text": "我的",
-                               "desc": "拼错的步骤", "oracle_refs": ["K-MOT-001"]})
-    run = run_case(ws, case=case, device_spec=world("motor_hm_base.json"))
+                               "desc": "拼错的步骤", "oracle_refs": [NAV_RULE]})
+    run = run_case(verdict_ws, case=case, device_spec=world("motor_hm_base.json"))
     assert run["verdict"]["verdict"] == "error"
     assert any(f["id"] == "A9" and "不存在" in f["reason"] for f in run["verdict"]["findings"])
-    assert any(i["field"] == "assertions.A9" for i in C.lint(case, ws.app("motor_hm"), KnowledgeStore(ws.root)))
+    assert any(i["field"] == "assertions.A9" for i in C.lint(case, verdict_ws.app("motor_hm"), KnowledgeStore(verdict_ws.root)))
 
 
-def test_not_run_assertions_are_listed_as_not_verified(ws):
-    confirm(ws, "K-MOT-001", "K-MOT-002")
-    case = ws.load_case("TC-MOTOR-HM-001")
+def test_not_run_assertions_are_listed_as_not_verified(verdict_ws):
+    confirm(verdict_ws, NAV_RULE, SETTINGS_RULE)
+    case = verdict_ws.load_case(NAV_CASE)
     case["steps"][1]["target"] = {"label": "不存在", "strategies": [{"kind": "text", "value": "不存在的入口"}]}
-    run = run_case(ws, case=case, device_spec=world("motor_hm_base.json"))
+    run = run_case(verdict_ws, case=case, device_spec=world("motor_hm_base.json"))
     v = run["verdict"]
     assert v["verdict"] == "blocked" and v["not_verified"]  # 后续断言没执行：列为"尚未验证"，不推断成立
-    assert "尚未验证" in (ws.runs_dir / run["run_id"] / "report.md").read_text("utf-8")
+    assert "尚未验证" in (verdict_ws.runs_dir / run["run_id"] / "report.md").read_text("utf-8")
 
 
-def test_applicability_unknown_or_out_of_scope_is_never_confirmed(ws):
-    confirm(ws, "K-MOT-001")
-    kn = KnowledgeStore(ws.root)
-    assert kn.oracle_status(["K-MOT-001"], facts={"app": "motor_hm", "app_version": "3.0.3.200"})["status"] == "confirmed"
-    assert kn.oracle_status(["K-MOT-001"], facts={"app": "motor_hm"})["status"] == "applicability_unknown"
-    assert kn.oracle_status(["K-MOT-001"], facts={"app": "motor_hm", "app_version": "3.0.4.100"})["status"] == "out_of_scope"
-    assert kn.oracle_status(["K-MOT-001"])["status"] == "applicability_unknown"  # 没有运行上下文时不默认适用
+def test_applicability_unknown_or_out_of_scope_is_never_confirmed(verdict_ws):
+    confirm(verdict_ws, NAV_RULE)
+    kn = KnowledgeStore(verdict_ws.root)
+    assert kn.oracle_status([NAV_RULE], facts={"app": "motor_hm", "app_version": "3.0.3.200"})["status"] == "confirmed"
+    assert kn.oracle_status([NAV_RULE], facts={"app": "motor_hm"})["status"] == "applicability_unknown"
+    assert kn.oracle_status([NAV_RULE], facts={"app": "motor_hm", "app_version": "3.0.4.100"})["status"] == "out_of_scope"
+    assert kn.oracle_status([NAV_RULE])["status"] == "applicability_unknown"  # 没有运行上下文时不默认适用
     debug = {"applies_to": {"app": "qiankun_hm", "app_version": "内部debug版 phone_fc78649"}}
     assert applicability(debug, {"app": "qiankun_hm", "app_version": "1.0.26.100"})["status"] == "unknown"
     # 版本漂移的真机/世界：已确认但范围不符 → 待确认，不是通过
-    confirm(ws, "K-MOT-002")
-    run = run_case(ws, "TC-MOTOR-HM-001", device_spec=world("motor_hm_drift.json"))
+    confirm(verdict_ws, SETTINGS_RULE)
+    run = run_case(verdict_ws, NAV_CASE, device_spec=world("motor_hm_drift.json"))
     assert run["verdict"]["verdict"] == "pending"
     assert any(i["status"] == "out_of_scope" for i in run["knowledge_snapshot"])
 
 
-def test_required_cleanup_failure_blocks_pass(ws):
-    confirm(ws, "K-MOT-001", "K-MOT-002")
-    case = ws.load_case("TC-MOTOR-HM-001")
+def test_required_cleanup_failure_blocks_pass(verdict_ws):
+    confirm(verdict_ws, NAV_RULE, SETTINGS_RULE)
+    case = verdict_ws.load_case(NAV_CASE)
     case["cleanup"] = [{"id": "C1", "action": "tap", "target": {"label": "x", "strategies": [
         {"kind": "text", "value": "不存在的清理按钮"}]}}]
-    run = run_case(ws, case=case, device_spec=world("motor_hm_base.json"))
+    run = run_case(verdict_ws, case=case, device_spec=world("motor_hm_base.json"))
     assert all(a["result"] == "pass" for a in run["assertions"] if not a["advisory"])
     assert run["verdict"]["verdict"] == "blocked"
     assert any(f["kind"] == "cleanup" for f in run["verdict"]["findings"])
-    assert "测试数据可能未恢复" in (ws.runs_dir / run["run_id"] / "report.md").read_text("utf-8")
+    assert "测试数据可能未恢复" in (verdict_ws.runs_dir / run["run_id"] / "report.md").read_text("utf-8")
     case["cleanup"][0]["required"] = False  # 显式声明非必需的清理：只记录
-    assert run_case(ws, case=case, device_spec=world("motor_hm_base.json"))["verdict"]["verdict"] == "passed"
+    assert run_case(verdict_ws, case=case, device_spec=world("motor_hm_base.json"))["verdict"]["verdict"] == "passed"
 
 
-def test_failure_signature_distinguishes_failure_modes(ws):
-    kn = KnowledgeStore(ws.root)
-    confirm(ws, "K-GEN-001")
+def test_failure_signature_distinguishes_failure_modes(verdict_ws):
+    kn = KnowledgeStore(verdict_ws.root).bind({"app": "motor_hm"})
 
     def sig(status):
         steps = [{"step_id": "S2", "outcome": "fail_candidate", "final_status": status, "reason": "x",
@@ -326,9 +325,8 @@ def test_failure_signature_distinguishes_failure_modes(ws):
     assert sig("anomaly") == sig("anomaly")
 
 
-def test_unconfirmed_safe_stop_outranks_product_failure(ws):
-    kn = KnowledgeStore(ws.root)
-    confirm(ws, "K-GEN-001")
+def test_unconfirmed_safe_stop_outranks_product_failure(verdict_ws):
+    kn = KnowledgeStore(verdict_ws.root).bind({"app": "motor_hm"})
     steps = [{"step_id": "S1", "outcome": "fail_candidate", "final_status": "anomaly", "reason": "崩溃",
               "critical": True}]
     v = case_verdict({"ok": True}, {"ok": True}, steps, [], kn,
@@ -340,38 +338,38 @@ def test_unconfirmed_safe_stop_outranks_product_failure(ws):
 
 # ---- 用例成熟度与产品状态分开 ----
 
-def _candidate(ws, cid, src="TC-MOTOR-HM-003"):
+def _candidate(ws, cid, src=COPY_CASE):
     case = ws.load_case(src)
     case.update(id=cid, status="candidate")
     write_json(ws.case_path(cid), case)
     return case
 
 
-def test_stable_known_failure_can_mature_without_changing_expectation(ws):
-    confirm(ws, "K-MOT-003")
-    _candidate(ws, "TC-KF-1")
-    kn = KnowledgeStore(ws.root)
+def test_stable_known_failure_can_mature_without_changing_expectation(verdict_ws):
+    confirm(verdict_ws, COPY_RULE)
+    _candidate(verdict_ws, "TC-KF-1")
+    kn = KnowledgeStore(verdict_ws.root)
     for _ in range(2):
-        run = run_case(ws, "TC-KF-1", device_spec=world("motor_hm_typo.json"))
+        run = run_case(verdict_ws, "TC-KF-1", device_spec=world("motor_hm_typo.json"))
         assert run["verdict"]["verdict"] == "failed"
-        C.record_replay(ws, "TC-KF-1", run)
+        C.record_replay(verdict_ws, "TC-KF-1", run)
     with pytest.raises(PermissionError, match="known-issue"):
-        C.promote(ws, "TC-KF-1", "replay_verified", kn)
-    case = C.promote(ws, "TC-KF-1", "replay_verified", kn, known_issue="DTS-EXAMPLE-1")
+        C.promote(verdict_ws, "TC-KF-1", "replay_verified", kn)
+    case = C.promote(verdict_ws, "TC-KF-1", "replay_verified", kn, known_issue="DTS-EXAMPLE-1")
     assert case["product_status"]["status"] == "known_failure" and case["product_status"]["signature"]
-    assert case["assertions"] == ws.load_case("TC-MOTOR-HM-003")["assertions"]  # 预期没有被改
-    again = run_case(ws, "TC-KF-1", device_spec=world("motor_hm_typo.json"))
+    assert case["assertions"] == verdict_ws.load_case(COPY_CASE)["assertions"]  # 预期没有被改
+    again = run_case(verdict_ws, "TC-KF-1", device_spec=world("motor_hm_typo.json"))
     assert again["verdict"]["verdict"] == "failed" and again["verdict"]["known_issue"]["reproduced"] is True
 
 
-def test_mixed_replays_are_not_stable(ws):
-    confirm(ws, "K-MOT-003")
-    _candidate(ws, "TC-KF-2")
-    kn = KnowledgeStore(ws.root)
-    C.record_replay(ws, "TC-KF-2", run_case(ws, "TC-KF-2", device_spec=world("motor_hm_typo.json")))
-    C.record_replay(ws, "TC-KF-2", run_case(ws, "TC-KF-2", device_spec=world("motor_hm_base.json")))
+def test_mixed_replays_are_not_stable(verdict_ws):
+    confirm(verdict_ws, COPY_RULE)
+    _candidate(verdict_ws, "TC-KF-2")
+    kn = KnowledgeStore(verdict_ws.root)
+    C.record_replay(verdict_ws, "TC-KF-2", run_case(verdict_ws, "TC-KF-2", device_spec=world("motor_hm_typo.json")))
+    C.record_replay(verdict_ws, "TC-KF-2", run_case(verdict_ws, "TC-KF-2", device_spec=world("motor_hm_base.json")))
     with pytest.raises(PermissionError, match="不一致"):
-        C.promote(ws, "TC-KF-2", "replay_verified", kn, known_issue="DTS-EXAMPLE-2")
+        C.promote(verdict_ws, "TC-KF-2", "replay_verified", kn, known_issue="DTS-EXAMPLE-2")
 
 
 def _replays(*verdicts) -> dict:
@@ -418,8 +416,9 @@ def test_conflicts_only_between_overlapping_scopes(ws):
     assert kn.oracle_status(["K-T-V2"], {"app": "motor_hm", "app_version": "2.0.1.100"})["status"] == "conflicted"
 
 
-def test_authorization_change_invalidates_replays(ws):
-    case = ws.load_case("TC-QK-102")
+def test_authorization_change_invalidates_replays(verdict_ws):
+    case = verdict_ws.load_case(NAV_CASE)
+    case["authorizations"] = ["user_data"]
     h = C.content_hash(case)
     case["authorizations"] = case["authorizations"] + ["vehicle_motion"]
     assert C.content_hash(case) != h
