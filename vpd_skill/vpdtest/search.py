@@ -51,6 +51,9 @@ def item_role(it: dict) -> tuple:
         if it.get("status") == "confirmed":
             return "requirement", "来源是现场观察，已凭依据确认；作判据时证据链可回溯到观察记录"
         return "observation", f"标为 {kind}，但来源是现场观察：确认（需依据）前不能当作产品要求"
+    # #45：展示已有确认结果，不另设与 KnowledgeStore 不一致的资格门槛。
+    if kind == "domain_note" and status == "confirmed":
+        return "requirement", "领域知识已确认；判据资格仍须核对适用范围与冲突"
     if kind in ("requirement", "product_rule", "ui_copy", "generic_invariant"):
         return "requirement", None
     return "background", None
