@@ -75,6 +75,7 @@ class TransientCapture:
         self.hub = None
         self.latest_valid = False
         self.frames, self.observations, self.problems = [], [], []
+        self.outside_window_problems = []
         self.bytes = self.dropped = 0
         self.trigger = None
         self.started = time.monotonic()
@@ -86,9 +87,15 @@ class TransientCapture:
 
     def problem(self, kind, detail, *, force=False):
         with self.lock:
-            if (not self.closed or force) and len(self.problems) < 30:
-                self.problems.append({"kind": kind, "detail": str(detail or "")[:500],
-                                      "t": round(time.monotonic() - self.started, 6)})
+            if self.closed and not force:
+                return
+            stamp = time.monotonic()
+            late = (not force and self.trigger is not None
+                    and stamp > self.trigger["clock"] + self.post_s)
+            target = self.outside_window_problems if late else self.problems
+            if len(target) < 30:
+                target.append({"kind": kind, "detail": str(detail or "")[:500],
+                               "t": round(stamp - self.started, 6)})
 
     def frame(self, data):
         with self.lock:
@@ -216,7 +223,8 @@ class TransientCapture:
             gaps = [b-a for a,b in zip([start]+clocks, clocks+[end])]
             trigger = {k:v for k,v in (self.trigger or {}).items() if k != "clock"}
             self.summary.update(frames=saved, observations=self.observations if allowed else [],
-                                trigger=trigger or None, problems=self.problems, dropped_frames=self.dropped,
+                                trigger=trigger or None, problems=self.problems, outside_window_problems=self.outside_window_problems,
+                                dropped_frames=self.dropped,
                                 largest_observed_gap_s=round(max(gaps, default=0), 6), ended_at=now_iso(),
                                 manifest=self.ctx.store.rel(self.dir / "manifest.json"))
             self.frames.clear()

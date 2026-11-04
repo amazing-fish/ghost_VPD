@@ -347,3 +347,50 @@ def test_real_collection_error_before_shutdown_is_preserved(tmp_path):
     holds,ev=transient.seen({'pattern':'not-in-tree'},{'attempts':[{'transient':out}]},
                             lambda _:(None,None),'test.app')
     assert holds is None and ev['execution_error']['error_class']=='transient_capture_error'
+
+
+def test_source_error_after_deadline_is_retained_outside_assertion_window(tmp_path,monkeypatch):
+    cap,ctx,sources=capture(tmp_path)
+    assert cap.start()
+    assert cap.mark_trigger()
+    cap.receipt(DeviceResult('tap',True,True))
+    sources[0].hub.push(fake_jpeg(body=b'visual-only-toast'))
+    after_deadline=cap.trigger['clock']+cap.post_s+0.02
+    monkeypatch.setattr(transient.time,'monotonic',lambda:after_deadline)
+    sources[0].hub.set_status('error','failure published after deadline')
+    out=cap.finish()
+    assert not out['problems']
+    assert out['outside_window_problems'][0]['kind']=='error'
+    assert 'after deadline' in out['outside_window_problems'][0]['detail']
+    holds,ev=transient.seen({'pattern':'not-in-tree'},{'attempts':[{'transient':out}]},
+                            lambda _:(None,None),'test.app')
+    assert holds is None and 'execution_error' not in ev
+
+
+def test_source_error_inside_deadline_remains_a_capture_error(tmp_path,monkeypatch):
+    cap,ctx,sources=capture(tmp_path)
+    assert cap.start()
+    assert cap.mark_trigger()
+    cap.receipt(DeviceResult('tap',True,True))
+    sources[0].hub.push(fake_jpeg(body=b'visual-only-toast'))
+    inside=cap.trigger['clock']+0.02
+    monkeypatch.setattr(transient.time,'monotonic',lambda:inside)
+    sources[0].hub.set_status('error','failure inside deadline')
+    out=cap.finish()
+    assert out['problems'][0]['kind']=='error' and not out['outside_window_problems']
+    holds,ev=transient.seen({'pattern':'not-in-tree'},{'attempts':[{'transient':out}]},
+                            lambda _:(None,None),'test.app')
+    assert holds is None and ev['execution_error']['error_class']=='transient_capture_error'
+
+
+def test_forced_stop_failure_after_deadline_still_surfaces(tmp_path,monkeypatch):
+    cap,ctx,sources=capture(tmp_path)
+    assert cap.start()
+    assert cap.mark_trigger()
+    cap.receipt(DeviceResult('tap',True,True))
+    after_deadline=cap.trigger['clock']+cap.post_s+0.02
+    monkeypatch.setattr(transient.time,'monotonic',lambda:after_deadline)
+    sources[0].stop=lambda:(_ for _ in ()).throw(RuntimeError('stop failed'))
+    out=cap.finish()
+    assert out['problems'][0]['kind']=='source_stop_error'
+    assert not out['outside_window_problems']
