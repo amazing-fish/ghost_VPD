@@ -131,4 +131,7 @@ class RunContext:
         obs, tree = self.observer.observe(label, screenshot)
         self.last_obs, self.last_tree = obs, tree
         self.motion.on_observation(obs)
+        capture = getattr(self, "transient_capture", None)
+        if capture is not None:
+            capture.observation(obs, tree)
         return obs, tree

@@ -81,6 +81,7 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--speed", type=int, help="相对 swipe 速度整数200..40000 px/s（默认2000）；不是时长")
     a.add_argument("--expect", help="期望到达的状态 ID")
     a.add_argument("--expect-text", help="动作后可见文字中应出现的正则（未声明状态的页面用它作后置条件）")
+    a.add_argument("--capture-transient", type=float, help="tap前开启短提示帧流，并采集触发后0.05..10秒；未就绪不提交，不自动重试")
     a.add_argument("--timeout", type=float, default=8)
     a.add_argument("--duration", type=float, help="wait/monitor 的时长（秒）")
     a.add_argument("--interval", type=float, default=2, help="monitor 采样间隔（秒）")

@@ -382,6 +382,10 @@ def execution_structure_issues(case: dict, app, *, read_sources=True) -> list:
         error = swipe_options_error(step)
         if error:
             issues.append({"field": where, "problem": error})
+        from .transient import options_error as transient_options_error
+        error = transient_options_error(step, app)
+        if error:
+            issues.append({"field": where + ".capture_transient", "problem": error})
         if step.get("_lint_cycle"):
             issues.append({"field": where, "problem": "flow/recipe 存在递归引用，不能展开执行"})
         # ensure_state 自动添加的终态检查也写入同一 step_results 命名空间。
@@ -389,6 +393,23 @@ def execution_structure_issues(case: dict, app, *, read_sources=True) -> list:
             recipe = app.states.recipes.get(step.get("state"))
             if recipe:
                 reserve(f"{step_id}.{len(recipe) + 1}", f"{where}→终态检查")
+    for assertion in case.get("assertions", []):
+        if assertion.get("type") != "transient_text_seen":
+            continue
+        source = main.get(assertion.get("at")) or {}
+        field = f"assertions.{assertion.get('id', '?')}"
+        if "capture_transient" not in source:
+            issues.append({"field": field, "problem": "transient_text_seen须绑定本例声明capture_transient的顶层tap"})
+        try:
+            if not isinstance(assertion.get("pattern"), str) or not assertion["pattern"]:
+                raise ValueError("pattern须为非空正则")
+            re.compile(assertion["pattern"])
+        except (ValueError, re.error) as exc:
+            issues.append({"field": field + ".pattern", "problem": str(exc)})
+        if "expected" in assertion and type(assertion["expected"]) is not bool:
+            issues.append({"field": field + ".expected", "problem": "expected须为布尔值"})
+        if "min_count" in assertion and (type(assertion["min_count"]) is not int or assertion["min_count"] < 1):
+            issues.append({"field": field + ".min_count", "problem": "min_count须为正整数"})
     return issues
 
 

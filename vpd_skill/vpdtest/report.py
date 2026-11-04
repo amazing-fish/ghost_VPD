@@ -135,6 +135,15 @@ def render_run(run: dict) -> str:
                     "authorize": "确认后由人在命令行显式授权"}.get(u["key"].split(".")[0], "可用 --env 声明")
             out.append(f"  - 环境要求 `{u['key']}` 需为 `{u['required']}`，实际 `{u['actual']}`（{hint}）")
 
+    captures = [(step, attempt["transient"]) for step in _steps(run.get("steps", []) + run.get("cleanup", []))
+                for attempt in step.get("attempts", []) if attempt.get("transient")]
+    if captures:
+        out += ["", "## 短暂提示帧证据", "", "触发动作与图片分别留证；未捕获不代表无提示。图片需查语义，手机完成提示不证明后台日志接收。", ""]
+        for step, capture in captures:
+            out.append(f"- `{_esc(step['step_id'])}`：{_esc(capture['status'])}；清单 [{_esc(capture['capture_id'])}]({capture.get('manifest', '')})；"
+                       f"帧数 {len(capture.get('frames', []))}，最大观测间隙 {capture.get('largest_observed_gap_s')}s，丢帧 {capture.get('dropped_frames', 0)}。")
+            for frame in capture.get("frames", []):
+                out.append(f"  - [{_esc(frame['phase'])} t={frame['t']}s]({frame['path']}) SHA256 `{frame['sha256']}`")
     if run.get("measurements"):
         out += ["", "## 读数", "", "| 步骤 | 名称 | 值 | 原文 |", "|---|---|---|---|"]
         out += [f"| {m['step']} | {_esc(m.get('name'))} | {_esc(m.get('value'))} {_esc(m.get('unit') or '')} | {_esc(m.get('raw'))} |"

@@ -94,7 +94,7 @@ SESSION_SCHEMA = 2
 # act_request 只记这些字段（白名单）：新加的命令行参数默认不落盘，输入文字只记长度
 REQUEST_FIELDS = ("action", "select", "within", "target", "point", "basis", "side_effect", "allow_input", "text_len", "clear",
                   "expect", "expect_text", "timeout", "duration", "interval", "watch", "direction", "authorize",
-                  "supervisor", "start", "end", "speed")
+                  "supervisor", "start", "end", "speed", "capture_transient")
 
 
 def _open_session(ws, a):
@@ -210,11 +210,14 @@ def _cmd_act(ws: Workspace, a) -> dict:
            "watch": dict(kv.split("=", 1) for kv in a.watch or []) if a.action == "monitor" else None,
            "direction": getattr(a, "direction", None), "authorize": sorted(set(a.authorize or [])),
            "start": getattr(a, "start", None), "end": getattr(a, "end", None), "speed": getattr(a, "speed", None),
-           "supervisor": bool(a.supervisor)}
+           "supervisor": bool(a.supervisor),
+           "capture_transient": {"post_s": a.capture_transient} if getattr(a, "capture_transient", None) is not None else None}
     request = {k: raw[k] for k in REQUEST_FIELDS if raw.get(k) not in (None, [], False)}
     store.event("act_request", seq=seq, step_id=step_id, request=request)
     try:
         step = _act_step(ctx, store, a, step_id)
+        if getattr(a, "capture_transient", None) is not None:
+            step["capture_transient"] = {"post_s": a.capture_transient}
     except (ValueError, PermissionError) as e:
         store.event("act_rejected", seq=seq, reason=str(e))
         raise

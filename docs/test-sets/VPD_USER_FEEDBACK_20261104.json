@@ -1,0 +1,20 @@
+{
+  "id": "VPD_USER_FEEDBACK_20261104",
+  "kind": "manual_test_set",
+  "status": "ready_for_field_calibration",
+  "source": "User feedback on D03 and feedback notification, 2026-11-04",
+  "specification": "vpd_skill/data/knowledge/text_cases/VPD_USER_FEEDBACK_20261104.md",
+  "execution_boundary": "This is a collected manual test set, not an enabled vpdtest suite. Obtain actual selectors, independent sources and cleanup evidence before generating executable cases. No simulated run is real-device acceptance.",
+  "cases": [
+    {"id": "MAN-QK-COMB-001", "scene": "Controlled favorites for keyword/tag combinations", "issue": 80, "fixture_classes": ["keyword_and_tag", "keyword_only", "tag_only"], "combination_semantics": "pending_user_decision", "cleanup": "only_current_run_additions_with_independent_readback"},
+    {"id": "MAN-QK-FEEDBACK-001", "scene": "Online feedback: user completion, phone/cloud receipt and vehicle/DDI receipt are separate", "issue": 136},
+    {"id": "MAN-QK-FEEDBACK-002", "scene": "Independently established offline feedback and correct user-visible status", "issue": 136},
+    {"id": "MAN-QK-FEEDBACK-003", "scene": "Delayed receipt without arbitrary timeout-based absence", "issue": 136},
+    {"id": "MAN-QK-FEEDBACK-004", "scene": "Recovery after offline feedback: retention and deferred delivery", "issue": 136},
+    {"id": "MAN-QK-FEEDBACK-005", "scene": "Deliberate duplicate submissions with separate trigger and receipt correlation", "issue": 136}
+  ],
+  "not_authorized_by_this_file": ["product_rule_confirmation", "asset_approval", "vehicle_motion", "vehicle_power_change", "account_switch", "deletion_of_existing_favorites"],
+  "live_execution": "not_performed",
+  "formal_coverage_added": 0,
+  "other_decisions": "D01,D02,D04-D16 remain as previously documented; no new business rulings inferred"
+}
