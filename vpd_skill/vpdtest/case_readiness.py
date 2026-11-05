@@ -58,6 +58,7 @@ def _review(info):
         "changed_binding_fields": sorted(k for k, value in current.items()
                                          if available and binding.get(k) != value),
         "unexpected_binding_field_count": len(set(binding) - set(current)) if available else 0,
+        "engine_changes": info.get("engine_changes"),
         "current": current}
 
 
