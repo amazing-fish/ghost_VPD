@@ -125,6 +125,18 @@ class Policy:
         包括严格绑定搜索输入与筛选组的 navigation；目标自填字段不产生这些来源。
         """
         target, authorized = target or {}, self.effective_grants(authorized)
+        def unknown_confirmation(reason, label=None, **context):
+            result = {"allowed": False, "reason": reason, "label": label,
+                      "deny": {"class": "confirmation_semantics_unknown"}}
+            try:
+                result["confirmation_diagnostic"] = self._confirmation_diagnostic(
+                    tree, point, basis, confirmation_sources, **context)
+            except Exception:
+                # Diagnostics must never change a refusal, or expose exception/input text.
+                result["confirmation_diagnostic"] = {
+                    "version": 1, "gaps": ["diagnostic_collection_failed"]}
+            return result
+
         if basis not in VALID_BASIS:
             return {"allowed": False, "reason": f"未知定位依据 {basis}", "label": None, "deny": None}
         effect = target.get("side_effect", "navigation")
@@ -140,8 +152,7 @@ class Policy:
                 return {"allowed": False, "reason": "无可用 UI 树，无法取得任务动作的当前语义依据",
                         "label": None, "deny": {"class": "task_semantics_unverified", "effect": effect}}
             if any(s.get("kind") == "text" and not s.get("exact", True) for s in target.get("strategies", [])):
-                return {"allowed": False, "reason": "无可用 UI 树，无法核验非精确文本选择器的确认语义",
-                        "label": None, "deny": {"class": "confirmation_semantics_unknown"}}
+                return unknown_confirmation("无可用 UI 树，无法核验非精确文本选择器的确认语义")
             labels = [target.get("label", "")] + [s.get("value", "") for s in target.get("strategies", [])
                                                    if s.get("kind") == "text"]
             for strategy in target.get("strategies", []):
@@ -150,12 +161,10 @@ class Policy:
                     # 没有当前树时不能求值文本/动态表达式；concat 等不能拆成安全的字面标签。
                     expression = re.sub(r"'[^']*'|\"[^\"]*\"", "", xpath)
                     if re.search(r"@\s*(?:text|description)\b|@\s*\*|attribute\s*::|\(|\$", expression):
-                        return {"allowed": False, "reason": "无可用 UI 树，无法核验文本或动态 XPath 的确认语义",
-                                "label": None, "deny": {"class": "confirmation_semantics_unknown"}}
+                        return unknown_confirmation("无可用 UI 树，无法核验文本或动态 XPath 的确认语义")
                     labels.extend(re.findall(r"['\"]([^'\"]+)['\"]", xpath))
             if any(isinstance(t, str) and self.confirmation_rx.fullmatch(t.strip()) for t in labels):
-                return {"allowed": False, "reason": "无可用 UI 树，无法核验通用确认的当前语义",
-                        "label": None, "deny": {"class": "confirmation_semantics_unknown"}}
+                return unknown_confirmation("无可用 UI 树，无法核验通用确认的当前语义")
             if effect == "safe_stop":
                 # 安全停止豁免预算与运动锁，所以只在能按停止类文字确认控件身份时才点；
                 # 没有 UI 树时模板/坐标都无法确认，宁可交人工接管也不盲点
@@ -273,8 +282,10 @@ class Policy:
             return {"allowed": False, "reason": f"命中受控文本「{h['text']}」：{why}", "label": label,
                     "deny": {**h, "gated": not task, "task": task, "supervised": sup}}
         if confirmation_unknown:
-            return {"allowed": False, "reason": "通用确认缺少当前页面或同一弹窗的具体副作用依据；需先确认语义",
-                    "label": label, "deny": {"class": "confirmation_semantics_unknown"}}
+            return unknown_confirmation(
+                "通用确认缺少当前页面或同一弹窗的具体副作用依据；需先确认语义", label,
+                node=node, container=container, modal=modal, title=title,
+                page_sources=page_sources, contexts=context, benign=benign)
         receiver_labels = {text.strip() for text in texts if text.strip()}
         receiver_nodes = [n for n in tree.nodes if tree.is_within(n, container)]
         visible_labels = {text.strip() for n in receiver_nodes if tree.shown(n)
@@ -298,6 +309,61 @@ class Policy:
                 **({"navigation_source": navigation} if navigation else {}),
                 **({"authorized_by": effect, "authorization_source": "task_policy"} if effect in self.task_side_effects else {}),
                 **({"confirmation_source": confirmation} if confirmation else {})}
+
+    def _confirmation_diagnostic(self, tree, point, basis, sources, *, node=None, container=None,
+                                 modal=None, title=None, page_sources=(), contexts=(), benign=()):
+        """#142: bounded structural references, never free text, selectors, IDs or input values.
+
+        All selected evidence is passed from the existing decision, not a new source of permission.
+        Node indices/bounds refer only to this current tree; resolve them with its observation.
+        """
+        available = tree is not None and tree.status == "ok"
+        modals = tree.modal_layers() if available else []
+        modal_ids = {m.idx for m in modals}
+        candidates, count = [], 0
+        for n in tree.nodes if available and modal is not None else []:
+            if n.type != "Text" or not n.text.strip() or not tree.is_within(n, modal):
+                continue
+            count += 1
+            if len(candidates) >= 8:
+                continue
+            lineage = tree.ancestors(n)
+            eligible = (tree.in_scope(n, [modal]) and tree.shown(n) and not n.clickable
+                        and next((a.idx for a in lineage if a.idx in modal_ids), None) == modal.idx
+                        and not any(a.clickable or a.type in EDITABLE_TYPES for a in lineage
+                                    if a.idx != modal.idx and tree.is_within(a, modal)))
+            candidates.append({"node_idx": n.idx, "bounds": list(n.bounds) if n.bounds else None,
+                               "eligible": bool(eligible)})
+        gaps = []
+        if not available:
+            gaps.append("ui_tree_unavailable")
+        elif modal is None:
+            gaps.append("nearest_modal_not_identified")
+        elif title is None:
+            gaps.append("noninteractive_title_not_identified")
+        elif not contexts:
+            gaps.append("title_context_not_registered")
+        if not page_sources:
+            gaps.append("page_confirmation_not_accepted")
+        if not benign:
+            gaps.append("bound_benign_source_not_accepted")
+        return {"version": 1, "evidence": "current_ui_tree" if available else "ui_tree_unavailable",
+                "basis": basis,
+                "target": {"node_idx": node.idx if node is not None else None,
+                           "container_idx": container.idx if container is not None else None,
+                           "point": list(point) if len(point) == 2 and all(
+                               type(v) in (int, float) for v in point) else None},
+                "modal": {"nearest_idx": modal.idx if modal is not None else None,
+                          "visible_indices": [m.idx for m in modals[:8]], "truncated": len(modals) > 8},
+                "title": {"selected_idx": title.idx if title is not None else None,
+                          "candidates": candidates, "candidate_count": count, "truncated": count > 8},
+                "sources": {"supplied_page": sum(s.get("kind") == "state_confirmation_candidates"
+                                                 for s in sources or []),
+                            "supplied_benign": sum(s.get("kind") == "reviewed_benign_interrupt"
+                                                   for s in sources or []),
+                            "accepted_page": len(page_sources), "accepted_context": len(contexts),
+                            "accepted_benign": len(benign)},
+                "gaps": gaps}
 
     def _favorites_browse_source(self, tree, point, node, container, target, basis, layout, foreground):
         """Only the observed Qiankun home 收藏夹 receiver is browse navigation.
