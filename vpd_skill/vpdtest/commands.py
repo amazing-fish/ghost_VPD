@@ -188,14 +188,12 @@ def _budget_status(ctx, result: dict) -> dict:
 
 
 def cmd_act(ws: Workspace, a) -> dict:
+    from .session import relative_scope_target, swipe_scope_definition_error
     error = swipe_options_error(vars(a))
+    if error is None and relative_scope_target(vars(a)) is not None:
+        error = swipe_scope_definition_error(vars(a), ws.app(a.app))
     if error:
         raise ValueError(error)
-    from .session import relative_scope_target, swipe_scope_definition_error
-    if relative_scope_target(vars(a)) is not None:
-        error = swipe_scope_definition_error(vars(a), ws.app(a.app))
-        if error:
-            raise ValueError(error)
     with session_lock(ws.runs_dir / f"session-{a.session}"):
         return _cmd_act(ws, a)
 
