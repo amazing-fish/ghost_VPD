@@ -19,6 +19,7 @@ from .session import (IDENTITY_KEYS, SessionMismatch, dispatched, effect_unknown
                       parse_select, summarize, trail, session_lock, step_options, swipe_options_error,
                       relative_swipe_options)
 from .templates import crop
+from .transient import options_error as transient_options_error
 from .util import append_jsonl, now_iso, read_json, read_jsonl, write_json
 from .workspace import RunContext, Workspace
 
@@ -187,16 +188,34 @@ def _budget_status(ctx, result: dict) -> dict:
     return out
 
 
+def _capture_request(a):
+    post = getattr(a, "capture_transient", None)
+    ready = getattr(a, "capture_ready_timeout", None)
+    if post is None:
+        if ready is not None:
+            raise ValueError("--capture-ready-timeout 须配合 --capture-transient")
+        return None
+    options = {"post_s": post}
+    if ready is not None:
+        options["ready_timeout_s"] = ready
+        error = transient_options_error({"action": a.action, "capture_transient": options})
+        if error:
+            raise ValueError(error)
+    return options
+
+
 def cmd_act(ws: Workspace, a) -> dict:
     error = swipe_options_error(vars(a))
     if error:
         raise ValueError(error)
+    _capture_request(a)  # Validate shape/range before opening a device or creating a session.
     with session_lock(ws.runs_dir / f"session-{a.session}"):
         return _cmd_act(ws, a)
 
 
 def _cmd_act(ws: Workspace, a) -> dict:
     app, store, dev, ctx = _open_session(ws, a)
+    capture = _capture_request(a)
     seq = next_seq(store)
     step_id = a.step_id or f"A{seq}"
     # 先记请求再执行：进程中途被杀时，会话里仍能看到"请求了什么、没有结果"
@@ -211,13 +230,13 @@ def _cmd_act(ws: Workspace, a) -> dict:
            "direction": getattr(a, "direction", None), "authorize": sorted(set(a.authorize or [])),
            "start": getattr(a, "start", None), "end": getattr(a, "end", None), "speed": getattr(a, "speed", None),
            "supervisor": bool(a.supervisor),
-           "capture_transient": {"post_s": a.capture_transient} if getattr(a, "capture_transient", None) is not None else None}
+           "capture_transient": capture}
     request = {k: raw[k] for k in REQUEST_FIELDS if raw.get(k) not in (None, [], False)}
     store.event("act_request", seq=seq, step_id=step_id, request=request)
     try:
         step = _act_step(ctx, store, a, step_id)
-        if getattr(a, "capture_transient", None) is not None:
-            step["capture_transient"] = {"post_s": a.capture_transient}
+        if capture is not None:
+            step["capture_transient"] = dict(capture)
     except (ValueError, PermissionError) as e:
         store.event("act_rejected", seq=seq, reason=str(e))
         raise
