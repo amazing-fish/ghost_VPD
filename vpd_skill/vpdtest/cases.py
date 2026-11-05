@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from . import review_snapshot
 from .knowledge import ACTIVE, item_status
 from .safety import TREE_KINDS, untreed_strategies
 from .session import swipe_options_error
@@ -237,9 +238,8 @@ def review_context(ws, app) -> dict:
             "system_dialogs": read_json(ws.root / "system_dialogs.json", {}), "templates": templates}
 
 
-def _review_binding(ws, case: dict, app, knowledge, policy, context=None) -> dict:
-    engine_dir = Path(__file__).parent
-    engine = {p.relative_to(engine_dir).as_posix(): sha256_file(p) for p in sorted(engine_dir.rglob("*.py"))}
+def _review_binding(ws, case: dict, app, knowledge, policy, context=None, *, engine_files=None) -> dict:
+    engine = review_snapshot.engine_files(Path(__file__).parent) if engine_files is None else engine_files
     context = review_context(ws, app) if context is None else context
     return {"case_id": case["id"], "content_hash": content_hash(case),
             "dependency_hash": dependency_hash(case, app, knowledge),
@@ -253,7 +253,8 @@ def review_status(ws, case: dict, knowledge=None, app=None, policy=None, context
     knowledge = knowledge or KnowledgeStore(ws.root)
     policy = policy or ws.policy()
     signals = exploration_signals(case)
-    binding = _review_binding(ws, case, app, knowledge, policy, context)
+    files = review_snapshot.engine_files(Path(__file__).parent)
+    binding = _review_binding(ws, case, app, knowledge, policy, context, engine_files=files)
     record = case.get("asset_review")
     complete = isinstance(record, dict) and type(record.get("schema")) is int and record["schema"] == 1 and all(
         isinstance(record.get(k), str) and record[k].strip() for k in ("reviewer", "basis", "ts"))
@@ -264,8 +265,11 @@ def review_status(ws, case: dict, knowledge=None, app=None, policy=None, context
             complete = False
     valid = bool(complete and record.get("binding") == binding)
     state = "approved" if valid else ("stale" if complete else ("pending" if signals else "not_required"))
+    # Keep the potentially large manifest in the asset, not every run/suite brief.
+    record_view = {k: v for k, v in record.items() if k != "engine_snapshot"} if isinstance(record, dict) else None
     return {"required": bool(signals), "valid": valid, "state": state, "origin_signals": signals,
-            "current": binding, "record": record if isinstance(record, dict) else None}
+            "current": binding, "record": record_view,
+            "engine_changes": review_snapshot.engine_changes(record, files)}
 
 
 def require_review(ws, case: dict, knowledge=None, app=None, policy=None, context=None) -> dict:
@@ -293,8 +297,10 @@ def approve(ws, case_id: str, knowledge, reviewer: str, basis: str) -> dict:
                         and origin["type"] in EXPLORATION_ORIGINS):
         session_origin = "source:session" in signals or "step:from_session" in signals
         case["origin"] = {"type": "session" if session_origin else "exploration", "inferred_from": signals}
-    binding = _review_binding(ws, case, app, knowledge, policy)
-    record = {"schema": 1, "reviewer": reviewer.strip(), "basis": basis.strip(), "ts": now_iso(), "binding": binding}
+    files = review_snapshot.engine_files(Path(__file__).parent)
+    binding = _review_binding(ws, case, app, knowledge, policy, engine_files=files)
+    record = {"schema": 1, "reviewer": reviewer.strip(), "basis": basis.strip(), "ts": now_iso(), "binding": binding,
+              "engine_snapshot": review_snapshot.capture(files)}
     case["asset_review"] = record
     case["history"] = case.get("history", []) + [{"event": "asset_review", **record}]
     write_json(ws.case_path(case_id), case)
