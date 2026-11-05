@@ -40,7 +40,9 @@ candidate按既有规则可含active但unconfirmed的判据；正式regression�
 `coverage=not_assessed`，不发布正式覆盖率。需要业务决策时仍应提供逐条背景与实际截图；缺图记录待补，
 在下次同项实测前提醒补采，不凭本报表要求批量批准。
 
-已知源件数据错误逐行列为 `error`，顶层 `incomplete=true`，后续资产继续检查；缺源件也标incomplete。
-未分类的实现异常沿CLI原错误路径报告，不变成就绪结论。CLI的成功退出码表示生成报告，须读取JSON中的
+检查前先核对已知集合形状（步骤、断言、来源、历史、重放及其断言/事实等），
+已知源件数据错误逐行列为 `source_error`，顶层 `incomplete=true`，后续资产继续检查；缺源件也标incomplete。
+未预期的检查异常逐行列为 `inspection_error` 并保留trace，后续资产仍检查；汇总的 `inspection_errors>0` 时
+CLI退出3，不能把实现故障藏在成功退出码后。CLI的成功退出码表示生成报告，须读取JSON中的
 `incomplete`、`error`和`promotion.status`。本命令不为整个workspace获取文件锁，文件变化后应重算；
 正式执行和晋级仍各自核对当时的绑定，不能把预检当作长期准入凭据。

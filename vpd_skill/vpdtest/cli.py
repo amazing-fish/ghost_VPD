@@ -254,6 +254,9 @@ def main(argv=None) -> int:
                          ensure_ascii=False))
         return 3
     print(dumps(out))
+    if (args.cmd == "case" and args.case_cmd == "readiness"
+            and out.get("summary", {}).get("inspection_errors")):
+        return 3  # Report all rows, but never hide an unexpected inspection fault behind exit 0.
     res = out.get("results")
     rows = [out] + ([r for r in res if isinstance(r, dict)] if isinstance(res, list) else [])
     if any(r.get("action_required") for r in rows):

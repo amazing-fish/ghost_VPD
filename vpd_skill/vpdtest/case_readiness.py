@@ -1,6 +1,8 @@
 """Read-only inventory and the existing promotion gates; no new maturity or coverage rules."""
 from collections import Counter
+import json
 import re
+import traceback
 
 from . import cases as C
 from .knowledge import KnowledgeStore, item_status
@@ -8,6 +10,43 @@ from .knowledge import KnowledgeStore, item_status
 
 SCOPE = {"missing_sources": "only_explicitly_requested_ids", "runtime_applicability": "not_checked",
          "evidence_packages": "not_checked", "coverage": "not_assessed"}
+
+
+class _SourceShapeError(ValueError):
+    pass
+
+
+def _validate_source(case):
+    """Check collection shapes before helpers dereference nested rows; not a new promotion gate."""
+    def objects(value, where, nullable=False):
+        if value is None and nullable:
+            return []
+        if not isinstance(value, list):
+            raise _SourceShapeError(f"{where} 须为对象列表")
+        for index, row in enumerate(value):
+            if not isinstance(row, dict):
+                raise _SourceShapeError(f"{where}[{index}] 须为对象")
+        return value
+
+    for key in ("steps", "cleanup", "assertions", "sources", "history", "knowledge_used", "replays"):
+        if key in case:
+            objects(case[key], key)
+    for key in ("test_data", "safety"):
+        if key in case and case[key] is not None and not isinstance(case[key], dict):
+            raise _SourceShapeError(f"{key} 须为对象")
+    if isinstance(case.get("safety"), dict) and "safe_stop" in case["safety"]:
+        objects(case["safety"]["safe_stop"], "safety.safe_stop")
+    for index, replay in enumerate(case.get("replays", [])):
+        prefix = f"replays[{index}]"
+        if "assertions" in replay:
+            objects(replay["assertions"], prefix + ".assertions", nullable=True)
+        for key in ("facts", "oracle_facts", "coverage"):
+            value = replay.get(key)
+            if value is not None and not isinstance(value, dict):
+                raise _SourceShapeError(f"{prefix}.{key} 须为对象")
+        coverage = replay.get("coverage") or {}
+        if "assertions" in coverage:
+            objects(coverage["assertions"], prefix + ".coverage.assertions", nullable=True)
 
 
 def _review(info):
@@ -31,7 +70,8 @@ def _one(ws, cid, knowledge, policy, to, reviewer, allow_offline, known_issue):
     try:
         case = ws.load_case(cid)
         if not isinstance(case, dict) or not isinstance(case.get("app"), str):
-            raise ValueError("资产须为对象并声明字符串 app")
+            raise _SourceShapeError("资产须为对象并声明字符串 app")
+        _validate_source(case)
         status = case.get("status", "draft")
         row.update(app=case["app"], status=status if isinstance(status, str) else None,
                    scope=dict(SCOPE))
@@ -70,9 +110,16 @@ def _one(ws, cid, knowledge, policy, to, reviewer, allow_offline, known_issue):
                 row["promotion"] = {"to": target, "status": "eligible", "preview": preview}
             except PermissionError as exc:
                 row["promotion"] = {"to": target, "status": "blocked", "reason": str(exc)}
-    except (ValueError, KeyError, TypeError, OSError) as exc:
-        # Invalid/unavailable source data is visible; unexpected implementation errors still propagate.
-        row["error"] = {"stage": stage, "type": type(exc).__name__, "message": str(exc)}
+    except Exception as exc:
+        # An inventory must keep later rows. Distinguish recognized source errors from
+        # unexpected inspection faults, retaining the traceback and CLI failure status.
+        source_error = (isinstance(exc, _SourceShapeError) or
+                        (stage == "source" and isinstance(exc, (json.JSONDecodeError, OSError))) or
+                        (stage == "app" and isinstance(exc, (ValueError, OSError))))
+        row["error"] = {"stage": stage, "type": type(exc).__name__, "message": str(exc),
+                        "kind": "source_error" if source_error else "inspection_error"}
+        if not source_error:
+            row["error"]["trace"] = traceback.format_exc()[-2000:]
     return row
 
 
@@ -89,6 +136,7 @@ def readiness(ws, case_ids=None, *, to=None, reviewer=None, allow_offline=False,
     source = Counter(r["source"] for r in rows)
     errors = sum("error" in r for r in rows)
     summary = {"requested": len(ids), "source": dict(sorted(source.items())), "analysis_errors": errors,
+               "inspection_errors": sum(r.get("error", {}).get("kind") == "inspection_error" for r in rows),
                "maturity": dict(sorted(Counter(r["status"] for r in rows if isinstance(r["status"], str)).items())),
                "review": dict(sorted(Counter(r["review"]["state"] for r in rows if "review" in r).items())),
                "promotion": dict(sorted(Counter(r["promotion"]["status"] for r in rows if "promotion" in r).items()))}

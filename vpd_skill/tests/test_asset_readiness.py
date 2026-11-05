@@ -42,6 +42,26 @@ def test_promotion_preview_is_read_only_and_matches_existing_candidate_gate(verd
     assert actual["status"] == result["to"]
 
 
+def test_unexpected_inspection_fault_keeps_trace_later_rows_and_cli_error(verdict_ws, monkeypatch, capsys):
+    from vpdtest.cli import main
+    ws = verdict_ws
+    case = ws.load_case(NAV_CASE)
+    case["id"] = "TC-INSPECTION-FAULT"
+    write_json(ws.case_path(case["id"]), case)
+    original = C.review_status
+    def inspect(workspace, asset, *args, **kwargs):
+        if asset["id"] == case["id"]:
+            raise RuntimeError("synthetic inspection fault")
+        return original(workspace, asset, *args, **kwargs)
+    monkeypatch.setattr(C, "review_status", inspect)
+    rc = main(["--workspace", str(ws.root), "case", "readiness", case["id"], NAV_CASE])
+    result = json.loads(capsys.readouterr().out)
+    assert rc == 3 and result["summary"]["inspection_errors"] == 1
+    assert result["results"][0]["error"]["kind"] == "inspection_error"
+    assert "RuntimeError" in result["results"][0]["error"]["trace"]
+    assert result["results"][1]["promotion"]["status"] == "eligible"
+
+
 def test_default_scan_counts_actual_files_and_does_not_guess_missing_ids(verdict_ws):
     result = _query(verdict_ws)
     expected = sorted(p.stem for p in (verdict_ws.root / "cases").glob("*.json"))
@@ -235,3 +255,24 @@ def test_extra_binding_field_remains_stale_even_with_all_hashes_matching(verdict
     assert row["review"]["changed_binding_fields"] == []
     assert row["review"]["unexpected_binding_field_count"] == 1
     assert row["promotion"]["status"] == "blocked"
+
+
+@pytest.mark.parametrize("field,value", [
+    ("assertions", [None]), ("steps", [None]), ("cleanup", [False]),
+    ("replays", [None]), ("knowledge_used", ["bad"]), ("sources", [None]),
+    ("history", [False]), ("test_data", []), ("safety", []),
+])
+def test_malformed_nested_source_does_not_suppress_later_healthy_assets(verdict_ws, field, value):
+    ws = verdict_ws
+    case = ws.load_case(NAV_CASE)
+    case.update(id="TC-NESTED-BROKEN")
+    case[field] = value
+    write_json(ws.case_path(case["id"]), case)
+    before = _files(ws)
+    result = _query(ws, case["id"], NAV_CASE)
+    assert result["incomplete"] is True and result["summary"]["analysis_errors"] == 1
+    bad, good = result["results"]
+    assert bad["error"]["stage"] == "source"
+    assert field in bad["error"]["message"]
+    assert good["promotion"]["status"] == "eligible"
+    assert _files(ws) == before
