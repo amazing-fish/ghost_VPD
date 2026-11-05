@@ -1,5 +1,6 @@
 """Registered container references on synthetic dual Grid worlds; no phone fixtures."""
 from copy import deepcopy
+import shutil
 
 import pytest
 
@@ -9,6 +10,7 @@ from test_relative_swipe import _step, _world
 from vpdtest import cases
 from vpdtest.execute import Executor
 from vpdtest.knowledge import KnowledgeStore
+from vpdtest.params import Params
 from vpdtest.runner import run_case
 from vpdtest.devices import DeviceResult
 from vpdtest.session import from_session
@@ -203,3 +205,118 @@ def test_registered_scope_not_available_to_ordinary_direction_swipe(ws, monkeypa
     with pytest.raises(ValueError, match="相对"):
         cli(ws, "act", "swipe", "--app", "motor_hm", "--session", "ordinary-scope",
             "--device", "hdc:never", "--within", "target=" + TARGET, "--direction", "up")
+
+
+@pytest.mark.parametrize("session_app", [None, "motor_hm", "synthetic_app"])
+def test_registered_scope_cli_omitted_app_uses_session_or_default(ws, tmp_path, monkeypatch, session_app):
+    spec = _dual(tmp_path, ws)
+    if session_app == "synthetic_app":
+        shutil.copytree(ws.root / "apps" / "motor_hm", ws.root / "apps" / session_app)
+        path = ws.root / "apps" / "motor_hm" / "targets.json"
+        targets = read_json(path)
+        targets["targets"].pop(TARGET)
+        write_json(path, targets)
+    name = "omitted-app"
+    if session_app is not None:
+        cli(ws, "act", "launch", "--app", session_app, "--session", name, "--device", spec)
+    else:
+        # A fresh session can begin while the app is already running on a device.
+        # Use only replay here, and preserve the established motor_hm default.
+        ws.config["app"] = "qiankun_hm"
+        original = ws.device
+
+        def opened_device(*args, **kwargs):
+            device = original(*args, **kwargs)
+            app = ws.app("motor_hm")
+            device.launch(app.bundle, app.ability)
+            return device
+
+        monkeypatch.setattr(ws, "device", opened_device)
+    out = cli(ws, "act", "swipe", "--session", name, "--device", spec,
+              "--within", "target=" + TARGET, "--start", "0.2,0.5", "--end", "0.8,0.5", "--timeout", "0")
+    assert out["result"]["outcome"] == "passed", out
+    from vpdtest.session import trail
+    assert trail(ws.runs_dir / ("session-" + name))["identity"]["app"] == (session_app or "motor_hm")
+
+
+@pytest.mark.parametrize("existing", [False, True])
+def test_missing_registered_scope_without_app_preserves_session_before_device(ws, tmp_path, monkeypatch, existing):
+    name = "omitted-app-invalid"
+    directory = ws.runs_dir / ("session-" + name)
+    if existing:
+        _start(ws, _dual(tmp_path, ws), name)
+    before = {str(p.relative_to(directory)): p.read_bytes() for p in directory.rglob("*") if p.is_file()}
+    monkeypatch.setattr(ws, "device", lambda *a, **kw: pytest.fail("definition must precede device"))
+    with pytest.raises(ValueError, match="within|容器|范围"):
+        cli(ws, "act", "swipe", "--session", name, "--device", "hdc:never",
+            "--within", "target=missing", "--start", "0.2,0.5", "--end", "0.8,0.5")
+    after = {str(p.relative_to(directory)): p.read_bytes() for p in directory.rglob("*") if p.is_file()}
+    assert after == before
+    assert directory.exists() == existing
+
+
+@pytest.mark.parametrize("ancestor", ["parent", "grandparent"])
+def test_registered_scope_rejects_hidden_nonclipping_ancestor(ws, tmp_path, monkeypatch, ancestor):
+    spec = _dual(tmp_path, ws)
+    data = read_json(spec.split(":", 1)[1])
+    roots = data["screens"]["home"]["root"]["children"]
+    if ancestor == "grandparent":
+        roots[1] = {"t": "Column", "b": [0, 0, 1000, 1000], "children": [roots[1]]}
+    roots[1]["attrs"] = {"visible": "false"}
+    write_json(spec.split(":", 1)[1], data)
+    ctx = _ctx(ws, spec)
+    calls = []
+    monkeypatch.setattr(ctx.device, "swipe", lambda *a: calls.append(a) or DeviceResult("swipe", True, True))
+    out = Executor(ctx).run_step(_step(within={"target": TARGET}), "synthetic")
+    assert calls == [], out
+    assert out["final_status"] == "target_unresolved", out
+    assert ctx.actions == 0
+
+
+@pytest.mark.parametrize("entry", ["executor", "runner", "cli"])
+def test_registered_scope_read_reference_cannot_fall_back(ws, tmp_path, monkeypatch, entry):
+    spec = _dual(tmp_path, ws)
+    target = _target(strategies=[{"kind": "xpath", "value": "//Grid[@id='${read:missing}']"},
+                                 *_target()["strategies"]])
+    path = ws.root / "apps" / "motor_hm" / "targets.json"
+    targets = read_json(path)
+    targets["targets"][TARGET] = target
+    write_json(path, targets)
+    if entry == "executor":
+        ctx = _ctx(ws, spec)
+        monkeypatch.setattr(ctx, "observe", lambda *a, **kw: pytest.fail("invalid definition must precede observation"))
+        out = Executor(ctx).run_step(_step(within={"target": TARGET}), "synthetic")
+        assert out["final_status"] == "invalid_step", out
+        assert "read" in out["reason"]
+        assert ctx.actions == 0
+    else:
+        monkeypatch.setattr(ws, "device", lambda *a, **kw: pytest.fail("invalid definition must precede device"))
+        with pytest.raises(ValueError, match="read"):
+            if entry == "runner":
+                run_case(ws, case={"id": "TC-SYNTHETIC-READ-SCOPE", "app": "motor_hm",
+                                  "steps": [_step(within={"target": TARGET})]}, device_spec=spec, propose=False)
+            else:
+                cli(ws, "act", "swipe", "--app", "motor_hm", "--session", "read-scope", "--device", spec,
+                    "--within", "target=" + TARGET, "--start", "0.2,0.5", "--end", "0.8,0.5")
+        if entry == "cli":
+            assert not (ws.runs_dir / "session-read-scope").exists()
+
+
+@pytest.mark.parametrize("kind", ["var", "param"])
+@pytest.mark.parametrize("value", ["", "gesture_scope"])
+def test_registered_scope_validates_expanded_value_without_disabling_parameters(ws, tmp_path, monkeypatch, kind, value):
+    ctx = _ctx(ws, _world(tmp_path, kind="Grid"))
+    ctx.app.targets[TARGET] = _target(strategies=[{"kind": "id", "value": "${" + kind + ":scope_id}",
+                                                 "within": {"type": "Grid"}}])
+    ctx.params = Params({"scope_id": value} if kind == "var" else {}, {}, "synthetic")
+    calls = []
+    monkeypatch.setattr(ctx.device, "swipe", lambda *a: calls.append(a) or DeviceResult("swipe", True, True))
+    step = _step(within={"target": TARGET}, _flow_params={"scope_id": value} if kind == "param" else {})
+    out = Executor(ctx).run_step(step, "synthetic")
+    if value:
+        assert out["outcome"] == "passed", out
+        assert calls == [(260, 500, 739, 500, 800)]
+    else:
+        assert calls == [], out
+        assert out["final_status"] == "invalid_step", out
+        assert ctx.actions == 0

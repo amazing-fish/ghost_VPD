@@ -109,9 +109,16 @@ def swipe_scope_definition_error(request: dict, app) -> str | None:
     tid = relative_scope_target(request)
     if tid is None:
         return None
-    target = app.targets.get(tid)
+    return swipe_scope_target_error(app.targets.get(tid))
+
+
+def swipe_scope_target_error(target) -> str | None:
+    """Validate both the registered definition and its single parameter expansion."""
     if not isinstance(target, dict) or not target:
         return "within 须引用已登记的容器目标 ID"
+    from .readrefs import has_read_ref
+    if has_read_ref(target):
+        return "within 容器目标定义不支持 read 引用"
     strategies = target.get("strategies")
     if (target.get("side_effect") != "navigation" or not isinstance(strategies, list) or not strategies or
             any(not isinstance(s, dict) or s.get("kind") not in ("text", "id", "xpath") or

@@ -16,7 +16,8 @@ from .dispatch import auxiliary_dispatches, dispatch_effect_unknown
 from .layout import key as layout_key
 from .layout import resolve_scope
 from .locate import resolve
-from .session import relative_scope_target, relative_swipe_options, swipe_options_error, swipe_scope_definition_error
+from .session import (relative_scope_target, relative_swipe_options, swipe_options_error,
+                      swipe_scope_definition_error, swipe_scope_target_error)
 from .util import now_iso
 from .verdict import collection_error, error_attribution
 
@@ -1080,6 +1081,9 @@ class Executor:
             if ctx.params is not None:
                 from .params import with_params
                 target = with_params(target, ctx.params, step.get("_flow_params"))
+            error = swipe_scope_target_error(target)
+            if error:
+                return reject("invalid_step", error)
             loc = resolve(tid, target, tree, None, ctx.app.dir, layout=obs.get("layout"))
             info["scope_target"] = loc
             if loc["status"] != "found" or loc.get("basis") != "tree":
@@ -1087,6 +1091,8 @@ class Executor:
                               "已登记手势范围未唯一解析为当前树节点")
             matched = next(a for a in loc["attempts"] if a["status"] == "found")
             scopes = [tree.nodes[matched["node"]["idx"]]]
+            if not tree.visible_lineage(scopes[0]):
+                return reject("target_unresolved", "滚动容器或其祖先当前不可见")
         else:
             scopes = resolve_scope(within, tree, obs.get("layout")) or []
         if len(scopes) != 1:

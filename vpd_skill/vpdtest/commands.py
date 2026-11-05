@@ -97,12 +97,17 @@ REQUEST_FIELDS = ("action", "select", "within", "target", "point", "basis", "sid
                   "supervisor", "start", "end", "speed", "capture_transient")
 
 
+def _session_app(ws, a):
+    """Resolve the established session/default app without creating a session or device."""
+    identity = trail(ws.runs_dir / f"session-{a.session}")["identity"] or {}
+    return ws.app(a.app if a.app is not None else identity.get("app") or "motor_hm")
+
+
 def _open_session(ws, a):
     """observe/act 的共同入口：取会话、设备、上下文，写入或核对会话头，加载参数。"""
     store = _session(ws, a.session)
     # 只从既有会话头补 APP 默认值；显式选择仍须通过下面的完整身份核对。
-    identity = trail(store.dir)["identity"] or {}
-    app = ws.app(a.app if a.app is not None else identity.get("app") or "motor_hm")
+    app = _session_app(ws, a)
     dev = ws.device(a.device, state_path=store.dir / "replay_state.json")
     ident = {"app": app.id, "bundle": app.bundle, "device": dev.spec,
              "validation_level": "offline_replay" if dev.kind == "replay" else "real_device"}
@@ -191,7 +196,7 @@ def cmd_act(ws: Workspace, a) -> dict:
     from .session import relative_scope_target, swipe_scope_definition_error
     error = swipe_options_error(vars(a))
     if error is None and relative_scope_target(vars(a)) is not None:
-        error = swipe_scope_definition_error(vars(a), ws.app(a.app))
+        error = swipe_scope_definition_error(vars(a), _session_app(ws, a))
     if error:
         raise ValueError(error)
     with session_lock(ws.runs_dir / f"session-{a.session}"):
