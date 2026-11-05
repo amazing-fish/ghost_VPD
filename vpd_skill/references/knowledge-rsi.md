@@ -16,6 +16,10 @@ skill_policy / model_inference / observation / test_goal（测试目标里的期
 `knowledge add <file>` 的文件至少要有 `id`、`kind`、`statement`、`source`（`{"type": …, "ref": …}`）。
 
 - 确认：`knowledge confirm <id> --reviewer <人>`；model_inference / observation 来源必须加 `--basis`。
+- `domain_note` 的 `kind` 保留不变。未确认时检索仍显示背景（观察来源显示现场观察）；确认后按
+  `requirement` 展示已有判据资格。`can_be_oracle` / `usable_oracles` 仍由现有 Oracle 检查决定：
+  适用事实缺失或不符、冲突、退役和无效状态均不可用；`operation` / `observation` 仍非判据。
+  检索不执行确认，不替评审人确认知识内容，也不修改生产条目的状态。
 - 知识状态只允许 `unconfirmed` / `confirmed` / `deprecated`。未知、缺失或非字符串状态在判据端为
   `invalid`，不能支撑通过/失败；`confirm` 只接受有效条目，不能复活废弃或无效知识。
 - `deprecated` 条目保留历史检索，但只作为 background，不提供可调用的判据/操作指引；
