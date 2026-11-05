@@ -17,7 +17,8 @@ def capture(files: dict) -> dict:
 
 def _valid_files(files) -> bool:
     return isinstance(files, dict) and all(
-        isinstance(path, str) and re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_./-]*\.py", path)
+        isinstance(path, str) and path.endswith(".py") and not any(c in path for c in ("\\", ":"))
+        and not any(ord(c) < 32 or ord(c) == 127 for c in path)
         and all(part not in ("", ".", "..") for part in path.split("/"))
         and isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{64}", digest)
         for path, digest in files.items())

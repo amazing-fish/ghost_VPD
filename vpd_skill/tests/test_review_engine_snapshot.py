@@ -100,6 +100,20 @@ def test_unchanged_engine_is_explained_without_invalidating_review(verdict_ws):
     assert changes["unchanged_count"] == len(approved["asset_review"]["engine_snapshot"]["files"])
 
 
+@pytest.mark.parametrize("relative", ["模块.py", "space dir/worker.py", ".hidden/tool.py"])
+def test_collected_relative_file_names_remain_explainable(tmp_path, relative):
+    path = tmp_path / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"before = 1\n")
+    previous = C.review_snapshot.engine_files(tmp_path)
+    record = {"binding": {"engine_hash": C.sha256_obj(previous)},
+              "engine_snapshot": C.review_snapshot.capture(previous)}
+    path.write_bytes(b"after = 2\n")
+    info = C.review_snapshot.engine_changes(record, C.review_snapshot.engine_files(tmp_path))
+    assert info["available"] is True
+    assert info["modified"] == [relative]
+
+
 @pytest.mark.parametrize("snapshot,reason", [
     (None, "snapshot_invalid"),
     ([], "snapshot_invalid"),
