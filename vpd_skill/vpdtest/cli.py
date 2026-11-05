@@ -121,6 +121,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     cs = sub.add_parser("case", help="用例 lint / 探索转候选 / 晋级")
     csub = cs.add_subparsers(dest="case_cmd", required=True)
+    x = csub.add_parser("readiness", help="只读列出成熟度、审核差异和现有晋级门槛；不验实机适用性或覆盖")
+    x.add_argument("cases", nargs="*", help="预期资产ID；不传则仅枚举当前目录，不推断缺源件")
+    x.add_argument("--to", choices=["candidate", "replay_verified", "regression"], help="不传则预检现有定义的下一阶段")
+    x.add_argument("--reviewer")
+    x.add_argument("--allow-offline", action="store_true")
+    x.add_argument("--known-issue")
     x = csub.add_parser("lint")
     x.add_argument("case")
     x = csub.add_parser("from-exploration")

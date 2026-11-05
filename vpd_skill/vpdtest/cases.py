@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import re
+from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -804,8 +805,10 @@ def replay_basis(case: dict, deps: Optional[str] = None) -> dict:
 
 
 def promote(ws, case_id: str, to: str, knowledge, reviewer: Optional[str] = None, allow_offline: bool = False,
-            known_issue: Optional[str] = None) -> dict:
+            known_issue: Optional[str] = None, *, dry_run: bool = False) -> dict:
     case = ws.load_case(case_id)
+    if dry_run:
+        case = deepcopy(case)  # A cached/custom workspace must remain read-only too.
     app, policy = ws.app(case["app"]), ws.policy()
     require_review(ws, case, knowledge, app=app, policy=policy)
     cur = case.get("status", "draft")
@@ -860,6 +863,9 @@ def promote(ws, case_id: str, to: str, knowledge, reviewer: Optional[str] = None
                 raise PermissionError(f"断言 {aid} 重放时的判据未确认或不适用")
         if not allow_offline and not any(r["validation_level"] == "real_device" for r in rows):
             raise PermissionError("没有真机重放；如确需仅凭离线回放晋级，请显式 --allow-offline 并在评审中说明")
+    if dry_run:
+        return {"case": case_id, "from": cur, "to": to, "hash": h, "replays": basis["replays"],
+                "product_status": case.get("product_status")}
     case["history"] = case.get("history", []) + [{"ts": now_iso(), "from": cur, "to": to, "by": reviewer,
                                                    "hash": h, "replays": basis["replays"],
                                                    "product_status": (case.get("product_status") or {}).get("status")}]
