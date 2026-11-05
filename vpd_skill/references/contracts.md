@@ -91,7 +91,7 @@
 | `stop_app` | — | — | 无 | 同上 | ≤2 | 结束进程 |
 | `tap` | 目标唯一定位；policy 允许 | `target` 或（agent 模式）`point`+`basis` | `expect_state` | 同上 | ≤2 | 取决于目标 `side_effect` |
 | `back` / `home` | 未锁屏；明确识别被测 APP 或桌面在前台 | — | `expect_state` | 同上 | ≤2 | 导航 |
-| `swipe` | 普通滚动有可滚动容器或已知窗口；相对手势须唯一当前可见、enabled且scrollable的Scroll/List/Grid | `direction`及可选`within`，或显式`within`＋`start/end`＋可选`speed` | `expect_state` | 同上 | ≤2 | 普通滚动仍取75%/25%高度；相对手势在当前容器可见区域现算，记录实际坐标/速度和完整窗口矩形；不把命令成功等同后置或产品通过 |
+| `swipe` | 普通滚动的显式within须含当前可见纵向滚动容器；未限定范围时可用已知窗口；相对手势须唯一当前可见、enabled且scrollable的Scroll/List/Grid | `direction`及可选`within`，或显式`within`＋`start/end`＋可选`speed` | `expect_state` | 同上 | ≤2 | 普通滚动仍取75%/25%高度；相对手势在当前容器可见区域现算，记录实际坐标/速度和完整窗口矩形；不把命令成功等同后置或产品通过 |
 | `input` | policy 开启输入且目标允许；非敏感框 | `target`,`text` | `expect_state` | 同上 | ≤2 | 改变输入框内容 |
 | `ensure_state` | recipe 存在 | `state` | 到达该状态且无中断 | 由子步骤决定 | 子步骤各自 | recipe 中动作的副作用 |
 | `resume` | APP 已启动过 | — | `expect_state`；另记 `resume.{process_alive_before, cold_start}` | 同上 | ≤2 | 从后台拉回（与 launch 同一命令） |
@@ -114,6 +114,10 @@ CLI 参数错误在会话锁、设备初始化和信息查询前拒绝，不创�
 `invalid_step`（工具阻塞），lint 也报告定义错误。旧会话曾接受这些参数并不证明手势按提议执行，
 `case from-session` 拒绝将其静默固化为普通滚动；需重新采样或通过已有 `--drop A序号=理由` 显式排除。
 不带这些参数的容器滚动、`within` 与既有随机地图滑动继续沿原路径执行。
+普通滚动显式指定 `within` 时，不再以整窗或历史窗口代替无法兑现的范围：当前树不可用返回
+`scroll_scope_unavailable`，匹配范围内无可见纵向滚动容器返回 `scroll_container_missing`，
+均为工具阻塞、零手势下发且不消耗动作预算；自动滚动查找共用此约束。范围不存在的既有
+`scroll_scope_missing` 错误归因保持。未指定 `within` 时的容器/窗口回退、相对手势与随机地图路径保持。
 `--duration` 的单位为秒，仅用于 wait/monitor；设备 `uitest uiInput swipe` 的末参数为速度 px/s，
 不是时长，参见 [OpenHarmony 参数说明](https://github.com/openharmony/docs/blob/master/zh-cn/application-dev/application-test/uitest-guidelines.md)。
 

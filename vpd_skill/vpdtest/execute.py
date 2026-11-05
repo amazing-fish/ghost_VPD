@@ -33,6 +33,8 @@ STATUS_MAP = {
     "condition_error": ("error", "tool", "操作条件所需证据采集失败"),
     "observation_failed": ("error", "environment", "观测查询失败，请依据采集错误及下发记录核对现场"),
     "target_unresolved": ("blocked", "tool", "目标未能可靠定位（已重新观察）"),
+    "scroll_scope_unavailable": ("blocked", "tool", "当前UI树不可用，无法核验指定滚动范围，未下发"),
+    "scroll_container_missing": ("blocked", "tool", "指定范围内没有可见纵向滚动容器，未回退窗口滑动"),
     "target_ambiguous": ("blocked", "tool", "目标匹配到多个元素，拒绝盲点"),
     "target_partially_visible": ("blocked", "tool", "目标只露出一小部分（被裁剪/遮挡或已滑到底），不点边缘"),
     "policy_denied": ("blocked", "tool", "动作被安全策略拒绝"),
@@ -1229,8 +1231,11 @@ class Executor:
 
     def _swipe(self, direction: str, tree=None, lay=None, within=None, att=None) -> tuple:
         """在可滚动容器内滑动：起止点取容器可见区域的 75%/25% 高度，而不是整屏比例。
-        折叠屏分栏时列表可能只在左栏，按整屏中线滑会滑到右栏上。"""
+        显式范围必须可核验且含可见滚动容器；仅未限定范围时允许窗口回退。"""
         info, rect = {"direction": direction}, None
+        if within and (tree is None or tree.status != "ok"):
+            return DeviceResult("swipe", False, False, "scroll_scope_unavailable",
+                                "当前UI树不可用，无法核验指定滚动范围"), {**info, "container": None}
         if tree is not None and tree.status == "ok":
             scope = resolve_scope(within, tree, lay)
             if scope is not None and not scope:
@@ -1240,6 +1245,9 @@ class Executor:
             if node is not None:
                 rect = tree.visible_rect(node)
                 info["container"] = {"type": node.type, "id": node.id, "visible": list(rect)}
+            elif scope is not None:
+                return DeviceResult("swipe", False, False, "scroll_container_missing",
+                                    "指定范围内没有可见纵向滚动容器，未回退窗口滑动"), {**info, "container": None}
             else:
                 rect = tree.window_rect()
                 info["container"] = None
