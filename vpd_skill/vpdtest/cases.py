@@ -16,7 +16,7 @@ from typing import Optional
 from . import review_snapshot
 from .knowledge import ACTIVE, item_status
 from .safety import TREE_KINDS, untreed_strategies
-from .session import swipe_options_error
+from .session import relative_scope_target, swipe_options_error, swipe_scope_definition_error
 from .util import now_iso, read_json, sha256_file, sha256_obj, write_json
 
 REQUIRED = ("purpose", "preconditions", "test_data", "steps", "assertions", "cleanup", "sources")
@@ -170,6 +170,7 @@ def dependency_hash(case: dict, app, knowledge) -> str:
         local = (params.subst(parent.get("params", {})) if parent and parent.get("action") == "flow"
                  else s.get("_flow_params"))
         want(s.get("target"), local, substitute=True)
+        want(relative_scope_target(s), local, substitute=True)
     for a in case.get("assertions", []):
         want(a.get("target"))
         want(a.get("within"))
@@ -386,7 +387,7 @@ def execution_structure_issues(case: dict, app, *, read_sources=True) -> list:
             step_id = f"{runtime_ids[id(parent)]}.{child_counts[id(parent)]}"
         runtime_ids[id(step)], child_counts[id(step)] = step_id, 0
         reserve(step_id, where)
-        error = swipe_options_error(step)
+        error = swipe_options_error(step) or swipe_scope_definition_error(step, app)
         if error:
             issues.append({"field": where, "problem": error})
         from .transient import options_error as transient_options_error
@@ -455,9 +456,9 @@ def hypothesis_targets(case: dict, app, knowledge=None) -> list:
     """实际用到的 hypothesis 目标；资产 lint 传 knowledge 以包含规则的条件前提。"""
     used = []
     for s, _, _ in iter_case_steps(case, app):
-        t = s.get("target")
-        if isinstance(t, str) and (app.targets.get(t) or {}).get("status") == "hypothesis" and t not in used:
-            used.append(t)
+        for t in (s.get("target"), relative_scope_target(s)):
+            if isinstance(t, str) and (app.targets.get(t) or {}).get("status") == "hypothesis" and t not in used:
+                used.append(t)
     for a in case.get("assertions", []):
         for t in (a.get("target"), a.get("within")):
             target = app.targets.get(t) if isinstance(t, str) else None

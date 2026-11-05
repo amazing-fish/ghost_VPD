@@ -16,7 +16,7 @@ from .dispatch import auxiliary_dispatches, dispatch_effect_unknown
 from .layout import key as layout_key
 from .layout import resolve_scope
 from .locate import resolve
-from .session import relative_swipe_options, swipe_options_error
+from .session import relative_scope_target, relative_swipe_options, swipe_options_error, swipe_scope_definition_error
 from .util import now_iso
 from .verdict import collection_error, error_attribution
 
@@ -313,7 +313,7 @@ class Executor:
     def _attempt_plain(self, step: dict, n: int, case_id: str) -> dict:
         ctx, kind = self.ctx, step["action"]
         att = {"n": n, "ts": now_iso(), "action": kind, "step_id": step["id"], "_safety": bool(step.get("_safety"))}
-        error = swipe_options_error(step)
+        error = swipe_options_error(step) or swipe_scope_definition_error(step, ctx.app)
         if error:
             att.update(status="invalid_step", reason=error)
             return att
@@ -1074,7 +1074,21 @@ class Executor:
             return reject("target_obscured", "手势复核时出现中断，未下发；须重新核对当前页面")
         if not self._check_condition(step, obs, tree, "relative_swipe", att):
             return DeviceResult("swipe", False, False, att["status"], att.get("reason")), info
-        scopes = resolve_scope(within, tree, obs.get("layout")) or []
+        tid = relative_scope_target(step)
+        if tid is not None:
+            target = ctx.app.targets[tid]
+            if ctx.params is not None:
+                from .params import with_params
+                target = with_params(target, ctx.params, step.get("_flow_params"))
+            loc = resolve(tid, target, tree, None, ctx.app.dir, layout=obs.get("layout"))
+            info["scope_target"] = loc
+            if loc["status"] != "found" or loc.get("basis") != "tree":
+                return reject("target_ambiguous" if loc["status"] == "ambiguous" else "target_unresolved",
+                              "已登记手势范围未唯一解析为当前树节点")
+            matched = next(a for a in loc["attempts"] if a["status"] == "found")
+            scopes = [tree.nodes[matched["node"]["idx"]]]
+        else:
+            scopes = resolve_scope(within, tree, obs.get("layout")) or []
         if len(scopes) != 1:
             return reject("target_ambiguous" if scopes else "target_unresolved", "相对手势范围须匹配唯一当前容器")
         scope = scopes[0]
