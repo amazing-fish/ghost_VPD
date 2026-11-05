@@ -1,12 +1,13 @@
 """Issue #56: execution errors remain visible and cannot improve or mature assets.
 
-These are offline consumer contract examples. They do not confirm product knowledge
-or approve any repository asset.
+These are offline consumer contract examples with synthetic cases and knowledge.
+They do not load production corpus or approve any repository asset.
 """
 from argparse import Namespace
 from copy import deepcopy
 
 import pytest
+from verdict_fixtures import NAV_CASE
 from vpdtest import cases, cli, commands
 from vpdtest.experience import ExperienceStore
 from vpdtest.util import read_jsonl
@@ -24,40 +25,40 @@ def _verdict(result="error", *, execution_error=True, product="pending"):
                           "errors": [finding] if execution_error else []}}
 
 
-def _run(ws, case_id="TC-MOTOR-HM-001"):
-    case = ws.load_case(case_id)
+def _run(verdict_ws, case_id=NAV_CASE):
+    case = verdict_ws.load_case(case_id)
     return {"run_id": "run-consumer-contract", "case": {"id": case_id, "status": case["status"],
             "hash": cases.content_hash(case), "deps": "fixture-deps"}, "verdict": _verdict(),
             "experience_candidates": [], "validation_level": "offline_replay", "device_spec": "replay:fixture",
-            "dir": str(ws.runs_dir / "run-consumer-contract"), "facts": {"app": "motor_hm"}}
+            "dir": str(verdict_ws.runs_dir / "run-consumer-contract"), "facts": {"app": "motor_hm"}}
 
 
 @pytest.mark.parametrize("command", ["run", "suite"])
-def test_fail_on_error_accepts_new_result_and_returns_one(ws, capsys, monkeypatch, command):
+def test_fail_on_error_accepts_new_result_and_returns_one(verdict_ws, capsys, monkeypatch, command):
     result = {"verdict": "error"} if command == "run" else {"results": [{"verdict": "error"}]}
-    monkeypatch.setitem(cli.HANDLERS, command, lambda ws, args: result)
-    assert cli.main(["--workspace", str(ws.root), command, "fixture", "--fail-on", "error"]) == 1
+    monkeypatch.setitem(cli.HANDLERS, command, lambda verdict_ws, args: result)
+    assert cli.main(["--workspace", str(verdict_ws.root), command, "fixture", "--fail-on", "error"]) == 1
     assert '"error"' in capsys.readouterr().out
 
 
-def test_error_handoff_keeps_exit_two_priority(ws, capsys, monkeypatch):
-    monkeypatch.setitem(cli.HANDLERS, "run", lambda ws, args: {"verdict": "error", "action_required": "inspect"})
-    assert cli.main(["--workspace", str(ws.root), "run", "fixture", "--fail-on", "error"]) == 2
+def test_error_handoff_keeps_exit_two_priority(verdict_ws, capsys, monkeypatch):
+    monkeypatch.setitem(cli.HANDLERS, "run", lambda verdict_ws, args: {"verdict": "error", "action_required": "inspect"})
+    assert cli.main(["--workspace", str(verdict_ws.root), "run", "fixture", "--fail-on", "error"]) == 2
     capsys.readouterr()
 
 
-def test_run_and_suite_briefs_preserve_error_evidence(ws, monkeypatch):
-    run = _run(ws)
+def test_run_and_suite_briefs_preserve_error_evidence(verdict_ws, monkeypatch):
+    run = _run(verdict_ws)
     monkeypatch.setattr(commands, "run_case", lambda *args, **kwargs: deepcopy(run))
     monkeypatch.setattr(cases, "preflight_batch", lambda *args: [])
-    monkeypatch.setattr(ws, "load_suite", lambda sid: {"cases": [run["case"]["id"]]})
-    out = commands.cmd_suite(ws, Namespace(suite="fixture", device=["replay:fixture"], authorize=[], supervisor=None))
+    monkeypatch.setattr(verdict_ws, "load_suite", lambda sid: {"cases": [run["case"]["id"]]})
+    out = commands.cmd_suite(verdict_ws, Namespace(suite="fixture", device=["replay:fixture"], authorize=[], supervisor=None))
     row = out["results"][0]
     assert row["execution"] == run["verdict"]["execution"]
     assert row["product_verdict"] == "pending"
     for key in ("stage", "error_class", "error", "evidence"):
         assert row["findings"][0][key] == run["verdict"]["findings"][0][key]
-    events = read_jsonl(ws.runs_dir / out["suite_run"] / "events.jsonl")
+    events = read_jsonl(verdict_ws.runs_dir / out["suite_run"] / "events.jsonl")
     assert events[-1]["verdicts"] == ["error"] and out["completed"] is True
 
 
@@ -116,10 +117,10 @@ def test_error_summary_cannot_hide_previous_product_failure(tmp_path):
     assert xs.validate("XP-error", ["origin", "other"], ["fixture"], run_case)["status"] == "rejected"
 
 
-def test_record_replay_retains_execution_and_product_projection(ws):
-    run = _run(ws)
+def test_record_replay_retains_execution_and_product_projection(verdict_ws):
+    run = _run(verdict_ws)
     run["verdict"] = _verdict("failed", product="failed")  # compatible historical/mixed input
-    saved = cases.record_replay(ws, run["case"]["id"], run)["replays"][-1]
+    saved = cases.record_replay(verdict_ws, run["case"]["id"], run)["replays"][-1]
     assert saved["execution"] == run["verdict"]["execution"]
     assert saved["product_verdict"] == "failed" and saved["product_failed"] is True
 
