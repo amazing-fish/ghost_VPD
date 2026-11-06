@@ -227,7 +227,11 @@ def test_cli_preview_and_actual_promotion_share_every_gate(
         with pytest.raises(PermissionError) as exc:
             C.promote(ws, NAV_CASE, to, kn, **options)
         assert str(exc.value) == row["promotion"]["reason"]
-        assert _files(ws) == before
+        # A mutating entry may create coordination metadata even when refused;
+        # the preview above must still create no file at all.
+        after = _files(ws)
+        assert {p: h for p, h in after.items() if not p.startswith(".case-locks/")} == {
+            p: h for p, h in before.items() if not p.startswith(".case-locks/")}
 
 
 def test_preview_does_not_set_product_status_on_cached_case(verdict_ws, monkeypatch):

@@ -106,6 +106,10 @@
 | 人工文字/repo_code/reviewer 来源 draft | 保留现有路径；发现探索 origin/sources/步骤/历史则仍要求审核 |
 
 审核记录在 `asset_review`，另追加 history；字段与绑定定义见[审核契约](contracts.md#4-探索资产审核与运行准入30)。
+需要撤回既有批准时，执行 `case revoke-review <case> --reviewer <实际撤销人> --basis <原因/证据>`。
+撤销后晋级和批量入口拒绝，单条诊断保持 informal；原批准、成熟度、产品结论和重放历史保留。
+重新启用须由人重新核对后执行现有 `case approve`，不能恢复旧批准记录来撤回撤销。
+这不是设备紧急停止，也不自动撤回某次证据；完整边界和后续降级设计见[资产生命周期](../../docs/ASSET_LIFECYCLE_DECISIONS.md)。
 修改目的、来源、knowledge_used、步骤、断言、
 目标定义、判据陈述或执行配置后，旧审核失效，须重新审查。正常晋级、追加重放与历史，以及有效知识
 unconfirmed → confirmed 不使审核失效；产品知识退役仍使依赖失效。

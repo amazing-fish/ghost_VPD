@@ -569,11 +569,18 @@ lint 会指出非法声明，审核和晋级沿用该门禁；不自动改写存
 - 用例 `asset_review`：schema=1、非空 reviewer/basis、带时区 ISO ts、binding。
 - binding：case_id、原 content_hash/dependency_hash、review_hash、policy_hash、engine_hash、context_hash。
   review_hash 排除 status/history/replays/product_status/asset_review，其他字段均绑定；重放资格仍按当前内容/依赖指纹核对。
-- `run.json.asset_review`：required、valid、state（approved/stale/pending/not_required）、origin_signals、
+- `run.json.asset_review`：required、valid、state（approved/stale/pending/not_required/revoked）、origin_signals、
   current、record、use（single/batch）。这是执行前快照，历史运行不按未来配置重算；CLI 与报告展示审核状态。
-- `require_review`：探索来源未有效审核、或批量用例状态不在合法生命周期中时，以 PermissionError 拒绝。
+- `require_review`：探索来源未有效审核、已有审核被撤销、或批量用例状态不在合法生命周期中时，以 PermissionError 拒绝。
   suite/经验验证先预检全部成员，每次 run 在 RunStore/device/preflight 前再复检；其他授权与判定门槛保持。
-- `informal`：status 不为 regression，或探索来源无有效审核。单条诊断可以运行，不能从 lint 或重放推出人审完成。
+- `informal`：status 不为 regression，或本资产要求审核但无有效审核（含撤销）。单条诊断可以运行，不能从 lint 或重放推出人审完成。
+
+`case revoke-review` 保留原 `asset_review`，追加 `revocation={reviewer,basis,ts}` 与
+`history.event=asset_review_revoked`（含原批准 binding）。不改成熟度、知识或历史运行结论。
+撤销优先于匹配的 binding；非探索资产发生撤销后也持续要求有效审核。只有撤销历史之后与当前批准匹配的
+新 `asset_review` 事件才能解除撤销，删除当前记录、恢复旧批准或改 status 不解除仍留存的撤销历史。
+损坏的 revocation 字段不恢复批准；重新启用沿现有 approve/lint。运行快照附 `revocation` 便于报告说明原批准与当前撤销。
+这是本地审计约定，不认证身份或防蓄意重写全部历史，不中断已开始运行；详见[生命周期边界](../../docs/ASSET_LIFECYCLE_DECISIONS.md)。
 
 policy、layout 与 dialogs 使用本次运行准入检查时捕获的配置，Observer、preflight 弹窗关闭与恢复诊断共用该弹窗表。
 引擎源码与模板按调用入口指纹核对，运行中外部修改尚无文件锁保障。reviewer 为本地声明身份，不是认证或签名。

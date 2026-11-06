@@ -59,7 +59,8 @@ def _review(info):
                                          if available and binding.get(k) != value),
         "unexpected_binding_field_count": len(set(binding) - set(current)) if available else 0,
         "engine_changes": info.get("engine_changes"),
-        "current": current}
+        "current": current,
+        **({"revocation": info.get("revocation")} if info["state"] == "revoked" else {})}
 
 
 def _one(ws, cid, knowledge, policy, to, reviewer, allow_offline, known_issue):
