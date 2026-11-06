@@ -65,7 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--target", help="targets.json 中的目标 ID")
     a.add_argument("--select", help="现场选择器（仅限有 UI 树的页面）：text=<文字> / text~=<包含> / id=<id> / xpath=<表达式>；"
                                     "多匹配/不可见/部分可见/执行前失效都不下发并返回诊断")
-    a.add_argument("--within", help="--select 的查找范围：type=<控件类型> / id=<容器 id> / pane=first|last")
+    a.add_argument("--within", help="--select 的查找范围：type=<控件类型> / id=<容器 id> / pane=first|last；相对 swipe 另支持 target=<已登记容器目标>")
     a.add_argument("--point", help="仅 tap/input：窗口内整数像素 x,y（px，不是0..1比例/vp）；须同会话先 observe 并给 --basis。"
                                      "受接收者与 policy 校验；匿名 Checkbox 请用已登记目标，不是裸坐标绕过；swipe 不支持")
     a.add_argument("--basis", help="坐标依据说明")
@@ -76,7 +76,7 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--text")
     a.add_argument("--clear", action="store_true", help="input 前先清空输入框（真机 inputText 是追加）")
     a.add_argument("--direction", choices=["up", "down"], help="swipe 方向（默认 up）")
-    a.add_argument("--start", help="swipe 起点相对比例 fx,fy（0..1）；须同时给 --end 和唯一已知滚动 --within")
+    a.add_argument("--start", help="swipe 起点相对比例 fx,fy（0..1）；须同时给 --end 和唯一已知滚动 --within，可用 target=<已登记容器目标>")
     a.add_argument("--end", help="swipe 终点相对比例 fx,fy（0..1），与 --direction/--point/--duration 互斥")
     a.add_argument("--speed", type=int, help="相对 swipe 速度整数200..40000 px/s（默认2000）；不是时长")
     a.add_argument("--expect", help="期望到达的状态 ID")

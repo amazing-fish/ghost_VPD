@@ -64,6 +64,10 @@ def swipe_options_error(request: dict) -> str | None:
         return (f"swipe 不支持参数 {', '.join(fields)}：像素定点/时长不能作为容器相对手势；"
                 "请用 direction/within 滚动，或 start/end/speed/within 相对手势。duration 仅用于 wait/monitor。")
     if not relative:
+        within = request.get("within")
+        if (isinstance(within, dict) and "target" in within or
+                isinstance(within, str) and within.startswith("target=")):
+            return "within=target 仅用于 start/end 相对 swipe"
         return ("swipe direction 仅支持 up/down；其他方向请使用 start/end 相对手势"
                 if request.get("direction") not in (None, "up", "down") else None)
     conflicts = [k for k in ("direction", "random", "target", "select", "at", "random_point")
@@ -75,15 +79,51 @@ def swipe_options_error(request: dict) -> str | None:
         key, sep, value = within.partition("=")
         within = {key: value} if sep and value else None
     if (not isinstance(within, dict) or len(within) != 1 or
-            next(iter(within), None) not in ("id", "type") or
+            next(iter(within), None) not in ("id", "type", "target") or
             not isinstance(next(iter(within.values()), None), str) or not next(iter(within.values()), "")):
-        return "swipe 相对手势须显式 within=id=<id> 或 type=Scroll|List|Grid"
+        return "swipe 相对手势须显式 within=id=<id>、type=Scroll|List|Grid 或 target=<已登记容器目标>"
     if "type" in within and within["type"] not in ("Scroll", "List", "Grid"):
         return "swipe 相对手势只支持已知可滚动 Scroll/List/Grid 容器"
     try:
         relative_swipe_options(request)
     except (TypeError, ValueError, OverflowError) as error:
         return f"swipe 参数无效：{error}"
+    return None
+
+
+def relative_scope_target(request: dict) -> str | None:
+    """The registered reference is exclusive to relative swipe; generic scopes stay unchanged."""
+    if request.get("action") != "swipe" or not any(request.get(k) is not None for k in ("start", "end", "speed")):
+        return None
+    within = request.get("within")
+    if isinstance(within, str):
+        key, sep, value = within.partition("=")
+        within = {key: value} if sep else None
+    if isinstance(within, dict) and set(within) == {"target"} and isinstance(within["target"], str):
+        return within["target"]
+    return None
+
+
+def swipe_scope_definition_error(request: dict, app) -> str | None:
+    """Reject unknown/non-tree definitions before a session or device is opened."""
+    tid = relative_scope_target(request)
+    if tid is None:
+        return None
+    return swipe_scope_target_error(app.targets.get(tid))
+
+
+def swipe_scope_target_error(target) -> str | None:
+    """Validate both the registered definition and its single parameter expansion."""
+    if not isinstance(target, dict) or not target:
+        return "within 须引用已登记的容器目标 ID"
+    from .readrefs import has_read_ref
+    if has_read_ref(target):
+        return "within 容器目标定义不支持 read 引用"
+    strategies = target.get("strategies")
+    if (target.get("side_effect") != "navigation" or not isinstance(strategies, list) or not strategies or
+            any(not isinstance(s, dict) or s.get("kind") not in ("text", "id", "xpath") or
+                not isinstance(s.get("value"), str) or not s["value"] for s in strategies)):
+        return "within 容器须明确为 navigation，且只含非空 text/id/xpath 树定位策略"
     return None
 
 
