@@ -31,6 +31,11 @@
 
 运行产物：`runs/session-feedback-one/steps.jsonl`及`transient/capture-*/manifest.json`、原始JPEG帧。
 语法还支持tap步骤`"capture_transient":{"post_s":3,"ready_timeout_s":5}`；参数0.05..10秒。
+单步CLI可用`--capture-transient 3 --capture-ready-timeout 10`配置相同的首帧等待；
+省略后者仍为5秒。该选项须配合`--capture-transient`，取值沿用既有0.05..10秒约束；
+新增选项的非法组合或范围在打开设备、创建会话前拒绝；只用原选项的命令保持原检查路径。
+请求与会话固化保留`ready_timeout_s`，
+触发后的采集窗口仍由`post_s`控制，不自动重试提交。增加等待不能证明帧源健康或提示存在。
 首帧未就绪则无触发动作；有触发后的取证故障保留下发回执，不重试提交。
 `transient_text_seen`只以本次完整新鲜原树提供肯定文字证据；画面独有提示保留视觉待核，未捕获不变成无提示失败。
 不要把短Toast放进普通`--expect-text`后置条件；该条件仍检查普通观测，提示已消失时不能用它否定帧中的出现事实。
