@@ -10,13 +10,14 @@ from __future__ import annotations
 import re
 from copy import deepcopy
 from datetime import datetime
+from functools import wraps
 from pathlib import Path
 from typing import Optional
 
 from . import review_snapshot
 from .knowledge import ACTIVE, item_status
 from .safety import TREE_KINDS, untreed_strategies
-from .session import relative_scope_target, swipe_options_error, swipe_scope_definition_error
+from .session import relative_scope_target, session_lock, swipe_options_error, swipe_scope_definition_error
 from .util import now_iso, read_json, sha256_file, sha256_obj, write_json
 
 REQUIRED = ("purpose", "preconditions", "test_data", "steps", "assertions", "cleanup", "sources")
@@ -248,6 +249,38 @@ def _review_binding(ws, case: dict, app, knowledge, policy, context=None, *, eng
             "policy_hash": policy.hash, "engine_hash": sha256_obj(engine), "context_hash": sha256_obj(context)}
 
 
+def _complete_review(record) -> bool:
+    complete = isinstance(record, dict) and type(record.get("schema")) is int and record["schema"] == 1 and all(
+        isinstance(record.get(k), str) and record[k].strip() for k in ("reviewer", "basis", "ts"))
+    if complete:
+        try:
+            complete = datetime.fromisoformat(record["ts"]).utcoffset() is not None
+        except ValueError:
+            complete = False
+    return bool(complete)
+
+
+def _withdrawal(case: dict, record) -> tuple:
+    """Withdrawal persists through relabelling or removal/restoration of an old review.
+
+    A later matching approval event can renew it; this is local audit history, not
+    authentication or protection against deliberately rewriting both record and history.
+    """
+    history = case.get("history") or []
+    events = [(i, h) for i, h in enumerate(history)
+              if isinstance(h, dict) and h.get("event") == "asset_review_revoked"]
+    marked = isinstance(record, dict) and "revocation" in record
+    if not events:
+        return marked, marked, record.get("revocation") if marked else None
+    index, event = events[-1]
+    keys = ("schema", "reviewer", "basis", "ts", "binding")
+    renewed = isinstance(record, dict) and any(
+        isinstance(h, dict) and h.get("event") == "asset_review"
+        and all(h.get(k) == record.get(k) for k in keys) for h in history[index + 1:])
+    revoked = marked or not renewed
+    return True, revoked, ({k: event.get(k) for k in ("reviewer", "basis", "ts")} if revoked else None)
+
+
 def review_status(ws, case: dict, knowledge=None, app=None, policy=None, context=None) -> dict:
     from .knowledge import KnowledgeStore
     app = app or ws.app(case["app"])
@@ -257,20 +290,18 @@ def review_status(ws, case: dict, knowledge=None, app=None, policy=None, context
     files = review_snapshot.engine_files(Path(__file__).parent)
     binding = _review_binding(ws, case, app, knowledge, policy, context, engine_files=files)
     record = case.get("asset_review")
-    complete = isinstance(record, dict) and type(record.get("schema")) is int and record["schema"] == 1 and all(
-        isinstance(record.get(k), str) and record[k].strip() for k in ("reviewer", "basis", "ts"))
-    if complete:
-        try:
-            complete = datetime.fromisoformat(record["ts"]).utcoffset() is not None
-        except ValueError:
-            complete = False
-    valid = bool(complete and record.get("binding") == binding)
-    state = "approved" if valid else ("stale" if complete else ("pending" if signals else "not_required"))
+    complete = _complete_review(record)
+    withdrawal_required, revoked, revocation = _withdrawal(case, record)
+    required = bool(signals) or withdrawal_required
+    valid = bool(complete and not revoked and record.get("binding") == binding)
+    state = ("revoked" if revoked else "approved" if valid else
+             "stale" if complete else "pending" if required else "not_required")
     # Keep the potentially large manifest in the asset, not every run/suite brief.
     record_view = {k: v for k, v in record.items() if k != "engine_snapshot"} if isinstance(record, dict) else None
-    return {"required": bool(signals), "valid": valid, "state": state, "origin_signals": signals,
+    return {"required": required, "valid": valid, "state": state, "origin_signals": signals,
             "current": binding, "record": record_view,
-            "engine_changes": review_snapshot.engine_changes(record, files)}
+            "engine_changes": review_snapshot.engine_changes(record, files),
+            **({"revocation": revocation} if revoked else {})}
 
 
 def require_review(ws, case: dict, knowledge=None, app=None, policy=None, context=None) -> dict:
@@ -278,12 +309,59 @@ def require_review(ws, case: dict, knowledge=None, app=None, policy=None, contex
         raise PermissionError(f"用例 {case.get('id')} 状态无效，不能晋级或批量执行")
     info = review_status(ws, case, knowledge, app, policy, context)
     if info["required"] and not info["valid"]:
+        if info["state"] == "revoked":
+            raise PermissionError(f"用例 {case['id']} 的资产审核已撤销；请由人重新审查后执行 case approve "
+                                  f"{case['id']} --reviewer <人> --basis <依据>。撤销不改写历史结论或授予动作权限")
         why = "审核失效：内容、审阅语义或执行依赖已变" if info["state"] == "stale" else "尚无有效人工审核"
-        raise PermissionError(f"用例 {case['id']} 来自探索/会话，{why}；请由人审查后执行 case approve "
+        origin = " 来自探索/会话" if info["origin_signals"] else ""
+        raise PermissionError(f"用例 {case['id']}{origin}，{why}；请由人审查后执行 case approve "
                               f"{case['id']} --reviewer <人> --basis <依据>。审核不代替 Oracle 确认或动作授权")
     return info
 
 
+def _case_update(function):
+    """Serialize every case read-modify-write; a replay must not restore an old approval."""
+    @wraps(function)
+    def locked(ws, case_id, *args, **kwargs):
+        if not isinstance(case_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", case_id):
+            raise ValueError("用例 ID 不能是路径，须为字母/数字开头的稳定 ID")
+        if kwargs.get("dry_run"):
+            return function(ws, case_id, *args, **kwargs)  # No lock file for read-only previews.
+        try:
+            # The writable workspace must suffice; do not require its parent to
+            # be writable (e.g. a separately mounted data directory).
+            with session_lock(ws.root / ".case-locks" / case_id):
+                return function(ws, case_id, *args, **kwargs)
+        except TimeoutError as exc:
+            raise TimeoutError(f"用例 {case_id} 更新等待超时；请检查是否有并发操作") from exc
+    return locked
+
+
+@_case_update
+def revoke_review(ws, case_id: str, reviewer: str, basis: str) -> dict:
+    """Withdraw a recorded approval without loading broken execution dependencies."""
+    if not isinstance(reviewer, str) or not reviewer.strip() or not isinstance(basis, str) or not basis.strip():
+        raise ValueError("撤销资产审核须提供非空 --reviewer 与 --basis")
+    case = deepcopy(ws.load_case(case_id))
+    if not isinstance(case, dict) or case.get("id") != case_id:
+        raise ValueError("用例文件须为对象，且 ID 与文件名一致")
+    history = case.get("history", [])
+    if not isinstance(history, list) or any(not isinstance(h, dict) for h in history):
+        raise ValueError("history 须为对象列表；不能覆盖无法保全的审核历史")
+    record = case.get("asset_review")
+    if _withdrawal(case, record)[1]:
+        raise PermissionError("资产审核已撤销；保留原撤销依据，重新启用须由人执行 case approve")
+    if not _complete_review(record):
+        raise PermissionError("没有完整的既有审核记录可撤销；该命令不创建批准")
+    revocation = {"reviewer": reviewer.strip(), "basis": basis.strip(), "ts": now_iso()}
+    record["revocation"] = revocation
+    case["history"] = history + [{"event": "asset_review_revoked", **revocation,
+                                  "binding": deepcopy(record.get("binding"))}]
+    write_json(ws.case_path(case_id), case)
+    return case
+
+
+@_case_update
 def approve(ws, case_id: str, knowledge, reviewer: str, basis: str) -> dict:
     if not isinstance(reviewer, str) or not reviewer.strip() or not isinstance(basis, str) or not basis.strip():
         raise ValueError("资产审核须提供非空 --reviewer 与 --basis")
@@ -700,6 +778,7 @@ def from_exploration(exp: dict, transitions: list, case_id: str, app_id: str) ->
             "history": [{"ts": now_iso(), "to": "exploration_record", "why": "由探索迁移生成，待补齐目的/判据/清理"}]}
 
 
+@_case_update
 def record_replay(ws, case_id: str, run: dict) -> dict:
     case = ws.load_case(case_id)
     v = run["verdict"]
@@ -811,6 +890,7 @@ def replay_basis(case: dict, deps: Optional[str] = None) -> dict:
     return {**out, "ok": False, "why": f"重放结论不一致或不确定 {sorted(verdicts)}：还不能稳定复测"}
 
 
+@_case_update
 def promote(ws, case_id: str, to: str, knowledge, reviewer: Optional[str] = None, allow_offline: bool = False,
             known_issue: Optional[str] = None, *, dry_run: bool = False) -> dict:
     case = ws.load_case(case_id)

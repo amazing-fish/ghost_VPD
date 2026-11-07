@@ -40,6 +40,8 @@ def test_legacy_run_does_not_invent_verification_or_review(tmp_path):
      ["真机运行", "回归资产运行", "审核有效"]),
     ({"validation_level": "real_device", "informal": True, "asset_review": {"state": "stale"}},
      ["真机运行", "非正式运行", "审核已失效"]),
+    ({"validation_level": "real_device", "informal": True, "asset_review": {"state": "revoked"}},
+     ["真机运行", "非正式运行", "审核已撤销"]),
     ({}, ["验证级别未记录", "运行性质未记录", "审核状态未记录"]),
 ])
 def test_actual_page_renders_context_beside_result(context, expected):

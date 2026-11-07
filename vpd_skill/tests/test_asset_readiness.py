@@ -1,7 +1,9 @@
 """Read-only visibility over existing maturity/review/promotion contracts; synthetic assets."""
-from copy import deepcopy
 import hashlib
 import json
+from copy import deepcopy
+from pathlib import PurePosixPath, PureWindowsPath
+from types import SimpleNamespace
 
 import pytest
 from verdict_fixtures import NAV_CASE, NAV_RULE, SETTINGS_RULE
@@ -18,8 +20,20 @@ def _query(ws, *args):
 
 
 def _files(ws):
-    return {str(p.relative_to(ws.root)): hashlib.sha256(p.read_bytes()).hexdigest()
+    return {p.relative_to(ws.root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
             for p in ws.root.rglob("*") if p.is_file()}
+
+
+@pytest.mark.parametrize("path_type", [PurePosixPath, PureWindowsPath])
+def test_snapshot_paths_are_portable_and_still_include_lock_metadata(path_type):
+    # Exercise Windows separators on every host, without hiding lock files from
+    # the read-only preview checks that consume the complete snapshot.
+    paths = ["cases/TC-TEST.json", ".case-locks/TC-TEST/.session.lock"]
+    files = [SimpleNamespace(relative_to=lambda _, p=p: path_type(p),
+                             read_bytes=lambda: b"fixture", is_file=lambda: True)
+             for p in paths]
+    ws = SimpleNamespace(root=SimpleNamespace(rglob=lambda _: files))
+    assert _files(ws) == {p: hashlib.sha256(b"fixture").hexdigest() for p in paths}
 
 
 def test_cli_reports_requested_missing_source_without_inventing_a_maturity(verdict_ws):
@@ -227,7 +241,11 @@ def test_cli_preview_and_actual_promotion_share_every_gate(
         with pytest.raises(PermissionError) as exc:
             C.promote(ws, NAV_CASE, to, kn, **options)
         assert str(exc.value) == row["promotion"]["reason"]
-        assert _files(ws) == before
+        # A mutating entry may create coordination metadata even when refused;
+        # the preview above must still create no file at all.
+        after = _files(ws)
+        assert {p: h for p, h in after.items() if not p.startswith(".case-locks/")} == {
+            p: h for p, h in before.items() if not p.startswith(".case-locks/")}
 
 
 def test_preview_does_not_set_product_status_on_cached_case(verdict_ws, monkeypatch):

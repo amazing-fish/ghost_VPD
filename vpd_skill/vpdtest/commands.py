@@ -514,6 +514,11 @@ def cmd_explore(ws: Workspace, a) -> dict:
 
 
 def cmd_case(ws: Workspace, a) -> dict:
+    if a.case_cmd == "revoke-review":
+        case = case_mod.revoke_review(ws, a.case, a.reviewer, a.basis)
+        return {"case": a.case, "status": case.get("status"),
+                "asset_review": {"required": True, "valid": False, "state": "revoked",
+                                 "revocation": case["asset_review"]["revocation"]}}
     if a.case_cmd == "readiness":
         from .case_readiness import readiness
         return readiness(ws, a.cases, to=a.to, reviewer=a.reviewer,
@@ -535,7 +540,7 @@ def cmd_case(ws: Workspace, a) -> dict:
         case = case_mod.from_exploration(exp, a.transitions, a.new_id, exp["app"])
         if ws.case_path(a.new_id).exists():
             raise FileExistsError(f"用例 {a.new_id} 已存在")
-        write_json(ws.case_path(a.new_id), case)
+        write_json(ws.case_path(a.new_id), case, exclusive=True)
         return {"case": a.new_id, "path": str(ws.case_path(a.new_id)),
                 "issues": case_mod.lint(case, ws.app(case["app"]), kn, ws.policy(), runs_dir=ws.runs_dir)}
     if a.case_cmd == "from-session":
@@ -547,7 +552,7 @@ def cmd_case(ws: Workspace, a) -> dict:
         # 读会话记录要持会话锁：会话进行中生成用例不能读到写了一半的记录（与 observe/act 同一互斥）
         with session_lock(sdir):
             case = from_session(sdir, a.new_id, ws.app(a.app), a.goal, a.drop, a.title)
-        write_json(ws.case_path(a.new_id), case)
+        write_json(ws.case_path(a.new_id), case, exclusive=True)
         src = case["sources"][0]
         return {"case": a.new_id, "path": str(ws.case_path(a.new_id)), "steps": len(case["steps"]),
                 "excluded": src["excluded"], "rejected": len(src["rejected"]), "incomplete": src["incomplete"],

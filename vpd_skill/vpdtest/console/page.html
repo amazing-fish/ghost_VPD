@@ -232,7 +232,7 @@ input[type=text] { flex: 1; min-width: 120px; }
     const level = { offline_replay: "离线回放（不代表真机）", real_device: "真机运行" }[r.validation_level]
       || "验证级别未记录";
     const use = r.informal === true ? "非正式运行" : (r.informal === false ? "回归资产运行" : "运行性质未记录");
-    const review = { approved: "审核有效", stale: "审核已失效", pending: "尚未审核", not_required: "本次未要求资产审核" }
+    const review = { approved: "审核有效", stale: "审核已失效", revoked: "审核已撤销", pending: "尚未审核", not_required: "本次未要求资产审核" }
       [(r.asset_review || {}).state] || "审核状态未记录";
     return `${level} · ${use} · ${review}（运行时记录）`;
   }
