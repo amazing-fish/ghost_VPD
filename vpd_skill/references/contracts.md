@@ -715,3 +715,14 @@ Executor 使用当前观测的 foreground/layout；Dispatcher 紧邻派发重新
 合格后 `text_present` 只匹配该真实 `text` 属性，绝不以 `description` 借名；`text_present_any`
 仍是给定字面子串的任一命中。名称/数量/楼层冻结母版全部显式开启，另用静态结构断言检查额外或重复标签。
 这只验证当前UI树支持的显示证据，不证明后台地图全集、未暴露的虚拟化项或任意像素渲染。
+
+### 自动经验候选收尾失败
+
+核心产品判定完成后，自动 proposal 的 Exception / KeyboardInterrupt 仍向上传播（CLI 3 / 130），
+沿既有运行诊断记录 experience 阶段，不产生 run_end / case_done、不继续 suite、不自动登记 replay。
+仅此错误路径独立尽力保存 run.json 和 report.md；保存或渲染再次失败不覆盖原错，也不保证文件落盘。
+若错误资格或终结时间准备失败，则不写核心记录，仍传播最初 proposal 错误。
+保留产品结论、断言、coverage、步骤、清理与首次异常，执行层和总结果记为工具 error。
+finished 更新至 proposal 失败时点，started 和取证时间不改。显式手工登记后也受既有执行错误资格限制。
+候选可能已部分写入，因此失败记录不提供 experience_candidates 完成列表；报告明确说明未完成，
+不重试、不回滚、不清理候选库。正常自动生成、propose=False 及运行前 active/trial overlay 门禁不变。

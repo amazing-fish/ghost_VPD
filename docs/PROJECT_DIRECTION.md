@@ -40,9 +40,11 @@
 本轮证据连续性补齐：[#172](https://github.com/amazing-fish/ghost_VPD/pull/172) 原子独占分配运行根目录，
 只允许显式会话恢复，冲突在设备创建前失败；[#173](https://github.com/amazing-fish/ghost_VPD/pull/173)
 限定会话为 runs 下合法单层目录并拒绝链接入口，不扩大为通用操作系统沙箱。
-[#175](https://github.com/amazing-fish/ghost_VPD/issues/175) 观测编号按规范数值及既有事件引用续接，
+[#178](https://github.com/amazing-fish/ghost_VPD/pull/178) 观测编号按规范数值及既有事件引用续接，
 缺号、无关条目及遗失目录不会覆盖或重绑定仍有记录的证据；窗口消费者同样按规范编号数值排序。
 正常连续空占位仍跳过，损坏/截断日志不自动修复；会话身份、预算与新鲜窗口门禁不变。
+[#184](https://github.com/amazing-fish/ghost_VPD/pull/184) 为已分配运行保留异常阶段与证据定位，原异常继续传播，不将中断伪装成正常结束。
+[#185](https://github.com/amazing-fish/ghost_VPD/pull/185) 以运行真实起止时间确定重放恢复与断言覆盖，旧结果晚录入不改变资格；无完整时间的旧证据保守处理，不自动晋级。
 离线/CI 工程验证不证明用户家庭机现场、实机业务行为或正式覆盖。
 
 资产入口另见 [#151 母版与冻结实例](https://github.com/amazing-fish/ghost_VPD/pull/151)、
