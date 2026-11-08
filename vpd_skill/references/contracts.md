@@ -601,6 +601,13 @@ policy、layout 与 dialogs 使用本次运行准入检查时捕获的配置，O
 
 ## 5. 会话（`runs/session-<name>/`）与会话生成的用例
 
+- CLI 的会话名称是单层目录标识，不是路径。`observe`、`act`（含相对 swipe 的前置 APP 查询）、
+  `session`、`case from-session` 共用检查：名称非空，不含 `/`、`\`、控制字符、Windows 保留符号
+  `:*?"<>|`，且不能以点或空格结尾；中文等 Unicode 与内部空格仍可使用，不静默裁剪或重命名。
+  会话目录必须直接位于配置的 `runs` 下，已有会话目录的符号链接、junction 和普通文件均拒绝，
+  在会话读写、加锁、设备构造及生成用例前返回参数错误（退出码 3）。配置的 `runs` 根本身可为映射链接。
+  历史嵌套/空名称/链接别名不再从这些入口读取或续写；原件不自动迁移、删除或改写，须人工保留证据后处理。
+  这是 CLI 路径边界，不是 OS 沙箱；不防御有本机写权限者并发换链，也不宣称检查会话内每个证据文件链接。
 - `events.jsonl`：`session_facts`（版本/形态/验证级别，只记一次）、`agent_observe`、`act_request`（先于执行写入）、
   `act_rejected` / `act_error` / `act_result`（`outcome`、`dispatched`、`effect_unknown`、前后观测），以及执行器内部事件
   （`attempt`、`revalidate`、`dispatch`、`clear_text`、`scroll_search`、`recovery`、`foreground_changed`、
