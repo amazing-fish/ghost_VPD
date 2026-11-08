@@ -146,7 +146,7 @@ def _read_chunks(stream, remaining: int):
         yield chunk
 
 
-def _scan(path: Path) -> _Scan:
+def _scan(path: Path, *, detached: bool = False) -> _Scan:
     key = str(path.absolute())  # 不解析证据文件的符号链接；I/O 异常由调用方隔离。
     with _SCANS_LOCK:  # 控制台是多线程服务：同一文件的校验与增量解析串行进行
         cached = _SCANS.get(key)
@@ -159,7 +159,7 @@ def _scan(path: Path) -> _Scan:
             sc = _Scan()
             sc.missing = True
             _remember_scan(key, sc)
-            return sc
+            return sc.copy() if detached else sc
         with stream:
             opened = os.fstat(stream.fileno())
             if not stat.S_ISREG(opened.st_mode):
@@ -197,7 +197,8 @@ def _scan(path: Path) -> _Scan:
             cached.__dict__ = sc.__dict__
             sc = cached
         _remember_scan(key, sc)
-        return sc
+        # 响应在锁内取副本；后续请求可更新缓存，但不能改变本次响应的事件观察。
+        return sc.copy() if detached else sc
 
 
 def _read_run(path: Path) -> dict:
@@ -291,19 +292,29 @@ def _read_problem(out: dict, source: str, reason: str, count: int | None = None)
 
 
 def summarize(run_dir: Path, now: float | None = None, stale_s: float = 120.0) -> dict:
+    return _collect(run_dir, now, stale_s)
+
+
+def _collect(run_dir: Path, now: float | None = None, stale_s: float = 120.0,
+             *, include_detail: bool = False, tail: int = 60) -> dict:
+    """每个来源只取一次观察供摘要和详情共用；不承诺跨文件原子性。"""
     run_id = run_dir.name
     ev_path = run_dir / "events.jsonl"
     unreadable = False
     try:
-        sc = _scan(ev_path)
+        sc = _scan(ev_path, detached=True)
     except OSError:
         unreadable, sc = True, _Scan()
     head = sc.head or {}
     kind = _kind(run_id)
-    try:
-        mtime = ev_path.stat().st_mtime if _exists(ev_path) else run_dir.stat().st_mtime
-    except OSError:
-        mtime = None
+    if not unreadable and not sc.missing:
+        mtime = sc.mtime_ns / 1_000_000_000
+    else:
+        # 缺失/失败沿用路径或目录时间兜底；它不把失败观察变成有效进度。
+        try:
+            mtime = ev_path.stat().st_mtime if _exists(ev_path) else run_dir.stat().st_mtime
+        except OSError:
+            mtime = None
     out = {"run_id": run_id, "kind": kind, "kind_label": KINDS.get(kind, kind), "updated": mtime,
            "events": sc.count, "last_event": sc.tail[-1].get("event") if sc.tail else None}
     if kind == "suite":
@@ -336,13 +347,23 @@ def summarize(run_dir: Path, now: float | None = None, stale_s: float = 120.0) -
         diagnostic_error = "invalid_record"
     except OSError:
         diagnostic_error = "unreadable"
-    if kind == "run" and (out.get("finished") or diagnostic):
+    summary_result = kind == "run" and (out.get("finished") or diagnostic is not None)
+    if include_detail or summary_result:
         try:
             if _exists(run_json):
                 run = _read_run(run_json)
-                v = run.get("verdict") or {}
-                out.update(verdict=v.get("verdict"), verdict_label=v.get("label"), attribution=v.get("attribution"))
-                out.update({key: run[key] for key in ("validation_level", "informal", "asset_review") if key in run})
+                if summary_result:
+                    v = run.get("verdict") or {}
+                    out.update(verdict=v.get("verdict"), verdict_label=v.get("label"), attribution=v.get("attribution"))
+                    out.update({key: run[key] for key in ("validation_level", "informal", "asset_review") if key in run})
+                if include_detail:
+                    out["steps"] = [_step_detail(s) for s in run.get("steps", [])]
+                    out["cleanup"] = [_step_detail(s) for s in run.get("cleanup", [])]
+                    out["assertions"] = [{k: a[k] for k in ("id", "at", "type", "result", "reason", "verified", "guard",
+                                                            "advisory", "oracle_refs", "evidence") if k in a}
+                                         for a in run.get("assertions", [])]
+                    out["verdict_detail"] = run.get("verdict")
+                    out["coverage"] = (run.get("verdict") or {}).get("coverage")
         except (ValueError, TypeError, RecursionError):
             run_error = "invalid_record"
         except OSError:
@@ -366,6 +387,14 @@ def summarize(run_dir: Path, now: float | None = None, stale_s: float = 120.0) -
         _read_problem(out, "events.jsonl", "invalid_record", sc.invalid_lines)
     if run_error:
         _read_problem(out, "run.json", run_error)
+    if include_detail:
+        out["tail"] = sc.tail[-tail:]
+        rp = run_dir / "report.md"
+        try:
+            out["report"] = str(rp) if _exists(rp) else None
+        except OSError:
+            out["report"] = None
+            _read_problem(out, "report.md", "unreadable")
     return out
 
 
@@ -402,34 +431,7 @@ def detail(runs_dir: Path, run_id: str, tail: int = 60) -> dict | None:
         return None
     except OSError:
         pass  # 保留已选择的条目，下面返回可诊断的读取失败而非让请求崩溃。
-    out = summarize(d)
-    try:
-        out["tail"] = list(_scan(d / "events.jsonl").tail[-tail:])
-    except OSError:
-        out["tail"] = []
-        _read_problem(out, "events.jsonl", "unreadable")
-    rj = d / "run.json"
-    try:
-        if _exists(rj):
-            run = _read_run(rj)
-            out["steps"] = [_step_detail(s) for s in run.get("steps", [])]
-            out["cleanup"] = [_step_detail(s) for s in run.get("cleanup", [])]
-            out["assertions"] = [{k: a[k] for k in ("id", "at", "type", "result", "reason", "verified", "guard",
-                                                    "advisory", "oracle_refs", "evidence") if k in a}
-                                 for a in run.get("assertions", [])]
-            out["verdict_detail"] = run.get("verdict")
-            out["coverage"] = (run.get("verdict") or {}).get("coverage")
-    except (ValueError, TypeError, RecursionError):
-        _read_problem(out, "run.json", "invalid_record")
-    except OSError:
-        _read_problem(out, "run.json", "unreadable")
-    rp = d / "report.md"
-    try:
-        out["report"] = str(rp) if _exists(rp) else None
-    except OSError:
-        out["report"] = None
-        _read_problem(out, "report.md", "unreadable")
-    return out
+    return _collect(d, include_detail=True, tail=tail)
 
 
 def _step_detail(step: dict) -> dict:
