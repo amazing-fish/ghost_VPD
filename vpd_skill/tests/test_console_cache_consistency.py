@@ -263,7 +263,7 @@ def test_replacement_before_open_uses_same_descriptor_identity_and_bytes(tmp_pat
         patch.setattr(Path, "stat", path_stat)
         patch.setattr(os, "fstat", fstat)
         scan = progress._scan(file)
-    assert calls == ["stat", "open", "fstat", "fstat", "stat"]
+    assert calls == ["stat", "open", "fstat", "stat", "fstat", "stat"]
     assert scan is not old and scan.head["case"] == "NEW" and scan.last_outcome == "failed"
     assert scan.identity == (file.stat().st_dev, file.stat().st_ino)
     assert descriptors[0].closed and file.read_bytes() == data
@@ -357,7 +357,7 @@ def test_failed_candidate_preserves_verified_cache_and_incremental_recovery(tmp_
         nonlocal path_stat_calls
         if self == file:
             path_stat_calls += 1
-            if failure == "path_stat" and path_stat_calls > 1:
+            if failure == "path_stat" and path_stat_calls > 2:
                 raise PermissionError("synthetic path stat failure")
         return original_stat(self, *args, **kwargs)
 
@@ -608,3 +608,100 @@ def test_real_fifo_is_rejected_without_opening_it(tmp_path, monkeypatch):
     result = progress.summarize(directory)
     assert result["state"] == "unknown" and result["events"] == 0
     assert result["read_errors"] == [{"source": "events.jsonl", "reason": "unreadable"}]
+
+
+@pytest.mark.parametrize("ctime_difference", [100, 2_000_000_100])
+def test_stable_path_and_fd_ctime_need_not_match(tmp_path, monkeypatch, ctime_difference):
+    # CPython 3.12 Windows path stat returns CreationTime, fd fstat ChangeTime.
+    # Their fractions or whole seconds may differ without any concurrent write.
+    data = run_bytes()
+    file = make_file(tmp_path, data)
+    original_fstat, original_stat = os.fstat, Path.stat
+    birthtime = original_stat(file).st_ctime_ns
+    parsed, original_load = [], progress._load_record
+
+    def path_stat(self, *args, **kwargs):
+        info = original_stat(self, *args, **kwargs)
+        return stat_with(info, st_ctime_ns=birthtime) if self == file else info
+
+    def fstat(fd):
+        return stat_with(original_fstat(fd), st_ctime_ns=birthtime + ctime_difference)
+
+    def load(raw):
+        parsed.append(raw)
+        return original_load(raw)
+
+    monkeypatch.setattr(Path, "stat", path_stat)
+    monkeypatch.setattr(os, "fstat", fstat)
+    monkeypatch.setattr(progress, "_load_record", load)
+    scan = progress._scan(file)
+    assert scan.count == 3 and scan.last_outcome == "passed"
+    parsed.clear()
+    assert progress._scan(file) is scan and not parsed
+    extra = records({"event": "observe", "state": "new"})
+    append_bytes(file, extra)
+    assert progress._scan(file) is scan and scan.count == 4 and len(parsed) == 1
+    assert scan.digest == hashlib.sha256(data + extra).digest()
+    assert file.read_bytes() == data + extra
+
+
+@pytest.mark.parametrize("source", ["path", "fd"])
+@pytest.mark.parametrize("field", ["st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns"])
+def test_each_stat_api_still_rejects_its_own_metadata_change(tmp_path, monkeypatch, source, field):
+    file = make_file(tmp_path, run_bytes())
+    old = progress._scan(file)
+    before = copy.deepcopy(old.__dict__)
+    original_fstat, original_stat = os.fstat, Path.stat
+    path_calls = fd_calls = 0
+    birthtime = file.stat().st_ctime_ns
+
+    def path_stat(self, *args, **kwargs):
+        nonlocal path_calls
+        info = original_stat(self, *args, **kwargs)
+        if self != file:
+            return info
+        path_calls += 1
+        info = stat_with(info, st_ctime_ns=birthtime)
+        if source == "path" and path_calls == 3:  # Precheck, opened-path baseline, final path.
+            info = stat_with(info, **{field: getattr(info, field) + 1})
+        return info
+
+    def fstat(fd):
+        nonlocal fd_calls
+        fd_calls += 1
+        info = stat_with(original_fstat(fd), st_ctime_ns=birthtime + 100)
+        if source == "fd" and fd_calls == 2:
+            info = stat_with(info, **{field: getattr(info, field) + 1})
+        return info
+
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, "stat", path_stat)
+        patch.setattr(os, "fstat", fstat)
+        with pytest.raises(OSError, match="events changed"):
+            progress._scan(file)
+    assert progress._SCANS[key(file)] is old and old.__dict__ == before
+    assert progress._scan(file) is old
+
+
+def test_real_stat_apis_accept_stable_files_after_writes(tmp_path):
+    # Runs on the actual Windows/Linux CI hosts. Failure includes raw metadata,
+    # rather than hiding a runtime-specific mismatch behind a generic OSError.
+    file = make_file(tmp_path, run_bytes())
+    for index in range(4):
+        if index:
+            append_bytes(file, records({"event": "observe", "state": str(index)}))
+        os.utime(file, ns=(1_700_000_000_000_000_000, 1_700_000_000_123_456_700 + index * 100))
+        before = file.stat()
+        with file.open("rb") as stream:
+            opened = os.fstat(stream.fileno())
+        diagnostic = {"platform": os.name,
+                      "path": progress._signature(before), "fd": progress._signature(opened),
+                      "path_birthtime": getattr(before, "st_birthtime_ns", None),
+                      "fd_birthtime": getattr(opened, "st_birthtime_ns", None)}
+        assert os.path.samestat(before, opened), diagnostic
+        try:
+            scan = progress._scan(file)
+        except OSError as exc:
+            pytest.fail(f"Stable file was rejected: {exc}; metadata={diagnostic}")
+        assert scan.count == 3 + index and scan.last_outcome == "passed", diagnostic
+        assert scan.digest == hashlib.sha256(file.read_bytes()).digest(), diagnostic

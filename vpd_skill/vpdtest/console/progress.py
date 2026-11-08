@@ -165,6 +165,11 @@ def _scan(path: Path) -> _Scan:
             if not stat.S_ISREG(opened.st_mode):
                 raise OSError("events must be a regular file")
             initial = _signature(opened)
+            path_initial = path.stat()
+            # Windows CPython 3.12: path ctime 是创建时间，fd ctime 是变更时间。
+            # 跨 API 仅核对文件身份和大小；时间戳各自与同一 API 的前值比较。
+            if not os.path.samestat(opened, path_initial) or opened.st_size != path_initial.st_size:
+                raise OSError("events changed during read")
             identity, size = initial[:2], initial[2]
             digest = hashlib.sha256()
             reuse = False
@@ -183,7 +188,8 @@ def _scan(path: Path) -> _Scan:
                 digest.update(chunk)
                 sc.consume(chunk)
             # 同一描述符负责定长读取与校验；路径替换、截断、追加等可见变化一律报未知。
-            if _signature(os.fstat(stream.fileno())) != initial or _signature(path.stat()) != initial:
+            if (_signature(os.fstat(stream.fileno())) != initial
+                    or _signature(path.stat()) != _signature(path_initial)):
                 raise OSError("events changed during read")
         sc.identity, sc.mtime_ns, sc.digest = identity, initial[3], digest.digest()
         if reuse:
