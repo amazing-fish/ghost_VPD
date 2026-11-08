@@ -329,12 +329,17 @@ def require_review(ws, case: dict, knowledge=None, app=None, policy=None, contex
     return info
 
 
+def validate_case_id(case_id: str) -> None:
+    """The shared stable identity contract for general case creation and lifecycle."""
+    if not isinstance(case_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", case_id):
+        raise ValueError("用例 ID 不能是路径，须为字母/数字开头的稳定 ID")
+
+
 def _case_update(function):
     """Serialize every case read-modify-write; a replay must not restore an old approval."""
     @wraps(function)
     def locked(ws, case_id, *args, **kwargs):
-        if not isinstance(case_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", case_id):
-            raise ValueError("用例 ID 不能是路径，须为字母/数字开头的稳定 ID")
+        validate_case_id(case_id)
         if kwargs.get("dry_run"):
             return function(ws, case_id, *args, **kwargs)  # No lock file for read-only previews.
         try:
