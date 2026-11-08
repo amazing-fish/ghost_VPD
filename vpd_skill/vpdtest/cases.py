@@ -201,7 +201,7 @@ def dependency_hash(case: dict, app, knowledge) -> str:
 
 # 审核覆盖审阅语义；成熟度/运行记录不使正常晋级或新重放自失效。
 REVIEW_METADATA = {"status", "history", "replays", "product_status", "asset_review"}
-EXPLORATION_ORIGINS = {"session", "exploration"}
+EXPLORATION_ORIGINS = {"session", "exploration", "template"}
 
 
 def exploration_signals(case: dict) -> list:
@@ -500,9 +500,16 @@ def execution_structure_issues(case: dict, app, *, read_sources=True) -> list:
 
 
 def assertion_scope_issues(case: dict, app) -> list:
-    """Only registered tree targets may scope the three terminal text checks."""
+    """Registered tree scopes; strict display checks are explicit, positive-only."""
     issues = []
     for assertion in case.get("assertions", []):
+        if "strict_visible_text" in assertion:
+            strict_field = f"assertions.{assertion.get('id', '?')}.strict_visible_text"
+            if (type(assertion["strict_visible_text"]) is not bool
+                    or assertion.get("type") not in ("text_present", "text_present_any")
+                    or "within" not in assertion):
+                issues.append({"field": strict_field, "problem": "strict_visible_text 须为布尔值，"
+                               "且只支持带已登记 within 的 text_present/text_present_any"})
         if "within" not in assertion:
             continue
         field = f"assertions.{assertion.get('id', '?')}.within"

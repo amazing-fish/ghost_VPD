@@ -514,6 +514,26 @@ def cmd_explore(ws: Workspace, a) -> dict:
 
 
 def cmd_case(ws: Workspace, a) -> dict:
+    if a.case_cmd == "instantiate":
+        from .case_templates import build_case
+        app = ws.app("qiankun_hm")
+        case = build_case(app, read_json(a.input))
+        knowledge, policy = KnowledgeStore(ws.root), ws.policy()
+        issues = case_mod.lint(case, app, knowledge, policy, runs_dir=ws.runs_dir)
+        review = case_mod.review_status(ws, case, knowledge, app, policy)
+        result = {"mode": "preview", "case": case,
+                  "hash": case_mod.content_hash(case),
+                  "deps": case_mod.dependency_hash(case, app, knowledge),
+                  "issues": issues,
+                  "asset_review": {k: review[k] for k in ("required", "valid", "state", "current")},
+                  "note": "来源登记不认证外部真值；生成不确认 Oracle、不审批、不晋级，也不运行设备"}
+        if a.write:
+            if issues:
+                raise ValueError(f"冻结实例 lint 未通过，未创建用例：{issues}")
+            path = ws.case_path(case["id"])
+            write_json(path, case, exclusive=True)
+            result.update(mode="created", path=str(path))
+        return result
     if a.case_cmd == "revoke-review":
         case = case_mod.revoke_review(ws, a.case, a.reviewer, a.basis)
         return {"case": a.case, "status": case.get("status"),

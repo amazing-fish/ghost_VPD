@@ -123,6 +123,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     cs = sub.add_parser("case", help="用例 lint / 探索转候选 / 晋级")
     csub = cs.add_subparsers(dest="case_cmd", required=True)
+    x = csub.add_parser("instantiate", help="预览参数母版的冻结实例；--write 仅新建 draft，不运行或审批")
+    x.add_argument("--input", required=True, help="包含模板、独立期望来源与已登记范围目标的 JSON 文件")
+    x.add_argument("--write", action="store_true", help="lint 通过后独占创建新用例；不覆盖、不批准、不晋级")
     x = csub.add_parser("readiness", help="只读列出成熟度、审核差异和现有晋级门槛；不验实机适用性或覆盖")
     x.add_argument("cases", nargs="*", help="预期资产ID；不传则仅枚举当前目录，不推断缺源件")
     x.add_argument("--to", choices=["candidate", "replay_verified", "regression"], help="不传则预检现有定义的下一阶段")
