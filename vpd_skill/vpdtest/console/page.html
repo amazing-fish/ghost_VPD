@@ -59,12 +59,14 @@ input[type=text] { flex: 1; min-width: 120px; }
 .run { display: flex; flex-direction: column; gap: 4px; text-align: left;
   padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); width: 100%; }
 .run[aria-pressed="true"] { border-color: var(--accent); }
-.run .top { display: flex; gap: 8px; align-items: center; min-width: 0; }
-.run .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.run .top { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; }
+.run .t { flex: 1 1 180px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .run .m { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 .run progress { width: 100%; height: 6px; }
 .chip { font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
 .s-running, .s-active { color: var(--accent); } .s-stale { color: var(--warn); } .s-idle, .s-finished { color: var(--muted); }
+.freshness { margin: 8px 0; padding: 8px 10px; border-left: 3px solid var(--accent); background: var(--bg); }
+.freshness[data-stale="true"] { border-color: var(--warn); color: var(--warn); }
 .v-passed { color: var(--ok); } .v-failed, .v-error { color: var(--bad); } .v-blocked { color: var(--warn); } .v-pending, .v-not_applicable { color: var(--info); }
 #detail { margin-top: 12px; overflow-wrap: anywhere; }
 #detail .table-scroll { max-width: 100%; overflow-x: auto; }
@@ -104,7 +106,10 @@ input[type=text] { flex: 1; min-width: 120px; }
   </section>
   <section aria-labelledby="h-runs">
     <h2 id="h-runs">运行进度 <span class="muted" id="runs-at"></span></h2>
+    <p id="runs-status" class="freshness" role="status">正在读取运行记录，尚无可用快照。</p>
+    <p class="hint">只读监控已有运行，不启动用例。日志近期更新不等于执行进程仍存活；已结束记录属于历史结果。</p>
     <div class="runs" id="runs" role="list"></div>
+    <p id="detail-status" class="freshness" role="status" hidden></p>
     <div id="detail" aria-live="polite"></div>
   </section>
 </main>
@@ -114,10 +119,10 @@ input[type=text] { flex: 1; min-width: 120px; }
   const TOKEN = new URLSearchParams(location.search).get("token") || "";
   const $ = (id) => document.getElementById(id);
   const clamp = (v) => Math.min(1, Math.max(0, v));
-  const STATE = { running: "进行中", stale: "疑似中断", finished: "已结束", idle: "空闲", active: "活动中" };
+  const STATE = { running: "未收到结束记录", stale: "日志已过期 · 执行状态未知", finished: "已结束 · 历史记录", idle: "近期无日志", active: "日志近期更新" };
   const VERDICT = { passed: "通过", failed: "失败", error: "执行错误", blocked: "阻塞", pending: "待确认", not_applicable: "不涉及" };
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  let inputOn = false, streaming = false, selected = null, lastRuns = "";
+  let inputOn = false, streaming = false, selected = null, lastRuns = "", statusPending = false;
 
   function el(tag, attrs, ...kids) {
     const e = document.createElement(tag);
@@ -129,10 +134,24 @@ input[type=text] { flex: 1; min-width: 120px; }
     return e;
   }
   const log = (s) => { $("log").textContent = s; };
-  async function api(path) {
-    const r = await fetch(path, { cache: "no-store", headers: { "X-VPD-Token": TOKEN } });
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    return r.json();
+  async function api(path, signal) {
+    const controller = new AbortController();
+    const cancel = () => controller.abort();
+    if (signal) {
+      if (signal.aborted) cancel(); else signal.addEventListener("abort", cancel, { once: true });
+    }
+    const timer = setTimeout(cancel, 8000);
+    try {
+      const r = await fetch(path, { cache: "no-store", headers: { "X-VPD-Token": TOKEN }, signal: controller.signal });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return await r.json();
+    } catch (e) {
+      if (controller.signal.aborted) throw new Error("读取超时或已取消");
+      throw e;
+    } finally {
+      clearTimeout(timer);
+      if (signal) signal.removeEventListener("abort", cancel);
+    }
   }
   async function send(cmd) {
     if (!inputOn) return;
@@ -207,6 +226,8 @@ input[type=text] { flex: 1; min-width: 120px; }
   });
 
   async function pollStatus() {
+    if (statusPending) return;
+    statusPending = true;
     try {
       const s = await api("/api/status");
       const f = s.frames || {};
@@ -224,10 +245,51 @@ input[type=text] { flex: 1; min-width: 120px; }
         img.hidden = true;
         screen.append(el("div", { class: "empty" }, "未连接设备：只显示运行进度"));
       }
-    } catch (e) { $("p-src").textContent = "控制台不可达"; }
+    } catch (e) {
+      inputOn = false;
+      $("p-src").textContent = "控制台不可达";
+      $("p-input").textContent = "状态未知 · 暂停操作";
+      for (const id of ["b-back", "b-home", "b-wake"]) $(id).disabled = true;
+      $("f-text").querySelector("button").disabled = true;
+      screen.style.cursor = "default";
+    } finally { statusPending = false; }
   }
   // ---- 运行进度 ----
-  const hhmmss = (sec) => new Date(sec * 1000).toLocaleTimeString("zh-CN", { hour12: false });
+  const hhmmss = (sec) => new Date(sec * 1000).toLocaleString("zh-CN", { hour12: false });
+  const freshness = { runs: { at: null, error: "" }, detail: { at: null, error: "" } };
+  let runsPending = false, detailRequest = null;
+  function showFreshness(name) {
+    const s = freshness[name], node = $(name + "-status");
+    if (!node) return;
+    const stale = !!s.error || (s.at !== null && Date.now() - s.at > 12000);
+    node.hidden = name === "detail" && !selected;
+    node.setAttribute("data-stale", String(stale));
+    const text = s.at === null
+      ? (s.error ? `读取失败：${s.error}。尚无可用快照。` : "正在读取，尚无可用快照。")
+      : `${stale ? "刷新中断，以下仅为历史快照，不代表当前状态" : "刷新正常"} · 最近读取 ${hhmmss(s.at / 1000)}` +
+        (s.error ? ` · ${s.error}` : "");
+    if (node.textContent !== text) node.textContent = text;
+  }
+  function readSucceeded(name) {
+    freshness[name] = { at: Date.now(), error: "" };
+    showFreshness(name);
+  }
+  function readFailed(name, error) {
+    freshness[name].error = error.message;
+    showFreshness(name);
+  }
+  function selectRun(id) {
+    if (selected !== id) {
+      if (detailRequest) detailRequest.controller.abort();
+      detailRequest = null;
+      selected = id;
+      freshness.detail = { at: null, error: "" };
+      $("detail").replaceChildren(el("p", { class: "muted" }, "正在读取 " + id));
+      showFreshness("detail");
+    }
+    lastRuns = "";
+    pollRuns(); pollDetail();
+  }
   function runContext(r) {
     const level = { offline_replay: "离线回放（不代表真机）", real_device: "真机运行" }[r.validation_level]
       || "验证级别未记录";
@@ -240,9 +302,9 @@ input[type=text] { flex: 1; min-width: 120px; }
     const title = r.title || r.run_id;
     const chips = [el("span", { class: "chip s-" + r.state }, STATE[r.state] || r.state)];
     if (r.verdict) chips.push(el("span", { class: "chip v-" + r.verdict }, VERDICT[r.verdict] || r.verdict));
-    let meta = `${r.kind_label} · ${r.run_id} · 更新于 ${hhmmss(r.updated)}`;
-    if (r.kind === "run" && r.current) meta += ` · 当前 ${r.current}`;
-    if (r.kind === "suite" && r.current && !r.finished) meta += ` · 当前 ${r.current.case}`;
+    let meta = `${r.kind_label} · ${r.run_id} · 日志文件更新 ${hhmmss(r.updated)}`;
+    if (r.kind === "run" && r.current) meta += ` · 最后记录步骤 ${r.current}`;
+    if (r.kind === "suite" && r.current && !r.finished) meta += ` · 最后记录用例 ${r.current.case}`;
     if (r.last_state) meta += ` · 页面 ${r.last_state}`;
     if (r.motion) meta += ` · ${r.motion}`;
     const b = el("button", { class: "run", type: "button", "aria-pressed": String(selected === r.run_id),
@@ -256,21 +318,26 @@ input[type=text] { flex: 1; min-width: 120px; }
       b.append(pr, el("span", { class: "m" }, `${r.done || 0}/${r.total}` +
         (r.verdicts ? " · " + Object.entries(r.verdicts).map(([k, v]) => `${VERDICT[k] || k} ${v}`).join(" ") : "")));
     }
-    b.addEventListener("click", () => { selected = r.run_id; lastRuns = ""; pollRuns(); pollDetail(); });
+    b.addEventListener("click", () => selectRun(r.run_id));
     return el("div", { role: "listitem" }, b);
   }
   async function pollRuns() {
+    if (runsPending) return;
+    runsPending = true;
     try {
       const d = await api("/api/runs");
+      if (!Array.isArray(d.runs)) throw new Error("运行列表格式异常");
       const sig = JSON.stringify([d.runs, selected]);
-      $("runs-at").textContent = "· " + new Date().toLocaleTimeString("zh-CN", { hour12: false });
-      if (sig === lastRuns) return;  // 没变化就不重绘，避免打断键盘焦点
-      lastRuns = sig;
+      if (sig === lastRuns) { readSucceeded("runs"); return; }  // 没变化就不重绘，避免打断键盘焦点
       const focused = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.id : null;
       const box = $("runs");
       box.replaceChildren(...(d.runs.length ? d.runs.map(runItem) : [el("p", { class: "muted" }, "runs/ 下还没有运行记录")]));
       if (focused) { const f = box.querySelector(`[data-id="${CSS.escape(focused)}"]`); if (f) f.focus(); }
-    } catch (e) { $("runs-at").textContent = "· 读取失败"; }
+      lastRuns = sig;
+      $("runs-at").textContent = `· 最近 ${d.runs.length} 条`;
+      readSucceeded("runs");
+    } catch (e) { readFailed("runs", e); }
+    finally { runsPending = false; }
   }
   function table(cols, rows) {
     return el("div", { class: "table-scroll" }, el("table", {},
@@ -294,8 +361,14 @@ input[type=text] { flex: 1; min-width: 120px; }
   }
   async function pollDetail() {
     if (!selected) return;
+    if (detailRequest && detailRequest.id === selected) return;
+    if (detailRequest) detailRequest.controller.abort();
+    const request = { id: selected, controller: new AbortController() };
+    detailRequest = request;
     try {
-      const d = await api("/api/runs/" + encodeURIComponent(selected));
+      const d = await api("/api/runs/" + encodeURIComponent(request.id), request.controller.signal);
+      if (detailRequest !== request || selected !== request.id) return;
+      if (d.run_id !== request.id || !Array.isArray(d.tail)) throw new Error("运行详情格式或标识异常");
       const box = $("detail"), kids = [el("h2", {}, (d.title || d.run_id) + (d.case_title ? " · " + d.case_title : ""))];
       if (d.verdict_detail) kids.push(el("p", {}, `结论：${d.verdict_detail.label || d.verdict_detail.verdict}` +
         (d.verdict_detail.attribution_label ? `（归因：${d.verdict_detail.attribution_label}）` : "")));
@@ -320,12 +393,20 @@ input[type=text] { flex: 1; min-width: 120px; }
       if (d.report) kids.push(el("p", { class: "muted" }, "报告：" + d.report));
       kids.push(el("h2", {}, "最近事件"), el("pre", {}, d.tail.map((e) => JSON.stringify(e)).join("\n")));
       box.replaceChildren(...kids);
-    } catch (e) { $("detail").replaceChildren(el("p", { class: "muted" }, "读取详情失败：" + e.message)); }
+      readSucceeded("detail");
+    } catch (e) {
+      if (detailRequest === request && selected === request.id) readFailed("detail", e);
+    } finally { if (detailRequest === request) detailRequest = null; }
   }
   pollStatus(); pollRuns();
   setInterval(pollStatus, 2000);
   setInterval(pollRuns, 3000);
   setInterval(pollDetail, 3000);
+  setInterval(() => { showFreshness("runs"); showFreshness("detail"); }, 1000);
+  document.addEventListener("visibilitychange", () => {
+    showFreshness("runs"); showFreshness("detail");
+    if (!document.hidden) { pollStatus(); pollRuns(); pollDetail(); }
+  });
 })();
 </script>
 </body>
