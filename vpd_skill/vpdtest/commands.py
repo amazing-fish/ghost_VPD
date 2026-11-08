@@ -514,6 +514,9 @@ def cmd_explore(ws: Workspace, a) -> dict:
 
 
 def cmd_case(ws: Workspace, a) -> dict:
+    if a.case_cmd == "inspect-scope":
+        from .scope_inspection import inspect_saved_scope, read_scope_input
+        return inspect_saved_scope(ws.app("qiankun_hm"), read_scope_input(a.input), a.evidence_dir, a.obs_id)
     if a.case_cmd == "instantiate":
         from .case_templates import build_case
         app = ws.app("qiankun_hm")

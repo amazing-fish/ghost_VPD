@@ -93,6 +93,8 @@ $env:VPD_SECRET_QIANKUN_PHONE = '<账号>'; $env:VPD_SECRET_QIANKUN_PASSWORD = '
 240/241/243 显示规则可由 `case instantiate --input <json>` 预览为字面冻结实例，
 `--write` 只新建未审核 draft，不运行设备、覆盖旧例或继承旧确认。需要独立预期与已登记专用 scope；
 新通用 Oracle 仍为 unconfirmed，当前未登记生产 scope。见[母版与实例边界](references/case-templates.md)。
+未校准的候选范围可先用 `case inspect-scope --input <json> --evidence-dir <目录> --obs-id <ID>`
+只读检查历史证据，见[scope 诊断](references/scope-inspection.md)。这不登记校准或生成业务预期。
 
 `act` 的进程退出码 0 表示命令已处理，不能据此认定点击成功：读取 `action_status`、`dispatched`、
 `effect_unknown` 及 `result.outcome`。`policy_denied` / `dispatched=false` 是明确拒发。

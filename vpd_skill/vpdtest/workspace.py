@@ -39,10 +39,12 @@ class App:
 
 
 class Workspace:
-    def __init__(self, root: Optional[str] = None):
+    def __init__(self, root: Optional[str] = None, *, load_local_config: bool = True):
         self.root = Path(root or os.environ.get("VPD_WORKSPACE") or SKILL_ROOT / "data").resolve()
         self.runs_dir = self.root.parent / "runs"
-        self.config = load_config()
+        # Offline evidence inspection has no device/configuration requirements.
+        # Keep its CLI path from even loading a local configuration with secrets.
+        self.config = load_config() if load_local_config else {}
 
     def policy(self) -> Policy:
         return Policy(read_json(self.root / "policy.json"))

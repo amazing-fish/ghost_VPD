@@ -89,6 +89,7 @@
 再用 `case instantiate --input <json>` 只读预览；显式 `--write` 只新建未审核 draft。
 不会冷启动或切旧车，也不确认 Oracle、审批或晋级；实际 Runner 的预检副作用仍须另行核对。
 详细 schema、范围、证据要求与限制见[母版说明](case-templates.md)。
+候选 scope 尚未校准时，先执行[离线 scope 诊断](scope-inspection.md)，不通过伪填 verified 绕过生成门禁。
 
 ## 探索资产人工审核（#30）
 
