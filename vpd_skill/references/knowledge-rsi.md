@@ -119,4 +119,21 @@ URL、文件路径、多来源自由文本等不从中猜出身份；需要机�
 
 **采纳与回滚**：`experience adopt <id> [--reviewer]` 生成 overlay 新版本并保存上一版快照；
 `experience rollback --to-version N --reason ...` 恢复快照（版本号继续递增），被移除条目标记 rolled_back。
-所有动作追加到 `ledger.jsonl`；每次运行在 `run.json.overlay` 记录所用 overlay 版本与试验条目。
+动作完成后追加到 `ledger.jsonl`；每次运行在 `run.json.overlay` 记录所用 overlay 版本与试验条目。
+
+
+**重新验证与异常中断**：旧 `validated` 条目在开始新一轮运行前先持久记录为 `candidate`，
+保留已有历史与验证记录；这一步保存失败则不运行基线或试验。新一轮完整通过才恢复
+`validated`。普通候选不增加这次预先写入。预失效先保存条目状态与 `history`，
+最终结果保存后再追加 ledger；异常收尾失败时可能缺少本轮完整记录，当前采纳资格
+以已持久化的条目状态为准，不以 ledger 缺失推定成功。
+
+验证执行或比较遇到异常、Ctrl+C 时，尽力保存已完成的成对比较、停止的用例/设备及
+`baseline`、`trial` 或 `comparison` 阶段，以及尚未执行的计划。半对运行或未完成比较
+不计通过；已确认回退仍优先 `rejected`，否则为 `candidate`。中断记录只保存异常类型，
+可附本工作区内已落盘且身份核验一致的 `run_diagnostic.json` 引用，不复制异常正文或堆栈。
+首个异常原样传播（CLI 普通错误为 3，Ctrl+C 为 130），收尾保存失败不取代它。
+
+已采纳经验仍可再次验证，记录状态与实际激活的 overlay 分开：验证不会修改 `active.json`，
+也不会自动回滚；即使复测拒绝或中断，当前生效项仍须显式回滚。此处是可捕获异常的
+尽力留证，不承诺并发验证、SIGKILL 或掉电时的事务完整性。

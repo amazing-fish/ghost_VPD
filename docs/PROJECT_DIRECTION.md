@@ -46,6 +46,8 @@
 正常连续空占位仍跳过，损坏/截断日志不自动修复；会话身份、预算与新鲜窗口门禁不变。
 [#184](https://github.com/amazing-fish/ghost_VPD/pull/184) 为已分配运行保留异常阶段与证据定位，原异常继续传播，不将中断伪装成正常结束。
 [#185](https://github.com/amazing-fish/ghost_VPD/pull/185) 以运行真实起止时间确定重放恢复与断言覆盖，旧结果晚录入不改变资格；无完整时间的旧证据保守处理，不自动晋级。
+[#189](https://github.com/amazing-fish/ghost_VPD/pull/189) 在经验候选生成异常时尽力保留核心产品结果，原异常继续传播，执行错误不具备成功重放资格。
+[#191](https://github.com/amazing-fish/ghost_VPD/pull/191) 统一明确的 source.run/ref 来源身份检查，已有人工审核不能掩盖已知同源；不自动晋级。
 离线/CI 工程验证不证明用户家庭机现场、实机业务行为或正式覆盖。
 
 资产入口另见 [#151 母版与冻结实例](https://github.com/amazing-fish/ghost_VPD/pull/151)、
