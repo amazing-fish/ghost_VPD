@@ -98,17 +98,32 @@ REQUEST_FIELDS = ("action", "select", "within", "target", "point", "basis", "sid
                   "supervisor", "start", "end", "speed", "capture_transient")
 
 
+def _session_dir(ws, name: str) -> Path:
+    """Resolve a portable, direct-child session identity before any session I/O."""
+    if (not name or any(c in '/\\:*?"<>|' or ord(c) < 32 or 127 <= ord(c) <= 159 for c in name)
+            or name.endswith((".", " "))):
+        raise ValueError("session 名称须为非空单层目录名，不含路径分隔符、控制字符、Windows 保留符号或尾随点/空格")
+    path = ws.runs_dir / f"session-{name}"
+    if path.is_symlink() or getattr(path, "is_junction", lambda: False)():
+        raise ValueError("session 目录不能是符号链接或 junction；请使用原始会话名称")
+    if path.resolve().parent != ws.runs_dir.resolve():
+        raise ValueError("session 目录必须直接位于配置的 runs 目录下")
+    if path.exists() and not path.is_dir():
+        raise ValueError("session 路径已存在且不是目录")
+    return path
+
+
 def _session_app(ws, a):
     """Resolve the established session/default app without creating a session or device."""
-    identity = trail(ws.runs_dir / f"session-{a.session}")["identity"] or {}
+    identity = trail(_session_dir(ws, a.session))["identity"] or {}
     return ws.app(a.app if a.app is not None else identity.get("app") or "motor_hm")
 
 
 def _open_session(ws, a):
     """observe/act 的共同入口：取会话、设备、上下文，写入或核对会话头，加载参数。"""
-    store = _session(ws, a.session)
     # 只从既有会话头补 APP 默认值；显式选择仍须通过下面的完整身份核对。
     app = _session_app(ws, a)
+    store = _session(ws, a.session)
     dev = ws.device(a.device, state_path=store.dir / "replay_state.json")
     ident = {"app": app.id, "bundle": app.bundle, "device": dev.spec,
              "validation_level": "offline_replay" if dev.kind == "replay" else "real_device"}
@@ -147,8 +162,9 @@ def _session_params(ws, ctx, store) -> None:
 
 
 def cmd_observe(ws: Workspace, a) -> dict:
-    with session_lock(ws.runs_dir / f"session-{a.session}"):
-        blocked = append_blocker(trail(ws.runs_dir / f"session-{a.session}"))
+    sdir = _session_dir(ws, a.session)
+    with session_lock(sdir):
+        blocked = append_blocker(trail(sdir))
         if blocked:
             return blocked
         return _cmd_observe(ws, a)
@@ -214,14 +230,15 @@ def _capture_request(a):
 
 def cmd_act(ws: Workspace, a) -> dict:
     from .session import relative_scope_target, swipe_scope_definition_error
+    sdir = _session_dir(ws, a.session)
     error = swipe_options_error(vars(a))
     if error is None and relative_scope_target(vars(a)) is not None:
         error = swipe_scope_definition_error(vars(a), _session_app(ws, a))
     if error:
         raise ValueError(error)
     _capture_request(a)  # Validate shape/range before opening a device or creating a session.
-    with session_lock(ws.runs_dir / f"session-{a.session}"):
-        blocked = append_blocker(trail(ws.runs_dir / f"session-{a.session}"))
+    with session_lock(sdir):
+        blocked = append_blocker(trail(sdir))
         if blocked:
             return blocked
         return _cmd_act(ws, a)
@@ -573,7 +590,7 @@ def cmd_case(ws: Workspace, a) -> dict:
         return {"case": a.new_id, "path": str(ws.case_path(a.new_id)),
                 "issues": case_mod.lint(case, ws.app(case["app"]), kn, ws.policy(), runs_dir=ws.runs_dir)}
     if a.case_cmd == "from-session":
-        sdir = ws.runs_dir / f"session-{a.session}"
+        sdir = _session_dir(ws, a.session)
         if not (sdir / "events.jsonl").exists():
             raise FileNotFoundError(f"没有会话 {sdir}")
         if ws.case_path(a.new_id).exists():
@@ -595,7 +612,7 @@ def cmd_case(ws: Workspace, a) -> dict:
 
 
 def cmd_session(ws: Workspace, a) -> dict:
-    sdir = ws.runs_dir / f"session-{a.session}"
+    sdir = _session_dir(ws, a.session)
     if not (sdir / "events.jsonl").exists():
         raise FileNotFoundError(f"没有会话 {sdir}")
     return summarize(trail(sdir))
