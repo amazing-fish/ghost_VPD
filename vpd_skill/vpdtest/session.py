@@ -213,7 +213,7 @@ def trail(session_dir: Path, expect: Optional[dict] = None) -> dict:
     - 每个请求是否已下发，以请求与结束事件之间的 dispatch/clear_text/scroll_search 为准（act 是单进程、
       顺序执行，中间的事件都属于这个请求）。下发后才报错的 act_error 是"效果未知"，不是被拒。
     - 进程被杀时 events/steps 的末行可能写了一半：丢弃截断的末行并在结果里留证（truncated_tail），
-      会话仍可恢复；中间行损坏不是截断，仍然报错。
+      有效前缀仍可只读查看，续写须先处理截断；中间行损坏仍然报错。
     """
     events, dropped_events = read_jsonl_recoverable(session_dir / "events.jsonl")
     step_records, dropped_steps = read_jsonl_recoverable(session_dir / "steps.jsonl")
@@ -298,7 +298,25 @@ def summarize(tr: dict) -> dict:
         elif it["kind"] == "observe":
             rows.append({"kind": "observe", "obs": it["obs"], "label": it.get("label"), "state": it.get("state")})
     return {"session": tr["session"], "identity": tr["identity"], "trail": rows,
-            "facts": next((it["facts"] for it in tr["items"] if it["kind"] == "facts"), None)}
+            "facts": next((it["facts"] for it in tr["items"] if it["kind"] == "facts"), None),
+            **({"truncated_tail": tr["truncated_tail"], "write_blocker": append_blocker(tr)}
+               if tr.get("truncated_tail") else {})}
+
+
+def append_blocker(tr: dict) -> Optional[dict]:
+    """A readable prefix is not a writable journal; never repair evidence implicitly."""
+    if not tr.get("truncated_tail"):
+        return None
+    unresolved = [{"seq": it.get("seq"), "step": it.get("step_id")} for it in tr["items"]
+                  if it.get("effect_unknown") and
+                  (it.get("request") or {}).get("action") not in GESTURELESS_ACTIONS]
+    return {"session": tr["session"], "status": "session_log_incomplete", "dispatched": False,
+            "files": [f"{name}.jsonl" for name in sorted(tr["truncated_tail"])],
+            "unresolved_actions": unresolved,
+            "reason": "会话日志尾行截断：有效历史仍可读，但追加会损坏证据；本次未打开设备或续写日志",
+            "action_required": ("请保留原日志并核对未完成动作的现场效果，再决定恢复；不要直接换会话重试"
+                                if unresolved else "请保留原日志并人工核对截断部分，再决定恢复；未自动修复或重试"),
+            "hint": "session 命令仍可只读查看有效历史和截断位置；原文件保持不变"}
 
 
 def effect_unknown(result: dict) -> bool:

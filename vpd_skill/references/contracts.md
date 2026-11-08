@@ -608,6 +608,15 @@ policy、layout 与 dialogs 使用本次运行准入检查时捕获的配置，O
 - 会话只经 `session.trail()` 读取：它核对 `session_open` 身份（act/observe 核对 APP/设备/验证级别，from-session 核对 `--app`），
   并以请求与结束事件之间的 `dispatch`/`clear_text`/`scroll_search` 判定是否已下发。`act_error` 在下发后出现 = 效果未知的步骤；
   只有没下发的 `act_rejected`/`act_error` 才进 `rejected`。有请求无结果一律按效果未知处理。
+- 有效前缀可读不等于日志可续写。`observe` / `act` 在会话锁内、打开设备之前检查 `events.jsonl` 和
+  `steps.jsonl`；检测到 JSON / UTF-8 尾行截断时返回 `session_log_incomplete`、`action_required`（退出码 2），
+  本次不打开设备、不追加日志，不静默删尾或重放。已知未完成物理动作列在 `unresolved_actions`；
+  没有该列表不证明截断内容无动作，只是不捏造已知动作。
+- `session` 仍可只读查看有效历史，额外显示 `truncated_tail` 和 `write_blocker`；查询成功的退出码 0
+  不代表动作效果已确认或日志已修复。中间损坏仍报读取错误，不静默吞掉。
+- 完整 JSON 仅缺末尾换行时，追加器补记录分隔而不改写原字节；这不修复残缺 JSON，也不提供通用并发锁。
+  会话续写仍依赖原会话锁。原地恢复尚未实现，须先保留原件、人工核对截断与现场，再决定恢复方式。
+  既有 Runner 自动安全停止不经该入口；现场人工应急停止不得等待日志恢复，也不能借日志故障绕过设备门禁。
 - 设备查询三态（True/False/None）：锁屏、前台查询失败（None）时不发任何手势或按键，判 `state_indeterminate`（环境阻塞、需人工确认）；
   `unlock` 只在明确锁屏时唤醒/上滑/输 PIN，否则返回 `indeterminate`。`clear_text` 的 MoveEnd 失败即中止、不删字。
 - `steps.jsonl`：每个动作的完整执行记录；`attempts[].resolved` 记解析出的节点、bounds、可见比例、实际点击点、

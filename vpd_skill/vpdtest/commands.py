@@ -15,7 +15,7 @@ from .knowledge import KnowledgeStore, import_repo_selectors
 from .observe import RunStore
 from .params import Params
 from .runner import run_case
-from .session import (IDENTITY_KEYS, SessionMismatch, dispatched, effect_unknown, from_session, next_seq,
+from .session import (IDENTITY_KEYS, SessionMismatch, append_blocker, dispatched, effect_unknown, from_session, next_seq,
                       parse_select, summarize, trail, session_lock, step_options, swipe_options_error,
                       relative_swipe_options)
 from .templates import crop
@@ -148,6 +148,9 @@ def _session_params(ws, ctx, store) -> None:
 
 def cmd_observe(ws: Workspace, a) -> dict:
     with session_lock(ws.runs_dir / f"session-{a.session}"):
+        blocked = append_blocker(trail(ws.runs_dir / f"session-{a.session}"))
+        if blocked:
+            return blocked
         return _cmd_observe(ws, a)
 
 
@@ -218,6 +221,9 @@ def cmd_act(ws: Workspace, a) -> dict:
         raise ValueError(error)
     _capture_request(a)  # Validate shape/range before opening a device or creating a session.
     with session_lock(ws.runs_dir / f"session-{a.session}"):
+        blocked = append_blocker(trail(ws.runs_dir / f"session-{a.session}"))
+        if blocked:
+            return blocked
         return _cmd_act(ws, a)
 
 
