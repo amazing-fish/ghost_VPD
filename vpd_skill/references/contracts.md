@@ -142,7 +142,12 @@ Replay按位移主轴选择up/down/left/right（绝对位移相同按纵轴）�
 只有实际下发才计数；清空输入框逐个点击/按键计数，其外层 `dispatch.aggregate=true` 仅汇总结果，不重复计数。
 `_safety` 步骤及其子动作豁免预算和运动超时，状态、触摸归属与 policy 检查仍生效。
 独立 `unlock` CLI 无运行上下文，dispatch 的预算/运动检查记为 `applicable=false`；run preflight 和动作恢复使用运行上下文。
-PIN 结果的 `entered_digits` 仅累计 `sent is True` 的可靠下发数；`pin_entered` 表示至少一位已下发或可能下发。首位回执 `sent=None` 也保留设备防重入记录，下一次不再发唤醒、上滑或 PIN；首位明确 `sent=False` 且此前无可能输入时才允许重新尝试。PIN 值和数字序列不写入记录。
+PIN 结果的 `entered_digits` 仅累计 `sent is True` 的可靠下发数；`pin_entered` 表示至少一位已下发或可能下发。首位回执 `sent=None` 也保留设备防重入记录，下一次不再发唤醒、上滑或 PIN；首位明确 `sent=False` 且此前无可能输入时才允许重新尝试。标准 PIN 事件不主动记录 PIN 值或数字坐标；底层原始错误不在此保证内。
+HDC 子进程环境排除 `VPD_SECRET_LOCK_PIN` 与 `VPD_SECRET_LOCK_PIN_*`（键名不区分大小写），
+覆盖设备发现和普通命令；不修改父进程环境或既有 secret 读取方式。
+这只收敛环境继承，不证明命令坐标、底层原始错误或内存中无派生信息，也不构成逐次确认。
+一次性安全输入尚无已验证的真实通道，不能用环境/config、普通 stdin 或模拟确认替代。
+缺安全输入条件时由人在手机端手动解锁，见[输入边界与后续验收](unlock-input-boundary.md)。
 锁屏键盘默认只按数字 `text` / `originalText` 识别。无标签 Canvas 键盘仅允许在执行源码所在的
 `vpd_skill/config.local.json` 按精确设备显式配置，示例：
 
