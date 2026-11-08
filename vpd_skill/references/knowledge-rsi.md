@@ -33,6 +33,36 @@ skill_policy / model_inference / observation / test_goal（测试目标里的期
 - 原工程选择器：`knowledge import-repo --repo .. --file app/config/motor_config.py --var MOTOR_HARMONY_CONFIG`
   用 AST 读取（不 import），生成带文件、行号、提交号的定位线索，状态为 unconfirmed_locator_hints。
 
+## 观察判据与用例来源身份
+
+`observation` 来源的规则仍可凭依据确认，但确认不能消除与本例的已知同源关系。
+非建议断言引用的有效观察知识，与用例全部 `sources` 的来源身份有交集时，`case lint`、
+`case approve`、`case readiness`、`case promote`（包括只读预览）及要求资产审核的批量/运行前置检查
+均拒绝为“不独立”。知识 `source` 元数据变化即使未改变既有审核指纹，也会重新核对；
+批量/要求审核的运行拒绝发生在新运行目录和设备创建前，不重写原用例、知识或历史运行。
+审核状态同时保留明确的 `lineage_issues`：已知同源时 `required=true`、`valid=false`，
+有既有审核记录则显示 `stale`，即使其内容/依赖指纹没有变化。普通单条诊断仍可执行，但标记为
+`informal`，包括手工来源且已到 `regression` 的资产；不能据此晋级或绕过批量门禁。
+
+身份只按以下明确形式提取，区分大小写，不做 Unicode 归一化或子串搜索：
+
+- `source.run`：非空、可移植的单层目录名，保留显式历史 ID，不要求固定前缀。
+- `source.ref`：完整 `run-YYYYMMDD-HHMMSS-<小写字母数字后缀>` 或 `session-<会话名>`；
+  可选 `runs/` 前缀，也可追加 `/obs/obs-0001` 这样的规范观测目录定位。
+  观测编号遵循现有分配器：正整数，至少四位且无多余前导零。
+- 会话名与正常 CLI 的名称字符边界一致：允许中文、内部空格和点；不含路径分隔符、
+  Windows 保留符号、C0/C1 控制字符或尾随点/空格。这里不读取目录、不验证证据是否存在。
+- `run` 与可解析 `ref` 同时填写时，两者都参与；多个用例来源也全部参与。
+  不能用另一个不同来源覆盖已知的同源身份。缺失、空、非字符串及非法目录名不产生身份。
+
+例如 `{"type":"observation","ref":"runs/session-会话/obs/obs-0001"}` 与
+用例的 `{"type":"session","run":"session-会话"}` 同源。
+`session-x obs-0001` 则是一个完整会话名，不解析成 `session-x` 的观测；
+观测定位请用 `/obs/`，叙述性说明可保留在其他来源字段或人工依据中。
+URL、文件路径、多来源自由文本等不从中猜出身份；需要机器核对时另填明确 `run`。
+无法解析或未发现交集仅表示没有发现已知同源，**不证明来源真实或独立**。
+已有确认、适用范围、冲突和人工审核要求保持不变，非观察来源不套用此观察门禁。
+
 ## 单次运行的知识快照
 
 `run` 在首次知识校验及资产审核前读取一次只读知识快照。该次运行的条件引用、断言判据、
