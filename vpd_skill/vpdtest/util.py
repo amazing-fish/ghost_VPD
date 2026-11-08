@@ -61,8 +61,14 @@ def write_json(path, data: Any, exclusive: bool = False) -> Path:
 def append_jsonl(path, record: dict) -> None:
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
-    with p.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
+    data = json.dumps(record, ensure_ascii=False, default=str).encode("utf-8") + b"\n"
+    with p.open("ab+") as f:
+        prefix = b""
+        if f.tell():
+            f.seek(-1, os.SEEK_END)
+            if f.read(1) not in (b"\n", b"\r"):
+                prefix = b"\n"  # Preserve a complete final record without a line terminator.
+        f.write(prefix + data)
 
 
 def read_jsonl(path) -> list:

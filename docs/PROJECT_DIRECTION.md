@@ -8,6 +8,10 @@
 工程合入、动作发送、产品结论、资产成熟度和正式覆盖分别记账；以下交付不增加正式业务覆盖。
 交付单位仍是可独立判定、重复执行、证据可追溯的VPD内功能用例；登录、解锁、系统弹窗和进入业务页属于前置能力。
 
+2026-11-08 当前分工：工作机只提交 Issue 文字及结构摘要，原始文件、图片、日志留在工作机，不外发。
+维护侧据获准摘要推进离线工程，不能声称核过原件；需要截图判断的事项明确缺图及其影响，不以索取源包替代现场记录。
+本段限定当前轮次，历史已入仓的来源材料仍保留原版本。
+
 ## 已交付能力与使用边界
 
 | 工程交付 | 当前可用范围 | 不能据此宣布完成的验收 |
@@ -20,6 +24,17 @@
 | [#123](https://github.com/amazing-fish/ghost_VPD/pull/123) | 未验证名称结果行目标按当前查询精确选取唯一同行，计入符合结构的已知屏外同名行；配套断言组核状态、实际输入及独立读值 | 不提供真实收藏源，不覆盖编号查询，不自动启用230 v5或扩大资产人审范围 |
 | [#125](https://github.com/amazing-fish/ghost_VPD/pull/125) | 当前乾崑前台、单栏首页及纯收藏夹接收行共同证明浏览tap，收窄宽泛收藏关键词误判 | 目标仍unverified；不证明完整收藏内容，不放行输入/清空或其他写入 |
 | [#126](https://github.com/amazing-fish/ghost_VPD/pull/126) | 登记空查询下的受限电梯口目标，拒绝text/originalText冲突并在新观测撤权 | 目标仍unverified；不启用235，不证明标签选中、结果集合或组合规则 |
+
+2026-11-08 的新增工程交付（均不增加正式业务覆盖）：
+
+| 工程交付 | 已解决 | 仍保留的边界 |
+| --- | --- | --- |
+| [#161](https://github.com/amazing-fish/ghost_VPD/pull/161) | 240 支持显式 Text 叶节点 scope | 仍须独立定位/真值/可见性与人工审核，不自动校准或晋级 |
+| [#158](https://github.com/amazing-fish/ghost_VPD/pull/158) | HDC 子进程不再额外继承宿主 PIN 环境键 | 不是安全的一次性 PIN 输入通道；现场仍需合规输入，不能把环境隔离算作完整解锁 |
+| [#162](https://github.com/amazing-fish/ghost_VPD/pull/162) | 当前动作效果未知且需要接管时，停止顶层/flow/recipe 的依赖后继，并保留原失败来源 | 外层独立补偿与必要安全停止仍执行；离线证据不证明实机安全停止，旧资产审核可能需人工复核 |
+
+资产入口另见 [#151 母版与冻结实例](https://github.com/amazing-fish/ghost_VPD/pull/151)、
+[#153 只读 scope 诊断](https://github.com/amazing-fish/ghost_VPD/pull/153)；重放证据一致性继续沿 [#164](https://github.com/amazing-fish/ghost_VPD/issues/164) 维护，不提前宣布待合 PR 已完成。
 
 具体语法、限制和合成示例见[执行契约](../vpd_skill/references/contracts.md)。以上能力沿既有
 `Observer → Executor/Dispatcher → Verdict → Case`交付，不增设平行执行、规划或判定引擎。
