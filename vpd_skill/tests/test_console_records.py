@@ -27,7 +27,6 @@ def make_run(root, name="run-synthetic"):
     b'{"event":"run_start","case":NaN}\n', b'{"event":"observe","extra":1e999}\n',
     b'{"event":"observe","extra":"\\ud800"}\n',
     b'{"event":"run_start","case":{"toString":null}}\n',
-    pytest.param(b'{"event":"observe","extra":' + b'[' * 10000 + b']' * 10000 + b'}\n', id="deep-json"),
 ])
 def test_bad_event_is_isolated_and_never_mutates_or_rejudges(tmp_path, line):
     bad = make_run(tmp_path, "run-bad")
@@ -198,13 +197,40 @@ def test_stat_failure_is_isolated_in_list_and_detail(tmp_path, monkeypatch, sour
 
 
 @pytest.mark.parametrize("raw", ['{"verdict":{"label":NaN}}', '{"extra":1e999}',
-                               '{"extra":"\\ud800"}', '[' * 1100 + ']' * 1100])
+                               '{"extra":"\\ud800"}'])
 def test_non_transportable_run_record_is_isolated(tmp_path, raw):
     path = make_run(tmp_path)
     (path / "run.json").write_text(raw, encoding="utf-8")
     for result in [progress.summarize(path), progress.detail(tmp_path, path.name)]:
         assert {"source": "run.json", "reason": "invalid_record"} in result["read_errors"]
         json.dumps(result, ensure_ascii=False, allow_nan=False).encode("utf-8")
+
+
+@pytest.mark.parametrize("source", ["events.jsonl", "run.json"])
+def test_recursion_failure_is_isolated_without_assuming_json_depth_limit(tmp_path, monkeypatch, source):
+    bad = make_run(tmp_path, "run-bad")
+    make_run(tmp_path, "run-good")
+    marker = '{"event":"observe","test_recursion":true}'
+    file = bad / source
+    if source == "events.jsonl":
+        file.write_bytes(file.read_bytes() + marker.encode() + b"\n")
+    else:
+        file.write_text(marker, encoding="utf-8")
+    before = file.read_bytes()
+    original = json.loads
+
+    def recursion_failure(raw, *args, **kwargs):
+        if raw == marker:
+            raise RecursionError("synthetic parser recursion failure")
+        return original(raw, *args, **kwargs)
+
+    monkeypatch.setattr(json, "loads", recursion_failure)
+    rows = {r["run_id"]: r for r in progress.list_runs(tmp_path)}
+    assert rows["run-good"]["state"] == "finished"
+    for result in [rows["run-bad"], progress.detail(tmp_path, "run-bad")]:
+        assert result["state"] == "unknown"
+        assert any(e["source"] == source and e["reason"] == "invalid_record" for e in result["read_errors"])
+    assert file.read_bytes() == before
 
 
 def test_self_referencing_event_symlink_is_unreadable(tmp_path):
