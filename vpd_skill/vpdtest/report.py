@@ -103,6 +103,9 @@ def render_run(run: dict) -> str:
                if record.get("reviewer") else "尚无审核记录")
         out.append(f"> 资产审核：`{review['state']}`；使用入口 `{review['use']}`；{who}。"
                    "审核不代替产品判据确认或本次动作授权。\n")
+        if review.get("lineage_issues"):
+            reasons = "；".join(_esc(issue.get("problem")) for issue in review["lineage_issues"])
+            out.append(f"> 当前来源核对：{reasons}。即使审核指纹仍匹配，既有批准也不能作为当前有效审核。\n")
         if review.get("state") == "revoked":
             revoked = review.get("revocation")
             revoked = revoked if isinstance(revoked, dict) else {}

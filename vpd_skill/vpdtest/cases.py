@@ -30,6 +30,9 @@ OPTIONAL_CONTENT_KEYS = ("layout_requirements", "authorizations", "safety", "con
 # (?<![A-Za-z0-9_-]) 排除复合标识里的片段——K-QK-OBS-201 是知识 ID（稳定标识），不是观测编号。
 OBS_REF_RE = re.compile(r"(?<![A-Za-z0-9_-])obs-\d{3,6}\b", re.IGNORECASE)
 RUN_ANCHOR_RE = re.compile(r"\b(run-\d{8}-\d{6}-[0-9a-z]+|session-[0-9a-z_-]+)", re.IGNORECASE)
+# Source identities are complete, portable directory names, never text fragments.
+SOURCE_ID_RE = re.compile(r'[^/\\:*?"<>|\x00-\x1f\x7f-\x9f]+(?<![. ])')
+SOURCE_RUN_RE = re.compile(r"run-[0-9]{8}-[0-9]{6}-[0-9a-z]+")
 NEXT = {"exploration_record": "candidate", "draft": "candidate", "candidate": "replay_verified",
         "replay_verified": "regression"}
 
@@ -292,8 +295,9 @@ def review_status(ws, case: dict, knowledge=None, app=None, policy=None, context
     record = case.get("asset_review")
     complete = _complete_review(record)
     withdrawal_required, revoked, revocation = _withdrawal(case, record)
-    required = bool(signals) or withdrawal_required
-    valid = bool(complete and not revoked and record.get("binding") == binding)
+    lineage_issues = oracle_lineage_issues(case, knowledge)
+    required = bool(signals) or withdrawal_required or bool(lineage_issues)
+    valid = bool(complete and not revoked and record.get("binding") == binding and not lineage_issues)
     state = ("revoked" if revoked else "approved" if valid else
              "stale" if complete else "pending" if required else "not_required")
     # Keep the potentially large manifest in the asset, not every run/suite brief.
@@ -301,6 +305,7 @@ def review_status(ws, case: dict, knowledge=None, app=None, policy=None, context
     return {"required": required, "valid": valid, "state": state, "origin_signals": signals,
             "current": binding, "record": record_view,
             "engine_changes": review_snapshot.engine_changes(record, files),
+            **({"lineage_issues": lineage_issues} if lineage_issues else {}),
             **({"revocation": revocation} if revoked else {})}
 
 
@@ -308,6 +313,11 @@ def require_review(ws, case: dict, knowledge=None, app=None, policy=None, contex
     if case.get("status", "draft") not in {*NEXT, "regression"}:
         raise PermissionError(f"用例 {case.get('id')} 状态无效，不能晋级或批量执行")
     info = review_status(ws, case, knowledge, app, policy, context)
+    # Provenance metadata is not a replay/review hash input. Recheck current known
+    # self-origin even when a previous approval still has a matching binding.
+    issues = info.get("lineage_issues")
+    if issues:
+        raise PermissionError(f"用例判据不独立，不能晋级或批量执行：{issues}")
     if info["required"] and not info["valid"]:
         if info["state"] == "revoked":
             raise PermissionError(f"用例 {case['id']} 的资产审核已撤销；请由人重新审查后执行 case approve "
@@ -624,6 +634,47 @@ def _lint_effects(case: dict, app, policy) -> list:
     return issues
 
 
+def _source_run_ids(source) -> set:
+    """Declared identities only; an unparsed ref is neither an ID nor proof of independence."""
+    from .observe import observation_number
+
+    if not isinstance(source, dict):
+        return set()
+    identities = set()
+    run = source.get("run")
+    if isinstance(run, str) and SOURCE_ID_RE.fullmatch(run):
+        identities.add(run)  # Explicit legacy IDs need not use run-/session- prefixes.
+    ref = source.get("ref")
+    if isinstance(ref, str):
+        parts = ref.removeprefix("runs/").split("/obs/")
+        name = parts[0]
+        try:
+            locator = len(parts) == 1 or (len(parts) == 2 and observation_number(parts[1]) is not None)
+        except ValueError:  # An oversized integer is an unsupported locator, not a broken lint request.
+            locator = False
+        if (locator and SOURCE_ID_RE.fullmatch(name)
+                and (SOURCE_RUN_RE.fullmatch(name) or (name.startswith("session-") and len(name) > 8))):
+            identities.add(name)
+    return identities
+
+
+def oracle_lineage_issues(case: dict, knowledge) -> list:
+    """The existing non-advisory Oracle gate, shared by lint and formal preflight."""
+    origins = set().union(*(_source_run_ids(source) for source in case.get("sources") or []))
+    issues = []
+    for assertion in case.get("assertions", []):
+        if assertion.get("advisory"):
+            continue
+        for ref in assertion.get("oracle_refs", []):
+            item = knowledge.get(ref)
+            source = (item or {}).get("source")
+            if (item is not None and item_status(item) in ACTIVE and isinstance(source, dict)
+                    and source.get("type") == "observation" and origins & _source_run_ids(source)):
+                issues.append({"field": f"assertions.{assertion.get('id')}",
+                               "problem": f"判据 {ref} 来自本用例的探索观察，不独立"})
+    return issues
+
+
 def lint(case: dict, app, knowledge, policy=None, runs_dir: Optional[Path] = None) -> list:
     """runs_dir 用于 check-refs：核对 rationale 里「run/会话 + obs」引用是否真的可解析到留存证据。"""
     from .conditions import (
@@ -743,9 +794,6 @@ def lint(case: dict, app, knowledge, policy=None, runs_dir: Optional[Path] = Non
             elif item_status(it) not in ACTIVE:
                 issues.append({"field": f"assertions.{a.get('id')}",
                                "problem": f"判据 {r} 的状态 {it.get('status')!r} 已废弃或无效，不能作判据"})
-            elif it["source"].get("type") == "observation" and it["source"].get("run") in {
-                    s.get("run") for s in case.get("sources", [])}:
-                issues.append({"field": f"assertions.{a.get('id')}", "problem": f"判据 {r} 来自本用例的探索观察，不独立"})
             if it and it.get("condition_requirements") is not None:
                 requirements = it["condition_requirements"]
                 if not isinstance(requirements, dict) or any(not isinstance(cid, str) or type(value) is not bool
@@ -757,7 +805,7 @@ def lint(case: dict, app, knowledge, policy=None, runs_dir: Optional[Path] = Non
                         if cid not in condition_defs:
                             issues.append({"field": f"assertions.{a.get('id')}.oracle_refs",
                                            "problem": f"判据 {r} 的条件 {cid} 没有当前事实 provider，不能用于确定判定"})
-    return issues
+    return issues + oracle_lineage_issues(case, knowledge)
 
 
 def from_exploration(exp: dict, transitions: list, case_id: str, app_id: str) -> dict:
