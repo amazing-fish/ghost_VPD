@@ -248,6 +248,7 @@ HANDLERS = {"doctor": c.cmd_doctor, "observe": c.cmd_observe, "act": c.cmd_act, 
 
 
 def main(argv=None) -> int:
+    from .run_diagnostic import exception_diagnostic
     for stream in (sys.stdout, sys.stderr):
         try:
             stream.reconfigure(encoding="utf-8")
@@ -262,10 +263,14 @@ def main(argv=None) -> int:
             ws.policy().check_grants(args.authorize)
         out = HANDLERS[args.cmd](ws, args)
     except (ValueError, PermissionError, FileNotFoundError, FileExistsError) as e:
-        print(json.dumps({"error": type(e).__name__, "message": str(e)}, ensure_ascii=False))
+        print(json.dumps({"error": type(e).__name__, "message": str(e), **exception_diagnostic(e)}, ensure_ascii=False))
         return 3
+    except KeyboardInterrupt as e:
+        print(json.dumps({"error": type(e).__name__, "message": str(e), **exception_diagnostic(e)},
+                         ensure_ascii=False))
+        return 130
     except Exception as e:  # 工具缺陷：保留堆栈，不伪装成用例结论
-        print(json.dumps({"error": type(e).__name__, "message": str(e), "trace": traceback.format_exc()[-2000:]},
+        print(json.dumps({"error": type(e).__name__, "message": str(e), "trace": traceback.format_exc()[-2000:], **exception_diagnostic(e)},
                          ensure_ascii=False))
         return 3
     print(dumps(out))

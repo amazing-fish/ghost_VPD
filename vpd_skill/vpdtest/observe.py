@@ -31,7 +31,7 @@ def observation_number(value) -> Optional[int]:
 
 
 class RunStore:
-    def __init__(self, runs_root: Path, run_id: Optional[str] = None, kind: str = "run", *, resume: bool = False):
+    def __init__(self, runs_root: Path, run_id: Optional[str] = None, kind: str = "run", *, resume: bool = False, on_allocated=None):
         if resume and not run_id:
             raise ValueError("恢复运行必须显式指定 run_id")
         root = Path(runs_root)
@@ -47,6 +47,8 @@ class RunStore:
                     raise
             else:
                 break
+        if not resume and on_allocated is not None:
+            on_allocated(self)  # Only after this instance exclusively owns the fresh directory.
         (self.dir / "obs").mkdir(exist_ok=resume)
         self.events_path = self.dir / "events.jsonl"
         # All occupied canonical names reserve their IDs, including dangling links.

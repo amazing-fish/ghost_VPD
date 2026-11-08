@@ -66,7 +66,7 @@ input[type=text] { flex: 1; min-width: 120px; }
 .run .m { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 .run progress { width: 100%; height: 6px; }
 .chip { font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
-.s-running, .s-active { color: var(--accent); } .s-stale, .s-unknown { color: var(--warn); } .s-idle, .s-finished { color: var(--muted); }
+.s-running, .s-active { color: var(--accent); } .s-stale, .s-unknown, .s-interrupted, .s-tool_error { color: var(--warn); } .s-idle, .s-finished { color: var(--muted); }
 .freshness { margin: 8px 0; padding: 8px 10px; border-left: 3px solid var(--accent); background: var(--bg); }
 .freshness[data-stale="true"] { border-color: var(--warn); color: var(--warn); }
 .v-passed { color: var(--ok); } .v-failed, .v-error { color: var(--bad); } .v-blocked { color: var(--warn); } .v-pending, .v-not_applicable { color: var(--info); }
@@ -139,7 +139,7 @@ input[type=text] { flex: 1; min-width: 120px; }
   const TOKEN = new URLSearchParams(location.search).get("token") || "";
   const $ = (id) => document.getElementById(id);
   const clamp = (v) => Math.min(1, Math.max(0, v));
-  const STATE = { running: "未收到结束记录", stale: "日志已过期 · 执行状态未知", unknown: "记录异常 · 进度未知", finished: "已结束 · 历史记录", idle: "近期无日志", active: "日志近期更新" };
+  const STATE = { interrupted: "已捕获取消 · 非产品结论", tool_error: "工具异常 · 非产品结论", running: "未收到结束记录", stale: "日志已过期 · 执行状态未知", unknown: "记录异常 · 进度未知", finished: "已结束 · 历史记录", idle: "近期无日志", active: "日志近期更新" };
   const VERDICT = { passed: "通过", failed: "失败", error: "执行错误", blocked: "阻塞", pending: "待确认", not_applicable: "不涉及" };
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let inputOn = false, streaming = false, selected = null, lastRuns = "", statusPending = false;
@@ -335,10 +335,15 @@ input[type=text] { flex: 1; min-width: 120px; }
     return (r.read_errors || []).map(e => `${e.source}：${reason[e.reason] || "记录异常"}` +
       (e.count != null ? `（${e.count} 行）` : "")).join("；");
   }
+  function diagnosticText(r) {
+    const d = r.run_diagnostic;
+    return `${STATE[d.state]} · 阶段 ${d.phase}${d.step ? " · 步骤 " + d.step : ""} · ${d.error_type} · 证据目录 ${d.dir}。` +
+      "仅记录异常位置，不保证设备已停止；日志缺失不能证明动作未发送或现场安全。";
+  }
   function runItem(r) {
     const title = r.title || r.run_id;
     const chips = [el("span", { class: "chip s-" + r.state }, STATE[r.state] || r.state)];
-    if (r.verdict) chips.push(el("span", { class: "chip v-" + r.verdict }, VERDICT[r.verdict] || r.verdict));
+    if (r.verdict) chips.push(el("span", { class: "chip v-" + r.verdict }, (r.run_diagnostic ? "已保存结论：" : "") + (VERDICT[r.verdict] || r.verdict)));
     let meta = `${r.kind_label} · ${r.run_id} · 日志文件更新 ${hhmmss(r.updated)}`;
     if (r.kind === "run" && r.current) meta += ` · 最后记录步骤 ${r.current}`;
     if (r.kind === "suite" && r.current && !r.finished) meta += ` · 最后记录用例 ${r.current.case}`;
@@ -349,6 +354,7 @@ input[type=text] { flex: 1; min-width: 120px; }
       el("span", { class: "top" }, el("span", { class: "t" }, title), ...chips),
       el("span", { class: "m" }, meta));
     if (r.kind === "run" && r.finished) b.append(el("span", { class: "m" }, runContext(r)));
+    if (r.run_diagnostic) b.append(el("span", { class: "m s-unknown" }, diagnosticText(r)));
     if (r.read_errors && r.read_errors.length) b.append(el("span", { class: "m s-unknown" },
       readProblemText(r) + "。只显示可读取部分，不能据此确认完整进度。"));
     if (r.total && r.progress_reliable !== false) {
@@ -486,7 +492,8 @@ input[type=text] { flex: 1; min-width: 120px; }
       const box = $("detail"), kids = [el("h2", {}, (d.title || d.run_id) + (d.case_title ? " · " + d.case_title : ""))];
       if (d.read_errors && d.read_errors.length) kids.push(el("p", { class: "freshness s-unknown" },
         readProblemText(d) + "。只显示可读取部分，不能据此确认完整进度；记录中的产品结论没有被重新判定。"));
-      if (d.verdict_detail) kids.push(el("p", {}, `结论：${d.verdict_detail.label || d.verdict_detail.verdict}` +
+      if (d.run_diagnostic) kids.push(el("p", { class: "freshness s-unknown" }, diagnosticText(d)));
+      if (d.verdict_detail) kids.push(el("p", {}, `${d.run_diagnostic ? "异常前已保存结论（不表示正常结束）" : "结论"}：${d.verdict_detail.label || d.verdict_detail.verdict}` +
         (d.verdict_detail.attribution_label ? `（归因：${d.verdict_detail.attribution_label}）` : "")));
       if (d.kind === "run" && d.finished) kids.push(el("p", {}, runContext(d)));
       if (d.coverage) kids.push(el("p", {}, `本次运行断言：已验证 ${(d.coverage.verified || []).length}；` +

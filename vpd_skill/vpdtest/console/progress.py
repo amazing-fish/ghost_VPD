@@ -178,6 +178,26 @@ def _read_run(path: Path) -> dict:
     return run
 
 
+def _read_diagnostic(path: Path, run_id: str) -> dict:
+    record = _load_record(path.read_text(encoding="utf-8"))
+    fields = {"schema_version", "run_id", "dir", "state", "phase", "step", "error_type", "persisted", "safety"}
+    if not isinstance(record, dict) or set(record) != fields:
+        raise ValueError("invalid diagnostic fields")
+    if (type(record["schema_version"]) is not int or record["schema_version"] != 1
+            or record["run_id"] != run_id or record["persisted"] is not True
+            or record["state"] not in ("interrupted", "tool_error")):
+        raise ValueError("invalid diagnostic identity or state")
+    if any(not isinstance(record[k], str) or not record[k] for k in ("dir", "phase", "error_type")):
+        raise ValueError("invalid diagnostic labels")
+    if record["step"] is not None and not isinstance(record["step"], str):
+        raise ValueError("invalid diagnostic step")
+    safety = record["safety"]
+    if (not isinstance(safety, dict) or set(safety) != {"motion_armed", "motion_timeout", "safety_hold"}
+            or any(value is not None and type(value) is not bool for value in safety.values())):
+        raise ValueError("invalid diagnostic safety summary")
+    return record
+
+
 def _text_fields(record, keys) -> bool:
     return all(record.get(key) is None or isinstance(record[key], str) for key in keys)
 
@@ -212,7 +232,7 @@ def _read_problem(out: dict, source: str, reason: str, count: int | None = None)
         problem["count"] = count
     if problem not in out.setdefault("read_errors", []):
         out["read_errors"].append(problem)
-    out.update(state="unknown", progress_reliable=False)
+    out.update(state=(out.get("run_diagnostic") or {}).get("state", "unknown"), progress_reliable=False)
 
 
 def summarize(run_dir: Path, now: float | None = None, stale_s: float = 120.0) -> dict:
@@ -250,7 +270,18 @@ def summarize(run_dir: Path, now: float | None = None, stale_s: float = 120.0) -
                    finished=any(k in sc.ended for k in ("explore_end", "console_end")))
     run_json = run_dir / "run.json"
     run_error = None
-    if kind == "run" and out.get("finished"):
+    diagnostic_error = None
+    diagnostic = None
+    try:
+        diagnostic_path = run_dir / "run_diagnostic.json"
+        if kind == "run" and _exists(diagnostic_path):
+            diagnostic = _read_diagnostic(diagnostic_path, run_id)
+            out["run_diagnostic"] = diagnostic
+    except (ValueError, TypeError, RecursionError):
+        diagnostic_error = "invalid_record"
+    except OSError:
+        diagnostic_error = "unreadable"
+    if kind == "run" and (out.get("finished") or diagnostic):
         try:
             if _exists(run_json):
                 run = _read_run(run_json)
@@ -270,6 +301,10 @@ def summarize(run_dir: Path, now: float | None = None, stale_s: float = 120.0) -
     if kind == "session" or (kind == "console" and not out.get("finished")):
         # 单步会话没有结束事件；控制台被强杀时也写不出 console_end：按最近更新时间区分
         out["state"] = "idle" if old else "active"
+    if diagnostic:
+        out["state"] = diagnostic["state"]
+    if diagnostic_error:
+        _read_problem(out, "run_diagnostic.json", diagnostic_error)
     if unreadable or sc.missing:
         _read_problem(out, "events.jsonl", "unreadable" if unreadable else "missing")
     if sc.invalid_lines:
