@@ -20,10 +20,22 @@ def _json(value) -> str:
     return _esc(json.dumps(value, ensure_ascii=False, separators=(",", ":")))
 
 
-def _steps(steps: list):
+def _step_records(steps: list, parent: str | None = None):
+    """按记录树顺序返回步骤及直接父级，不从命名推断归属。"""
     for step in steps:
+        yield step, parent
+        yield from _step_records(step.get("sub_steps", []), step["step_id"])
+
+
+def _steps(steps: list):
+    for step, _ in _step_records(steps):
         yield step
-        yield from _steps(step.get("sub_steps", []))
+
+
+def _run_step_records(run: dict):
+    for phase, key in (("执行", "steps"), ("清理", "cleanup")):
+        for step, parent in _step_records(run.get(key, [])):
+            yield step, phase, parent
 
 
 def _cleanup_steps(steps: list, required: bool = True):
@@ -170,9 +182,11 @@ def render_run(run: dict) -> str:
         out += ["", f"## 安全停止（{_esc(s['trigger'])}）：{head}", "",
                 f"- 运动自 `{_esc(s.get('armed_since'))}` 起 {_esc(s.get('elapsed_s'))}s；首次失败见下文，安全停止不改变它"]
         out += [f"- `{x['id']}` {x.get('action', '')} → {x.get('outcome') or x.get('skipped')}" for x in s["steps"]]
-    for st in run["steps"]:
-        for m in _step_monitors(st):
-            out += ["", f"## 监视时间线：{st['step_id']}（{m['samples']} 次采样，{m['duration_s']}s，结束于 `{m['stopped_by']}`）", "",
+    for st, phase, parent in _run_step_records(run):
+        m = st.get("monitor")
+        if m:
+            out += ["", f"## 监视时间线：{_esc(st['step_id'])}（{phase}；父步骤 `{_esc(parent) if parent is not None else '—'}`；"
+                    f"{m['samples']} 次采样，{m['duration_s']}s，结束于 `{m['stopped_by']}`）", "",
                     f"- 状态序列：{' → '.join(m['states'])}",
                     "- 规则命中：" + ("、".join(f"{k}×{h['count']}（首次 t={h['first_t']}s「{_esc(h['text'])}」）"
                                         for k, h in m["hits"].items()) or "无"), "",
@@ -198,13 +212,18 @@ def render_run(run: dict) -> str:
     else:
         out.append("- 无")
 
-    out += ["", "## 步骤", "", "| 步骤 | 动作 | 结果 | 尝试 | 恢复 | 定位 | 最终观测 |", "|---|---|---|---|---|---|---|"]
-    for s in run["steps"] + run.get("cleanup", []):
+    out += ["", "## 步骤", "",
+            "按原始记录展开执行与清理步骤；父步骤的尝试为子步骤汇总，不能与子步骤相加。结果与观测原样保留，不重新判定。", "",
+            "| 步骤 | 阶段 / 父步骤 | 动作 | 结果 | 尝试 | 恢复 | 定位 | 最终观测 |", "|---|---|---|---|---|---|---|---|"]
+    for s, phase, parent in _run_step_records(run):
         locs = [a["locate"] for a in s.get("attempts", []) if a.get("locate")]
         loc = locs[-1] if locs else {}
         how = f"{loc.get('strategy_kind')}#{loc.get('strategy_index')}" if loc.get("status") == "found" else (loc.get("status") or "")
         recs = "; ".join(f"{r['action']}:{'已执行' if r['performed'] else '未执行'}" for r in s.get("recoveries", []))
-        out.append(f"| {s['step_id']} | {s['action']} | {OUTCOME.get(s['outcome'], s['outcome'])} | {len(s.get('attempts', []))} "
+        attempts = len(s.get("attempts", []))
+        count = f"汇总 {attempts}" if s.get("sub_steps") else str(attempts)
+        out.append(f"| {_esc(s['step_id'])} | {phase} / {_esc(parent) if parent is not None else '—'} | {_esc(s['action'])} "
+                   f"| {OUTCOME.get(s['outcome'], _esc(s['outcome']))} | {count} "
                    f"| {_esc(recs)} | {_esc(how)} | {_esc(s.get('final_obs'))} |")
 
     out += ["", "## 断言", "", "| 断言 | 结果 | 验证覆盖 | 判据 | 证据 | 说明 |", "|---|---|---|---|---|---|"]
@@ -262,13 +281,6 @@ def render_run(run: dict) -> str:
                                                    for x in run["experience_candidates"]]
     out += ["", "原始证据：`events.jsonl`（追加写）与 `obs/*/`（独占创建，不会被恢复动作覆盖）。", ""]
     return "\n".join(out)
-
-
-def _step_monitors(step: dict) -> list:
-    out = [step["monitor"]] if step.get("monitor") else []
-    for s in step.get("sub_steps", []):
-        out += _step_monitors(s)
-    return out
 
 
 def render_exploration(exp: dict) -> str:
