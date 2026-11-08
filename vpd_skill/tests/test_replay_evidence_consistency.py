@@ -16,10 +16,13 @@ def asset():
     return {"app": "synthetic", "steps": [], "assertions": []}
 
 
-def replay(case, rid, **changes):
+def replay(case, rid, *, at=None, **changes):
+    # Reset tests need explicit execution evidence; other tests retain legacy summaries.
+    timing = {} if at is None else {"started": f"2026-01-01T00:00:{at:02d}+00:00",
+                                   "finished": f"2026-01-01T00:00:{at + 1:02d}+00:00"}
     return {"run_id": rid, "hash": C.content_hash(case), "deps": "current",
             "verdict": "passed", "alerts": 0, "validation_level": "real_device",
-            "device": "synthetic", "ts": "first", **changes}
+            "device": "synthetic", "ts": "first", **timing, **changes}
 
 
 @pytest.mark.parametrize("changes,fields", [
@@ -57,15 +60,15 @@ def test_missing_and_nested_type_and_time_differences_are_preserved(left, right)
 
 def test_exact_and_timestamp_duplicates_count_once_without_moving_first_position():
     case = asset()
-    first = replay(case, "r1")
+    first = replay(case, "r1", at=0)
     case["replays"] = [first, deepcopy(first), {**first, "ts": "later"}]
     basis = C.replay_basis(case, "current")
     assert not basis["ok"] and basis["count"] == 1
-    case["replays"] = [first, replay(case, "blocked", verdict="blocked"),
-                       replay(case, "r2"), {**first, "ts": "later"}]
+    case["replays"] = [first, replay(case, "blocked", at=2, verdict="blocked"),
+                       replay(case, "r2", at=4), {**first, "ts": "later"}]
     basis = C.replay_basis(case, "current")
     assert not basis["ok"] and "只有 1 次" in basis["why"]
-    case["replays"].append(replay(case, "r3"))
+    case["replays"].append(replay(case, "r3", at=6))
     basis = C.replay_basis(case, "current")
     assert basis["ok"] and basis["replays"] == ["r2", "r3"]
     assert [r["run_id"] for r in basis["ignored"]] == ["r1", "blocked"]
@@ -83,12 +86,12 @@ def test_unrelated_old_id_conflicts_do_not_block_current_runs(old):
 @pytest.mark.parametrize("signature,expected", [(["A"], False), (["B"], True), ([], False), (None, False)])
 def test_all_current_decisive_failure_signatures_must_match(signature, expected):
     case = asset()
-    early = replay(case, "early", verdict="failed")
+    early = replay(case, "early", at=0, verdict="failed")
     if signature is not None:
         early["failure_signature"] = signature
-    case["replays"] = [early, replay(case, "blocked", verdict="blocked"),
-                       replay(case, "r1", verdict="failed", failure_signature=["B"]),
-                       replay(case, "r2", verdict="failed", failure_signature=["B"])]
+    case["replays"] = [early, replay(case, "blocked", at=2, verdict="blocked"),
+                       replay(case, "r1", at=4, verdict="failed", failure_signature=["B"]),
+                       replay(case, "r2", at=6, verdict="failed", failure_signature=["B"])]
     basis = C.replay_basis(case, "current")
     assert basis["ok"] is expected
     if expected:

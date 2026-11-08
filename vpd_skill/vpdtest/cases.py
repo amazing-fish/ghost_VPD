@@ -810,11 +810,17 @@ def record_replay(ws, case_id: str, run: dict) -> dict:
         "failure_signature": v.get("failure_signature", []), "alerts": len(v.get("alerts") or []),
         "not_verified": len(v.get("not_verified") or []), "facts": run.get("facts"),
         "oracle_facts": run.get("oracle_facts"),
+        **{k: run[k] for k in ("started", "finished") if k in run},
         "assertions": [{k: a[k] for k in ("id", "result", "advisory", "oracle_refs", "oracle", "facts", "guard", "verified")
                         if k in a} for a in run.get("assertions", [])],
         **{k: v[k] for k in ("execution", "product_verdict", "product_failed", "coverage") if k in v}}
     previous = [r for r in case.get("replays", []) if r["run_id"] == summary["run_id"]]
-    fields = sorted({field for r in previous for field in _replay_difference_fields(r, summary)})
+    compared = summary
+    if previous and all(not ({"started", "finished"} & row.keys()) for row in previous):
+        # Only a wholly legacy history permits this no-write retry. A mixed
+        # history must keep strict comparison, including every present interval.
+        compared = {k: v for k, v in summary.items() if k not in ("started", "finished")}
+    fields = sorted({field for r in previous for field in _replay_difference_fields(r, compared)})
     if fields:
         raise ValueError(_replay_conflict_reason([{"run_id": summary["run_id"], "fields": fields}]))
     if previous:
@@ -832,7 +838,74 @@ def has_execution_error(summary: dict) -> bool:
             or any(f.get("result") == "error" for f in summary.get("findings") or []))
 
 
-def _assertion_replay_coverage(case: dict, rows: list) -> dict:
+def _replay_instant(value):
+    """Only timezone-aware source times establish an instant, never array order."""
+    if not isinstance(value, str):
+        return None
+    try:
+        instant = datetime.fromisoformat(value)
+        return instant if instant.utcoffset() is not None else None
+    except (ValueError, OverflowError):
+        return None
+
+
+def _replay_interval(row: dict) -> tuple:
+    if not ({"started", "finished"} & row.keys()):
+        return None, None, None  # Historical summary: no invented start/finish.
+    start, finish = (_replay_instant(row.get(k)) for k in ("started", "finished"))
+    if start is None or finish is None:
+        return None, None, "started/finished 缺失或不是含时区的有效时间"
+    if finish < start:
+        return None, None, "finished 早于 started，运行区间倒退"
+    return start, finish, None
+
+
+def _replays_after_resets(candidates: list, resets: list) -> tuple:
+    """A new run starts strictly after every reset finishes (no total order needed).
+
+    For a wholly untimed legacy reset only, its valid ingestion time is a
+    conservative completion upper bound, not an actual finish. Unknown bounds,
+    equal timestamps and overlaps cannot establish a subsequent run.
+    """
+    if not resets:
+        return candidates, {}
+    bounds, unbounded, legacy = [], [], []
+    for row in resets:
+        _, finish, error = _replay_interval(row)
+        if finish is None and error is None:
+            finish = _replay_instant(row.get("ts"))
+            if finish is not None:
+                legacy.append(row["run_id"])
+        if finish is None:
+            unbounded.append(row["run_id"])
+        else:
+            bounds.append(finish)
+    boundary = max(bounds) if bounds and not unbounded else None
+    accepted, missing, not_after = [], [], []
+    for row in candidates:
+        start, _, error = _replay_interval(row)
+        if start is None or error:
+            missing.append(row["run_id"])
+        elif boundary is not None and start > boundary:
+            accepted.append(row)
+        else:
+            not_after.append(row["run_id"])
+    return accepted, {"resets": [r["run_id"] for r in resets], "unbounded": unbounded,
+                      "legacy_upper_bounds": legacy, "missing_intervals": missing, "not_after": not_after}
+
+
+def _replay_time_reason(timing: dict) -> str:
+    parts = ["须以运行 started 严格晚于全部重置运行的完成上界证明先后；相同时间或重叠不算后续"]
+    if timing.get("unbounded"):
+        parts.append(f"重置运行缺少有效完成上界 {timing['unbounded']}，须核对原始材料")
+    if timing.get("missing_intervals"):
+        parts.append(f"候选运行缺少有效时间区间 {timing['missing_intervals']}")
+    if timing.get("legacy_upper_bounds"):
+        parts.append(f"旧摘要录入 ts 仅用作保守完成上界 {timing['legacy_upper_bounds']}，不是实际 finished")
+    return "；".join(parts)
+
+
+def _assertion_replay_coverage(case: dict, rows: list, history: list | None = None) -> dict:
     """Every branch must have its own current, decisive evidence; aggregate pass is insufficient.
 
     Historical unconditional assets without assertion summaries retain their original
@@ -843,28 +916,36 @@ def _assertion_replay_coverage(case: dict, rows: list) -> dict:
     required = [a for a in case.get("assertions", []) if not a.get("advisory")]
     conditional = bool(case.get("conditions")) or any(a.get("guard") for a in required)
     conditional = conditional or any(s.get("when") for s in case.get("steps", []))
-    recorded = any("coverage" in row for row in rows)
+    history = rows if history is None else history
+    recorded = any("coverage" in row for row in history)
     if not conditional and not recorded:
         return {"ok": True, "coverage": {}}
     evidence, gaps = {}, []
     for assertion in required:
-        aid, verified = assertion["id"], []
+        aid, candidates, resets = assertion["id"], [], []
+        eligible = {row["run_id"] for row in rows}
         all_results = set()
-        for row in rows:
+        for row in history:
             coverage = row.get("coverage") or {}
             actual = next((a for a in coverage.get("assertions") or [] if a.get("id") == aid), None)
             if (actual and actual.get("verified") is True and actual.get("applicable") is True
                     and actual.get("result") in ("pass", "fail") and not has_execution_error(row)):
-                verified.append({"run_id": row["run_id"], **actual})
-                all_results.add(actual["result"])
+                if row["run_id"] in eligible:
+                    candidates.append(row)
+                    all_results.add(actual["result"])
             elif actual and actual.get("result") == "not_applicable" and actual.get("applicable") is False:
                 continue
             else:
-                verified = []
+                resets.append(row)
+        verified, timing = _replays_after_resets(candidates, resets)
         evidence[aid] = {"count": len(verified), "runs": [a["run_id"] for a in verified],
                          "results": sorted(all_results)}
+        if timing:
+            evidence[aid]["timing"] = timing
         if len(verified) < 2:
             gaps.append(f"{aid} 仅 {len(verified)} 次适用且 verified 的确定重放（需至少 2 次；不涉及/未知/异常/未执行不计覆盖）")
+            if timing:
+                gaps.append(_replay_time_reason(timing))
         elif len(all_results) != 1:
             gaps.append(f"{aid} 的确定断言结果不一致 {sorted(all_results)}")
     return {"ok": not gaps, "coverage": evidence, "why": "；".join(gaps)}
@@ -874,7 +955,7 @@ def replay_basis(case: dict, deps: Optional[str] = None) -> dict:
     """用例成熟度（能否稳定复测）与产品状态（是否符合要求）分开判断。
     当前内容版本下，最近一次待确认/阻塞的重放之后至少 2 次来自不同运行、结论确定的重放，
     且该版本下所有确定结论一致：全部通过 → conforming；全部失败且失败特征相同 → known_failure（需登记缺陷单）。
-    混合说明不稳定；最近的重放是待确认/阻塞，说明现在还不能稳定复测，要在它之后重新攒够 2 次。"""
+    混合说明不稳定；后续运行须在全部不确定运行完成后开始，不能靠录入顺序推断。"""
     h = content_hash(case)
     history = case.get("replays", [])
     cur = [r for r in history if r["hash"] == h]
@@ -897,6 +978,11 @@ def replay_basis(case: dict, deps: Optional[str] = None) -> dict:
     if differences:
         conflicts = [{"run_id": run_id, "fields": sorted(fields)} for run_id, fields in differences.items()]
         return {**out, "ok": False, "conflicts": conflicts, "why": _replay_conflict_reason(conflicts)}
+    timing_issues = [{"run_id": row["run_id"], "reason": error} for row in runs.values()
+                     if (error := _replay_interval(row)[2])]
+    if timing_issues:
+        return {**out, "ok": False, "timing_issues": timing_issues,
+                "why": "重放运行时间无效：" + "；".join(f"{i['run_id']} ({i['reason']})" for i in timing_issues)}
     if len(runs) < 2:
         why = f"当前内容版本 {h} 下的重放不足 2 次（现有 {len(runs)}）"
         if stale:
@@ -906,20 +992,21 @@ def replay_basis(case: dict, deps: Optional[str] = None) -> dict:
         return {**out, "ok": False, "why": "有重放出现人工接管信号（安全停止未确认），不能作为晋级依据"}
     # 待确认/阻塞后重新计独立重放次数；之前的确定结论仍参与全版本一致性核对。
     # 判据确认之前的待确认运行因此不会永久挡住晋级，只要求确认之后重新重放
-    order = list(runs.values())  # 记录顺序即运行顺序
+    order = list(runs.values())  # Preserve stored history, not an execution order.
     decisive = [r for r in order if r["verdict"] in ("passed", "failed") and not has_execution_error(r)]
-    last_bad = max((i for i, r in enumerate(order) if r not in decisive), default=-1)
-    rows = order[last_bad + 1:]
-    out["ignored"] = [{"run_id": r["run_id"], "verdict": r["verdict"]} for r in order[:last_bad + 1]]
+    resets = [r for r in order if r not in decisive]
+    rows, timing = _replays_after_resets(decisive, resets)
+    out["ignored"] = [{"run_id": r["run_id"], "verdict": r["verdict"]} for r in order if r not in rows]
+    if timing:
+        out["timing"] = timing
     if len(rows) < 2:
         why = f"当前内容版本 {h} 下给出确定结论的重放不足 2 次（现有 {len(rows)}）：重放不足"
-        if last_bad >= 0:
-            bad = order[last_bad]
-            why = (f"当前内容版本 {h} 下最近一次不确定的重放是 {bad['run_id']}（{bad['verdict']}），"
-                   f"之后给出确定结论的重放只有 {len(rows)} 次：重放不足，需在它之后至少 2 次")
+        if resets:
+            why = (f"当前内容版本 {h} 下不确定重放之后给出确定结论的重放只有 {len(rows)} 次："
+                   f"重放不足，需至少 2 次；{_replay_time_reason(timing)}")
         return {**out, "ok": False, "why": why}
     out["replays"] = [r["run_id"] for r in rows]
-    coverage = _assertion_replay_coverage(case, rows)
+    coverage = _assertion_replay_coverage(case, rows, order)
     out["coverage"] = coverage["coverage"]
     if not coverage["ok"]:
         return {**out, "ok": False, "why": "断言分支重放不足或不一致：" + coverage["why"]}

@@ -375,7 +375,10 @@ def test_mixed_replays_are_not_stable(verdict_ws):
 def _replays(*verdicts) -> dict:
     case = {"app": "motor_hm", "steps": [], "assertions": []}
     h = C.content_hash(case)
-    case["replays"] = [{"run_id": f"run-{i}", "verdict": v, "hash": h, "failure_signature": []}
+    # A reset requires later execution intervals, not this synthetic array order.
+    case["replays"] = [{"run_id": f"run-{i}", "verdict": v, "hash": h, "failure_signature": [],
+                        "started": f"2026-01-01T00:00:{2 * i:02d}+00:00",
+                        "finished": f"2026-01-01T00:00:{2 * i + 1:02d}+00:00"}
                        for i, v in enumerate(verdicts)]
     return case
 
@@ -384,7 +387,7 @@ def test_indeterminate_replay_after_passes_blocks_promotion():
     # 两次通过之后又出现阻塞/待确认：现在还不能稳定复测，之前的通过不再作数
     for tail in ("blocked", "pending"):
         b = C.replay_basis(_replays("passed", "passed", tail))
-        assert b["ok"] is False and "最近一次不确定" in b["why"], b
+        assert b["ok"] is False and "不确定重放之后" in b["why"], b
     # 判据确认之前的待确认运行不永久挡住晋级：之后重新攒够 2 次确定结论即可
     b = C.replay_basis(_replays("pending", "passed", "passed"))
     assert b["ok"] is True and b["replays"] == ["run-1", "run-2"] and b["ignored"][0]["run_id"] == "run-0"
