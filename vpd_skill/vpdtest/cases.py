@@ -785,11 +785,26 @@ def from_exploration(exp: dict, transitions: list, case_id: str, app_id: str) ->
             "history": [{"ts": now_iso(), "to": "exploration_record", "why": "由探索迁移生成，待补齐目的/判据/清理"}]}
 
 
+def _replay_difference_fields(left: dict, right: dict) -> list:
+    """Only the top-level ingestion timestamp is disposable, not nested evidence.
+
+    Canonical JSON preserves missing/null and bool/number distinctions that Python
+    equality would collapse. Diagnostics expose field names, never evidence values.
+    """
+    return [key for key in sorted((left.keys() | right.keys()) - {"ts"})
+            if key not in left or key not in right or sha256_obj(left[key]) != sha256_obj(right[key])]
+
+
+def _replay_conflict_reason(conflicts: list) -> str:
+    details = "; ".join(f"{c['run_id']} ({', '.join(c['fields'])})" for c in conflicts)
+    return f"同一 run_id 的重放证据冲突：{details}；不能作为晋级依据，请核对原始运行材料"
+
+
 @_case_update
 def record_replay(ws, case_id: str, run: dict) -> dict:
     case = ws.load_case(case_id)
     v = run["verdict"]
-    case.setdefault("replays", []).append({
+    summary = {
         "run_id": run["run_id"], "verdict": v["verdict"], "hash": run["case"]["hash"], "deps": run["case"].get("deps"),
         "validation_level": run["validation_level"], "device": run["device_spec"], "ts": now_iso(),
         "failure_signature": v.get("failure_signature", []), "alerts": len(v.get("alerts") or []),
@@ -797,7 +812,14 @@ def record_replay(ws, case_id: str, run: dict) -> dict:
         "oracle_facts": run.get("oracle_facts"),
         "assertions": [{k: a[k] for k in ("id", "result", "advisory", "oracle_refs", "oracle", "facts", "guard", "verified")
                         if k in a} for a in run.get("assertions", [])],
-        **{k: v[k] for k in ("execution", "product_verdict", "product_failed", "coverage") if k in v}})
+        **{k: v[k] for k in ("execution", "product_verdict", "product_failed", "coverage") if k in v}}
+    previous = [r for r in case.get("replays", []) if r["run_id"] == summary["run_id"]]
+    fields = sorted({field for r in previous for field in _replay_difference_fields(r, summary)})
+    if fields:
+        raise ValueError(_replay_conflict_reason([{"run_id": summary["run_id"], "fields": fields}]))
+    if previous:
+        return case  # Idempotent retry: retain first position and original bytes.
+    case.setdefault("replays", []).append(summary)
     write_json(ws.case_path(case_id), case)
     return case
 
@@ -854,12 +876,27 @@ def replay_basis(case: dict, deps: Optional[str] = None) -> dict:
     且该版本下所有确定结论一致：全部通过 → conforming；全部失败且失败特征相同 → known_failure（需登记缺陷单）。
     混合说明不稳定；最近的重放是待确认/阻塞，说明现在还不能稳定复测，要在它之后重新攒够 2 次。"""
     h = content_hash(case)
-    cur = [r for r in case.get("replays", []) if r["hash"] == h]
+    history = case.get("replays", [])
+    cur = [r for r in history if r["hash"] == h]
     # deps 给定时，重放也要在同一份依赖定义（目标/状态/判据）下跑的；没记依赖指纹的旧重放无法证明，不计入
     stale = [r for r in cur if deps is not None and r.get("deps") != deps]
     cur = [r for r in cur if r not in stale]
-    runs = {r["run_id"]: r for r in cur}
+    relevant = {r["run_id"] for r in cur}
+    runs, differences = {}, {}
+    for row in history:
+        run_id = row["run_id"]
+        if run_id not in relevant:
+            continue
+        if run_id not in runs:
+            runs[run_id] = row
+        else:
+            fields = _replay_difference_fields(runs[run_id], row)
+            if fields:
+                differences.setdefault(run_id, set()).update(fields)
     out = {"hash": h, "replays": list(runs), "count": len(runs)}
+    if differences:
+        conflicts = [{"run_id": run_id, "fields": sorted(fields)} for run_id, fields in differences.items()]
+        return {**out, "ok": False, "conflicts": conflicts, "why": _replay_conflict_reason(conflicts)}
     if len(runs) < 2:
         why = f"当前内容版本 {h} 下的重放不足 2 次（现有 {len(runs)}）"
         if stale:
@@ -867,7 +904,7 @@ def replay_basis(case: dict, deps: Optional[str] = None) -> dict:
         return {**out, "ok": False, "why": why}
     if any(r.get("alerts") for r in runs.values()):
         return {**out, "ok": False, "why": "有重放出现人工接管信号（安全停止未确认），不能作为晋级依据"}
-    # 待确认/阻塞的重放不给出产品结论。它之前的确定结论不再作数：之后又出现了不能复测的运行。
+    # 待确认/阻塞后重新计独立重放次数；之前的确定结论仍参与全版本一致性核对。
     # 判据确认之前的待确认运行因此不会永久挡住晋级，只要求确认之后重新重放
     order = list(runs.values())  # 记录顺序即运行顺序
     decisive = [r for r in order if r["verdict"] in ("passed", "failed") and not has_execution_error(r)]
@@ -890,7 +927,7 @@ def replay_basis(case: dict, deps: Optional[str] = None) -> dict:
     if verdicts == {"passed"}:
         return {**out, "ok": True, "product": "conforming", "rows": rows}
     if verdicts == {"failed"}:
-        sigs = {tuple(r.get("failure_signature") or []) for r in rows}
+        sigs = {tuple(r.get("failure_signature") or []) for r in decisive}
         if len(sigs) == 1 and next(iter(sigs)):
             return {**out, "ok": True, "product": "known_failure", "signature": list(next(iter(sigs))), "rows": rows}
         return {**out, "ok": False, "why": f"失败重放的失败特征不一致 {sorted(sigs)}：还不能稳定复现"}

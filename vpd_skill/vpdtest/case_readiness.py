@@ -87,7 +87,7 @@ def _one(ws, cid, knowledge, policy, to, reviewer, allow_offline, known_issue):
         stage = "replay"
         basis = C.replay_basis(case, review["current"]["dependency_hash"])
         row["replay"] = {k: basis[k] for k in
-                         ("ok", "why", "hash", "count", "replays", "ignored", "coverage", "product", "signature")
+                         ("ok", "why", "hash", "count", "replays", "ignored", "coverage", "product", "signature", "conflicts")
                          if k in basis}
         product = case.get("product_status")
         row["recorded_product_status"] = ({k: product[k] for k in ("status", "issue", "signature", "since_hash")
