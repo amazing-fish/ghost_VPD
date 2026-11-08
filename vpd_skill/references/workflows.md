@@ -97,6 +97,12 @@
 
 ## 探索资产人工审核（#30）
 
+`from-exploration` / `from-session` 的 `--new-id` 与用例更新、盘点共用稳定 ID 规则：
+`[A-Za-z0-9][A-Za-z0-9_.-]*`，例如 `TC-EXP-001` 或 `normal_1.2-ID`。ID 不是输出路径；
+不支持中文、空格或路径分隔符。不合法 ID 在读取知识、会话/探索来源、加锁或创建目录/文件前
+以参数错误拒绝（JSON `ValueError`、退出码 3），不改写原件；已有同名用例仍拒绝覆盖。
+母版 `case instantiate` 保留独立、更严格的 `TC-[A-Z0-9]+(?:-[A-Z0-9]+)*` 规则。
+
 `from-exploration` / `from-session` 只生成探索资产；`case instantiate` 只生成要求审核的母版实例。它们均不授予晋级或批量准入。补齐字段、lint 通过、
 已有 `sources.type=reviewer` 或 `case promote --reviewer` 都不代替本次资产审核。Agent 必须向人提供
 完整用例及来源证据，由人明确确认后才执行 `case approve`；不得自行填审核人来批准自己生成的资产。

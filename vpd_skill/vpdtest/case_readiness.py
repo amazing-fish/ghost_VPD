@@ -1,7 +1,6 @@
 """Read-only inventory and the existing promotion gates; no new maturity or coverage rules."""
 from collections import Counter
 import json
-import re
 import traceback
 
 from . import cases as C
@@ -130,9 +129,8 @@ def readiness(ws, case_ids=None, *, to=None, reviewer=None, allow_offline=False,
     directory = ws.root / "cases"
     explicit = bool(case_ids)
     ids = list(dict.fromkeys(case_ids)) if explicit else sorted(p.stem for p in directory.glob("*.json"))
-    if any(not isinstance(cid, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", cid)
-           or cid in (".", "..") for cid in ids):
-        raise ValueError("用例 ID 不能是路径，须为字母/数字开头的稳定 ID")
+    for cid in ids:
+        C.validate_case_id(cid)
     knowledge, policy = KnowledgeStore(ws.root), ws.policy()
     rows = [_one(ws, cid, knowledge, policy, to, reviewer, allow_offline, known_issue) for cid in ids]
     source = Counter(r["source"] for r in rows)
