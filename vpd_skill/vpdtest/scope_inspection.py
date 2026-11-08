@@ -23,7 +23,7 @@ import stat
 import struct
 import zlib
 
-from .case_templates import TEMPLATES, _text, validate_static_scope_target
+from .case_templates import TEMPLATE_VERSION, TEMPLATES, _text, scope_shape, validate_static_scope_target
 from .locate import resolve
 from .tree import UiTree
 
@@ -40,10 +40,12 @@ CAVEATS = [
 
 
 def validate_inspection_spec(app, spec):
-    if not isinstance(spec, dict) or set(spec) != {"template_id", "candidate_target"}:
-        raise ValueError("scope 诊断输入必须且只能包含 template_id/candidate_target")
+    if (not isinstance(spec, dict) or not {"template_id", "candidate_target"} <= set(spec)
+            or set(spec) - {"template_id", "candidate_target", "scope_shape"}):
+        raise ValueError("scope 诊断输入须包含 template_id/candidate_target，仅可选加 scope_shape")
     if not isinstance(spec["template_id"], str) or spec["template_id"] not in TEMPLATES:
         raise ValueError("scope 诊断只支持 TC-QK-240/241/243")
+    scope_shape(spec["template_id"], spec)
     _text(app.bundle, "app.bundle")
     if app.id != "qiankun_hm":
         raise ValueError("显示 scope 诊断只属于 qiankun_hm")
@@ -61,7 +63,10 @@ def validate_inspection_spec(app, spec):
 
 
 def _base(app, spec):
-    return {"schema": 1, "mode": "offline_diagnostic", "template_id": spec["template_id"],
+    return {"schema": 2, "template_version": TEMPLATE_VERSION,
+            "scope_shape": scope_shape(spec["template_id"], spec),
+            "supported_shapes": ["text_container", "text_leaf"] if spec["template_id"] == "TC-QK-240" else ["text_container"],
+            "mode": "offline_diagnostic", "template_id": spec["template_id"],
             "app": app.id, "bundle": app.bundle, "semantic_role": "requires_human_review",
             "current_applicability": "not_checked", "production_calibration": "not_granted",
             "diagnostic_status": "inspected", "inspection_errors": [], "issues": [],
@@ -232,15 +237,23 @@ def inspect_scope(app, spec, observation, tree):
     problems = []
     if scope.parent is None:
         problems.append("root_scope")
-    if scope.text.strip(" \t\r\n"):
+    shape = scope_shape(spec["template_id"], spec)
+    if shape == "text_leaf":
+        if scope.type != "Text":
+            problems.append("requires_text_node")
+        if scope.children:
+            problems.append("requires_leaf_without_children")
+        if not scope.text.strip(" \t\r\n"):
+            problems.append("requires_nonempty_own_text")
+    elif scope.text.strip(" \t\r\n"):
         problems.append("scope_has_own_text")
     if status != "unique":
         problems.append("scope_not_fully_visible")
     if any(not item["inside_scope"] or not item["fully_visible"] for item in text_evidence):
         problems.append("text_hidden_clipped_or_outside_scope")
-    if spec["template_id"] in ("TC-QK-240", "TC-QK-241") and len(descendants) != 1:
+    if shape == "text_container" and spec["template_id"] in ("TC-QK-240", "TC-QK-241") and len(descendants) != 1:
         problems.append("requires_one_nonempty_text_descendant")
-    if not descendants:
+    if shape == "text_container" and not descendants:
         problems.append("no_nonempty_text_descendants")
     texts = [node.text for node in descendants]
     duplicates = sorted(text for text, count in Counter(texts).items() if count > 1)
@@ -261,7 +274,7 @@ def inspect_scope(app, spec, observation, tree):
                        "text_count_basis": "xpath_1_0_normalize_space",
                        "description_used_as_text": False}
     for problem in problems:
-        _issue(result, problem, "shape", "候选容器结构需核对，不能自动登记或补造预期")
+        _issue(result, problem, "shape", "候选范围结构需核对，不能自动登记或补造预期")
     return result
 
 
