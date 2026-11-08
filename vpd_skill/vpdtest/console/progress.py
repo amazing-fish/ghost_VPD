@@ -127,7 +127,8 @@ def _scan(path: Path) -> _Scan:
                         break
                     sc.offset += len(chunk)
                     data = sc.pending + chunk
-                    lines = data.split(b"\n")
+                    # 先按物理 CR/LF 分行再解码；CRLF 即使跨块/轮询，空段也可忽略。
+                    lines = re.split(br"[\r\n]", data)
                     sc.pending = lines.pop()  # 最后一段可能是正在写入的半行
                     for line in lines:
                         if not line.strip():

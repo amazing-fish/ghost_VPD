@@ -17,6 +17,14 @@ from vpdtest.workspace import Workspace  # noqa: E402
 WORLDS = SKILL / "fixtures" / "worlds"
 
 
+@pytest.fixture(autouse=True)
+def isolate_console_scan_cache(monkeypatch):
+    """独立用例不继承前例缓存；tmp_path 清理后路径及 inode 可以复用。"""
+    from vpdtest.console import progress
+
+    monkeypatch.setattr(progress, "_SCANS", {})
+
+
 @pytest.fixture
 def ws(tmp_path) -> Workspace:
     shutil.copytree(SKILL / "data", tmp_path / "data")
