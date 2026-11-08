@@ -459,7 +459,16 @@ suite 摘要及 Console 接受 error；经验验证不对 error 做产品结论�
 新依赖指纹包含 `result_contract=7`，旧重放需按新口径重新积累；旧无条件内容哈希不变；新 conditions 内容与外部条件定义/目标/规则前置均绑定指纹，历史原始 run/verdict 不改写。
 探索资产现有 engine_hash 也会因引擎变更使审核失效，仍须由人重新审核，Agent 不自动批准。
 
-复合步骤按真实子结果判定：`critical` 只决定失败后是否继续执行，不抑制已发生的产品失败候选、待确认或阻塞。
+复合步骤按真实子结果判定：`critical` 控制普通失败后的继续，不抑制已发生的产品失败候选、待确认或阻塞。
+当当前结果同时有 `effect_unknown` 与未解决的 `action_required` 时，即使 `critical=false`，
+也停止后继业务步骤；顶层后继保留 `not_run`、`blocked_by` 和接管原因。flow/recipe 在该子步骤
+当场停止，把原失败、`failure_source` 和两个接管字段向父级传递，不再包装成 passed。
+只看当前结果，不从已恢复的历史 attempts 重新触发暂停；可靠未发或已知后置失败不因此改变继续行为。
+这不是新全局 hold：必要安全停止仍尽力执行；非关键未知效果触发运动安全停止时记录
+`action_effect_unknown`，不伪称该步骤是 critical。
+外层 cleanup 仍按已有所有权和补偿契约独立运行，不因业务暂停而全部跳过。若某个普通 cleanup
+条目本身是 flow/recipe，其内部顺序同样在未知效果后停止，但不取消后面的独立 cleanup 条目。
+`_safety` 子序列保留原尽力执行语义，不受新增接管停止条件影响。
 flow/recipe 汇总完成不能消除非关键子步骤的未恢复结果；已恢复的历史失败仍只留在 attempts/first_failure。
 子步骤显式 `oracle_refs` 优先；没有子判据时保留最近父调用的判据上下文，无任何判据仍 pending。
 继承规则的条件也绑定子步骤自己的 `final_obs`，不能借父流程后续成功的观测证明先前场景成立。

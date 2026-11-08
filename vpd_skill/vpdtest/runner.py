@@ -21,7 +21,7 @@ from .conditions import (
     validate_guard,
     validate_input_obstruction,
 )
-from .execute import Executor
+from .execute import Executor, unresolved_takeover
 from .experience import ExperienceStore
 from .knowledge import KnowledgeStore
 from .observe import RunStore
@@ -201,17 +201,20 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                 if halted["outcome"] == "skipped":
                     blocked.update(final_status="required_step_skipped", blocked_by=halted["step_id"],
                                    reason="必需前置步骤因操作条件未满足而未执行，后继步骤停止")
+                if unresolved_takeover(halted):
+                    blocked.update(blocked_by=halted["step_id"],
+                                   reason="前置动作效果未知且需要人工接管，后继业务步骤停止")
                 steps.append(blocked)
                 continue
             store.event("step_start", step=st["id"], action=st["action"])
             res = ex.run_step(st, case["id"])
             steps.append(res)
             store.event("step_done", step=st["id"], outcome=res["outcome"])
-            if res["outcome"] not in PASSED and res["critical"]:
+            if res["outcome"] not in PASSED and (res["critical"] or unresolved_takeover(res)):
                 halted = res
                 if ctx.motion.armed or ctx.motion.locked():
-                    # 运动中出现首次关键失败：先安全停止，再清理。首次失败原样保留在该步骤记录里
-                    safety_stops.append(safety_mod.safe_stop(ex, "critical_step_failed",
+                    # 运动中出现关键失败或未知效果接管：先安全停止，再清理，保留首次失败。
+                    safety_stops.append(safety_mod.safe_stop(ex, "critical_step_failed" if res["critical"] else "action_effect_unknown",
                                                              {"step": st["id"], "status": res.get("final_status")}))
         # 超时锁住后不管 stop_at_end 都要走安全停止：它确认已停、解锁之后，清理才能继续下发
         if ctx.motion.locked() or (ctx.motion.armed and (case.get("safety") or {}).get("stop_at_end", True)):
