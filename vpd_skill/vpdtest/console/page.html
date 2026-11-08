@@ -279,6 +279,7 @@ input[type=text] { flex: 1; min-width: 120px; }
   const runViews = { recent: { rows: null, at: null, error: "" }, all: { rows: null, at: null, error: "" } };
   const freshness = { runs: runViews.recent, detail: { at: null, error: "" } };
   let runScope = "recent", runsRequest = null, detailRequest = null;
+  let detailView = null;  // 只保留当前选择的内容签名与两类证据节点，不跨运行记忆展开状态
   let historyQuery = "", historyKind = "", historyLimit = 40;
   function showFreshness(name) {
     const s = freshness[name], node = $(name + "-status");
@@ -315,6 +316,7 @@ input[type=text] { flex: 1; min-width: 120px; }
       if (detailRequest) detailRequest.controller.abort();
       detailRequest = null;
       selected = id;
+      detailView = null;
       freshness.detail = { at: null, error: "" };
       $("detail").replaceChildren(el("p", { class: "muted" }, "正在读取 " + id));
       showFreshness("detail");
@@ -476,8 +478,11 @@ input[type=text] { flex: 1; min-width: 120px; }
   function flatSteps(rows) {
     return (rows || []).flatMap((s) => [s, ...flatSteps(s.sub_steps)]);
   }
-  function conditionEvidence(title, rows) {
-    return el("details", {}, el("summary", {}, title), el("pre", {}, JSON.stringify(rows, null, 2)));
+  function conditionEvidence(title, rows, previous) {
+    if (!rows.length) return null;
+    const node = el("details", {}, el("summary", {}, title), el("pre", {}, JSON.stringify(rows, null, 2)));
+    node.open = !!(previous && previous.open);
+    return node;
   }
   async function pollDetail() {
     if (!selected) return;
@@ -489,6 +494,12 @@ input[type=text] { flex: 1; min-width: 120px; }
       const d = await api("/api/runs/" + encodeURIComponent(request.id), request.controller.signal);
       if (detailRequest !== request || selected !== request.id) return;
       if (d.run_id !== request.id || !Array.isArray(d.tail)) throw new Error("运行详情格式或标识异常");
+      const signature = JSON.stringify(d);
+      const previous = detailView && detailView.id === request.id ? detailView : null;
+      if (previous && previous.signature === signature) {
+        readSucceeded("detail");  // 仍完成真实读取；同内容不重建正在阅读的证据
+        return;
+      }
       const box = $("detail"), kids = [el("h2", {}, (d.title || d.run_id) + (d.case_title ? " · " + d.case_title : ""))];
       if (d.read_errors && d.read_errors.length) kids.push(el("p", { class: "freshness s-unknown" },
         readProblemText(d) + "。只显示可读取部分，不能据此确认完整进度；记录中的产品结论没有被重新判定。"));
@@ -511,11 +522,14 @@ input[type=text] { flex: 1; min-width: 120px; }
         ({ step: s.step_id, outcome: s.outcome, condition: s.condition }));
       const assertionEvidence = (d.assertions || []).filter((a) => a.guard).map((a) =>
         ({ assertion: a.id, result: a.result, verified: a.verified, guard: a.guard }));
-      if (operationEvidence.length) kids.push(conditionEvidence("选支证据：操作条件", operationEvidence));
-      if (assertionEvidence.length) kids.push(conditionEvidence("选支证据：断言前置", assertionEvidence));
+      const operation = conditionEvidence("选支证据：操作条件", operationEvidence, previous && previous.operation);
+      const assertion = conditionEvidence("选支证据：断言前置", assertionEvidence, previous && previous.assertion);
+      if (operation) kids.push(operation);
+      if (assertion) kids.push(assertion);
       if (d.report) kids.push(el("p", { class: "muted" }, "报告：" + d.report));
       kids.push(el("h2", {}, "最近事件"), el("pre", {}, d.tail.map((e) => JSON.stringify(e)).join("\n")));
       box.replaceChildren(...kids);
+      detailView = { id: request.id, signature, operation, assertion };
       readSucceeded("detail");
     } catch (e) {
       if (detailRequest === request && selected === request.id) readFailed("detail", e);
