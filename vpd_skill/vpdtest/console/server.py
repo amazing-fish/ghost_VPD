@@ -281,7 +281,11 @@ def make_handler(console: Console, token: str, port_ref: dict):
             if path == "/api/status":
                 return self._json(200, console.status())
             if path == "/api/runs":
-                return self._json(200, {"runs": progress.list_runs(console.runs_dir)})
+                scopes = parse_qs(urlparse(self.path).query, keep_blank_values=True).get("scope", ["recent"])
+                if len(scopes) != 1 or scopes[0] not in ("recent", "all"):
+                    return self._deny(400, "scope 只能提供一次，值为 recent 或 all")
+                limit = None if scopes[0] == "all" else 40
+                return self._json(200, {"runs": progress.list_runs(console.runs_dir, limit=limit)})
             if path.startswith("/api/runs/"):
                 d = progress.detail(console.runs_dir, path[len("/api/runs/"):])
                 return self._json(200, d) if d else self._deny(404, "没有这个运行")
