@@ -41,13 +41,15 @@ h2 { font-size: 14px; margin: 0 0 8px; }
 .ripple { position: absolute; width: 28px; height: 28px; margin: -14px 0 0 -14px; border-radius: 50%;
   border: 2px solid #fff; opacity: .9; pointer-events: none; }
 .bar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-button, input[type=text] { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line);
+button, input[type=text], select { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line);
   border-radius: 6px; padding: 6px 12px; min-height: 32px; }
 button { cursor: pointer; }
 button:hover { border-color: var(--accent); }
-button:focus-visible, input:focus-visible, .run:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+button:focus-visible, input:focus-visible, select:focus-visible, .run:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 button:disabled { opacity: .5; cursor: not-allowed; }
 input[type=text] { flex: 1; min-width: 120px; }
+.history-field { display: flex; flex: 1 1 180px; flex-direction: column; gap: 4px; min-width: 0; }
+.history-field input, .history-field select { width: 100%; min-width: 0; }
 .hint { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
 #log { font: 12px/1.4 ui-monospace, Consolas, monospace; color: var(--muted); margin-top: 8px; min-height: 1.4em;
   overflow-wrap: anywhere; }
@@ -106,9 +108,27 @@ input[type=text] { flex: 1; min-width: 120px; }
   </section>
   <section aria-labelledby="h-runs">
     <h2 id="h-runs">运行进度 <span class="muted" id="runs-at"></span></h2>
+    <div class="bar" role="group" aria-label="运行记录范围">
+      <button id="runs-recent" type="button" aria-pressed="true">最近 40 条 · 实时监控</button>
+      <button id="runs-history" type="button" aria-pressed="false">全部历史</button>
+    </div>
+    <div id="history-controls" hidden>
+      <div class="bar">
+        <label class="history-field" for="history-search">搜索全部已读取历史
+          <input id="history-search" type="text" placeholder="运行 ID、用例 ID 或标题" autocomplete="off" spellcheck="false">
+        </label>
+        <label class="history-field" for="history-kind">运行类型
+          <select id="history-kind"><option value="">全部类型</option></select>
+        </label>
+        <button id="history-refresh" type="button">刷新全部历史</button>
+      </div>
+      <p class="hint">手动读取后在本地搜索，不自动刷新；不区分大小写，按原文匹配。记录可能在读取期间变化，不是同一时刻的快照。</p>
+    </div>
     <p id="runs-status" class="freshness" role="status">正在读取运行记录，尚无可用快照。</p>
     <p class="hint">只读监控已有运行，不启动用例。日志近期更新不等于执行进程仍存活；已结束记录属于历史结果。</p>
+    <p id="history-count" class="hint" role="status" hidden></p>
     <div class="runs" id="runs" role="list"></div>
+    <button id="history-more" type="button" hidden>再显示 40 条</button>
     <p id="detail-status" class="freshness" role="status" hidden></p>
     <div id="detail" aria-live="polite"></div>
   </section>
@@ -256,11 +276,23 @@ input[type=text] { flex: 1; min-width: 120px; }
   }
   // ---- 运行进度 ----
   const hhmmss = (sec) => sec == null || !Number.isFinite(sec) ? "未记录" : new Date(sec * 1000).toLocaleString("zh-CN", { hour12: false });
-  const freshness = { runs: { at: null, error: "" }, detail: { at: null, error: "" } };
-  let runsPending = false, detailRequest = null;
+  const runViews = { recent: { rows: null, at: null, error: "" }, all: { rows: null, at: null, error: "" } };
+  const freshness = { runs: runViews.recent, detail: { at: null, error: "" } };
+  let runScope = "recent", runsRequest = null, detailRequest = null;
+  let historyQuery = "", historyKind = "", historyLimit = 40;
   function showFreshness(name) {
     const s = freshness[name], node = $(name + "-status");
     if (!node) return;
+    if (name === "runs" && runScope === "all") {
+      node.setAttribute("data-stale", String(!!s.error));
+      const reading = runsRequest && runsRequest.scope === "all";
+      const text = s.at === null
+        ? (reading || !s.error ? "正在手动读取全部历史，尚无可用快照。" : `读取失败：${s.error}。尚无可用快照，请刷新全部历史重试。`)
+        : `${reading ? "正在手动刷新 · " : ""}${s.error ? "刷新失败，保留上次历史快照，不代表当前状态" : "手动历史读取，不代表当前状态"}` +
+          ` · 最近读取 ${hhmmss(s.at / 1000)}` + (s.error ? ` · ${s.error}` : "");
+      if (node.textContent !== text) node.textContent = text;
+      return;
+    }
     const stale = !!s.error || (s.at !== null && Date.now() - s.at > 12000);
     node.hidden = name === "detail" && !selected;
     node.setAttribute("data-stale", String(stale));
@@ -271,7 +303,7 @@ input[type=text] { flex: 1; min-width: 120px; }
     if (node.textContent !== text) node.textContent = text;
   }
   function readSucceeded(name) {
-    freshness[name] = { at: Date.now(), error: "" };
+    Object.assign(freshness[name], { at: Date.now(), error: "" });
     showFreshness(name);
   }
   function readFailed(name, error) {
@@ -287,8 +319,8 @@ input[type=text] { flex: 1; min-width: 120px; }
       $("detail").replaceChildren(el("p", { class: "muted" }, "正在读取 " + id));
       showFreshness("detail");
     }
-    lastRuns = "";
-    pollRuns(); pollDetail();
+    renderRuns();
+    pollDetail();
   }
   function runContext(r) {
     const level = { offline_replay: "离线回放（不代表真机）", real_device: "真机运行" }[r.validation_level]
@@ -328,24 +360,99 @@ input[type=text] { flex: 1; min-width: 120px; }
     b.addEventListener("click", () => selectRun(r.run_id));
     return el("div", { role: "listitem" }, b);
   }
-  async function pollRuns() {
-    if (runsPending) return;
-    runsPending = true;
-    try {
-      const d = await api("/api/runs");
-      if (!Array.isArray(d.runs)) throw new Error("运行列表格式异常");
-      const sig = JSON.stringify([d.runs, selected]);
-      if (sig === lastRuns) { readSucceeded("runs"); return; }  // 没变化就不重绘，避免打断键盘焦点
-      const focused = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.id : null;
-      const box = $("runs");
-      box.replaceChildren(...(d.runs.length ? d.runs.map(runItem) : [el("p", { class: "muted" }, "runs/ 下还没有运行记录")]));
-      if (focused) { const f = box.querySelector(`[data-id="${CSS.escape(focused)}"]`); if (f) f.focus(); }
-      lastRuns = sig;
-      $("runs-at").textContent = `· 最近 ${d.runs.length} 条`;
-      readSucceeded("runs");
-    } catch (e) { readFailed("runs", e); }
-    finally { runsPending = false; }
+  function renderRuns(rows = runViews[runScope].rows) {
+    const history = runScope === "all";
+    const matches = rows === null ? [] : (history ? rows.filter(r =>
+      (!historyKind || r.kind === historyKind) && [r.run_id, r.title, r.case_title].some(value =>
+        String(value == null ? "" : value).toLowerCase().includes(historyQuery))) : rows);
+    const visible = matches.slice(0, history ? historyLimit : 40);
+    const sig = JSON.stringify([runScope, rows, selected, historyQuery, historyKind, historyLimit]);
+    if (sig === lastRuns) return;  // 本地筛选、选中态变化才重绘；轮询同数据保留键盘焦点
+    const focused = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.id : null;
+    const empty = rows === null ? "尚无可用快照。" : (!rows.length
+      ? (history ? "历史归档中还没有运行记录。" : "runs/ 下还没有运行记录")
+      : "没有匹配的历史记录，请调整搜索词或类型。");
+    const cards = visible.length ? visible.map(runItem) : [el("p", { class: "muted" }, empty)];
+    const box = $("runs");
+    box.replaceChildren(...cards);
+    if (focused) { const f = box.querySelector(`[data-id="${CSS.escape(focused)}"]`); if (f) f.focus(); }
+    $("runs-at").textContent = history ? "· 全部历史" : `· 最近 ${visible.length} 条（最多 40 条）`;
+    $("history-count").hidden = !history;
+    $("history-count").textContent = rows === null ? "尚无可用快照，暂不能统计。"
+      : `匹配 ${matches.length} / 总计 ${rows.length} 条 · 已显示 ${visible.length} 条`;
+    $("history-more").hidden = !history || visible.length >= matches.length;
+    lastRuns = sig;
   }
+  function historyKindOptions(rows) {
+    const kinds = new Map(rows.map(r => [r.kind, r.kind_label || r.kind]));
+    if (historyKind && !kinds.has(historyKind)) kinds.set(historyKind, historyKind);
+    return [el("option", { value: "" }, "全部类型"),
+      ...Array.from(kinds).filter(([kind]) => kind).sort(([a], [b]) => a.localeCompare(b))
+        .map(([kind, label]) => el("option", { value: kind }, label))];
+  }
+  function changeHistoryFilter() {
+    historyQuery = $("history-search").value.toLowerCase();
+    historyKind = $("history-kind").value;
+    historyLimit = 40;
+    renderRuns();
+  }
+  async function setRunScope(scope) {
+    if (scope === runScope || !runViews[scope]) return;
+    if (runsRequest) runsRequest.controller.abort();
+    runsRequest = null;
+    runScope = scope;
+    freshness.runs = runViews[scope];
+    $("runs-recent").setAttribute("aria-pressed", String(scope === "recent"));
+    $("runs-history").setAttribute("aria-pressed", String(scope === "all"));
+    $("history-controls").hidden = scope !== "all";
+    $("history-refresh").disabled = false;
+    renderRuns();
+    showFreshness("runs");
+    if (scope === "recent") await pollRuns();
+    else if (runViews.all.rows === null) await refreshHistory();
+  }
+  async function readRuns(scope) {
+    if (scope !== runScope || runsRequest) return;
+    const request = { scope, controller: new AbortController() };
+    runsRequest = request;
+    if (scope === "all") $("history-refresh").disabled = true;
+    showFreshness("runs");
+    try {
+      const d = await api(scope === "all" ? "/api/runs?scope=all" : "/api/runs", request.controller.signal);
+      if (runsRequest !== request || runScope !== scope) return;
+      if (!d || !Array.isArray(d.runs) || d.runs.some(r => !r || typeof r.run_id !== "string" || !r.run_id)) {
+        throw new Error("运行列表格式异常");
+      }
+      const options = scope === "all" ? historyKindOptions(d.runs) : null;
+      renderRuns(d.runs);
+      if (options) {
+        $("history-kind").replaceChildren(...options);
+        $("history-kind").value = historyKind;
+      }
+      runViews[scope].rows = d.runs;
+      readSucceeded("runs");
+    } catch (e) {
+      if (runsRequest === request && runScope === scope) readFailed("runs", e);
+    } finally {
+      if (runsRequest === request) {
+        runsRequest = null;
+        $("history-refresh").disabled = false;
+        showFreshness("runs");
+      }
+    }
+  }
+  async function pollRuns() {
+    if (runScope === "recent") await readRuns("recent");
+  }
+  async function refreshHistory() {
+    if (runScope === "all") await readRuns("all");
+  }
+  $("runs-recent").addEventListener("click", () => setRunScope("recent"));
+  $("runs-history").addEventListener("click", () => setRunScope("all"));
+  $("history-refresh").addEventListener("click", refreshHistory);
+  $("history-search").addEventListener("input", changeHistoryFilter);
+  $("history-kind").addEventListener("change", changeHistoryFilter);
+  $("history-more").addEventListener("click", () => { historyLimit += 40; renderRuns(); });
   function table(cols, rows) {
     return el("div", { class: "table-scroll" }, el("table", {},
       el("thead", {}, el("tr", {}, ...cols.map((c) => el("th", { scope: "col" }, c[1])))),

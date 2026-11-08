@@ -16,6 +16,7 @@ from pathlib import Path
 KINDS = {"run": "用例", "suite": "用例集", "explore": "探索", "session": "单步会话", "console": "控制台", "demo": "演示"}
 _ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.\-]{0,120}$")
 TAIL_KEEP = 60
+SCAN_CACHE_LIMIT = 256
 _READ_CHUNK = 1 << 20
 
 
@@ -72,6 +73,13 @@ _SCANS: dict = {}
 _SCANS_LOCK = threading.Lock()
 
 
+def _remember_scan(key: str, scan: _Scan) -> None:
+    """调用方持有锁；字典插入顺序用于保留最近读取的有限记录。"""
+    _SCANS[key] = scan
+    if len(_SCANS) > SCAN_CACHE_LIMIT:
+        del _SCANS[next(iter(_SCANS))]
+
+
 def _load_record(raw) -> object:
     record = json.loads(raw)
     # Python 默认接受 NaN/Infinity 和孤立代理码；浏览器 JSON / UTF-8 不接受。
@@ -95,19 +103,21 @@ def _valid_event(e) -> bool:
 def _scan(path: Path) -> _Scan:
     key = str(path.absolute())  # 不解析证据文件的符号链接；stat 的 I/O 异常由调用方隔离。
     with _SCANS_LOCK:  # 控制台是多线程服务：同一文件的增量读取串行进行
-        sc = _SCANS.get(key)
+        sc = _SCANS.pop(key, None)
         try:
             stat = path.stat()
         except FileNotFoundError:
-            sc = _SCANS[key] = _Scan()
+            sc = _Scan()
             sc.missing = True
+            _remember_scan(key, sc)
             return sc
         size, identity = stat.st_size, (stat.st_dev, stat.st_ino)
         if (sc is None or identity != sc.identity or size < sc.offset
                 or (size == sc.offset and stat.st_mtime_ns != sc.mtime_ns)):
             # 替换文件、等长修复和截断都废弃旧结论；普通追加仍只读新字节。
-            sc = _SCANS[key] = _Scan()
+            sc = _Scan()
         sc.identity, sc.mtime_ns = identity, stat.st_mtime_ns
+        _remember_scan(key, sc)
         if size > sc.offset:
             with path.open("rb") as f:
                 f.seek(sc.offset)
@@ -268,7 +278,8 @@ def summarize(run_dir: Path, now: float | None = None, stale_s: float = 120.0) -
     return out
 
 
-def list_runs(runs_dir: Path, limit: int = 40) -> list:
+def list_runs(runs_dir: Path, limit: int | None = 40) -> list:
+    """最近记录；limit=None 为显式历史读取，不承诺目录扫描期间的原子快照。"""
     runs_dir = Path(runs_dir)
     if not _exists(runs_dir):
         return []
@@ -283,8 +294,10 @@ def list_runs(runs_dir: Path, limit: int = 40) -> list:
             except OSError:
                 stamp = 0.0
             dirs.append((stamp, d))
-    dirs.sort(key=lambda x: x[0], reverse=True)
-    return [summarize(d) for _, d in dirs[:limit]]
+    dirs.sort(key=lambda x: (x[0], x[1].name), reverse=True)
+    # 先读旧记录，让全历史读取后仍能缓存最新运行供实时监控复用。
+    rows = [summarize(d) for _, d in reversed(dirs[:limit])]
+    return list(reversed(rows))
 
 
 def detail(runs_dir: Path, run_id: str, tail: int = 60) -> dict | None:

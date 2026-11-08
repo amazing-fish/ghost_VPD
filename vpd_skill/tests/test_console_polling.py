@@ -8,7 +8,7 @@ import pytest
 PAGE = Path(__file__).parents[1] / "vpdtest" / "console" / "page.html"
 
 
-def run_page(body, real_api=False, with_status=False):
+def run_page(body, real_api=False, with_status=False, with_lifecycle=False):
     node = shutil.which("node")
     if not node:
         pytest.skip("Console page behavior tests require Node.js")
@@ -21,12 +21,32 @@ def run_page(body, real_api=False, with_status=False):
     harness = r"""
 const assert = require('node:assert/strict');
 class Node {
-  constructor() { this.children = []; this.attributes = {}; this.dataset = {}; this.parentElement = {}; this.style = {}; }
+  constructor(tag = '') {
+    this.tag = tag; this.children = []; this.attributes = {}; this.dataset = {};
+    this.parentElement = {}; this.style = {}; this.listeners = {}; this.value = '';
+    this.hidden = false; this.disabled = false;
+  }
   append(...children) { this.children.push(...children); }
   replaceChildren(...children) { this.children = children; }
-  setAttribute(k, v) { this.attributes[k] = v; }
-  addEventListener() {}
-  querySelector(selector) { return selector === 'button' ? $('submit-button') : null; }
+  setAttribute(k, v) {
+    this.attributes[k] = v;
+    if (k === 'data-id') this.dataset.id = v;
+    if (k === 'value') this.value = v;
+  }
+  addEventListener(type, callback) { (this.listeners[type] ||= []).push(callback); }
+  async dispatch(type) {
+    if (type === 'click' && this.disabled) return;
+    await Promise.all((this.listeners[type] || []).map(callback => callback({target: this})));
+  }
+  focus() { document.activeElement = this; }
+  querySelector(selector) {
+    for (const child of this.children) {
+      if (!(child instanceof Node)) continue;
+      if (selector === `[data-id="${child.dataset.id}"]` || selector === child.tag) return child;
+      const found = child.querySelector(selector); if (found) return found;
+    }
+    return selector === 'button' && !this.tag ? $('submit-button') : null;
+  }
   get textContent() { return this.children.map(x => x instanceof Node ? x.textContent : x).join(' '); }
   set textContent(value) { this.children = [value]; }
 }
@@ -34,7 +54,13 @@ const nodes = new Map(), $ = id => {
   if (!nodes.has(id)) nodes.set(id, new Node());
   return nodes.get(id);
 };
-const document = { createElement: () => new Node(), activeElement: null };
+const document = new Node();
+document.createElement = tag => new Node(tag);
+document.activeElement = null;
+document.hidden = false;
+const CSS = {escape: value => value};
+const intervals = [];
+const setInterval = (callback, ms) => intervals.push({callback, ms});
 const TOKEN = 'synthetic-test-token';
 let selected = null, lastRuns = '';
 let inputOn = false, statusPending = false, streaming = true;
@@ -48,8 +74,10 @@ const sample = id => ({run_id: id, title: id, kind: 'run', kind_label: '用例',
   verdict_detail: {verdict: 'passed', label: '通过'}});
 """
     harness += constants + element + (api if real_api else "const api = request;\n") + functions
-    if with_status:
+    if with_status or with_lifecycle:
         harness += status
+    if with_lifecycle:
+        harness += page[page.index("  setInterval(pollStatus"):page.index("\n})();")]
     harness += "\nlet completed = false;\n(async () => {\n" + body + "\n})()"
     harness += ".then(() => { completed = true; }).catch(e => { console.error(e); process.exit(1); });"
     harness += "\nprocess.on('beforeExit', () => { if (!completed) { console.error('Unfinished test'); process.exitCode = 1; } });"
@@ -128,7 +156,7 @@ selectRun('run-B');
 assert.doesNotMatch($('detail').textContent, /run-A/);
 assert.match($('detail').textContent, /正在读取 run-B/);
 assert.equal(freshness.detail.at, null);
-pending.find(r => r.path === '/api/runs').resolve({runs: []});
+assert.equal(pending.filter(r => r.path === '/api/runs').length, 0);
 pending.find(r => r.path === '/api/runs/run-B').reject(new Error('HTTP 404'));
 await new Promise(resolve => setImmediate(resolve));
 assert.match($('detail-status').textContent, /尚无可用快照/);
@@ -181,7 +209,7 @@ assert.match($('runs-status').textContent, /刷新正常/);
 def test_api_timeout_covers_response_body_and_recovers():
     run_page("""
 let cancelTimer, cleared = 0, first = true;
-global.setTimeout = callback => { cancelTimer = callback; return 1; };
+global.setTimeout = (callback, ms) => { assert.equal(ms, 8000); cancelTimer = callback; return 1; };
 global.clearTimeout = () => { cleared++; };
 global.fetch = async (path, options) => {
   assert.equal(options.headers['X-VPD-Token'], TOKEN);

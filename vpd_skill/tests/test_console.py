@@ -324,6 +324,28 @@ def test_console_http_keeps_healthy_runs_when_one_record_is_corrupt(served, tmp_
     assert not box["dev"].calls
 
 
+def test_console_history_scope_is_explicit_and_auth_unchanged(served, tmp_path):
+    box = served(allow_input=False)
+    for i in range(45):
+        _events(tmp_path / "runs" / f"run-history-{i:04}", {"event": "run_start", "case": f"TC-{i}"},
+                {"event": "run_end", "verdict": "passed"})
+    h = {"X-VPD-Token": box["token"]}
+    assert len(json.loads(req(box, "GET", "/api/runs", headers=h)[1])["runs"]) == 40
+    r, body = req(box, "GET", "/api/runs?scope=all", headers=h)
+    rows = json.loads(body)["runs"]
+    assert r.status == 200 and len(rows) == 46  # 包含合成Console服务自身记录
+    assert sum(r["kind"] == "run" for r in rows) == 45
+    assert req(box, "GET", "/api/runs?scope=all")[0].status == 401
+    assert req(box, "GET", "/api/runs?scope=bad")[0].status == 401
+    assert req(box, "GET", "/api/runs?scope=all", host="evil.example", headers=h)[0].status == 421
+    for query in ("scope=", "scope=bad", "scope=all&scope=recent", "scope=all&scope=all"):
+        r, body = req(box, "GET", "/api/runs?" + query, headers=h)
+        assert r.status == 400 and "error" in json.loads(body)
+    r, body = req(box, "GET", "/api/runs?scope=recent", headers=h)
+    assert r.status == 200 and len(json.loads(body)["runs"]) == 40
+    assert not box["dev"].calls
+
+
 def test_console_input_waits_for_first_frame(tmp_path):
     """延迟首帧：启动线程不等于画面就绪；坐标/文字拒发，首帧到达后可操作。"""
     dev = FakeDevice()

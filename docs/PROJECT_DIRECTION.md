@@ -32,9 +32,11 @@
 | [#161](https://github.com/amazing-fish/ghost_VPD/pull/161) | 240 支持显式 Text 叶节点 scope | 仍须独立定位/真值/可见性与人工审核，不自动校准或晋级 |
 | [#158](https://github.com/amazing-fish/ghost_VPD/pull/158) | HDC 子进程不再额外继承宿主 PIN 环境键 | 不是安全的一次性 PIN 输入通道；现场仍需合规输入，不能把环境隔离算作完整解锁 |
 | [#162](https://github.com/amazing-fish/ghost_VPD/pull/162) | 当前动作效果未知且需要接管时，停止顶层/flow/recipe 的依赖后继，并保留原失败来源 | 外层独立补偿与必要安全停止仍执行；离线证据不证明实机安全停止，旧资产审核可能需人工复核 |
+| [#156](https://github.com/amazing-fish/ghost_VPD/pull/156)、[#163](https://github.com/amazing-fish/ghost_VPD/pull/163) | Console 区分最近读取与历史日志，切换运行不串结果；单条损坏证据隔离、修复后重读，详见[运行监控](../vpd_skill/references/console-monitor.md) | 刷新成功不证明进程存活；部分记录不代表完整进度；只读展示不增加真机验收或正式业务覆盖 |
+| [#165](https://github.com/amazing-fish/ghost_VPD/pull/165) | 同 run_id 的冲突摘要不能覆盖既有证据；不确定重放不能掩盖更早的确定失败特征 | 保留原记录与人工审核门禁，不自动晋级；合成一致性验证不证明生产事故或实机结果 |
 
 资产入口另见 [#151 母版与冻结实例](https://github.com/amazing-fish/ghost_VPD/pull/151)、
-[#153 只读 scope 诊断](https://github.com/amazing-fish/ghost_VPD/pull/153)；重放证据一致性继续沿 [#164](https://github.com/amazing-fish/ghost_VPD/issues/164) 维护，不提前宣布待合 PR 已完成。
+[#153 只读 scope 诊断](https://github.com/amazing-fish/ghost_VPD/pull/153)；重放证据一致性见 [#164](https://github.com/amazing-fish/ghost_VPD/issues/164) 与已合入的 #165。
 
 具体语法、限制和合成示例见[执行契约](../vpd_skill/references/contracts.md)。以上能力沿既有
 `Observer → Executor/Dispatcher → Verdict → Case`交付，不增设平行执行、规划或判定引擎。
