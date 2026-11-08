@@ -200,7 +200,26 @@ def install_frames(monkeypatch, *, initial=True):
     return active
 
 
-def run_capture(verdict_ws,monkeypatch,*,initial=True,pattern='never-in-tree',confirmed=False):
+def install_capture_clock(monkeypatch, observation_t=0.05):
+    """Synthetic arrival times, independent of host scheduling and disk latency.
+
+    Replace only transient's module-local time reference, not time.monotonic on
+    the shared Python module. The real recorder and seen() still enforce the
+    unchanged capture window; tests explicitly choose inside/outside arrivals.
+    """
+    clock=SimpleNamespace(value=1000.0)
+    monkeypatch.setattr(transient,'time',SimpleNamespace(monotonic=lambda:clock.value))
+    original=transient.TransientCapture.observation
+    def observation(cap,obs,tree):
+        if cap.trigger is not None:
+            clock.value=max(clock.value,cap.trigger['clock']+observation_t)
+        return original(cap,obs,tree)
+    monkeypatch.setattr(transient.TransientCapture,'observation',observation)
+    return clock
+
+
+def run_capture(verdict_ws,monkeypatch,*,initial=True,pattern='never-in-tree',confirmed=False,observation_t=0.05):
+    install_capture_clock(monkeypatch,observation_t)
     active=install_frames(monkeypatch,initial=initial)
     case=copy.deepcopy(verdict_ws.load_case(NAV_CASE));case['id']='TC-TEST-CAPTURE'
     case['steps'][2]['capture_transient']={'post_s':0.2,'ready_timeout_s':0.05}
@@ -237,8 +256,29 @@ def test_transient_uses_existing_oracle_gate(verdict_ws,monkeypatch):
 
 
 def test_confirmed_synthetic_oracle_and_positive_tree_can_pass(verdict_ws,monkeypatch):
+    import time
+    real_monotonic=time.monotonic
     run,_=run_capture(verdict_ws,monkeypatch,pattern='设置',confirmed=True)
+    cap=run['steps'][2]['attempts'][0]['transient']
+    assert cap['post_s']==0.2 and cap['observations']
+    assert all(entry['t']==0.05 for entry in cap['observations'])
+    assert transient.time is not time and time.monotonic is real_monotonic
     assert run['assertions'][0]['result']=='pass'
+
+
+def test_confirmed_positive_tree_after_capture_window_stays_unknown(verdict_ws,monkeypatch):
+    run,_=run_capture(verdict_ws,monkeypatch,pattern='设置',confirmed=True,observation_t=0.25)
+    step=run['steps'][2];cap=step['attempts'][0]['transient']
+    assert step['outcome'].startswith('passed')
+    assert cap['status']=='captured' and len(cap['frames'])==2
+    assert cap['post_s']==0.2 and cap['observations']==[]
+    final=read_json(Path(run['dir'])/'obs'/step['final_obs']/'observation.json')
+    tree=UiTree(read_json(Path(run['dir'])/'obs'/step['final_obs']/'tree.json'))
+    assert final['fresh'] is True and final['foreground']==run['app']['bundle']
+    assert final['action_epoch']==cap['trigger']['action_epoch_before']+1
+    assert '设置' in tree.visible_texts()
+    assert run['assertions'][0]['result']=='undeterminable'
+    assert run['assertions'][0]['evidence']['negative_evidence'] is False
 
 
 def test_explicit_capture_fault_is_tool_error_not_product_absence():
