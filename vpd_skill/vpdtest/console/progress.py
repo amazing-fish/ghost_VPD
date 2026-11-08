@@ -1,12 +1,14 @@
 """用例 / 用例集 / 探索进度：只读 runs/<id>/events.jsonl 与 run.json，不改动任何证据。
 
-进度按事件累计（首次整读、之后增量读新追加的部分），不因文件变大只看尾部而倒退。
+进度按事件累计（首次整读、之后验证旧字节并增量解析新记录），不因文件变大只看尾部而倒退。
 运行中的判断依据是事件：有 run_start/suite_start 而没有对应的结束事件即为进行中；
 最后一条事件超过 stale_s 没有更新时标为 stale（进程可能已被中断），不猜测结论。
 """
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import re
 import stat
 import threading
@@ -29,11 +31,11 @@ def _kind(run_id: str) -> str:
 
 
 class _Scan:
-    """一条运行的累计进度。首次读完整个 events.jsonl，之后只读新追加的字节，
-    所以长时间运行（监视采样很多）也不会因为只看尾部而让已完成数倒退。"""
+    """累计已验证的进度；每轮校验全部旧字节，只增量解析匹配前缀后的新记录。"""
 
     def __init__(self):
         self.offset, self.pending = 0, b""
+        self.digest = None
         self.identity, self.mtime_ns, self.invalid_lines = None, None, 0
         self.missing = False
         self.head = None
@@ -42,6 +44,34 @@ class _Scan:
         self.cases_done, self.verdicts, self.current_case = 0, {}, None
         self.motion, self.last_obs_state, self.ended = None, None, {}
         self.tail: list = []
+
+    def copy(self) -> _Scan:
+        candidate = _Scan()
+        candidate.__dict__.update(self.__dict__)
+        # 解析只替换事件引用；共享只读事件，复制会被追加或更新的容器。
+        candidate.tail = self.tail.copy()
+        candidate.verdicts = self.verdicts.copy()
+        candidate.ended = self.ended.copy()
+        return candidate
+
+    def consume(self, chunk: bytes) -> None:
+        self.offset += len(chunk)
+        data = self.pending + chunk
+        # 先按物理 CR/LF 分行再解码；CRLF 即使跨块/轮询，空段也可忽略。
+        lines = re.split(br"[\r\n]", data)
+        self.pending = lines.pop()  # 最后一段可能是正在写入的半行
+        for line in lines:
+            if not line.strip():
+                continue
+            try:
+                event = _load_record(line.decode("utf-8"))
+            except (ValueError, RecursionError):
+                self.invalid_lines += 1
+                continue
+            if _valid_event(event):
+                self.feed(event)
+            else:
+                self.invalid_lines += 1
 
     def feed(self, e: dict) -> None:
         ev = e.get("event") or ""
@@ -75,6 +105,7 @@ _SCANS_LOCK = threading.Lock()
 
 def _remember_scan(key: str, scan: _Scan) -> None:
     """调用方持有锁；字典插入顺序用于保留最近读取的有限记录。"""
+    _SCANS.pop(key, None)
     _SCANS[key] = scan
     if len(_SCANS) > SCAN_CACHE_LIMIT:
         del _SCANS[next(iter(_SCANS))]
@@ -100,48 +131,66 @@ def _valid_event(e) -> bool:
                 and (type(e["total"]) is not int or e["total"] < 0))
 
 
+def _signature(info) -> tuple:
+    # atime 会因只读扫描改变，不参与稳定性检查；ctime 仅作辅助，不用于跳过内容验证。
+    return info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns
+
+
+def _read_chunks(stream, remaining: int):
+    """只读取打开时的长度，不追逐持续追加的 EOF；提前 EOF 不是完整快照。"""
+    while remaining:
+        chunk = stream.read(min(_READ_CHUNK, remaining))
+        if not chunk:
+            raise OSError("events changed during read")
+        remaining -= len(chunk)
+        yield chunk
+
+
 def _scan(path: Path) -> _Scan:
-    key = str(path.absolute())  # 不解析证据文件的符号链接；stat 的 I/O 异常由调用方隔离。
-    with _SCANS_LOCK:  # 控制台是多线程服务：同一文件的增量读取串行进行
-        sc = _SCANS.pop(key, None)
+    key = str(path.absolute())  # 不解析证据文件的符号链接；I/O 异常由调用方隔离。
+    with _SCANS_LOCK:  # 控制台是多线程服务：同一文件的校验与增量解析串行进行
+        cached = _SCANS.get(key)
         try:
-            stat = path.stat()
+            # 预检稳定的非普通文件，避免无写端 FIFO 的阻塞；不把路径 stat 当内容身份。
+            if not stat.S_ISREG(path.stat().st_mode):
+                raise OSError("events must be a regular file")
+            stream = path.open("rb")
         except FileNotFoundError:
             sc = _Scan()
             sc.missing = True
             _remember_scan(key, sc)
             return sc
-        size, identity = stat.st_size, (stat.st_dev, stat.st_ino)
-        if (sc is None or identity != sc.identity or size < sc.offset
-                or (size == sc.offset and stat.st_mtime_ns != sc.mtime_ns)):
-            # 替换文件、等长修复和截断都废弃旧结论；普通追加仍只读新字节。
-            sc = _Scan()
-        sc.identity, sc.mtime_ns = identity, stat.st_mtime_ns
+        with stream:
+            opened = os.fstat(stream.fileno())
+            if not stat.S_ISREG(opened.st_mode):
+                raise OSError("events must be a regular file")
+            initial = _signature(opened)
+            identity, size = initial[:2], initial[2]
+            digest = hashlib.sha256()
+            reuse = False
+            if cached is not None and cached.identity == identity and size >= cached.offset:
+                # 即使长度、mtime、ctime 都未变，也检查全部已读原始字节（含 pending）。
+                for chunk in _read_chunks(stream, cached.offset):
+                    digest.update(chunk)
+                reuse = digest.digest() == cached.digest
+            if reuse:
+                sc = cached.copy()
+            else:
+                stream.seek(0)
+                digest = hashlib.sha256()
+                sc = _Scan()
+            for chunk in _read_chunks(stream, size - sc.offset):
+                digest.update(chunk)
+                sc.consume(chunk)
+            # 同一描述符负责定长读取与校验；路径替换、截断、追加等可见变化一律报未知。
+            if _signature(os.fstat(stream.fileno())) != initial or _signature(path.stat()) != initial:
+                raise OSError("events changed during read")
+        sc.identity, sc.mtime_ns, sc.digest = identity, initial[3], digest.digest()
+        if reuse:
+            # 失败时仅丢弃候选，保留上次已验证进度；成功追加保留既有 _Scan 对象身份。
+            cached.__dict__ = sc.__dict__
+            sc = cached
         _remember_scan(key, sc)
-        if size > sc.offset:
-            with path.open("rb") as f:
-                f.seek(sc.offset)
-                while True:
-                    chunk = f.read(_READ_CHUNK)
-                    if not chunk:
-                        break
-                    sc.offset += len(chunk)
-                    data = sc.pending + chunk
-                    # 先按物理 CR/LF 分行再解码；CRLF 即使跨块/轮询，空段也可忽略。
-                    lines = re.split(br"[\r\n]", data)
-                    sc.pending = lines.pop()  # 最后一段可能是正在写入的半行
-                    for line in lines:
-                        if not line.strip():
-                            continue
-                        try:
-                            event = _load_record(line.decode("utf-8"))
-                        except (ValueError, RecursionError):
-                            sc.invalid_lines += 1
-                            continue
-                        if _valid_event(event):
-                            sc.feed(event)
-                        else:
-                            sc.invalid_lines += 1
         return sc
 
 
