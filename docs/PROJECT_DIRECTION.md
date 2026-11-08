@@ -35,6 +35,14 @@
 | [#156](https://github.com/amazing-fish/ghost_VPD/pull/156)、[#163](https://github.com/amazing-fish/ghost_VPD/pull/163) | Console 区分最近读取与历史日志，切换运行不串结果；单条损坏证据隔离、修复后重读，详见[运行监控](../vpd_skill/references/console-monitor.md) | 刷新成功不证明进程存活；部分记录不代表完整进度；只读展示不增加真机验收或正式业务覆盖 |
 | [#165](https://github.com/amazing-fish/ghost_VPD/pull/165) | 同 run_id 的冲突摘要不能覆盖既有证据；不确定重放不能掩盖更早的确定失败特征 | 保留原记录与人工审核门禁，不自动晋级；合成一致性验证不证明生产事故或实机结果 |
 
+本轮证据连续性补齐：[#172](https://github.com/amazing-fish/ghost_VPD/pull/172) 原子独占分配运行根目录，
+只允许显式会话恢复，冲突在设备创建前失败；[#173](https://github.com/amazing-fish/ghost_VPD/pull/173)
+限定会话为 runs 下合法单层目录并拒绝链接入口，不扩大为通用操作系统沙箱。
+[#175](https://github.com/amazing-fish/ghost_VPD/issues/175) 观测编号按规范数值及既有事件引用续接，
+缺号、无关条目及遗失目录不会覆盖或重绑定仍有记录的证据；窗口消费者同样按规范编号数值排序。
+正常连续空占位仍跳过，损坏/截断日志不自动修复；会话身份、预算与新鲜窗口门禁不变。
+离线/CI 工程验证不证明用户家庭机现场、实机业务行为或正式覆盖。
+
 资产入口另见 [#151 母版与冻结实例](https://github.com/amazing-fish/ghost_VPD/pull/151)、
 [#153 只读 scope 诊断](https://github.com/amazing-fish/ghost_VPD/pull/153)；重放证据一致性见 [#164](https://github.com/amazing-fish/ghost_VPD/issues/164) 与已合入的 #165。
 

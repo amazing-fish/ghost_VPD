@@ -11,10 +11,23 @@ from . import layout as layout_mod
 from .tree import UiTree
 import re
 
-from .util import append_jsonl, new_id, now_iso, sha256_file, write_json
+from .util import append_jsonl, new_id, now_iso, read_jsonl, sha256_file, write_json
 
 # 页面内失败提示：真机上见过「停车场信息加载失败，」「请重试」。只做提示，不参与判定
 ANOMALY_TEXT = re.compile(r"失败|异常|出错|错误|解析|请重试|重新加载|网络不给力|超时|无法连接|服务繁忙")
+
+
+# These events can reference an observation before/after its final record is written.
+_OBSERVATION_EVENTS = {"observe", "agent_observe", "system_dialog", "observation_stale",
+                       "layout_changed", "ui_alert"}
+
+
+def observation_number(value) -> Optional[int]:
+    """Accept only IDs emitted by the allocator, with ASCII digits and canonical padding."""
+    if not isinstance(value, str) or not re.fullmatch(r"obs-[0-9]{4,}", value):
+        return None
+    number = int(value[4:])
+    return number if number > 0 and value == f"obs-{number:04d}" else None
 
 
 class RunStore:
@@ -36,8 +49,14 @@ class RunStore:
                 break
         (self.dir / "obs").mkdir(exist_ok=resume)
         self.events_path = self.dir / "events.jsonl"
-        existing = [p.name for p in (self.dir / "obs").iterdir()] if (self.dir / "obs").exists() else []
-        self._obs_seq = len(existing)
+        # All occupied canonical names reserve their IDs, including dangling links.
+        numbers = [observation_number(p.name) or 0 for p in (self.dir / "obs").iterdir()]
+        # Missing evidence must not rebind an existing journal reference. Read strictly:
+        # a corrupt/truncated journal is not a safe source of an allocation high-water.
+        for event in read_jsonl(self.events_path):
+            if event.get("event") in _OBSERVATION_EVENTS:
+                numbers.append(observation_number(event.get("obs_id")) or 0)
+        self._obs_seq = max(numbers, default=0)
 
     def event(self, kind: str, **data) -> None:
         rec = {"ts": now_iso(), "event": kind, **data}

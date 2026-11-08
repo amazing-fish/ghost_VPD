@@ -12,7 +12,7 @@ from .execute import Executor
 from .experience import ExperienceStore
 from .explore import explore
 from .knowledge import KnowledgeStore, import_repo_selectors
-from .observe import RunStore
+from .observe import RunStore, observation_number
 from .params import Params
 from .runner import run_case
 from .session import (IDENTITY_KEYS, SessionMismatch, append_blocker, dispatched, effect_unknown, from_session, next_seq,
@@ -189,7 +189,10 @@ def _cmd_observe(ws: Workspace, a) -> dict:
 
 
 def _last_window(store) -> Optional[list]:
-    for d in sorted((store.dir / "obs").iterdir(), reverse=True):
+    candidates = [(observation_number(d.name), d) for d in (store.dir / "obs").iterdir()
+                  if observation_number(d.name) is not None and not d.is_symlink()
+                  and not getattr(d, "is_junction", lambda: False)() and d.is_dir()]
+    for _, d in sorted(candidates, reverse=True):
         obs = read_json(d / "observation.json", {})
         win = (obs.get("layout") or {}).get("window_px")
         if win:
