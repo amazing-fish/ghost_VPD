@@ -127,7 +127,10 @@ def test_record_replay_retains_execution_and_product_projection(verdict_ws):
 
 def _replays(*rows):
     case = {"app": "synthetic", "steps": [], "assertions": []}
+    # These reset scenarios prove actual sequence rather than ingestion order.
     case["replays"] = [{"run_id": f"r{i}", "hash": cases.content_hash(case),
+                        "started": f"2026-01-01T00:00:{2 * i:02d}+00:00",
+                        "finished": f"2026-01-01T00:00:{2 * i + 1:02d}+00:00",
                         "failure_signature": ["assertion:A1:text_present=False"], **row}
                        for i, row in enumerate(rows)]
     return case
