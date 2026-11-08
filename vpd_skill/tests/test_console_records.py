@@ -167,8 +167,9 @@ def test_corrupt_only_events_have_no_invented_verdict(tmp_path):
     assert result["done"] == 0
 
 
+@pytest.mark.parametrize("suppress_exists_errors", [False, True])
 @pytest.mark.parametrize("source", ["events.jsonl", "run.json", "report.md"])
-def test_stat_failure_is_isolated_in_list_and_detail(tmp_path, monkeypatch, source):
+def test_stat_failure_is_isolated_in_list_and_detail(tmp_path, monkeypatch, source, suppress_exists_errors):
     bad = make_run(tmp_path, "run-bad")
     make_run(tmp_path, "run-good")
     original = Path.stat
@@ -179,6 +180,15 @@ def test_stat_failure_is_isolated_in_list_and_detail(tmp_path, monkeypatch, sour
         return original(self, *args, **kwargs)
 
     monkeypatch.setattr(Path, "stat", unavailable)
+    if suppress_exists_errors:
+        # 模拟 Python 3.14 的 exists 语义；当前环境不因此冒充 3.14 运行。
+        def exists_314(self):
+            try:
+                self.stat()
+            except OSError:
+                return False
+            return True
+        monkeypatch.setattr(Path, "exists", exists_314)
     rows = {r["run_id"]: r for r in progress.list_runs(tmp_path)}
     assert rows["run-good"]["state"] == "finished"
     detail = progress.detail(tmp_path, "run-bad")
@@ -225,3 +235,21 @@ def test_real_offline_runner_records_remain_healthy(verdict_ws):
     detail = progress.detail(verdict_ws.runs_dir, row["run_id"])
     assert "read_errors" not in detail
     assert detail["verdict_detail"] == run["verdict"]
+
+
+def test_inaccessible_directory_is_retained_when_path_predicates_suppress_errors(tmp_path, monkeypatch):
+    bad = make_run(tmp_path, "run-bad")
+    make_run(tmp_path, "run-good")
+    original = Path.stat
+
+    def unavailable(self, *args, **kwargs):
+        if self == bad or self == bad / "events.jsonl":
+            raise PermissionError("synthetic directory stat denied")
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", unavailable)
+    monkeypatch.setattr(Path, "is_dir", lambda self: False)
+    rows = {r["run_id"]: r for r in progress.list_runs(tmp_path)}
+    assert rows["run-good"]["state"] == "finished"
+    assert rows["run-bad"]["state"] == "unknown"
+    assert progress.detail(tmp_path, "run-bad")["state"] == "unknown"

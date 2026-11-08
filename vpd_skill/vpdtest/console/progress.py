@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+import stat
 import threading
 import time
 from pathlib import Path
@@ -170,6 +171,15 @@ def _text_fields(record, keys) -> bool:
     return all(record.get(key) is None or isinstance(record[key], str) for key in keys)
 
 
+def _exists(path: Path) -> bool:
+    # Python 3.14 Path.exists() 会吞掉全部 OSError；这里仅把真正缺失当作可选文件缺省。
+    try:
+        path.stat()
+    except FileNotFoundError:
+        return False
+    return True
+
+
 def _check_condition(record) -> None:
     if record is None:
         return
@@ -205,7 +215,7 @@ def summarize(run_dir: Path, now: float | None = None, stale_s: float = 120.0) -
     head = sc.head or {}
     kind = _kind(run_id)
     try:
-        mtime = ev_path.stat().st_mtime if ev_path.exists() else run_dir.stat().st_mtime
+        mtime = ev_path.stat().st_mtime if _exists(ev_path) else run_dir.stat().st_mtime
     except OSError:
         mtime = None
     out = {"run_id": run_id, "kind": kind, "kind_label": KINDS.get(kind, kind), "updated": mtime,
@@ -231,7 +241,7 @@ def summarize(run_dir: Path, now: float | None = None, stale_s: float = 120.0) -
     run_error = None
     if kind == "run" and out.get("finished"):
         try:
-            if run_json.exists():
+            if _exists(run_json):
                 run = _read_run(run_json)
                 v = run.get("verdict") or {}
                 out.update(verdict=v.get("verdict"), verdict_label=v.get("label"), attribution=v.get("attribution"))
@@ -260,16 +270,16 @@ def summarize(run_dir: Path, now: float | None = None, stale_s: float = 120.0) -
 
 def list_runs(runs_dir: Path, limit: int = 40) -> list:
     runs_dir = Path(runs_dir)
-    if not runs_dir.exists():
+    if not _exists(runs_dir):
         return []
     dirs = []
     for d in runs_dir.iterdir():
         if valid_id(d.name) and _kind(d.name) in KINDS:
             try:
-                if not d.is_dir():
+                if not stat.S_ISDIR(d.stat().st_mode):
                     continue
                 ev = d / "events.jsonl"
-                stamp = ev.stat().st_mtime if ev.exists() else d.stat().st_mtime
+                stamp = ev.stat().st_mtime if _exists(ev) else d.stat().st_mtime
             except OSError:
                 stamp = 0.0
             dirs.append((stamp, d))
@@ -282,8 +292,10 @@ def detail(runs_dir: Path, run_id: str, tail: int = 60) -> dict | None:
         return None
     d = Path(runs_dir) / run_id
     try:
-        if not d.is_dir():
+        if not stat.S_ISDIR(d.stat().st_mode):
             return None
+    except FileNotFoundError:
+        return None
     except OSError:
         pass  # 保留已选择的条目，下面返回可诊断的读取失败而非让请求崩溃。
     out = summarize(d)
@@ -294,7 +306,7 @@ def detail(runs_dir: Path, run_id: str, tail: int = 60) -> dict | None:
         _read_problem(out, "events.jsonl", "unreadable")
     rj = d / "run.json"
     try:
-        if rj.exists():
+        if _exists(rj):
             run = _read_run(rj)
             out["steps"] = [_step_detail(s) for s in run.get("steps", [])]
             out["cleanup"] = [_step_detail(s) for s in run.get("cleanup", [])]
@@ -309,7 +321,7 @@ def detail(runs_dir: Path, run_id: str, tail: int = 60) -> dict | None:
         _read_problem(out, "run.json", "unreadable")
     rp = d / "report.md"
     try:
-        out["report"] = str(rp) if rp.exists() else None
+        out["report"] = str(rp) if _exists(rp) else None
     except OSError:
         out["report"] = None
         _read_problem(out, "report.md", "unreadable")
