@@ -14,6 +14,7 @@ from __future__ import annotations
 import ast
 import re
 import subprocess
+from copy import deepcopy
 from pathlib import Path
 from typing import Optional
 
@@ -120,16 +121,30 @@ def _conflicting_expectations(a: dict, b: dict) -> bool:
 class KnowledgeStore:
     def __init__(self, root: Path, facts: Optional[dict] = None):
         self.path = root / "knowledge" / "items.json"
+        self._snapshot_items = None
         self.facts = facts  # 本次运行的事实，由 runner 在前置检查后绑定；None 表示没有运行上下文
+
+    def snapshot(self) -> "KnowledgeStore":
+        """Capture one read-only knowledge version; measured facts can still be bound later."""
+        items = self.items()
+        if not isinstance(items, list):
+            raise ValueError("知识 items 须为列表，无法创建只读快照")
+        snapshot = KnowledgeStore(self.path.parent.parent, deepcopy(self.facts))
+        snapshot._snapshot_items = deepcopy(items)
+        return snapshot
 
     def bind(self, facts: dict) -> "KnowledgeStore":
         self.facts = dict(facts)
         return self
 
     def items(self) -> list:
+        if self._snapshot_items is not None:
+            return deepcopy(self._snapshot_items)  # Callers cannot mutate the captured version.
         return read_json(self.path, {"items": []})["items"]
 
     def _save(self, items: list) -> None:
+        if self._snapshot_items is not None:
+            raise PermissionError("知识快照只读，不能写回；请使用实时知识库办理变更")
         write_json(self.path, {"items": sorted(items, key=lambda i: i["id"])})
 
     def get(self, kid: str) -> Optional[dict]:
