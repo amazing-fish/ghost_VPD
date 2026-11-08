@@ -37,11 +37,6 @@ def make_run(root, name="run-synthetic", ending=b"\r"):
     return path
 
 
-@pytest.fixture(autouse=True)
-def isolated_scan_cache(monkeypatch):
-    monkeypatch.setattr(progress, "_SCANS", {})
-
-
 @pytest.mark.parametrize("endings", [[b"\n"], [b"\r\n"], [b"\r"], ENDINGS])
 @pytest.mark.parametrize("terminated", [False, True])
 def test_recoverable_matches_strict_reader_on_physical_lines(tmp_path, endings, terminated):
