@@ -24,6 +24,8 @@
 
 ## 前提：独立校准专用容器
 
+尚未校准时，先用 [case inspect-scope](scope-inspection.md) 在原证据机器检查候选定位、同一观测身份与结构。诊断不要求先登记 verified，也不会自动登记校准。
+
 输入只能引用 `apps/qiankun_hm/targets.json` 中已登记的目标，不能自行把本次输入标成生产校准。目标必须：
 
 1. `side_effect: read_only`、`forbid_tap: true`，无滚动、输入或 secret。

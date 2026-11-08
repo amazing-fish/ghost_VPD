@@ -107,6 +107,33 @@ def _literal(value: str) -> str:
     return "concat(" + ', "\'", '.join("'" + part + "'" for part in value.split("'")) + ")"
 
 
+def validate_static_scope_target(target: dict) -> str:
+    """Shared static selector check; this does NOT grant template registration.
+
+    The offline inspector additionally rejects all candidate-only extra fields.
+    build_case still requires its existing independently registered calibration.
+    """
+    if (not isinstance(target, dict) or target.get("side_effect") != "read_only"
+            or target.get("forbid_tap") is not True
+            or any(target.get(k) for k in ("scroll", "allow_input", "secret"))):
+        raise ValueError("scope_target 必须 read_only+forbid_tap，不允许滚动/输入/secret")
+    strategies = target.get("strategies")
+    if not isinstance(strategies, list) or len(strategies) != 1 or not isinstance(strategies[0], dict):
+        raise ValueError("scope_target 只支持一个静态树策略，不能回退到其他容器")
+    strategy = strategies[0]
+    if set(strategy) - {"kind", "value", "source"}:
+        raise ValueError("scope 策略不能含 when/region/within 或其他动态选项")
+    value = _text(strategy.get("value"), "scope strategy value", 2048)
+    if strategy.get("kind") == "id":
+        literal = _literal(value)
+        xpath = f"//*[@id={literal} or @key={literal}]"
+    elif strategy.get("kind") == "xpath" and STRUCTURAL_XPATH.fullmatch(value):
+        xpath = value
+    else:
+        raise ValueError("scope 只支持静态 id 或无文本锚点的受限结构 XPath；不得用被测值定位")
+    return xpath
+
+
 def _scope(app, spec, role):
     name = _text(spec.get("scope_target"), "scope_target", 128)
     target = app.targets.get(name)
@@ -135,20 +162,7 @@ def _scope(app, spec, role):
     supplied = _source(spec.get("scope_source"), "scope_source")
     if supplied != calibration_source:
         raise ValueError("scope_source 与当前登记的校准来源不匹配")
-    strategies = target.get("strategies")
-    if not isinstance(strategies, list) or len(strategies) != 1 or not isinstance(strategies[0], dict):
-        raise ValueError("scope_target 只支持一个静态树策略，不能回退到其他容器")
-    strategy = strategies[0]
-    if set(strategy) - {"kind", "value", "source"}:
-        raise ValueError("scope 策略不能含 when/region/within 或其他动态选项")
-    value = _text(strategy.get("value"), "scope strategy value", 2048)
-    if strategy.get("kind") == "id":
-        literal = _literal(value)
-        xpath = f"//*[@id={literal} or @key={literal}]"
-    elif strategy.get("kind") == "xpath" and STRUCTURAL_XPATH.fullmatch(value):
-        xpath = value
-    else:
-        raise ValueError("scope 只支持静态 id 或无文本锚点的受限结构 XPath；不得用被测值定位")
+    xpath = validate_static_scope_target(target)
     return name, target, {**calibration_source, "status": "verified", "validation_level": level}, supplied, xpath
 
 

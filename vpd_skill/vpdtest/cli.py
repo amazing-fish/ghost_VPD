@@ -123,6 +123,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     cs = sub.add_parser("case", help="用例 lint / 探索转候选 / 晋级")
     csub = cs.add_subparsers(dest="case_cmd", required=True)
+    x = csub.add_parser("inspect-scope", help="只读检查历史证据中的候选范围；不校准、不生成预期或用例")
+    x.add_argument("--input", required=True, help="仅包含 template_id 与 candidate_target 的 JSON 文件")
+    x.add_argument("--evidence-dir", required=True, help="本机已有的 run/session 证据目录；不连接设备")
+    x.add_argument("--obs-id", required=True, help="该目录下的单个观测 ID，例如 obs-0001")
     x = csub.add_parser("instantiate", help="预览参数母版的冻结实例；--write 仅新建 draft，不运行或审批")
     x.add_argument("--input", required=True, help="包含模板、独立期望来源与已登记范围目标的 JSON 文件")
     x.add_argument("--write", action="store_true", help="lint 通过后独占创建新用例；不覆盖、不批准、不晋级")
@@ -251,7 +255,9 @@ def main(argv=None) -> int:
             pass
     args = build_parser().parse_args(argv)
     try:
-        ws = Workspace(args.workspace)
+        offline_scope = args.cmd == "case" and args.case_cmd == "inspect-scope"
+        ws = (Workspace(args.workspace, load_local_config=False) if offline_scope
+              else Workspace(args.workspace))
         if getattr(args, "authorize", None):
             ws.policy().check_grants(args.authorize)
         out = HANDLERS[args.cmd](ws, args)
@@ -263,6 +269,9 @@ def main(argv=None) -> int:
                          ensure_ascii=False))
         return 3
     print(dumps(out))
+    if (args.cmd == "case" and args.case_cmd == "inspect-scope"
+            and out.get("inspection_errors")):
+        return 3  # Invalid evidence is a tool error, not a product pass/fail.
     if (args.cmd == "case" and args.case_cmd == "readiness"
             and out.get("summary", {}).get("inspection_errors")):
         return 3  # Report all rows, but never hide an unexpected inspection fault behind exit 0.
