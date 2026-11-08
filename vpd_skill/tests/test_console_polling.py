@@ -230,3 +230,23 @@ const recovered = pollStatus(); pending[2].resolve(good); await recovered;
 assert.equal(inputOn, true);
 for (const id of ['b-back', 'b-home', 'b-wake', 'submit-button']) assert.equal($(id).disabled, false);
 """, with_status=True)
+
+
+def test_partial_record_warning_is_separate_from_original_verdict_and_refresh():
+    run_page("""
+const bad = {...sample('run-bad'), state: 'unknown', progress_reliable: false, total: 5, done: 2,
+  read_errors: [{source: 'events.jsonl', reason: 'invalid_record', count: 1}]};
+const list = pollRuns(); pending[0].resolve({runs: [bad, sample('run-good')]}); await list;
+assert.match($('runs').textContent, /run-good/);
+assert.match($('runs').textContent, /记录异常.*进度未知/);
+assert.match($('runs').textContent, /events.jsonl.*1 行/);
+assert.doesNotMatch($('runs').textContent, /2\\/5/);
+assert.match($('runs-status').textContent, /刷新正常/);
+selected = 'run-bad'; const detail = pollDetail(); pending[1].resolve(bad); await detail;
+assert.match($('detail').textContent, /不能据此确认完整进度/);
+assert.match($('detail').textContent, /结论：通过/);
+assert.match($('detail-status').textContent, /刷新正常/);
+assert.equal(hhmmss(null), '未记录');
+const fixed = pollRuns(); pending[2].resolve({runs: [sample('run-bad')]}); await fixed;
+assert.doesNotMatch($('runs').textContent, /记录异常|不能据此确认/);
+""")
