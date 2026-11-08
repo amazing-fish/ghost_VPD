@@ -31,7 +31,7 @@ def fault(rig, monkeypatch, kind):
     xs = experience.ExperienceStore(rig[0].root, 'motor_hm')
     if kind in ('corrupt', 'disabled'):
         xs.dir.mkdir(parents=True, exist_ok=True)
-        xs.items_path.write_text('{synthetic malformed candidates')
+        xs.items_path.write_text('{synthetic malformed candidates', encoding='utf-8')
     elif kind == 'candidate':
         original = experience.write_json
         def write(path, data, **kw):
@@ -85,7 +85,7 @@ def test_cli_preserves_core_and_error_qualification(rig, monkeypatch, product, k
     assert run['verdict']['execution']['status'] == 'error'
     assert run['verdict']['execution']['errors'][-1]['stage'] == 'experience'
     assert 'experience_candidates' not in run  # Unknown, not an asserted empty/complete list.
-    report = (d / 'report.md').read_text()
+    report = (d / 'report.md').read_text(encoding='utf-8')
     assert '经验候选生成未完成' in report and '可能部分写入' in report
     assert 'synthetic candidate-only fault' not in report
     assert errors[0].run_diagnostic['phase'] == 'experience'
@@ -167,7 +167,7 @@ def test_controls_keep_candidate_contract(rig, monkeypatch, kind):
     assert second['experience_candidates'] == []
     if kind == 'disabled':
         assert first['experience_candidates'] == [] and not before
-        assert xs.items_path.read_text().startswith('{synthetic')
+        assert xs.items_path.read_text(encoding='utf-8').startswith('{synthetic')
     else:
         assert first['experience_candidates']
         items = read_json(xs.items_path)['items']
@@ -233,7 +233,7 @@ def test_preserves_existing_errors_and_alerts(rig, monkeypatch):
     assert v['findings'][:-1] == preserved['findings']
     for key in ('alerts', 'action_required', 'first_anomaly', 'product_verdict'):
         assert v[key] == preserved[key]
-    report = (Path(error.value.run_diagnostic['dir']) / 'report.md').read_text()
+    report = (Path(error.value.run_diagnostic['dir']) / 'report.md').read_text(encoding='utf-8')
     assert report.index('需要人工接管') < report.index('经验候选生成未完成') < report.index('**结论：')
 
 
