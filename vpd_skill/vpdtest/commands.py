@@ -25,7 +25,7 @@ from .workspace import RunContext, Workspace
 
 
 def _session(ws: Workspace, name: str) -> RunStore:
-    return RunStore(ws.runs_dir, f"session-{name}", kind="session")
+    return RunStore(ws.runs_dir, f"session-{name}", kind="session", resume=True)
 
 
 def cmd_doctor(ws: Workspace, a) -> dict:
@@ -46,8 +46,8 @@ def cmd_doctor(ws: Workspace, a) -> dict:
 
 def cmd_unlock(ws: Workspace, a) -> dict:
     from .unlock import unlock_device
-    dev = ws.device(a.device)
     store = RunStore(ws.runs_dir, kind="unlock")
+    dev = ws.device(a.device)
     return unlock_device(ws, dev, store, getattr(a, "lock_secret", None))
 
 
@@ -57,8 +57,8 @@ def cmd_sysdiag(ws: Workspace, a) -> dict:
     --dismiss 时对命中且已评审（class=benign, review=reviewed）的弹窗执行原子能力关闭。"""
     from .sysdialog import diagnose_cover, load_dialogs, resolve_screen_cover
     app = ws.app(a.app)
-    dev = ws.device(a.device)
     store = RunStore(ws.runs_dir, kind="sysdiag")
+    dev = ws.device(a.device)
     store.event("sysdiag_start", device=dev.spec)
     oid, d = store.next_obs_dir()
     diag = diagnose_cover(dev, store, d, load_dialogs(ws.root))
@@ -671,10 +671,10 @@ def cmd_console(ws: Workspace, a) -> dict:
     spec = None if a.no_device else (a.device or ws.config.get("device"))
     if spec and not spec.startswith("hdc:"):
         raise ValueError("控制台只支持真机 hdc:<serial>；回放 world 请用 run/observe")
+    store = RunStore(ws.runs_dir, kind="console")
     device = ws.device(spec) if spec else None
     if device is not None and not device.serial:
         raise ValueError("hdc list targets 没有设备")
-    store = RunStore(ws.runs_dir, kind="console")
     console = Console(device, store, ws.runs_dir, source=a.source, allow_input=not a.view_only,
                       max_fps=a.max_fps, keep_awake_min=a.keep_awake)
 
