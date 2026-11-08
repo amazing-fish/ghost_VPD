@@ -120,88 +120,117 @@ class ExperienceStore:
         incomplete = False
         plan = [(dev, cid, phase) for dev in devices for cid in case_ids for phase in ("baseline", "trial")]
         handoff = None
-        for index in range(0, len(plan), 2):
-            dev, cid, _ = plan[index]
-            base = run_case(cid, dev, self.overlay(baseline_only=True))
-            if base["verdict"].get("action_required"):
-                handoff = (index, base)
-                break
-            trial = run_case(cid, dev, self.overlay(trial=xid))
-            if trial["verdict"].get("action_required"):
-                handoff = (index + 1, trial)
-                break
-            b, t = base["verdict"]["verdict"], trial["verdict"]["verdict"]
-            b_ad, t_ad = _adaptations(base), _adaptations(trial)
-            row = {"case": cid, "device": dev, "baseline": b, "trial": t,
-                   "baseline_run": base["run_id"], "trial_run": trial["run_id"],
-                   "baseline_adaptations": b_ad, "trial_adaptations": t_ad}
-            b_error, t_error = has_execution_error(base["verdict"]), has_execution_error(trial["verdict"])
-            for phase, run in (("baseline", base), ("trial", trial)):
-                row.update({f"{phase}_{k}": run["verdict"][k]
-                            for k in ("execution", "product_verdict", "product_failed", "coverage") if k in run["verdict"]})
-            comparable, coverage_reason = _comparable_coverage(base["verdict"], trial["verdict"])
-            if not comparable:
-                incomplete, row["incomplete"] = True, True
-                row["coverage_reason"] = coverage_reason
-            # 基线能判出的产品失败，试验组却变成阻塞/待确认：执行改动把缺陷藏到了工具问题后面，按回退处理
-            # error 不参与产品结论排序；错误被隐藏为待确认也不算改进。
-            rank = {"failed": 0, "blocked": 1, "pending": 2, "passed": 3}
-            base_failure = b == "failed" or base["verdict"].get("product_failed")
-            trial_failure = t == "failed" or trial["verdict"].get("product_failed")
-            lost_failure = base_failure and not trial_failure and not (t == "passed" and not t_error)
-            if ((not b_error and t_error) or lost_failure
-                    or (not b_error and not t_error and t in rank and b in rank and rank[t] < rank[b])):
-                regress, row["regression"] = True, True
-            reliable_trial = not t_error and t in ("passed", "failed") and comparable
-            if reliable_trial and _exercised(item, trial, cid):
-                exercised.add((cid, dev))
-            if t_error or (b_error and not reliable_trial) or t not in rank or b not in {*rank, "error"}:
-                incomplete, row["incomplete"] = True, True
-            # 改进只认"试验组真的通过"或"结论不变但少用了自适应"；离开 failed 本身不算改进。
-            # 按（用例，设备）分别记：改进必须出现在真正用到这条经验的运行上，不能由别处的改进顶替
-            if reliable_trial and ((t == "passed" and (b != "passed" or b_error))
-                    or (not b_error and t == b and t_ad < b_ad)) and (cid, dev) in exercised:
-                improved.add((cid, dev))
-            rows.append(row)
-        gap = _coverage_gap(item, exercised)
-        if regress:
-            status, reason = "rejected", "试验组相对基线出现回退"
+
+        def finish(interruption=None):
+            gap = _coverage_gap(item, exercised)
+            if regress:
+                status, reason = "rejected", "试验组相对基线出现回退"
+                if interruption:
+                    reason += "；后续验证因执行异常或中断而暂停"
+                if handoff:
+                    reason += "；后续验证因需要人工接管而暂停"
+            elif interruption:
+                status, reason = "candidate", "验证因执行异常或中断而暂停；未完成比较不计为验证通过"
+            elif handoff:
+                status, reason = "candidate", "验证因需要人工接管而暂停；未完成比较不计为验证通过"
+            elif incomplete:
+                status, reason = "candidate", "执行或适用分支证据尚未完成可比的可靠复测；未完成比较不计为验证通过"
+            elif gap:
+                status, reason = "candidate", gap
+            elif not improved:
+                status, reason = "candidate", "与基线相比没有可测量的改进"
+            elif _improvement_gap(item, improved):
+                status, reason = "candidate", _improvement_gap(item, improved)
+            else:
+                status, reason = "validated", ("无回退，且在来源" + ("设备" if item["kind"] == "wait_timeout" else "用例")
+                                               + "之外得到验证并出现改进")
+            result = {"ts": now_iso(), "status": status, "reason": reason, "cases": case_ids, "devices": devices,
+                      "exercised_cases": sorted({c for c, _ in exercised}),
+                      "exercised": sorted(f"{c}@{d}" for c, d in exercised), "rows": rows,
+                      "completed": handoff is None and interruption is None, "not_run": []}
             if handoff:
-                reason += "；后续验证因需要人工接管而暂停"
-        elif handoff:
-            status, reason = "candidate", "验证因需要人工接管而暂停；未完成比较不计为验证通过"
-        elif incomplete:
-            status, reason = "candidate", "执行或适用分支证据尚未完成可比的可靠复测；未完成比较不计为验证通过"
-        elif gap:
-            status, reason = "candidate", gap
-        elif not improved:
-            status, reason = "candidate", "与基线相比没有可测量的改进"
-        elif _improvement_gap(item, improved):
-            status, reason = "candidate", _improvement_gap(item, improved)
-        else:
-            status, reason = "validated", ("无回退，且在来源" + ("设备" if item["kind"] == "wait_timeout" else "用例")
-                                           + "之外得到验证并出现改进")
-        result = {"ts": now_iso(), "status": status, "reason": reason, "cases": case_ids, "devices": devices,
-                  "exercised_cases": sorted({c for c, _ in exercised}),
-                  "exercised": sorted(f"{c}@{d}" for c, d in exercised), "rows": rows,
-                  "completed": handoff is None, "not_run": []}
-        if handoff:
-            stopped, run = handoff
-            dev, cid, phase = plan[stopped]
-            result["action_required"] = run["verdict"]["action_required"]
-            result["handoff"] = {"case": cid, "device": dev, "phase": phase, "run_id": run["run_id"],
-                                 "report": str(Path(run["dir"]) / "report.md"),
-                                 "action_required": result["action_required"]}
-            if phase == "trial":
-                result["handoff"]["baseline_run"] = base["run_id"]
-                result["handoff"]["baseline_report"] = str(Path(base["dir"]) / "report.md")
-            result["not_run"] = [{"case": c, "device": d, "phase": p} for d, c, p in plan[stopped + 1:]]
-        item["validations"].append(result)
-        item["history"].append({"ts": now_iso(), "from": item["status"], "to": status, "why": reason})
-        item["status"] = status
-        self.save_item(item)
-        self.log("validated", id=xid, status=status, reason=reason, rows=len(rows))
-        return result
+                stopped, run = handoff
+                dev, cid, phase = plan[stopped]
+                result["action_required"] = run["verdict"]["action_required"]
+                result["handoff"] = {"case": cid, "device": dev, "phase": phase, "run_id": run["run_id"],
+                                     "report": str(Path(run["dir"]) / "report.md"),
+                                     "action_required": result["action_required"]}
+                if phase == "trial":
+                    result["handoff"]["baseline_run"] = base["run_id"]
+                    result["handoff"]["baseline_report"] = str(Path(base["dir"]) / "report.md")
+                result["not_run"] = [{"case": c, "device": d, "phase": p} for d, c, p in plan[stopped + 1:]]
+            if interruption:
+                result["interruption"] = interruption
+                result["not_run"] = [{"case": c, "device": d, "phase": p} for d, c, p in plan[next_run:]]
+            item["validations"].append(result)
+            item["history"].append({"ts": now_iso(), "from": item["status"], "to": status, "why": reason})
+            item["status"] = status
+            self.save_item(item)
+            self.log("validated", id=xid, status=status, reason=reason, rows=len(rows))
+            return result
+
+        if item["status"] == "validated":
+            item["history"].append({"ts": now_iso(), "from": "validated", "to": "candidate",
+                                    "why": "重新验证开始，暂停旧验证的采纳资格"})
+            item["status"] = "candidate"
+            self.save_item(item)  # Fail closed before any runner invocation.
+        try:
+            for index in range(0, len(plan), 2):
+                dev, cid, _ = plan[index]
+                phase, next_run = "baseline", index + 1
+                base = run_case(cid, dev, self.overlay(baseline_only=True))
+                if base["verdict"].get("action_required"):
+                    handoff = (index, base)
+                    break
+                phase, next_run = "trial", index + 2
+                trial = run_case(cid, dev, self.overlay(trial=xid))
+                if trial["verdict"].get("action_required"):
+                    handoff = (index + 1, trial)
+                    break
+                phase = "comparison"
+                b, t = base["verdict"]["verdict"], trial["verdict"]["verdict"]
+                b_ad, t_ad = _adaptations(base), _adaptations(trial)
+                row = {"case": cid, "device": dev, "baseline": b, "trial": t,
+                       "baseline_run": base["run_id"], "trial_run": trial["run_id"],
+                       "baseline_adaptations": b_ad, "trial_adaptations": t_ad}
+                b_error, t_error = has_execution_error(base["verdict"]), has_execution_error(trial["verdict"])
+                for side, run in (("baseline", base), ("trial", trial)):
+                    row.update({f"{side}_{k}": run["verdict"][k]
+                                for k in ("execution", "product_verdict", "product_failed", "coverage") if k in run["verdict"]})
+                comparable, coverage_reason = _comparable_coverage(base["verdict"], trial["verdict"])
+                if not comparable:
+                    incomplete, row["incomplete"] = True, True
+                    row["coverage_reason"] = coverage_reason
+                # 基线能判出的产品失败，试验组却变成阻塞/待确认：执行改动把缺陷藏到了工具问题后面，按回退处理
+                # error 不参与产品结论排序；错误被隐藏为待确认也不算改进。
+                rank = {"failed": 0, "blocked": 1, "pending": 2, "passed": 3}
+                base_failure = b == "failed" or base["verdict"].get("product_failed")
+                trial_failure = t == "failed" or trial["verdict"].get("product_failed")
+                lost_failure = base_failure and not trial_failure and not (t == "passed" and not t_error)
+                if ((not b_error and t_error) or lost_failure
+                        or (not b_error and not t_error and t in rank and b in rank and rank[t] < rank[b])):
+                    regress, row["regression"] = True, True
+                reliable_trial = not t_error and t in ("passed", "failed") and comparable
+                if reliable_trial and _exercised(item, trial, cid):
+                    exercised.add((cid, dev))
+                if t_error or (b_error and not reliable_trial) or t not in rank or b not in {*rank, "error"}:
+                    incomplete, row["incomplete"] = True, True
+                # 改进只认"试验组真的通过"或"结论不变但少用了自适应"；离开 failed 本身不算改进。
+                # 按（用例，设备）分别记：改进必须出现在真正用到这条经验的运行上，不能由别处的改进顶替
+                if reliable_trial and ((t == "passed" and (b != "passed" or b_error))
+                        or (not b_error and t == b and t_ad < b_ad)) and (cid, dev) in exercised:
+                    improved.add((cid, dev))
+                rows.append(row)
+        except (Exception, KeyboardInterrupt) as error:
+            try:
+                interruption = {"case": cid, "device": dev, "phase": phase,
+                                "error_type": type(error).__name__}
+                interruption.update(_diagnostic_reference(error, self.dir.parent.parent.parent / "runs"))
+                finish(interruption)
+            except (Exception, KeyboardInterrupt):
+                pass  # Evidence persistence must not replace the original failure.
+            raise
+        return finish()
 
     def adopt(self, xid: str, reviewer: Optional[str] = None) -> dict:
         item = self.get(xid)
@@ -327,3 +356,30 @@ def _touches(run: dict, target: str, layout_key: Optional[str] = None) -> bool:
 
 def _pref_key(target: str, layout_key: Optional[str]) -> str:
     return f"{target}@{layout_key}" if layout_key else target
+
+
+def _diagnostic_reference(error, runs: Path) -> dict:
+    """Only link a persisted run diagnostic in this workspace; never copy error payloads."""
+    try:
+        record = getattr(error, "run_diagnostic", None)
+        if not isinstance(record, dict) or record.get("persisted") is not True:
+            return {}
+        run_id = record.get("run_id")
+        if not isinstance(run_id, str) or not run_id.startswith("run-") or Path(run_id).name != run_id:
+            return {}
+        directory = (runs / run_id).resolve()
+        if directory.parent != runs.resolve() or Path(record["dir"]).resolve() != directory:
+            return {}
+        path = directory / "run_diagnostic.json"
+        if path.resolve().parent != directory:
+            return {}
+        saved = read_json(path)
+        expected_state = "interrupted" if isinstance(error, KeyboardInterrupt) else "tool_error"
+        if (not isinstance(saved, dict) or saved.get("schema_version") != 1
+                or saved.get("run_id") != run_id or saved.get("dir") != record["dir"]
+                or saved.get("persisted") is not True or saved.get("state") != expected_state
+                or saved.get("error_type") != type(error).__name__):
+            return {}
+        return {"run_diagnostic": {"run_id": run_id, "path": str(path)}}
+    except (Exception, KeyboardInterrupt):
+        return {}
