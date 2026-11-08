@@ -18,10 +18,23 @@ ANOMALY_TEXT = re.compile(r"失败|异常|出错|错误|解析|请重试|重新�
 
 
 class RunStore:
-    def __init__(self, runs_root: Path, run_id: Optional[str] = None, kind: str = "run"):
-        self.run_id = run_id or new_id(kind)
-        self.dir = Path(runs_root) / self.run_id
-        (self.dir / "obs").mkdir(parents=True, exist_ok=True)
+    def __init__(self, runs_root: Path, run_id: Optional[str] = None, kind: str = "run", *, resume: bool = False):
+        if resume and not run_id:
+            raise ValueError("恢复运行必须显式指定 run_id")
+        root = Path(runs_root)
+        root.mkdir(parents=True, exist_ok=True)
+        for attempt in range(10):
+            self.run_id = run_id if run_id is not None else new_id(kind)
+            self.dir = root / self.run_id
+            try:
+                # Claim the run itself atomically, before creating or reading any evidence.
+                self.dir.mkdir(parents=True, exist_ok=resume)
+            except FileExistsError:
+                if run_id is not None or attempt == 9:
+                    raise
+            else:
+                break
+        (self.dir / "obs").mkdir(exist_ok=resume)
         self.events_path = self.dir / "events.jsonl"
         existing = [p.name for p in (self.dir / "obs").iterdir()] if (self.dir / "obs").exists() else []
         self._obs_seq = len(existing)
