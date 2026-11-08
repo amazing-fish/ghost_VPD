@@ -93,7 +93,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                                  validate_guard(child["when"], condition_defs, step_ids)]
     if condition_issues:
         raise ValueError(f"条件定义无效：{condition_issues}")
-    knowledge, policy = KnowledgeStore(ws.root), ws.policy()
+    knowledge, policy = KnowledgeStore(ws.root).snapshot(), ws.policy()
     for item in case.get("assertions", []) + [s for s, _, _ in iter_case_steps(case, app)]:
         oracle_guards(item.get("oracle_refs", []), knowledge)  # 定义错误在任何设备操作之前拒绝。
     context = review_context(ws, app)

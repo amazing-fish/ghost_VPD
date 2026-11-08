@@ -33,6 +33,23 @@ skill_policy / model_inference / observation / test_goal（测试目标里的期
 - 原工程选择器：`knowledge import-repo --repo .. --file app/config/motor_config.py --var MOTOR_HARMONY_CONFIG`
   用 AST 读取（不 import），生成带文件、行号、提交号的定位线索，状态为 unconfirmed_locator_hints。
 
+## 单次运行的知识快照
+
+`run` 在首次知识校验及资产审核前读取一次只读知识快照。该次运行的条件引用、断言判据、
+最终结论、`case.deps` 和 `knowledge_snapshot` 均使用这份内容，不在运行中重读知识文件。
+快照的读取结果可供调用方使用，但修改返回的容器不能改变快照；`add`、`confirm`、`resolve`
+和底层保存均不能经快照写回。前置检查后仍绑定本次实测 `oracle_facts`，适用范围与场景证据
+照常检查；冻结知识定义不等于冻结或补造现场事实。
+
+运行中新增、确认或退役知识从下一次运行生效。已开始的未确认运行仍为 `pending`，不因
+中途 `confirm` 追改为通过；随后须重新积累确定重放。历史结论与依赖记录不改写。
+普通知识命令、后续运行及当前 `case readiness` / `case promote` 仍读取最新知识，因此当前
+冲突、退役或无效引用会按既有门禁使旧证据失去资格，不能将旧判据结论记为新版本已验证。
+纯确认/历史追加、无关主题、同预期及不重叠范围的依赖指纹语义保持不变。
+
+此边界不提供退役后即时中止在途操作，也不冻结全部文件系统。模板字节与执行源码仍须
+[按现有运行约定保持不变](workflows.md)；模板/代码热更新及 ABA 改动防护不属于知识快照。
+
 ## 探索路径 → 候选用例
 
 `case from-exploration` / `case from-session` 只生成探索资产。人审操作与各级门槛统一见
