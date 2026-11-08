@@ -87,8 +87,12 @@ $env:VPD_SECRET_QIANKUN_PHONE = '<账号>'; $env:VPD_SECRET_QIANKUN_PASSWORD = '
 每次运行输出到 `runs/<run_id>/`：`report.md`、`run.json`、`events.jsonl`、`obs/<id>/{observation.json, tree.json, screen.png}`。
 按 #32 裁决，UI 树、事件、运行汇总与截图保留采集原文，不脱敏，也不因系统覆盖物或窗口查询失败停止取证。截图仍受 APP 白名单约束，业务树仍要求属于本次目标 APP 且观测新鲜；空业务树另留整屏诊断证据。`runs/` 已 gitignore。用例中的账号/密码继续写成 `{"secret": "NAME"}`，由环境变量 `VPD_SECRET_NAME` 或 `config.local.json` 的 `secrets` 提供；生成资产保持外置参数引用。
 
-探索/会话资产须经 `case review` 与人明确确认后的 `case approve --reviewer --basis` 才能晋级或批量使用；
+探索/会话/母版实例资产须经 `case review` 与人明确确认后的 `case approve --reviewer --basis` 才能晋级或批量使用；
 单条未审核诊断仍标 informal。审核不 confirm 产品要求、不授予设备动作，也不自动提升成熟度。
+
+240/241/243 显示规则可由 `case instantiate --input <json>` 预览为字面冻结实例，
+`--write` 只新建未审核 draft，不运行设备、覆盖旧例或继承旧确认。需要独立预期与已登记专用 scope；
+新通用 Oracle 仍为 unconfirmed，当前未登记生产 scope。见[母版与实例边界](references/case-templates.md)。
 
 `act` 的进程退出码 0 表示命令已处理，不能据此认定点击成功：读取 `action_status`、`dispatched`、
 `effect_unknown` 及 `result.outcome`。`policy_denied` / `dispatched=false` 是明确拒发。

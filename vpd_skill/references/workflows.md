@@ -83,9 +83,16 @@
 .\vpdtest.ps1 case promote TC-EXP-001 --to regression --reviewer <评审人>
 ```
 
+## 显示母版与冻结实例
+
+240/241/243 可复用业务规则与当前脚本/证据范围分开管理。先登记独立专用 scope 和独立预期，
+再用 `case instantiate --input <json>` 只读预览；显式 `--write` 只新建未审核 draft。
+不会冷启动或切旧车，也不确认 Oracle、审批或晋级；实际 Runner 的预检副作用仍须另行核对。
+详细 schema、范围、证据要求与限制见[母版说明](case-templates.md)。
+
 ## 探索资产人工审核（#30）
 
-`from-exploration` / `from-session` 只生成探索资产，不授予晋级或批量准入。补齐字段、lint 通过、
+`from-exploration` / `from-session` 只生成探索资产；`case instantiate` 只生成要求审核的母版实例。它们均不授予晋级或批量准入。补齐字段、lint 通过、
 已有 `sources.type=reviewer` 或 `case promote --reviewer` 都不代替本次资产审核。Agent 必须向人提供
 完整用例及来源证据，由人明确确认后才执行 `case approve`；不得自行填审核人来批准自己生成的资产。
 
@@ -127,7 +134,7 @@ unconfirmed → confirmed 不使审核失效；产品知识退役仍使依赖失
 先用 `case readiness [预期用例ID ...]` 只读查看当前成熟度、人审绑定差异和既有晋级门槛。
 不传ID仅枚举目录，不能发现未入仓源件；不提升、不审批、不确认知识。[完整口径与用法](asset-readiness.md)。
 
-每一级均须 `case lint` 无问题；有探索/会话来源时，还须上述当前有效的人工审核。
+每一级均须 `case lint` 无问题；有探索/会话/母版来源时，还须上述当前有效的人工审核。
 候选用例须补齐目的、前置、测试数据（或 `test_data_none: true`）、步骤（目标已登记、终点为已声明状态）、
 至少一条非建议断言且每条有独立 `oracle_refs`、清理和来源；
 假设目标未校准、流程已被证伪或判据来自本次探索观察时，不能靠人审绕过 lint。

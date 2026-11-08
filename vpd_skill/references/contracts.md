@@ -658,3 +658,18 @@ Executor 使用当前观测的 foreground/layout；Dispatcher 紧邻派发重新
 未传入这些事实的旧调用保留拒绝，不把全局 `unknown` 页面升级为首页。`navigation_source` 记录结构节点及被重新分类的规则。
 这只交付浏览入口的受控点击能力；历史 AA 是结构投影，离线 Replay/fake bridge 不证明实机目的页或收藏内容。
 工作机仍须核入口点击后的实际列表；6HQ 的「常去地点/更多」没有按该入口处理，也不随本能力启用生产搜索资产。
+
+
+### 显式严格文本显示 `strict_visible_text`
+
+`text_present` / `text_present_any` 可显式声明 `strict_visible_text: true`，并必须提供已登记树目标
+`within`。非布尔值、无 `within`、或用于其他断言类型均在执行前 lint 拒绝；判定器也独立拒绝。
+未声明或合法的 `false` 保持旧语义，不改变既有用例。
+
+严格模式先要求 scope 唯一、非根、完整可见且无隐藏祖先，再检查 scope 子树中全部非空真实 `text`
+节点：节点及祖先链可见、当前 `visible_rect` 与原始 `bounds` 精确相等，且节点矩形完整包含在 scope
+矩形内。中间滚动容器裁剪、1像素越界、隐藏文本或越出scope但仍在屏内均不合格；不使用经过舍入的
+`visible_fraction`。不合格返回 `undeterminable` 并保留节点几何证据，不据此证明文本缺失。
+合格后 `text_present` 只匹配该真实 `text` 属性，绝不以 `description` 借名；`text_present_any`
+仍是给定字面子串的任一命中。名称/数量/楼层冻结母版全部显式开启，另用静态结构断言检查额外或重复标签。
+这只验证当前UI树支持的显示证据，不证明后台地图全集、未暴露的虚拟化项或任意像素渲染。

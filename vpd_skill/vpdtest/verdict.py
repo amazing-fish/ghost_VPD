@@ -168,7 +168,7 @@ def _check(a: dict, obs: dict, tree: UiTree, app) -> tuple:
     """返回 (holds: bool|None, evidence: dict)。None 表示证据不足。"""
     t = a["type"]
     ev = {"obs": obs["obs_id"], "tree": obs.get("tree", {}).get("path"), "screenshot": obs.get("screenshot", {}).get("path")}
-    if "within" in a:
+    if "within" in a or "strict_visible_text" in a:
         from .cases import assertion_scope_issues
         problems = assertion_scope_issues({"assertions": [a]}, app)
         if problems:
@@ -216,17 +216,39 @@ def _check(a: dict, obs: dict, tree: UiTree, app) -> tuple:
             return None, {**ev, "reason": "断言容器不是可信的可见子树，不回退到整页"}
         ev["within"]["node"] = container.brief()
         scope = [container]
+    strict_nodes = None
+    if a.get("strict_visible_text") is True:
+        # Opt-in display evidence is stricter than historical text presence:
+        # description cannot stand in for a label, and every real text node in
+        # the dedicated scope must be fully exposed in that same rectangle.
+        # Compare exact geometry, not the locator's rounded visible fraction.
+        strict_nodes = [node for node in tree.nodes if tree.in_scope(node, scope) and node.text.strip()]
+        invalid = []
+        left, top, right, bottom = scope[0].bounds
+        for node in strict_nodes:
+            bounds = node.bounds
+            contained = bool(bounds and left <= bounds[0] < bounds[2] <= right
+                             and top <= bounds[1] < bounds[3] <= bottom)
+            visible = tree.visible_rect(node)
+            if not contained or visible != bounds or not tree.visible_lineage(node):
+                invalid.append({"node": node.brief(), "visible": list(visible) if visible else None,
+                                "inside_scope": contained, "visible_lineage": tree.visible_lineage(node)})
+        ev["strict_visible_text"] = {"text_nodes": len(strict_nodes), "invalid": invalid[:10]}
+        if invalid:
+            return None, {**ev, "reason": "专用容器的真实text节点含隐藏、裁剪或越界内容，不能验证显示"}
     def in_scope(node):
         return tree.in_scope(node, scope) and (scope is None or tree.visible_lineage(node))
     if t == "text_present_any":
         # 任一文本（子串）出现即成立，例如故障提示的几种可能措辞；措辞本身须来自已确认判据。
         # 只看可见矩形非空的节点：被列表裁到可视区外的条目用户看不到，不能当作"出现了"
-        hits = [x for x in a["any"] for n in tree.nodes
+        hits = [x for x in a["any"] for n in (strict_nodes if strict_nodes is not None else tree.nodes)
                 if tree.visible_rect(n) and in_scope(n) and x in (n.text or "")]
         ev["matched"] = sorted(set(hits))
         return bool(hits), ev
     if t in ("text_present", "text_absent"):
-        hits = [n for n in tree.find_text(a["text"], exact=a.get("exact", True)) if in_scope(n)]
+        hits = ([n for n in strict_nodes if (n.text == a["text"] if a.get("exact", True) else a["text"] in n.text)]
+                if strict_nodes is not None else
+                [n for n in tree.find_text(a["text"], exact=a.get("exact", True)) if in_scope(n)])
         ev["matches"] = [n.brief() for n in hits[:3]]
         return (bool(hits) if t == "text_present" else not hits), ev
     if t in ("target_present", "target_absent", "target_text_equals", "node_selected", "target_enabled"):
@@ -371,6 +393,15 @@ def evaluate_assertion(a: dict, steps: dict, load: Callable, knowledge, app, con
            "advisory": bool(a.get("advisory")), "oracle_refs": a.get("oracle_refs", []),
            "severity": a.get("severity", "major"), "at": a.get("at"), "verified": False,
            "applicable": None, "facts": dict(knowledge.facts or {})}
+    if "strict_visible_text" in a:
+        # Validate even assertion types with dedicated paths that bypass _check
+        # (value_present, seen/visual checks), and before applicability can skip it.
+        from .cases import assertion_scope_issues
+        problems = assertion_scope_issues({"assertions": [a]}, app)
+        if problems:
+            return {**out, "result": "error", "attribution": "tool", "stage": "assertion_scope",
+                    "error_class": "invalid_assertion_scope", "error": problems,
+                    "reason": "严格文本显示断言定义无效"}
     step = steps.get(a.get("at"))
     guards = ([a["guard"]] if "guard" in a else []) + oracle_guards(a.get("oracle_refs", []), knowledge)
     # 旧 read 资产以 measurement 为独立证据，不强加从未需要的 UI 观测。

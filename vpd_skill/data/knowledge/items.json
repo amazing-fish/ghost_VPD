@@ -3377,6 +3377,75 @@
       "confirmed_by": "用户（当前会话）",
       "confirmed_at": "2026-10-26T02:34:30.409+08:00",
       "confirm_basis": "当前会话用户逐条审阅并明确授权；审阅快照 2d7a98a4730794d3a565a1780e2177eb58669e9cc6f7ae5cfcdbe9696320798c；docs/reviews/K89_20261026.json；仅对应显示/导航子范围，原表完整验收待核"
+    },
+    {
+      "id": "K-QK-TPL-240",
+      "kind": "requirement",
+      "subject": "qiankun_hm.display_template.parking_name",
+      "statement": "通用化候选：VPD首页中已核定的当前园区名称容器，应完整显示独立测试数据来源给出的停车场名称。仅核字段显示及归属，不证明地图完整加载或车辆在图内。",
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "status": "unconfirmed",
+      "source": {
+        "type": "test_goal",
+        "ref": "2026-11-08 用户说明“大部分用例不受限车辆园区和版本”；Refs #65 / #135。由TC-QK-240的显示子范围提炼通用化候选，不复制旧条目的确认。"
+      },
+      "note": "尚未确认的规则提案。实际APP/build、车辆、园区与形态是每次证据范围，不能由一次观察推定普遍覆盖。独立预期与范围校准来源须审查；生成器只校验声明结构，不认证外部数据真实性。",
+      "created": "2026-11-08T03:23:23+00:00",
+      "history": [
+        {
+          "ts": "2026-11-08T03:23:23+00:00",
+          "to": "unconfirmed",
+          "why": "参数母版规则提案；未执行knowledge confirm或资产批准"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-TPL-241",
+      "kind": "requirement",
+      "subject": "qiankun_hm.display_template.parking_count",
+      "statement": "通用化候选：VPD首页中已核定的当前园区车位数量容器，应显示格式为“共 N 个”的正整数数量（两处各一个ASCII空格，N仅含ASCII数字且无前导零）。仅核格式与归属，不证明N与真实全部地图车位一致；零值与其他统计口径不在本候选内。",
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "status": "unconfirmed",
+      "source": {
+        "type": "test_goal",
+        "ref": "2026-11-08 用户说明“大部分用例不受限车辆园区和版本”；Refs #65 / #135。由TC-QK-241的显示子范围提炼通用化候选，不复制旧条目的确认。"
+      },
+      "note": "尚未确认的规则提案。实际APP/build、车辆、园区与形态是每次证据范围，不能由一次观察推定普遍覆盖。独立预期与范围校准来源须审查；生成器只校验声明结构，不认证外部数据真实性。",
+      "created": "2026-11-08T03:23:23+00:00",
+      "history": [
+        {
+          "ts": "2026-11-08T03:23:23+00:00",
+          "to": "unconfirmed",
+          "why": "参数母版规则提案；未执行knowledge confirm或资产批准"
+        }
+      ]
+    },
+    {
+      "id": "K-QK-TPL-243",
+      "kind": "requirement",
+      "subject": "qiankun_hm.display_template.floor_labels",
+      "statement": "通用化候选：VPD首页已核定且完整暴露楼层标签的专用控件组，应显示独立测试数据来源给出的非空楼层标签集合，各标签恰好一次，无额外非空标签；标签显示次序不作要求。只核当前容器显示，不验证隐藏或虚拟化标签、切层、图面或车辆实际楼层。",
+      "applies_to": {
+        "app": "qiankun_hm"
+      },
+      "status": "unconfirmed",
+      "source": {
+        "type": "test_goal",
+        "ref": "2026-11-08 用户说明“大部分用例不受限车辆园区和版本”；Refs #65 / #135。由TC-QK-243的显示子范围提炼通用化候选，不复制旧条目的确认。"
+      },
+      "note": "尚未确认的规则提案。实际APP/build、车辆、园区与形态是每次证据范围，不能由一次观察推定普遍覆盖。独立预期与范围校准来源须审查；生成器只校验声明结构，不认证外部数据真实性。",
+      "created": "2026-11-08T03:23:23+00:00",
+      "history": [
+        {
+          "ts": "2026-11-08T03:23:23+00:00",
+          "to": "unconfirmed",
+          "why": "参数母版规则提案；未执行knowledge confirm或资产批准"
+        }
+      ]
     }
   ]
 }
