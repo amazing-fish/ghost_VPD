@@ -258,8 +258,12 @@ class HdcDevice:
         cmd = [self.hdc] + (["-t", self.serial] if with_target and self.serial else []) + args
         t0 = time.monotonic()
         try:
+            # PIN values belong to the host unlock code, never to HDC subprocesses.
             r = subprocess.run(cmd, capture_output=True, timeout=timeout or self.timeout_s,
-                               creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
+                               creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+                               env={k: v for k, v in os.environ.items()
+                                    if not (k.upper() == "VPD_SECRET_LOCK_PIN" or
+                                            k.upper().startswith("VPD_SECRET_LOCK_PIN_"))})
         except FileNotFoundError:
             return DeviceResult(op, False, False, "tool_missing", f"找不到 {self.hdc}，请确认已加入 PATH")
         except subprocess.TimeoutExpired as e:
