@@ -76,6 +76,11 @@ def render_run(run: dict) -> str:
     out = [f"# 测试报告：{c['id']} {c.get('title') or ''}", ""]
     for al in v.get("alerts") or []:
         out.append(f"> **需要人工接管：{_esc(al['action_required'])}**（{_esc(al['kind'])}，触发：{_esc(al.get('trigger'))}）\n")
+    for error in (v.get("execution") or {}).get("errors") or []:
+        if error.get("stage") == "experience":
+            out.append("> **经验候选生成未完成**（" + _esc(error.get("error_class"))
+                       + "）。候选可能部分写入；以下保留核心产品结果，本次执行为工具错误。\n")
+            break
     out += [f"**结论：{v['label']}**" + (f"　问题归属：{v['attribution_label']}" if v.get("attribution_label") else "")
             + ("　（另有产品失败，见下文）" if v["verdict"] != "failed" and v.get("product_failed") else ""), ""]
     if v.get("execution"):

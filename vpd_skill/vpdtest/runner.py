@@ -30,6 +30,8 @@ from .report import render_run
 from .tree import UiTree
 from .util import now_iso, read_json, read_jsonl, write_json
 from .verdict import (
+    ATTR_LABEL,
+    LABEL,
     PASSED,
     case_verdict,
     evaluate_assertion,
@@ -340,7 +342,34 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                                  for e in read_jsonl(store.events_path)
                                  if e.get("event") == "capability_result" and e.get("capability") == "system_dialog"]
         diagnostic.phase = "experience"
-        run["experience_candidates"] = [c["id"] for c in xstore.propose_from_run(run)] if propose else []
+        try:
+            run["experience_candidates"] = [c["id"] for c in xstore.propose_from_run(run)] if propose else []
+        except (Exception, KeyboardInterrupt) as error:
+            # Core evidence is complete; proposal may already have written candidates.
+            # Keep product findings and their chronology, but never qualify this as
+            # a successful execution or let secondary persistence mask the cause.
+            try:
+                run["finished"] = now_iso()
+                failure = {"kind": "experience", "result": "error", "attribution": "tool",
+                           "stage": "experience", "error_class": type(error).__name__,
+                           "reason": "经验候选生成未完成，候选可能部分写入；核心产品结论保留"}
+                verdict["findings"].append(failure)
+                verdict["execution"]["errors"].append(failure)
+                verdict["execution"]["status"] = "error"
+                verdict.update(verdict="error", label=LABEL["error"], attribution="tool",
+                               attribution_label=ATTR_LABEL["tool"])
+            except (Exception, KeyboardInterrupt):
+                pass  # Never persist an unqualified result or mask the proposal error.
+            else:
+                try:
+                    write_json(store.dir / "run.json", run)
+                except (Exception, KeyboardInterrupt):
+                    pass
+                try:
+                    (store.dir / "report.md").write_text(render_run(run), encoding="utf-8")
+                except (Exception, KeyboardInterrupt):
+                    pass
+            raise
         diagnostic.phase = "run_record"
         write_json(store.dir / "run.json", run)
         diagnostic.phase = "report"
