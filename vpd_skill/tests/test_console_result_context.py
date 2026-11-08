@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+
 from vpdtest.console import progress
 from vpdtest.util import append_jsonl, write_json
 
@@ -66,9 +67,10 @@ class Node {
   setAttribute() {}
   addEventListener() {}
   get textContent() { return this.children.map(x => x instanceof Node ? x.textContent : x).join(' '); }
+  set textContent(value) { this.children = [value]; }
 }
 const document = { createElement: () => new Node() };
-const detail = new Node(), $ = () => detail, api = async () => payload;
+const detail = new Node(), status = new Node(), $ = (id) => id === 'detail' ? detail : status, api = async () => payload;
 let selected = payload.run_id, lastRuns = '';
 """
     harness += constants + element + functions + """
