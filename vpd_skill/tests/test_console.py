@@ -146,7 +146,7 @@ def test_progress_counts_survive_large_event_files_and_read_incrementally(tmp_pa
         f.write(b'ne", "step": "S2", "outcome": "passed"}\n')
     s = progress.summarize(d)
     assert (s["done"], s["current"], s["events"]) == (2, None, 3006)
-    assert progress._SCANS[str((d / "events.jsonl").resolve())].offset > size   # 增量读取，不重读整个文件
+    assert progress._SCANS[str((d / "events.jsonl").resolve())].offset > size   # 已消费追加字节；旧前缀仍须验证，只有 JSON 解析是增量的
     (d / "events.jsonl").write_text('{"ts": "t", "event": "run_start", "case": "TC-N", "steps": ["S1"]}\n',
                                     encoding="utf-8")
     s = progress.summarize(d)

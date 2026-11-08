@@ -34,6 +34,8 @@
 | [#162](https://github.com/amazing-fish/ghost_VPD/pull/162) | 当前动作效果未知且需要接管时，停止顶层/flow/recipe 的依赖后继，并保留原失败来源 | 外层独立补偿与必要安全停止仍执行；离线证据不证明实机安全停止，旧资产审核可能需人工复核 |
 | [#156](https://github.com/amazing-fish/ghost_VPD/pull/156)、[#163](https://github.com/amazing-fish/ghost_VPD/pull/163) | Console 区分最近读取与历史日志，切换运行不串结果；单条损坏证据隔离、修复后重读，详见[运行监控](../vpd_skill/references/console-monitor.md) | 刷新成功不证明进程存活；部分记录不代表完整进度；只读展示不增加真机验收或正式业务覆盖 |
 | [#165](https://github.com/amazing-fish/ghost_VPD/pull/165) | 同 run_id 的冲突摘要不能覆盖既有证据；不确定重放不能掩盖更早的确定失败特征 | 保留原记录与人工审核门禁，不自动晋级；合成一致性验证不证明生产事故或实机结果 |
+| [#171](https://github.com/amazing-fish/ghost_VPD/pull/171)、[#176](https://github.com/amazing-fish/ghost_VPD/pull/176) | Console可检索全部历史，明确手动快照；会话与监控按物理换行读证据，截断UTF-8整条留证、不把可解析前缀当完成事件 | 不证明进程存活，不自动修复或重签；既有截断续写阻挡保持，工程通过不增加业务覆盖 |
+| [#179](https://github.com/amazing-fish/ghost_VPD/pull/179) | 同次运行的知识判据、摘要和依赖绑定开始时的同一只读知识快照 | 中途知识编辑从下次运行生效；当前晋级仍核最新知识，历史不追改，不声称冻结全部文件系统输入 |
 
 本轮证据连续性补齐：[#172](https://github.com/amazing-fish/ghost_VPD/pull/172) 原子独占分配运行根目录，
 只允许显式会话恢复，冲突在设备创建前失败；[#173](https://github.com/amazing-fish/ghost_VPD/pull/173)
