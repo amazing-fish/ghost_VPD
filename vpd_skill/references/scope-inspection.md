@@ -10,7 +10,7 @@
 .\vpdtest.ps1 case inspect-scope --input .\scope-candidate.json --evidence-dir .\runs\session-example --obs-id obs-0001
 ```
 
-输入 JSON 仅含以下两项。下面是**合成示意**，不是已验证生产定位：
+输入 JSON 必须含以下两项，可选增加 scope_shape（见下方 v2 说明）。下面是**合成示意**，不是已验证生产定位：
 
 ```json
 {
@@ -41,9 +41,9 @@
 `shape.compatible=true` 可能与 incomplete/conflict 并存：结构相容不代表材料完整一致。还须核 evidence_usable、issues 与 inspection_errors，不能只看一个布尔值。
 退出码 0 只表示诊断命令完成，包括缺材料或结构不相容；参数/工具错误及 inspection_errors 非空返回 3。不能用退出码替代字段检查。
 
-240/241 检查专用容器自身无非空 text、且恰有一个非空 text 后代。243 列出观测到的 text 集合及重复情况，检查当前母版结构，不把观测集合变成 expected_floors。隐藏祖先、description 借名、子节点裁剪或越出 scope 都不能提供完整显示证据。
+默认 text_container 模式下，240/241 检查专用容器自身无非空 text、且恰有一个非空 text 后代。243 列出观测到的 text 集合及重复情况，检查当前母版结构，不把观测集合变成 expected_floors。隐藏祖先、description 借名、子节点裁剪或越出 scope 都不能提供完整显示证据。
 
-混合信息行、整页根节点、带自身 text 的叶节点可能不符合现母版；诊断须如实报告，不能为了生成实例伪登记。真实 UI 若没有合适的专用容器，后续另做适配，不改变产品要求来凑通过。
+混合信息行、整页根节点、带自身 text 的叶节点不符合默认容器模式；诊断须如实报告，不能为了生成实例伪登记。真实 UI 若没有合适的专用容器，后续另做适配，不改变产品要求来凑通过。
 
 ## 证据边界
 
@@ -68,3 +68,11 @@
 后续现场的最小步骤由现场负责人协调：保持用户已准备的车辆和 VPD 首页，用现有 observe 入口采一份同次观测的树/截图及版本/形态元数据（顺序采集，不承诺像素级原子同帧）；原件留在本机。不要为了校准冷启动、切回旧车或触发激活。页面变化/弹窗/锁屏则先报告状态，不把离线诊断当动作授权。
 
 Refs [#65](https://github.com/amazing-fish/ghost_VPD/issues/65)、[#135](https://github.com/amazing-fish/ghost_VPD/issues/135)。
+
+## v2 显式形态选择
+
+JSON 可额外指定 `"scope_shape": "text_leaf"`，仅 TC-QK-240 支持；省略字段仍只检查旧 `text_container`，绝不自动选择兼容形态。241/243 只允许容器，null/false/空串等非法选择直接拒绝。诊断结果 schema=2，明确返回 scope_shape、supported_shapes 和 template_version=2，包括材料缺失或定位失败时。
+
+叶模式检查非根 Text、自身非空真实 text、无任何子节点、全部定位命中唯一（隐藏重复也计数）、完整可见几何和祖先可见。叶的父 Row 可以含其他信息，但所选 scope 只能是该 Text，不能因此接受混合 Row。原两字段调用对同一个叶仍报告不相容，避免旧诊断静默改变含义。诊断不会读取/生成 expected_name，也不会登记校准、确认 Oracle、创建实例或授予执行资格。真实业务角色与像素核验仍保留缺口。
+
+例如把上述候选的 id 换成独立登记前拟检查的合成叶 id，并增加 scope_shape 字段即可预检；不要把名称本身作为 id/XPath 文本锚点。实例化时还必须另行完成同形态独立登记与真值来源核对，见[母版 v2 边界](case-templates.md)。

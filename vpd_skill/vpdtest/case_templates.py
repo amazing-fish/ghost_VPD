@@ -36,7 +36,12 @@ means calibration is still required. Structural XPath permits only element paths
 and positive positional predicates, not text predicates, functions, or parameters.
 This deliberately small selector subset may be extended after separate calibration.
 
-Scope contract: a dedicated, fully exposed text container, not the page/root or
+Version 2 also accepts explicit scope_shape=text_leaf for 240 only, with matching
+registered shape. It requires a unique, non-root Text with no children and real
+nonempty text. The default remains text_container; no automatic fallback. Shape
+and version are frozen in new instances; existing cases are never migrated.
+
+Default scope contract: a dedicated, fully exposed text container, not the page/root or
 a mixed card. Name/count contain one text-bearing descendant; floor labels each
 occur once, with no other nonempty text-bearing descendants. Existing text_present
 within checks use strict_visible_text=true: only real @text labels can match,
@@ -60,7 +65,7 @@ import re
 
 from .util import sha256_obj
 
-TEMPLATE_VERSION = 1
+TEMPLATE_VERSION = 2
 TEMPLATES = {
     "TC-QK-240": {"role": "parking_name", "title": "停车场名称显示", "oracle": "K-QK-TPL-240"},
     "TC-QK-241": {"role": "parking_count", "title": "车位数量正整数显示", "oracle": "K-QK-TPL-241"},
@@ -134,7 +139,17 @@ def validate_static_scope_target(target: dict) -> str:
     return xpath
 
 
+def scope_shape(template_id, spec):
+    """Explicit opt-in only; absence keeps the original container contract."""
+    shape = spec.get("scope_shape", "text_container")
+    supported = ("text_container", "text_leaf") if template_id == "TC-QK-240" else ("text_container",)
+    if not isinstance(shape, str) or shape not in supported:
+        raise ValueError("scope_shape 仅240支持显式 text_leaf；默认及241/243只支持 text_container")
+    return shape
+
+
 def _scope(app, spec, role):
+    shape = scope_shape(spec["template_id"], spec)
     name = _text(spec.get("scope_target"), "scope_target", 128)
     target = app.targets.get(name)
     if not isinstance(target, dict):
@@ -144,8 +159,8 @@ def _scope(app, spec, role):
         raise ValueError("scope_target 必须 read_only+forbid_tap，不允许滚动/输入/secret")
     registration = target.get("template_scope")
     if (not isinstance(registration, dict) or registration.get("role") != role
-            or registration.get("shape") != "text_container"):
-        raise ValueError("scope_target 缺少匹配角色的专用 text_container 登记；仍待校准")
+            or registration.get("shape") != shape):
+        raise ValueError("scope_target 缺少匹配角色与 scope_shape 的专用范围登记；仍待校准")
     cal = registration.get("calibration")
     if not isinstance(cal, dict) or cal.get("status") != "verified":
         raise ValueError("scope_target 校准证据尚未核实；不能由本次输入自封已校准")
@@ -169,7 +184,7 @@ def _scope(app, spec, role):
 def _target(xpath: str) -> dict:
     return {"label": "冻结显示断言（代码构造）", "side_effect": "read_only", "forbid_tap": True,
             "strategies": [{"kind": "xpath", "value": xpath}],
-            "source": "case_templates v1: fixed structural check; values are escaped XPath literals"}
+            "source": "case_templates v2: fixed structural check; values are escaped XPath literals"}
 
 
 def build_case(app, spec: dict) -> dict:
@@ -177,7 +192,7 @@ def build_case(app, spec: dict) -> dict:
     if not isinstance(spec, dict):
         raise ValueError("模板输入须为 JSON 对象")
     allowed = {"template_id", "new_case_id", "scope_target", "scope_source", "expected_source",
-               "expected_name", "expected_floors"}
+               "expected_name", "expected_floors", "scope_shape"}
     if set(spec) - allowed:
         raise ValueError(f"模板输入含未支持字段：{sorted(set(spec) - allowed)}")
     template_id = _text(spec.get("template_id"), "template_id")
@@ -186,6 +201,7 @@ def build_case(app, spec: dict) -> dict:
     if app.id != "qiankun_hm":
         raise ValueError("这些显示母版只属于 qiankun_hm")
     template = TEMPLATES[template_id]
+    shape = scope_shape(template_id, spec)
     case_id = validate_case_id(spec.get("new_case_id"))
     expected_source = _source(spec.get("expected_source"), "expected_source", expected=True)
     scope, target, cal, scope_source, xpath = _scope(app, spec, template["role"])
@@ -220,9 +236,15 @@ def build_case(app, spec: dict) -> dict:
     predicates = ["not(normalize-space(@text))"]
     if template_id == "TC-QK-240":
         assertion("A_NAME", "text_present", text=values["expected_name"], exact=True, within=scope,
-                  desc="独立预期的完整名称出现在同一专用容器")
-        predicates += [f"count({nodes}) = 1",
-                       f"count({nodes}[@text={_literal(values['expected_name'])}]) = 1"]
+                  desc="独立预期的完整名称出现在同一专用范围")
+        if shape == "text_leaf":
+            # Count the independent raw selector before shape/value filtering:
+            # hidden or wrong-valued duplicates must not become unique matches.
+            predicates = [f"count({xpath}) = 1", "parent::*", "self::Text", "not(*)",
+                          "normalize-space(@text) != ''", f"@text={_literal(values['expected_name'])}"]
+        else:
+            predicates += [f"count({nodes}) = 1",
+                           f"count({nodes}[@text={_literal(values['expected_name'])}]) = 1"]
     elif template_id == "TC-QK-241":
         assertion("A_COUNT_VISIBLE", "text_present_any", any=["共 "], within=scope,
                   desc="完整可见的同一专用数量容器中显示数量文案")
@@ -245,7 +267,7 @@ def build_case(app, spec: dict) -> dict:
               desc="读取同一帧必须仍是VPD首页；页面签名不证明车辆/园区身份或地图完整性")
 
     frozen_inputs = {"template_id": template_id, "template_version": TEMPLATE_VERSION,
-                     "scope_target": scope, "scope_source": scope_source, "expected_source": expected_source,
+                     "scope_shape": shape, "scope_target": scope, "scope_source": scope_source, "expected_source": expected_source,
                      "scope_target_hash": sha256_obj(target), **values}
     return deepcopy({
         "id": case_id, "version": 1, "status": "draft", "app": app.id,
@@ -257,11 +279,11 @@ def build_case(app, spec: dict) -> dict:
                    "calibration": cal, "source_verification": "declared_registration_only_requires_human_review"},
         "preconditions": ["人工准备并核实当前车辆/园区及VPD首页，本例不启动APP、切车或操作车辆。",
                           "设备已解锁且页面无待处置弹窗；既有Runner预检/打断机制仍可能动作，运行前须另行核对。",
-                          "scope已独立登记为完整暴露的专用text容器；版本/build属于校准证据，不是固定业务前提。"],
+                          "scope已独立登记为所选形态的完整暴露专用text范围；版本/build属于校准证据，不是固定业务前提。"],
         "env_requirements": {}, "test_data": frozen_inputs, "test_data_none": False, "authorizations": [],
         "steps": [{"id": "S_DISPLAY", "action": "read", "target": scope, "read_scope": "self",
                    "measure": "display_raw", "retry": 0, "timeout_s": 0, "critical": True,
-                   "oracle_refs": [oracle], "desc": "只从独立定位容器读取实际原文，不从实际值生成预期"}],
+                   "oracle_refs": [oracle], "desc": "只从独立定位范围读取实际原文，不从实际值生成预期"}],
         "assertions": assertions,
         "cleanup": [{"id": "C_OBSERVE", "action": "wait", "duration_s": 0, "retry": 0,
                      "timeout_s": 0, "critical": True, "desc": "只读终态观察；无业务状态修改需要恢复"}],

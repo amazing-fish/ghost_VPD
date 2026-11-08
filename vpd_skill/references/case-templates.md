@@ -97,3 +97,15 @@ ID 仅接受 `TC-` 开头的大写字母/数字/连字符新 ID，不能覆盖�
 5. 明确建议：可先审 candidate，或因 scope/Oracle/重放欠缺继续补证。**不自动执行 approve、confirm、promote。**
 
 关联：[#65](https://github.com/amazing-fish/ghost_VPD/issues/65)、[#135](https://github.com/amazing-fish/ghost_VPD/issues/135)；[审核与晋级工作流](workflows.md#探索资产人工审核30)、[依赖与重放](knowledge-rsi.md)、[资产 readiness](asset-readiness.md)。
+
+## v2：240 显式 Text 叶节点范围
+
+新增可选输入 `scope_shape`，省略时仍严格使用 `text_container`。仅 TC-QK-240 支持显式 `"scope_shape": "text_leaf"`；241/243 不扩展。null、false、空串和未知值均拒绝，不能自动 fallback。实例与离线诊断使用同一字段。
+
+叶模式须独立登记 `template_scope.role: parking_name`、`template_scope.shape: text_leaf`；校准 status/source/ref/validation_level、目标 status、只读静态定位等门禁不变。输入形态必须与登记精确匹配，不能借用容器校准。没有独立校准或独立 expected_name 时仍不能生成有效实例。
+
+此模式只接受唯一、非根、完整可见的 Text 叶节点，有非空真实 @text 且没有任何子节点（空子节点也拒绝）。不把混合 Row 当名称容器，不采用 description。读取仍使用独立静态 id/结构 XPath，不绑定 expected；错误名称可定位、可读取，并由完整 exact 名称断言失败。同一帧 VPD 首页断言和 strict_visible_text 的精确矩形/隐藏祖先检查保留。额外 shape 断言先统计原始定位 XPath 全部命中（包括隐藏/错值重复），再核叶形态与名称，不能筛掉不合格重复后冒充唯一。
+
+合成输入示意：在原240输入中增加 `"scope_shape": "text_leaf"`，另行准备已登记的合成 text_leaf 目标及独立预期。此示意不是生产校准，不得把观测到的名称反填预期。树几何完整不证明像素级裁切/省略或真实业务角色，仍需人工核对。
+
+新建实例的 template_version 为2，origin.inputs/test_data 冻结 scope_shape、版本与完整 target hash。默认容器断言语义不变，但新增版本/冻结字段会改变新生成实例的字节/hash。已有冻结实例不自动迁移、重写或重绑；引擎内容变化仍通过既有 engine_hash 使旧审核需重新核对。形态、登记来源或版本变化纳入内容/依赖审核绑定。Oracle确认状态、241业务格式、case_status、policy 和晋级门禁均不改变。
