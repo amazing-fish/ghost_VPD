@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import tempfile
 import time
 import uuid
@@ -83,40 +84,34 @@ def read_jsonl_recoverable(path) -> tuple:
     """读取 JSONL，只容忍**末行在写入途中被截断**（进程被杀）：丢弃末行并返回 (records, dropped)。
     dropped 为 None 表示没有截断，否则是 {"tail": "<被丢弃内容的取证前缀>"}，由调用方留证。
 
-    截断的两种形态都按截断处理：
-    - 末行 JSON 写了一半且没有行终止符（最后一行不以换行结束）；
-    - 末尾多字节 UTF-8 字符写了一半（事件文案是中文，ensure_ascii=False 落盘）——按字节读、
-      只解码合法前缀，坏字节并入截断留证。
-    末行虽然带了换行终止但 JSON 仍然非法 → 不是截断而是损坏，照常抛 json.JSONDecodeError；
-    中间行损坏同样抛——不静默吞掉非截断的数据损坏。"""
+    先按 CR/LF 字节划分物理记录（CRLF 的空段忽略），再逐条解码；字符串内的 Unicode
+    行分隔字符不是记录边界。无终止符的最后一条 JSON 非法时，沿用尾行截断留证；UTF-8
+    只容忍 EOF 处未写完的多字节序列，整条尾记录丢弃，合法前缀仅用于留证，不接受为事件。
+    有终止符或中间记录的损坏，以及其他 UTF-8 错误仍抛异常，不自动修复原文件。"""
     p = Path(path)
     if not p.exists():
         return [], None
-    data = p.read_bytes()
-    utf8_tail = b""
-    try:
-        text = data.decode("utf-8")
-    except UnicodeDecodeError as e:
-        rest = data[e.start:]
-        if b"\n" in rest:  # 坏字节后面还有完整行：中间损坏，不是末尾截断
-            raise
-        text, utf8_tail = data[:e.start].decode("utf-8"), rest
-    lines = text.splitlines()
-    terminated = text.endswith("\n") or not text  # 空文件视为完整
+    lines = re.split(br"[\r\n]", p.read_bytes())
     out, dropped = [], None
-    for i, line in enumerate(lines):
-        if not line.strip():
+    for i, raw in enumerate(lines):
+        if not raw.strip():
+            continue
+        tail = i == len(lines) - 1  # 仅最后一段没有 CR/LF 终止符
+        try:
+            line = raw.decode("utf-8")
+        except UnicodeDecodeError as e:
+            if not (tail and e.reason == "unexpected end of data" and e.end == len(raw)):
+                raise
+            prefix = raw[:e.start].decode("utf-8")
+            dropped = {"tail": (prefix[:104] + f"<utf8:{len(raw) - e.start}B>" + "…")[:120]}
             continue
         try:
             out.append(json.loads(line))
         except ValueError:
-            if i == len(lines) - 1 and not terminated:
-                dropped = {"tail": (line[:104] + (f"<utf8:{len(utf8_tail)}B>" if utf8_tail else "") + "…")[:120]}
+            if tail:
+                dropped = {"tail": line[:104] + "…"}
             else:
                 raise
-    if utf8_tail and dropped is None:
-        # 解码层面截掉了坏字节（通常连同它所在的半行）：同样留证
-        dropped = {"tail": f"<utf8 截断 {len(utf8_tail)}B>"}
     return out, dropped
 
 
