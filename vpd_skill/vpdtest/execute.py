@@ -87,6 +87,11 @@ def classify(att: dict) -> tuple:
     return STATUS_MAP.get(st, ("blocked", "tool", f"未知状态 {st}"))
 
 
+def unresolved_takeover(result):
+    """Only current unresolved uncertainty stops a sequence, not historical attempts."""
+    return bool(result.get("effect_unknown") and result.get("action_required"))
+
+
 class Executor:
     def __init__(self, ctx):
         self.ctx = ctx
@@ -1229,14 +1234,17 @@ class Executor:
             subs.append(s)
             if s["outcome"] == "skipped" and s.get("critical", True):
                 return self._required_skip(base, s, subs)
-            if s["outcome"] != "skipped" and not s["outcome"].startswith("passed") and s.get("critical", True):
+            takeover = unresolved_takeover(s) and not step.get("_safety")
+            if s["outcome"] != "skipped" and not s["outcome"].startswith("passed") and (s.get("critical", True) or takeover):
                 return {**base, "outcome": s["outcome"], "attribution": s.get("attribution"),
                         "reason": (f"流程 {step['flow']} 第 {i + 1} 步（{sub.get('desc', sub['action'])}）未通过：{s.get('reason')}" if flow
                                    else f"前置状态 {step['state']} 未到达：{s.get('reason')}"),
                         "sub_steps": subs, "attempts": [a for x in subs for a in x["attempts"]],
                         "failure_source": s.get("failure_source") or s["step_id"],
                         "first_failure": s.get("first_failure"), "final_obs": s.get("final_obs"),
-                        "final_status": s.get("final_status"), **({"measurement": s.get("measurement")} if flow else {})}
+                        "final_status": s.get("final_status"),
+                        **({"effect_unknown": True, "action_required": s["action_required"]} if takeover else {}),
+                        **({"measurement": s.get("measurement")} if flow else {})}
         order = ["passed", "passed_after_adaptation", "passed_after_recovery"]
         outcome = ("skipped" if subs and all(s["outcome"] == "skipped" for s in subs) else
                    "pending" if any(s["outcome"] == "pending" or (s["outcome"] == "skipped" and s.get("critical", True)) for s in subs) else

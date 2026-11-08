@@ -192,3 +192,74 @@ def test_lint_requires_authorization_safety_and_cleanup(lab):
     assert any("清理步骤" in p for p in probs)
     ok = _case([{"id": "S2", "action": "tap", "target": "lab_start"}])
     assert not [i for i in lint(ok, app, kn, pol) if "safety" in i["field"] or "未申请" in i["problem"]]
+
+
+def test_noncritical_unknown_effect_still_runs_required_safe_stop(lab, tmp_path, monkeypatch):
+    from vpdtest.devices import DeviceResult
+    from vpdtest.devices.replay import ReplayDevice
+    original = ReplayDevice.key
+
+    def key(device, name):
+        if name == "back":
+            return DeviceResult("key", None, False, "timeout", "synthetic unknown acknowledgement")
+        return original(device, name)
+
+    monkeypatch.setattr(ReplayDevice, "key", key)
+    stuck = _variant(tmp_path, "handoff_motion", parking_in={"after_obs": None})
+    case = _case([
+        {"id": "S2", "action": "tap", "target": "lab_start", "expect_state": "lab_parking"},
+        {"id": "S3", "action": "back", "critical": False, "retry": 0},
+        {"id": "S4", "action": "home"},
+    ])
+    run = _run(lab, case, dev=stuck)
+    assert run["steps"][-1]["outcome"] == "not_run"
+    assert run["steps"][-2]["effect_unknown"] and run["steps"][-2]["action_required"]
+    stop = run["safety_stops"][0]
+    assert stop["trigger"] == "action_effect_unknown" and stop["confirmed_stopped"]
+    assert stop["steps"][0]["outcome"] == "passed"
+
+
+def test_safe_stop_continues_after_its_own_unknown_receipt(lab, tmp_path, monkeypatch):
+    from vpdtest.devices import DeviceResult
+    from vpdtest.devices.replay import ReplayDevice
+    from vpdtest.execute import Executor
+    calls = []
+    results = {}
+    original_key, original_tap = ReplayDevice.key, ReplayDevice.tap
+    original_step = Executor.run_step
+
+    def key(device, name):
+        calls.append(name)
+        if name == "back":
+            return DeviceResult("key", None, False, "timeout", "synthetic unknown acknowledgement")
+        return original_key(device, name)
+
+    def tap(device, *args):
+        calls.append("tap")
+        return original_tap(device, *args)
+
+    def execute(executor, step, case):
+        result = original_step(executor, step, case)
+        results[step["id"]] = result
+        return result
+
+    monkeypatch.setattr(ReplayDevice, "key", key)
+    monkeypatch.setattr(ReplayDevice, "tap", tap)
+    monkeypatch.setattr(Executor, "run_step", execute)
+    stuck = _variant(tmp_path, "stop_handoff_motion", parking_in={"after_obs": None})
+    case = _case([
+        {"id": "S2", "action": "tap", "target": "lab_start", "expect_state": "lab_parking"},
+        {"id": "S3", "action": "back", "critical": False, "retry": 0},
+        {"id": "S4", "action": "home"},
+    ], safety={**SAFETY, "safe_stop": [
+        {"action": "back", "retry": 0},
+        {"action": "tap", "target": "lab_pause", "expect_state": "lab_paused", "retry": 0},
+    ]})
+    run = _run(lab, case, dev=stuck)
+    stop = run["safety_stops"][0]
+    assert run["steps"][-1]["outcome"] == "not_run"
+    assert calls[-3:] == ["back", "back", "tap"]
+    assert stop["trigger"] == "action_effect_unknown" and stop["confirmed_stopped"]
+    assert stop["steps"][0]["outcome"] == "error"
+    assert results["SAFE1"]["effect_unknown"] and results["SAFE1"]["action_required"]
+    assert stop["steps"][1]["outcome"] == "passed"
