@@ -304,6 +304,26 @@ def test_console_auth_boundaries(served):
     assert tk not in events and "console_input" in events   # token 不进日志
 
 
+def test_console_http_keeps_healthy_runs_when_one_record_is_corrupt(served, tmp_path):
+    box = served(allow_input=False)
+    for name in ("run-bad", "run-good"):
+        d = tmp_path / "runs" / name
+        _events(d, {"event": "run_start", "case": name}, {"event": "run_end", "verdict": "passed"})
+    bad = tmp_path / "runs" / "run-bad" / "events.jsonl"
+    with bad.open("a", encoding="utf-8") as f:
+        f.write('[]\n{"event":"observe","extra":NaN}\n{"event":"observe","extra":"\\ud800"}\n')
+    headers = {"X-VPD-Token": box["token"]}
+    r, body = req(box, "GET", "/api/runs", headers=headers)
+    assert r.status == 200
+    rows = {item["run_id"]: item for item in json.loads(body)["runs"]}
+    assert rows["run-good"]["state"] == "finished"
+    assert rows["run-bad"]["state"] == "unknown"
+    assert rows["run-bad"]["read_errors"][0]["count"] == 3
+    r, body = req(box, "GET", "/api/runs/run-bad", headers=headers)
+    assert r.status == 200 and json.loads(body)["progress_reliable"] is False
+    assert not box["dev"].calls
+
+
 def test_console_input_waits_for_first_frame(tmp_path):
     """延迟首帧：启动线程不等于画面就绪；坐标/文字拒发，首帧到达后可操作。"""
     dev = FakeDevice()
