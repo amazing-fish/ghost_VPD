@@ -1,0 +1,3 @@
+# Local CI outputs are disposable working data, never production evidence.
+.local-ci/
+scripts/__pycache__/

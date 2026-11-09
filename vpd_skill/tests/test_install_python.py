@@ -75,3 +75,37 @@ throw 'unexpected invocation after a failed check'
     assert expected in result.stderr
     assert not (tmp_path / ".venv").exists()
     assert not (tmp_path / "config.local.json").exists()
+
+@pytest.mark.parametrize("skip_doctor", [False, True])
+def test_installer_skip_doctor_preserves_config_and_manual_default(tmp_path, powershell, skip_doctor):
+    shutil.copy(SKILL_ROOT / "install.ps1", tmp_path / "install.ps1")
+    fake_python = tmp_path / ".venv" / "Scripts" / "python.exe"
+    fake_python.parent.mkdir(parents=True)
+    fake_python.touch()  # Never executed: the exact path is shadowed by a PS alias.
+    config = tmp_path / "config.local.json"
+    original = '{"device":"hdc:synthetic-do-not-connect"}'
+    config.write_text(original, encoding="utf-8")
+    (tmp_path / "vpdtest.ps1").write_text(
+        "$c = Get-Content (Join-Path $PSScriptRoot 'config.local.json') -Raw | ConvertFrom-Json\n"
+        "$c.device | Set-Content (Join-Path $PSScriptRoot 'doctor-called.txt')\n"
+        "exit 0\n", encoding="utf-8")
+    script = tmp_path / "run.ps1"
+    script.write_text("""
+$ErrorActionPreference = 'Stop'
+function PythonStub {
+    if ($args[0] -eq '-c') { '3.12'; $global:LASTEXITCODE = 0; return }
+    if ($args[0] -eq '-m' -and $args[1] -eq 'pip') {
+        'called' | Set-Content (Join-Path $PSScriptRoot 'pip-called.txt')
+        $global:LASTEXITCODE = 0; return
+    }
+    throw 'Unexpected Python invocation'
+}
+$p = Join-Path $PSScriptRoot '.venv/Scripts/python.exe'
+Set-Alias -Name $p -Value PythonStub
+& (Join-Path $PSScriptRoot 'install.ps1') -Python PythonStub
+""".rstrip() + (" -SkipDoctor" if skip_doctor else "") + "\n", encoding="utf-8")
+    result = _run(powershell, script)
+    assert result.returncode == 0, result.stderr
+    assert (tmp_path / "pip-called.txt").exists()
+    assert (tmp_path / "doctor-called.txt").exists() == (not skip_doctor)
+    assert config.read_text(encoding="utf-8") == original

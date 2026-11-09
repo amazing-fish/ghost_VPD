@@ -1,31 +1,21 @@
-name: VPD Skill tests
+name: VPD Skill tests (manual cloud fallback)
 
+# Daily development uses scripts/run_local_ci.py. No push/PR/schedule trigger.
 on:
-  pull_request:
-    paths:
-      - '.gitattributes'
-      - 'vpd_skill/**'
-      # Tests read these fixed baselines, review records and evidence files.
-      - 'docs/baselines/**'
-      - 'docs/evidence/**'
-      - 'docs/reviews/**'
-      - '.github/workflows/vpd-skill-tests.yml'
-  push:
-    branches: [main]
-    paths:
-      - '.gitattributes'
-      - 'vpd_skill/**'
-      - 'docs/baselines/**'
-      - 'docs/evidence/**'
-      - 'docs/reviews/**'
-      - '.github/workflows/vpd-skill-tests.yml'
   workflow_dispatch:
+    inputs:
+      allow_cloud_minutes:
+        description: 'Run paid/quota-consuming hosted Linux and Windows jobs'
+        type: boolean
+        required: true
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   pytest:
+    if: ${{ inputs.allow_cloud_minutes }}
     strategy:
       fail-fast: false
       matrix:
