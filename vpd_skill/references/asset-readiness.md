@@ -26,26 +26,23 @@
 
 `review.changed_binding_fields` 仅指出旧binding与当前binding不同的维度。
 没有可比较binding时 `binding_available=false`；有额外字段则另记数量，仍遵守原相等检查。
-旧审核没有细粒度快照时，不能从 `engine_hash` 或 `context_hash` 猜出哪个具体文件改变。
-现有绑定与审核字段保持；只读差异解释不补签或复用旧reviewer批准。
+旧规则下的审核带 `engine_hash` 字段，与当前绑定不相等，计为 stale，需重审一次。
+只读差异解释不补签或复用旧reviewer批准。
 
-## 今后审核的引擎文件差异
+## 审核后的引擎文件差异
 
-今后由现有显式 `case approve` 产生的审核记录，会附 `asset_review.engine_snapshot`：
-schema=1、相对引擎路径和各文件SHA-256。快照与原 `binding.engine_hash` 使用同一次文件采集，
-原绑定算法、valid/state和准入门槛保持；不为已有记录自动补快照或重签。
+审核绑定不含引擎源码。判定语义变化时 `cases.RESULT_CONTRACT` 加 1，经依赖指纹使审核失效；
+纯重构、注释和与判定无关的改动不使审核失效。
 
-`case review` 与 `case readiness` 的 `engine_changes` 在快照与旧engine_hash自洽时，
-列出 `added / removed / modified` 相对路径及 `unchanged_count`。完整清单保留在资产文件，
-不在每份run/suite简报的 `record` 中重复；reviewer/basis/ts/binding等原字段保持。
-其它绑定维度仍仅报告hash维度，不据此推断具体文件。
+`case approve` 产生的审核记录附 `asset_review.engine_snapshot`：schema=1、相对引擎路径和各文件SHA-256。
+`case review` 与 `case readiness` 的 `engine_changes` 据此列出 `added / removed / modified` 相对路径及
+`unchanged_count`，供人判断是否需要复核；它只是诊断，不改变 valid/state。完整清单保留在资产文件，
+不在每份run/suite简报的 `record` 中重复。
 
-旧记录返回 `available=false, reason=snapshot_missing`；快照损坏、schema不支持、
-清单路径/摘要格式无效、缺旧绑定或与旧engine_hash不符时，各自明确unavailable及原因，
-差异列表为null，不能把缺证据解释成“无变化”。
-清单允许采集器实际产生的中文、空格及隐藏目录相对路径；绝对路径、驱动/反斜杠、
-点段、空路径段与控制字符仍拒绝。路径只作数据比较，不用于读取旧清单指定的文件。
-即使诊断快照损坏，审核有效性仍仅按原绑定规则计算，诊断不新增或放宽审核资格。
+没有快照时返回 `available=false, reason=snapshot_missing`；快照损坏、schema不支持、清单路径/摘要格式无效、
+缺 binding，或旧记录的快照与其 `engine_hash` 不符时，各自明确unavailable及原因，差异列表为null，
+不能把缺证据解释成“无变化”。清单允许采集器实际产生的中文、空格及隐藏目录相对路径；绝对路径、
+驱动/反斜杠、点段、空路径段与控制字符仍拒绝。路径只作数据比较，不用于读取旧清单指定的文件。
 
 自洽快照仅帮助定位引擎文件变化，不证明原始源码包、审核者身份、设备证据包或运行适用性，
 也不自动产生人审、判据确认、设备授权、成熟度晋级或正式覆盖。快照并非整个工作区的原子锁定；

@@ -1,4 +1,4 @@
-# Asset approvals bind exact executor bytes; check out the same Python bytes on every OS.
+# Review engine snapshots compare exact executor bytes; check out the same Python bytes on every OS.
 vpd_skill/vpdtest/**/*.py text eol=lf
 # Source crosswalks bind exact JSON bytes, including their line endings.
 docs/baselines/*.json text eol=lf

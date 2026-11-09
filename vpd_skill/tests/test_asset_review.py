@@ -233,18 +233,11 @@ def test_incomplete_asset_cannot_be_approved(ws):
     assert ws.case_path(case["id"]).read_bytes() == before
 
 
-@pytest.mark.parametrize("change", ["engine", "template", "system_dialogs"])
-def test_review_invalidates_when_execution_environment_changes(ws, monkeypatch, change):
-    engine_file = ws.root.parent / "review-engine-fixture/runner.py"
-    if change == "engine":
-        engine_file.parent.mkdir()
-        engine_file.write_bytes(b"before = 1\n")
-        monkeypatch.setattr(C, "__file__", str(engine_file.parent / "cases.py"))
+@pytest.mark.parametrize("change", ["template", "system_dialogs"])
+def test_review_invalidates_when_execution_environment_changes(ws, change):
     _asset(ws)
     _approve(ws)
-    if change == "engine":
-        engine_file.write_bytes(b"after = 2\n")
-    elif change == "template":
+    if change == "template":
         p = ws.root / "apps/motor_hm/templates/review-fixture.bin"
         p.parent.mkdir(exist_ok=True)
         p.write_bytes(b"changed template fixture")
@@ -252,10 +245,22 @@ def test_review_invalidates_when_execution_environment_changes(ws, monkeypatch, 
         write_json(ws.root / "system_dialogs.json", {"dialogs": {"fixture": {"review": "pending"}}})
     info = _review(ws)
     assert info["state"] == "stale"
-    if change == "engine":
-        assert info["engine_changes"]["modified"] == ["runner.py"]
     with pytest.raises(PermissionError, match="审核"):
         C.require_review(ws, ws.load_case("TC-REVIEW-1"))
+
+
+def test_engine_source_change_keeps_review_and_reports_changed_files(ws, monkeypatch):
+    engine_file = ws.root.parent / "review-engine-fixture/runner.py"
+    engine_file.parent.mkdir()
+    engine_file.write_bytes(b"before = 1\n")
+    monkeypatch.setattr(C, "__file__", str(engine_file.parent / "cases.py"))
+    _asset(ws)
+    _approve(ws)
+    engine_file.write_bytes(b"after = 2\n")
+    info = _review(ws)
+    assert info["state"] == "approved" and info["valid"] is True
+    assert info["engine_changes"]["modified"] == ["runner.py"]
+    assert C.require_review(ws, ws.load_case("TC-REVIEW-1"))["valid"] is True
 
 
 def test_suite_rechecks_after_preflight_before_device(ws, monkeypatch):

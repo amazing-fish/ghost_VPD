@@ -98,11 +98,11 @@ def test_review_pending_stale_and_binding_dimensions_remain_distinct(verdict_ws)
     C.approve(ws, NAV_CASE, KnowledgeStore(ws.root), "pytest-synthetic", "Synthetic fixture only")
     assert _query(ws, NAV_CASE)["results"][0]["review"]["state"] == "approved"
     case = ws.load_case(NAV_CASE)
-    case["asset_review"]["binding"]["engine_hash"] = "synthetic-old-engine"
+    case["asset_review"]["binding"]["policy_hash"] = "synthetic-old-policy"
     write_json(ws.case_path(NAV_CASE), case)
     stale = _query(ws, NAV_CASE)["results"][0]
     assert stale["review"]["state"] == "stale"
-    assert stale["review"]["changed_binding_fields"] == ["engine_hash"]
+    assert stale["review"]["changed_binding_fields"] == ["policy_hash"]
     assert "审核失效" in stale["promotion"]["reason"]
     assert "policy.py" not in json.dumps(stale["review"])
 

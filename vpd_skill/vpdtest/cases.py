@@ -137,6 +137,11 @@ def knowledge_references(ws, kid: str) -> dict:
     return out
 
 
+# 结果语义版本：步骤结果、断言或整例结论的判定规则一旦改变，就把它加 1。
+# 它进入 dependency_hash，让旧重放和旧人审显式失效；纯重构、注释和与判定无关的改动不改它。
+RESULT_CONTRACT = 7
+
+
 def dependency_hash(case: dict, app, knowledge) -> str:
     """用例引用的外部定义的指纹：content_hash 只覆盖用例文件本身，但目标选择器、展开后的 flow/recipe 步骤、
     页面状态/打断定义、判据语义或其直接冲突项、被引用模板字节改了，旧重放不再作数。
@@ -197,7 +202,7 @@ def dependency_hash(case: dict, app, knowledge) -> str:
         want(interrupt.get("dismiss_target"), substitute=True)  # recovery uses _attempt → _target
     return sha256_obj({"steps": steps, "targets": targets, "states": app.states.states,
                        "interrupts": app.states.interrupts, "oracles": facts, "conditions": conditions,
-                       **({"templates": templates} if templates else {}), "result_contract": 7,
+                       **({"templates": templates} if templates else {}), "result_contract": RESULT_CONTRACT,
                        **({"condition_evidence_contract": 1} if used_conditions else {}),
                        **({"read_references_contract": 1} if has_read_ref(case) else {})})[:12]
 
@@ -243,13 +248,17 @@ def review_context(ws, app) -> dict:
             "system_dialogs": read_json(ws.root / "system_dialogs.json", {}), "templates": templates}
 
 
-def _review_binding(ws, case: dict, app, knowledge, policy, context=None, *, engine_files=None) -> dict:
-    engine = review_snapshot.engine_files(Path(__file__).parent) if engine_files is None else engine_files
+def _review_binding(ws, case: dict, app, knowledge, policy, context=None) -> dict:
+    """人审绑定的是用例、依赖、策略和配置；引擎源码不在其中。
+
+    结果语义的变化通过 RESULT_CONTRACT 进入 dependency_hash，显式地让旧审核和旧重放失效；
+    纯重构、注释或无关模块的改动不再让全部人审过期。引擎文件差异仍由 engine_snapshot 诊断展示。
+    """
     context = review_context(ws, app) if context is None else context
     return {"case_id": case["id"], "content_hash": content_hash(case),
             "dependency_hash": dependency_hash(case, app, knowledge),
             "review_hash": sha256_obj({k: v for k, v in case.items() if k not in REVIEW_METADATA}),
-            "policy_hash": policy.hash, "engine_hash": sha256_obj(engine), "context_hash": sha256_obj(context)}
+            "policy_hash": policy.hash, "context_hash": sha256_obj(context)}
 
 
 def _complete_review(record) -> bool:
@@ -291,7 +300,7 @@ def review_status(ws, case: dict, knowledge=None, app=None, policy=None, context
     policy = policy or ws.policy()
     signals = exploration_signals(case)
     files = review_snapshot.engine_files(Path(__file__).parent)
-    binding = _review_binding(ws, case, app, knowledge, policy, context, engine_files=files)
+    binding = _review_binding(ws, case, app, knowledge, policy, context)
     record = case.get("asset_review")
     complete = _complete_review(record)
     withdrawal_required, revoked, revocation = _withdrawal(case, record)
@@ -392,7 +401,7 @@ def approve(ws, case_id: str, knowledge, reviewer: str, basis: str) -> dict:
         session_origin = "source:session" in signals or "step:from_session" in signals
         case["origin"] = {"type": "session" if session_origin else "exploration", "inferred_from": signals}
     files = review_snapshot.engine_files(Path(__file__).parent)
-    binding = _review_binding(ws, case, app, knowledge, policy, engine_files=files)
+    binding = _review_binding(ws, case, app, knowledge, policy)
     record = {"schema": 1, "reviewer": reviewer.strip(), "basis": basis.strip(), "ts": now_iso(), "binding": binding,
               "engine_snapshot": review_snapshot.capture(files)}
     case["asset_review"] = record
