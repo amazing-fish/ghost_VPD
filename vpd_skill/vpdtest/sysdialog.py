@@ -19,7 +19,7 @@ from typing import Optional
 
 from .tree import UiTree
 from .util import read_json, write_json
-from .verdict import error_attribution
+from .outcomes import error_attribution
 
 DIALOGS_FILE = "system_dialogs.json"
 EXECUTION_ERRORS = {"timeout", "command_failed", "transport_unavailable", "device_offline",

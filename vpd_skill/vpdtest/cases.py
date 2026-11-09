@@ -616,7 +616,7 @@ def _lint_effects(case: dict, app, policy) -> list:
             if ref and ref.group(1) in secrets and not target.get("secret"):
                 issues.append({"field": where, "problem": "密钥引用只能写入声明了 secret 的输入框"})
         if s.get("action") == "monitor" and policy:
-            cap = float(policy.supervision.get("max_monitor_s", 600))
+            cap = policy.max_monitor_s
             if float(s.get("duration_s", 30)) > cap:
                 issues.append({"field": where, "problem": f"监视时长超过 policy 上限 {cap}s"})
             for k, v in (s.get("watch") or {}).items():

@@ -37,6 +37,7 @@ class Policy:
             self.task_action_labels[effect] = {label.strip() for label in labels}
         self.authorizable = self.gated_side_effects | self.supervised_side_effects | self.task_side_effects
         self.supervision = data.get("supervision", {})
+        self.max_monitor_s = float(self.supervision.get("max_monitor_s", 600))  # wait/monitor 共用上限
         self.safe_stop_rx = re.compile(data["safe_stop_text"]) if data.get("safe_stop_text") else None
         self.confirmation_rx = re.compile(data.get("generic_confirmation_text") or r"^(?:确定|确认|OK)$", re.IGNORECASE)
         self.confirmation_contexts = [(re.compile(c["pattern"]), c["class"])

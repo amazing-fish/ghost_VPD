@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from .devices import LAUNCHER, DeviceResult
-from .verdict import error_attribution
+from .outcomes import error_attribution
 
 
 class Dispatcher:
