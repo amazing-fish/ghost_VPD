@@ -48,8 +48,8 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 依赖只有 `lxml`、`opencv-python`、`numpy`（与原工程版本一致）和 `pytest`；不需要数据库、Redis、Flask 或网络服务。
 固定的 NumPy 2.5.2 要求 Python >=3.12。安装器在安装依赖前同时检查指定的 Python 和已有 `.venv`；
 旧虚拟环境不会被自动删除或升级。若版本过低，先将 `.venv` 移到其他位置保留，再用 `-Python <Python312路径>` 重建。
-CI 在 Ubuntu 和 Windows 的 Python 3.12 上执行同一套 pytest，Windows 还走 `install.ps1` 安装与现有 PowerShell 入口测试；
-这是离线平台验证，不能代替 APP/build 或真机验收。当前是否通过以对应提交的 Actions 结果为准。
+日常 CI 改在本机执行，统一入口见[本地 CI](../docs/LOCAL_CI.md)。Linux 和 Windows 的 Python 3.12 执行同一套 pytest，Windows 默认还走 `install.ps1` 安装与现有 PowerShell 入口测试；
+这是离线平台验证，不能代替 APP/build 或真机验收。当前是否通过以对应提交、平台和依赖版本的本地 `result.json` 与测试日志为准；一个平台通过不等于另一平台也通过。
 
 ## 配置
 
