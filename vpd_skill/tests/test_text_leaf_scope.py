@@ -225,7 +225,7 @@ def test_leaf_preview_and_binding_are_pure_and_fresh(leaf_rig, monkeypatch):
     assert cases._review_binding(ws, case, app, knowledge, ws.policy())["dependency_hash"] != binding["dependency_hash"]
 
 
-@pytest.mark.parametrize("mutation", ["shape", "expected_source", "registration", "engine"])
+@pytest.mark.parametrize("mutation", ["shape", "expected_source", "registration", "result_contract"])
 def test_leaf_changes_invalidate_existing_review(leaf_rig, monkeypatch, mutation):
     ws, knowledge, _ = leaf_rig
     case = build_case(ws.app(T.APP), T._spec(scope_shape="text_leaf"))
@@ -240,10 +240,19 @@ def test_leaf_changes_invalidate_existing_review(leaf_rig, monkeypatch, mutation
     elif mutation == "registration":
         ws.app(T.APP).targets["parking_name"]["template_scope"]["shape"] = "text_container"
     else:
-        original = cases.review_snapshot.engine_files
-        monkeypatch.setattr(cases.review_snapshot, "engine_files",
-                            lambda root: {**original(root), "case_templates.py": "0" * 64})
+        monkeypatch.setattr(cases, "RESULT_CONTRACT", cases.RESULT_CONTRACT + 1)
     info = cases.review_status(ws, reviewed, knowledge)
     assert info["state"] == "stale" and info["valid"] is False
-    if mutation == "engine":
-        assert "case_templates.py" in info["engine_changes"]["modified"]
+
+
+def test_leaf_engine_change_is_reported_without_invalidating_review(leaf_rig, monkeypatch):
+    ws, knowledge, _ = leaf_rig
+    case = build_case(ws.app(T.APP), T._spec(scope_shape="text_leaf"))
+    write_json(ws.case_path(case["id"]), case)
+    reviewed = cases.approve(ws, case["id"], knowledge, "pytest-synthetic", "Synthetic binding test only")
+    original = cases.review_snapshot.engine_files
+    monkeypatch.setattr(cases.review_snapshot, "engine_files",
+                        lambda root: {**original(root), "case_templates.py": "0" * 64})
+    info = cases.review_status(ws, reviewed, knowledge)
+    assert info["state"] == "approved" and info["valid"] is True
+    assert "case_templates.py" in info["engine_changes"]["modified"]
