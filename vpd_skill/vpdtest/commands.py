@@ -13,6 +13,7 @@ from .experience import ExperienceStore
 from .explore import explore
 from .knowledge import KnowledgeStore, import_repo_selectors
 from .observe import RunStore, observation_number
+from .outcomes import PASSED
 from .params import Params
 from .runner import run_case
 from .session import (IDENTITY_KEYS, SessionMismatch, append_blocker, dispatched, effect_unknown, from_session, next_seq,
@@ -384,7 +385,7 @@ def _scrub_input(res: dict) -> dict:
 
 def diagnose(res: dict) -> Optional[dict]:
     """定位/复核失败时给 Agent 的诊断：多匹配的候选、不可见/被裁剪的数量、复核前后的节点。"""
-    if res.get("outcome") in ("passed", "passed_after_recovery", "passed_after_adaptation"):
+    if res.get("outcome") in PASSED:
         return None
     last = (res.get("attempts") or [{}])[-1]
     st = res.get("final_status") or last.get("status")

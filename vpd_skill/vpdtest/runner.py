@@ -25,6 +25,7 @@ from .execute import Executor, unresolved_takeover
 from .experience import ExperienceStore
 from .knowledge import KnowledgeStore
 from .observe import RunStore
+from .outcomes import load_observation
 from .params import Params
 from .report import render_run
 from .tree import UiTree
@@ -265,11 +266,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
         diagnostic.phase, diagnostic.step = "evaluation", None
 
         def load(obs_id: str):
-            d = store.dir / "obs" / obs_id
-            tp = d / "tree.json"
-            obs = read_json(d / "observation.json")
-            usable = obs.get("fresh") is not False and (obs.get("tree") or {}).get("status") != "stale"
-            return obs, (UiTree(read_json(tp)) if usable and tp.exists() else None)
+            return load_observation(store.dir, obs_id)
 
         by_id = {s["step_id"]: s for s in steps}
         def bind_step_scenes(items, inherited=()):

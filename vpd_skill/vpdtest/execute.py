@@ -19,7 +19,7 @@ from .locate import resolve
 from .session import (relative_scope_target, relative_swipe_options, swipe_options_error,
                       swipe_scope_definition_error, swipe_scope_target_error)
 from .util import now_iso
-from .verdict import collection_error, error_attribution
+from .outcomes import PASSED, collection_error, error_attribution, execution_error, load_observation
 
 ENV_ERRORS = {"screen_locked", "screen_off", "device_offline", "app_missing", "tool_missing", "transport_unavailable"}
 STATUS_MAP = {
@@ -101,16 +101,10 @@ class Executor:
         return [*step.get("_condition_guards", []), *([step["when"]] if step.get("when") is not None else [])]
 
     def _operation_condition(self, step, obs, tree):
-        from .tree import UiTree
-        from .util import read_json
         from .verdict import select_applicability
         ctx = self.ctx
         def load(oid):
-            directory = ctx.store.dir / "obs" / oid
-            observed = read_json(directory / "observation.json")
-            path = directory / "tree.json"
-            usable = observed.get("fresh") is not False and (observed.get("tree") or {}).get("status") != "stale"
-            return observed, UiTree(read_json(path)) if usable and path.exists() else None
+            return load_observation(ctx.store.dir, oid)
         record = select_applicability(self._when_guards(step), ctx.conditions, ctx.step_results, load, ctx.app, obs, tree)
         if record.get("status") != "error":
             bindings = list(step.get("_condition_bindings", []))
@@ -479,7 +473,7 @@ class Executor:
             if att.get("status"):
                 return att
         elif kind == "wait" and step.get("duration_s"):
-            dur = min(float(step["duration_s"]), float(ctx.policy.supervision.get("max_monitor_s", 600)))
+            dur = min(float(step["duration_s"]), ctx.policy.max_monitor_s)
             waited = 0.0
             while waited < dur and not ctx.motion.over():
                 ctx.sleep(min(1.0, dur - waited))
@@ -612,7 +606,7 @@ class Executor:
         运动超时 / 达到 duration_s。真机上每次采样本身要几秒，实际间隔以时间线里的 t 为准。"""
         import re
         ctx = self.ctx
-        cap = float(ctx.policy.supervision.get("max_monitor_s", 600))
+        cap = ctx.policy.max_monitor_s
         duration = min(float(step.get("duration_s", 30)), cap)
         interval = max(0.5, float(step.get("interval_s", 2)))
         watch = {k: re.compile(v) for k, v in (step.get("watch") or {}).items()}
@@ -1572,7 +1566,7 @@ class Executor:
         dispatches += [{**a["dispatch"], "ok": a["dispatch"].get("executor_ok")}
                        for a in result.get("attempts", []) if a.get("dispatch")]
         verified = False
-        if result.get("outcome") in ("passed", "passed_after_recovery", "passed_after_adaptation"):
+        if result.get("outcome") in PASSED:
             obs, tree = ctx.observe(back["id"] + ":verify", screenshot=False)
             after = {**back, "when": {**guard, "equals": False}, "_selected_condition": result.get("condition")}
             condition = self._operation_condition(after, obs, tree)
@@ -1630,7 +1624,6 @@ class Executor:
             previous = self._summarize(step, attempts[:-1], recoveries)
             if previous["outcome"] in ("error", "fail_candidate"):
                 if previous["outcome"] == "error":
-                    from .verdict import execution_error
                     previous["execution_error"] = execution_error(previous)
                 retained = previous
         if last_rec and last_rec.get("after_attempt") != last["n"]:

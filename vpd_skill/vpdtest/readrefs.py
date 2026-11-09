@@ -111,7 +111,7 @@ def structure_issues(case, app, *, sources=True):
 
 def resolve_text(template, steps, *, subst=None):
     """Resolve once; apply ordinary parameters only to original literal pieces."""
-    from .verdict import PASSED
+    from .outcomes import PASSED
     refs, valid = references(template)
     if not valid:
         return {"status": "unknown", "reason": "read 引用格式无效", "sources": []}
@@ -123,7 +123,7 @@ def resolve_text(template, steps, *, subst=None):
                     "binding": binding}
         sources.append(evidence)
         if step.get("outcome") == "error":
-            from .verdict import execution_error
+            from .outcomes import execution_error
             error = execution_error(step, "read_source")
             return {"status": "error", "reason": f"读取来源 {ref} 执行或采集失败", "sources": sources,
                     "execution_error": {**error, "attribution": step.get("attribution", "tool")}}

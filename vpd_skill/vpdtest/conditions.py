@@ -267,7 +267,8 @@ def evaluate_guard(guard: dict, defs: dict, steps: dict, load, app, obs: dict, t
     status=true/false describes the guard expression, value is the measured fact.
     Unknown, stale, conflict and errors never authorize a skipped product check.
     """
-    from .verdict import _stale, collection_error
+    from .outcomes import PASSED, collection_error
+    from .outcomes import stale as _stale
     referenced = guard if isinstance(guard, dict) else {}
     record = {"condition": referenced.get("condition"), "equals": referenced.get("equals"),
               "status": "unknown", "value": None, "source": "observation", "target_obs": (obs or {}).get("obs_id"),
@@ -287,7 +288,7 @@ def evaluate_guard(guard: dict, defs: dict, steps: dict, load, app, obs: dict, t
     source, source_tree = obs, tree
     if guard.get("at"):
         step = steps.get(guard["at"]) or {}
-        if step.get("outcome") not in ("passed", "passed_after_adaptation", "passed_after_recovery") or not step.get("final_obs"):
+        if step.get("outcome") not in PASSED or not step.get("final_obs"):
             return {**record, "reason": "前置证据来源步骤尚未成功执行", "at": guard["at"]}
         try:
             source, source_tree = load(step["final_obs"])

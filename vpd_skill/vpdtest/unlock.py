@@ -7,7 +7,7 @@ import re
 from .dispatch import Dispatcher
 from .devices.harmony_hdc import unlock_swipe_points
 from .util import now_iso, sha256_obj, write_json
-from .verdict import error_attribution
+from .outcomes import error_attribution
 
 
 def _query_failure(device, field="screen_query_error", query="screen_locked", stage="unlock_query"):
