@@ -13,8 +13,11 @@ From the repository root, using Python 3.12.x:
 python scripts/run_local_ci.py
 ```
 
-The runner executes the existing `install.ps1` (without skill linking), verifies
+The runner executes `install.ps1 -SkipDoctor` (without skill linking), verifies
 all exact versions in `vpd_skill/requirements.txt`, and runs the full pytest suite.
+The final installer doctor is skipped, so a pre-existing `hdc:` device in local
+configuration cannot cause real-device preflight. Your configuration is preserved;
+ordinary manual `install.ps1` retains its normal doctor behavior.
 It does not change execution policy, paging/virtual-memory settings, install a
 self-hosted runner, configure a service, or connect to a real device.
 
@@ -26,8 +29,10 @@ files, pytest cache, logs and JUnit results all go there. On other machines it i
 python scripts/run_local_ci.py --state-dir D:/Develop/Cache/ghost-ci --python D:/Develop/Tool/Miniconda/python.exe
 ```
 
-Each invocation creates a fresh `runs/<UTC-time>-<random>/` directory containing
-`install.log`, `pytest.log`, `junit.xml` and `result.json`. The result records HEAD,
+Each invocation creates a fresh `runs/<UTC-time>-<random>/` directory.
+`result.json` records the outcome (unless the output directory cannot be written).
+`install.log`, `pytest.log` and `junit.xml` exist only when their respective stages
+start/produce them; a blocked or skipped stage is not a pass. The result records HEAD,
 dirty working-tree state, OS, Python/package versions, commands and stage exits.
 Successful pytest temporary fixtures are discarded by pytest's existing retention
 policy; assertion-failure fixtures remain. Previous runs are never deleted by the

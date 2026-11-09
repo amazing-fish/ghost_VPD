@@ -80,7 +80,11 @@ def main(argv: list[str] | None = None) -> int:
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
     run_dir = state / "runs" / run_id
     tmp_dir = run_dir / "tmp"
-    tmp_dir.mkdir(parents=True, exist_ok=False)
+    try:
+        tmp_dir.mkdir(parents=True, exist_ok=False)
+    except OSError as exc:
+        print(f"Cannot create evidence directory {run_dir}: {exc}", file=sys.stderr)
+        return 1
     env = dict(os.environ)
     env.update(TEMP=str(tmp_dir), TMP=str(tmp_dir), TMPDIR=str(tmp_dir),
                PIP_CACHE_DIR=str(state / "pip-cache"), PYTHONUTF8="1",
@@ -91,15 +95,15 @@ def main(argv: list[str] | None = None) -> int:
     env.pop("PYTHONPATH", None)
     env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
     evidence = {"status": "running", "platform": platform.platform(),
-                "head": git_output("rev-parse", "HEAD"),
-                "working_tree": git_output("status", "--porcelain"),
-                "requirements_sha256": hashlib.sha256((SKILL / "requirements.txt").read_bytes()).hexdigest(),
                 "installer": "skipped" if args.skip_install else "pending",
                 "run_dir": str(run_dir), "stages": {}}
     result_path = run_dir / "result.json"
     print(f"Evidence: {run_dir}", flush=True)
     exit_code = 1
     try:
+        evidence["head"] = git_output("rev-parse", "HEAD")
+        evidence["working_tree"] = git_output("status", "--porcelain")
+        evidence["requirements_sha256"] = hashlib.sha256((SKILL / "requirements.txt").read_bytes()).hexdigest()
         python = args.python
         if not args.skip_install:
             # Reject unsupported bootstrap Python before creating/installing anything.
@@ -110,12 +114,13 @@ def main(argv: list[str] | None = None) -> int:
                 shell = shutil.which("pwsh") or shutil.which("powershell")
                 if not shell:
                     raise RuntimeError("PowerShell is required for the Windows installer checks")
-                command = [shell, "-NoProfile", "-File", str(SKILL / "install.ps1"), "-Python", python]
+                command = [shell, "-NoProfile", "-File", str(SKILL / "install.ps1"), "-Python", python, "-SkipDoctor"]
             else:
                 venv = SKILL / ".venv"
                 if not (venv / "bin" / "python").is_file():
                     subprocess.run([python, "-m", "venv", str(venv)], env=env, check=True)
                 command = [str(venv / "bin" / "python"), "-m", "pip", "install", "--disable-pip-version-check", "-r", "requirements.txt"]
+            evidence["install_command"] = command
             code = run_stage("install", command, run_dir, env)
             evidence["stages"]["install"] = code
             evidence["installer"] = "passed" if code == 0 else "failed"

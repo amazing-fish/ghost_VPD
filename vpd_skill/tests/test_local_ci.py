@@ -92,3 +92,48 @@ def test_cloud_workflow_has_only_explicit_opt_in():
     assert 'schedule:' not in trigger
     assert 'default: false' in trigger
     assert 'if: ${{ inputs.allow_cloud_minutes }}' in workflow
+
+@pytest.mark.skipif(ci.os.name != 'nt', reason='Windows installer path')
+@pytest.mark.parametrize('install_exit', [0, 7])
+def test_runner_forwards_skip_doctor_and_records_install(tmp_path, monkeypatch, install_exit):
+    monkeypatch.setattr(ci, 'git_output', lambda *a: '')
+    monkeypatch.setattr(ci.subprocess, 'check_output', lambda *a, **k: '3.12')
+    monkeypatch.setattr(ci.shutil, 'which', lambda name: 'pwsh')
+    monkeypatch.setattr(ci, 'verify_environment', lambda *a: {'python': [3, 12, 4]})
+    calls = []
+    def stage(name, command, run_dir, env):
+        calls.append(name)
+        if name == 'install':
+            assert '-SkipDoctor' in command
+            assert '-LinkSkill' not in command
+            return install_exit
+        assert install_exit == 0
+        return 0
+    monkeypatch.setattr(ci, 'run_stage', stage)
+    assert ci.main(['--state-dir', str(tmp_path)]) == (1 if install_exit else 0)
+    result = json.loads(next(tmp_path.rglob('result.json')).read_text())
+    assert result['installer'] == ('failed' if install_exit else 'passed')
+    assert '-SkipDoctor' in result['install_command']
+    assert calls == (['install'] if install_exit else ['install', 'pytest'])
+
+
+def test_missing_git_records_blocked_result(tmp_path, monkeypatch):
+    def missing(*args):
+        raise FileNotFoundError('git is unavailable')
+    monkeypatch.setattr(ci, 'git_output', missing)
+    assert ci.main(['--skip-install', '--state-dir', str(tmp_path)]) == 1
+    result = json.loads(next(tmp_path.rglob('result.json')).read_text())
+    assert result['status'] == 'blocked'
+    assert 'git is unavailable' in result['error']
+
+
+def test_interrupted_test_stage_keeps_evidence(tmp_path, monkeypatch):
+    monkeypatch.setattr(ci, 'git_output', lambda *args: '')
+    monkeypatch.setattr(ci, 'verify_environment', lambda *a: {})
+    def interrupted(*args):
+        raise KeyboardInterrupt
+    monkeypatch.setattr(ci, 'run_stage', interrupted)
+    assert ci.main(['--skip-install', '--state-dir', str(tmp_path)]) == 130
+    result = json.loads(next(tmp_path.rglob('result.json')).read_text())
+    assert result['status'] == 'interrupted'
+    assert result['exit_code'] == 130

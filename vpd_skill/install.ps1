@@ -7,6 +7,8 @@
   Create a directory junction so the host agent can load SKILL.md.
 .PARAMETER SkillDir
   Junction path. Default: %USERPROFILE%\.claude\skills\vpd-app-test (Claude Code user skills).
+.PARAMETER SkipDoctor
+  Skip final doctor diagnostics so local CI never probes a configured real device.
 .PARAMETER IndexUrl
   Optional pip index (company mirror).
 .EXAMPLE
@@ -17,6 +19,7 @@
 param(
     [string]$Python = 'python',
     [switch]$LinkSkill,
+    [switch]$SkipDoctor,
     [string]$SkillDir = (Join-Path $env:USERPROFILE '.claude\skills\vpd-app-test'),
     [string]$IndexUrl
 )
@@ -75,4 +78,8 @@ if ($LinkSkill) {
 } else { Write-Host '[5/5] Skill link skipped (use -LinkSkill)' }
 
 Write-Host ''
-& (Join-Path $root 'vpdtest.ps1') doctor
+if ($SkipDoctor) {
+    Write-Host 'Doctor skipped for offline CI; existing local configuration is preserved.'
+} else {
+    & (Join-Path $root 'vpdtest.ps1') doctor
+}
