@@ -108,4 +108,4 @@ ID 仅接受 `TC-` 开头的大写字母/数字/连字符新 ID，不能覆盖�
 
 合成输入示意：在原240输入中增加 `"scope_shape": "text_leaf"`，另行准备已登记的合成 text_leaf 目标及独立预期。此示意不是生产校准，不得把观测到的名称反填预期。树几何完整不证明像素级裁切/省略或真实业务角色，仍需人工核对。
 
-新建实例的 template_version 为2，origin.inputs/test_data 冻结 scope_shape、版本与完整 target hash。默认容器断言语义不变，但新增版本/冻结字段会改变新生成实例的字节/hash。已有冻结实例不自动迁移、重写或重绑；引擎内容变化仍通过既有 engine_hash 使旧审核需重新核对。形态、登记来源或版本变化纳入内容/依赖审核绑定。Oracle确认状态、241业务格式、case_status、policy 和晋级门禁均不改变。
+新建实例的 template_version 为2，origin.inputs/test_data 冻结 scope_shape、版本与完整 target hash。默认容器断言语义不变，但新增版本/冻结字段会改变新生成实例的字节/hash。已有冻结实例不自动迁移、重写或重绑；判定语义变化通过 `cases.RESULT_CONTRACT` 进入依赖指纹并要求重审，纯重构或注释修改不使审核失效，详见[审核契约](contracts.md#4-探索资产审核与运行准入30)。形态、登记来源或版本变化纳入内容/依赖审核绑定。Oracle确认状态、241业务格式、case_status、policy 和晋级门禁均不改变。
