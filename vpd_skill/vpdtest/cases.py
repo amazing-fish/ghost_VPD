@@ -689,32 +689,42 @@ def oracle_lineage_issues(case: dict, knowledge) -> list:
     return issues
 
 
+def condition_issues(case: dict, app) -> list:
+    """条件定义、step.when、assertion.guard 与输入遮挡声明的唯一校验入口；lint 与 Runner 共用。"""
+    from .conditions import definitions, validate_definitions, validate_guard, validate_input_obstruction
+
+    def at(prefix, problems):
+        return [{"field": prefix + (f".{p['field'].removeprefix('guard.')}" if p.get("field") else ""),
+                 "problem": p["problem"]} for p in problems]
+
+    defs = definitions(case, app)
+    issues = validate_definitions(defs, app)
+    if not isinstance(defs, dict):
+        defs = {}  # 结构问题已保留；继续检查其余字段。
+    step_ids = {s.get("id") for s in case.get("steps", [])}
+    for step, _, where in iter_case_steps(case, app):
+        issues += [{**p, "field": where + "." + p["field"]} for p in validate_input_obstruction(step, defs)]
+        if "when" in step:
+            issues += at(f"{where}.when", validate_guard(step["when"], defs, step_ids))
+    for assertion in case.get("assertions", []):
+        if "guard" in assertion:
+            issues += at(f"assertions.{assertion.get('id')}.guard", validate_guard(assertion["guard"], defs, step_ids))
+    return issues
+
+
 def lint(case: dict, app, knowledge, policy=None, runs_dir: Optional[Path] = None) -> list:
     """runs_dir 用于 check-refs：核对 rationale 里「run/会话 + obs」引用是否真的可解析到留存证据。"""
-    from .conditions import (
-        definitions,
-        validate_definitions,
-        validate_guard,
-        validate_input_obstruction,
-    )
-
     issues = execution_structure_issues(case, app)
     for k in REQUIRED:
         v = case.get(k)
         if v is None or v == [] or v == "" or (k == "test_data" and v == {} and not case.get("test_data_none")):
             issues.append({"field": k, "problem": "缺失或为空" + ("（无测试数据请写 test_data_none: true）" if k == "test_data" else "")})
     step_ids = {s.get("id") for s in case.get("steps", [])}
+    issues += condition_issues(case, app)
+    from .conditions import definitions
     condition_defs = definitions(case, app)
-    issues += validate_definitions(condition_defs, app)
     if not isinstance(condition_defs, dict):
-        condition_defs = {}  # 结构问题已保留；继续检查该资产及后续资产的其他字段。
-    for s, _, where in iter_case_steps(case, app):
-        issues += [{**p, "field": where + "." + p["field"]}
-                   for p in validate_input_obstruction(s, condition_defs)]
-        if "when" in s:
-            issues += [{"field": f"{where}.when" + (f".{p['field'].removeprefix('guard.')}" if p.get("field") else ""),
-                        "problem": p["problem"]}
-                       for p in validate_guard(s["when"], condition_defs, step_ids)]
+        condition_defs = {}  # 结构问题已在 condition_issues 中报告。
     for k, v in (case.get("test_data") or {}).items():
         if isinstance(v, dict) and v.get("missing_from_session"):
             issues.append({"field": f"test_data.{k}", "problem": "会话没有保留这次输入的原文（不允许输入/敏感框/疑似密钥）："
@@ -762,10 +772,6 @@ def lint(case: dict, app, knowledge, policy=None, runs_dir: Optional[Path] = Non
     for a in case.get("assertions", []):
         if a.get("at") not in step_ids:
             issues.append({"field": f"assertions.{a.get('id')}", "problem": f"at={a.get('at')} 不是用例中的步骤 ID"})
-        if "guard" in a:
-            issues += [{"field": f"assertions.{a.get('id')}.guard" + (f".{p['field'].removeprefix('guard.')}" if p.get("field") else ""),
-                        "problem": p["problem"]}
-                       for p in validate_guard(a["guard"], condition_defs, step_ids)]
     for src in case.get("sources", []):
         for r in src.get("rejected") or []:
             if r.get("dispatched"):
