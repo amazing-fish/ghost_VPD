@@ -44,9 +44,45 @@ class Policy:
                                      for c in data.get("confirmation_contexts", [])]
         self.deny_node_types = set(data.get("deny_node_types", []))
         self.allow_point_without_tree = bool(data.get("allow_point_tap_without_tree", False))
+        self.reviewed_exemptions = self._parse_exemptions(data.get("reviewed_exemptions", []))
         self.allow_input = bool(data.get("allow_text_input", False))
         self.max_actions_per_run = int(data.get("max_actions_per_run", 60))
         self.max_wait_s = float(data.get("max_wait_s", 30))
+
+    _EXEMPTION_FIELDS = {"home_entry_browse": ("bundle", "home_id", "header_text", "entry_text"),
+                         "search_filter_label": ("target_label",)}
+
+    def _parse_exemptions(self, items) -> list:
+        """已评审的页面豁免：只在声明的结构证明成立时，把一条带 id 的全局规则改归为导航。
+
+        App 相关的字面量只在 policy.json 中声明；本模块只实现结构证明本身。
+        """
+        if not isinstance(items, list):
+            raise ValueError("reviewed_exemptions 须为列表")
+        rule_ids = [rid for _, _, _, rid in self.deny if rid]
+        out, seen = [], set()
+        for item in items:
+            kind = item.get("kind") if isinstance(item, dict) else None
+            fields = self._EXEMPTION_FIELDS.get(kind)
+            eid = item.get("id") if isinstance(item, dict) else None
+            if fields is None or not isinstance(eid, str) or not eid.strip() or eid in seen:
+                raise ValueError(f"reviewed_exemptions 条目无效或 id 重复：{item!r}")
+            seen.add(eid)
+            if rule_ids.count(item.get("reclassifies_rule")) != 1:
+                raise ValueError(f"豁免 {eid} 的 reclassifies_rule 须恰好对应一条带 id 的 deny_text 规则")
+            if any(not isinstance(item.get(f), str) or not item[f].strip() for f in fields):
+                raise ValueError(f"豁免 {eid} 缺少非空字段 {fields}")
+            if kind == "search_filter_label":
+                group = item.get("group_labels")
+                if (not isinstance(group, list) or len(group) < 2 or len(set(group)) != len(group)
+                        or any(not isinstance(g, str) or not g.strip() for g in group)
+                        or item["target_label"] not in group):
+                    raise ValueError(f"豁免 {eid} 的 group_labels 须为至少两个、含 target_label 的不同非空标签")
+            out.append(dict(item))
+        return out
+
+    def _exemptions(self, kind) -> list:
+        return [e for e in self.reviewed_exemptions if e["kind"] == kind]
 
     def package_allowed(self, pkg: Optional[str]) -> bool:
         return bool(pkg) and pkg in self.allowed_packages
@@ -200,19 +236,16 @@ class Policy:
         label = (texts[0] if texts else "")[:40]
         hits = self.match_all(texts, state_deny)
         navigation = self._search_filter_source(tree, point, container, texts, effect, confirmation_sources)
-        if navigation:
-            # Only this identified broad policy rule is superseded. Page rules and any other
-            # global hit remain restrictions, even if they name the same label/class.
-            hits = [h for h in hits if not (
-                h.get("source") == "policy" and h.get("rule_id") == "vehicle_control_keywords"
-                and h["class"] == "vehicle_control" and h["text"].strip() == "充电桩")]
         favorites = self._favorites_browse_source(tree, point, node, container, target, basis, layout, foreground)
+        for source in (navigation, favorites):
+            if source:
+                # Only the declared, identified global rule is superseded for the declared label.
+                # Page rules and any other global hit remain restrictions, even with the same label/class.
+                rule = source["reclassified_rule"]
+                hits = [h for h in hits if not (
+                    h.get("source") == "policy" and h.get("rule_id") == rule["rule_id"]
+                    and h["text"].strip() == source["exempt_label"])]
         if favorites:
-            rule = favorites["reclassified_rule"]
-            hits = [h for h in hits if not (
-                h.get("source") == "policy" and h.get("pattern") == rule["pattern"]
-                and h.get("class") == rule["class"] and h.get("reason") == rule["reason"]
-                and h.get("rule_id") == rule.get("rule_id") and h["text"].strip() == "收藏夹")]
             navigation = favorites
         editable = any(n.type in EDITABLE_TYPES
                        for n in [node, container] + tree.ancestors(node))
@@ -366,26 +399,39 @@ class Policy:
                             "accepted_benign": len(benign)},
                 "gaps": gaps}
 
-    def _favorites_browse_source(self, tree, point, node, container, target, basis, layout, foreground):
-        """Only the observed Qiankun home 收藏夹 receiver is browse navigation.
+    def _reclassified_rule(self, exemption):
+        rules = [(rx, reason, cls, rid) for rx, reason, cls, rid in self.deny if rid == exemption["reclassifies_rule"]]
+        if len(rules) != 1:
+            return None  # Never discard a second rule carrying the same id.
+        rx, reason, cls, rid = rules[0]
+        return {"pattern": rx.pattern, "reason": reason, "class": cls, "rule_id": rid}
 
-        No target review flag or caller-supplied confirmation source creates this
-        proof. Foreground comes from observation, and again from Dispatcher's
-        final query; absent current single-pane layout keeps the old denial.
+    def _favorites_browse_source(self, tree, point, node, container, target, basis, layout, foreground):
+        """A declared home entry receiver is browse navigation, not a data mutation.
+
+        The entry comes only from this policy's reviewed_exemptions. No target review
+        flag or caller-supplied confirmation source creates this proof. Foreground comes
+        from observation, and again from Dispatcher's final query; absent current
+        single-pane layout keeps the old denial.
         """
-        bundle = "com.yinwang.qiankunapp.hm"
+        for exemption in self._exemptions("home_entry_browse"):
+            source = self._home_entry_browse(exemption, tree, point, node, container, target, basis, layout, foreground)
+            if source:
+                return source
+        return None
+
+    def _home_entry_browse(self, ex, tree, point, node, container, target, basis, layout, foreground):
+        bundle, header_text, entry_text = ex["bundle"], ex["header_text"], ex["entry_text"]
         if (foreground != bundle or basis != "tree" or target.get("side_effect", "navigation") != "navigation"
                 or target.get("allow_input") or not isinstance(layout, dict) or layout.get("status") != "ok"
                 or type(layout.get("pane_count")) is not int or layout["pane_count"] != 1
                 or layout.get("panes") != [] or layout.get("window_px") != list(tree.screen_size() or ())
                 or tree.modal_layers()):
             return None
-        pattern = "收藏|重命名|修改名称|标签|^删除$"
-        rules = [(rx, reason, cls, rid) for rx, reason, cls, rid in self.deny
-                 if rx.pattern == pattern and cls == "user_data"]
-        if len(rules) != 1:
-            return None  # Never discard a second rule, even with the same pattern/class.
-        homes = [n for n in tree.nodes if n.id == "VPD_HOME_VIEW"]
+        rule = self._reclassified_rule(ex)
+        if rule is None:
+            return None
+        homes = [n for n in tree.nodes if n.id == ex["home_id"]]
         if len(homes) != 1:
             return None
         home = homes[0]
@@ -395,14 +441,14 @@ class Policy:
         if home.type != "Stack" or not complete(home):
             return None
         within = [n for n in tree.nodes if tree.is_within(n, home)]
-        headers = [n for n in within if "收藏及常去" in (n.text.strip(), n.description.strip())]
-        labels = [n for n in within if "收藏夹" in (n.text.strip(), n.description.strip())]
+        headers = [n for n in within if header_text in (n.text.strip(), n.description.strip())]
+        labels = [n for n in within if entry_text in (n.text.strip(), n.description.strip())]
         if len(headers) != 1 or not complete(headers[0]) or len(labels) != 1:
             return None
         header = headers[0]
         if (header.type != "Text" or header.clickable
                 or str(header.attrs.get("longClickable", "")).strip().lower() in ("true", "1")
-                or {t.strip() for t in (header.text, header.description) if t.strip()} != {"收藏及常去"}
+                or {t.strip() for t in (header.text, header.description) if t.strip()} != {header_text}
                 or any(a.type in EDITABLE_TYPES | self.deny_node_types | {"Button"}
                        or (a.clickable and a.type not in ("Column", "Stack")) for a in tree.ancestors(header))):
             return None
@@ -423,17 +469,26 @@ class Policy:
         nodes = [n for n in within if tree.is_within(n, container)]
         if (any(n.type in EDITABLE_TYPES | self.deny_node_types for n in nodes)
                 or any(n.clickable and n.idx != container.idx for n in nodes)
-                or {t.strip() for n in nodes for t in (n.text, n.description) if t.strip()} != {"收藏夹"}):
+                or {t.strip() for n in nodes for t in (n.text, n.description) if t.strip()} != {entry_text}):
             return None
-        rx, reason, cls, rid = rules[0]
-        return {"kind": "favorites_browse_navigation", "foreground": foreground, "home_idx": home.idx,
-                "header_idx": headers[0].idx, "label_idx": label.idx, "container_idx": container.idx,
-                "reclassified_rule": {"pattern": rx.pattern, "reason": reason, "class": cls,
-                                      **({"rule_id": rid} if rid else {})}}
+        return {"kind": "favorites_browse_navigation", "exemption": ex["id"], "foreground": foreground,
+                "home_idx": home.idx, "header_idx": headers[0].idx, "label_idx": label.idx,
+                "container_idx": container.idx, "reclassified_rule": rule, "exempt_label": entry_text}
 
     def _search_filter_source(self, tree, point, container, texts, effect, sources):
-        """Exact search-filter classification, not a general text/target exemption."""
-        if effect != "navigation" or {t.strip() for t in texts} != {"充电桩"}:
+        """Exact search-filter classification for a declared label, not a general text/target exemption."""
+        for exemption in self._exemptions("search_filter_label"):
+            source = self._search_filter_label(exemption, tree, point, container, texts, effect, sources)
+            if source:
+                return source
+        return None
+
+    def _search_filter_label(self, ex, tree, point, container, texts, effect, sources):
+        target_label = ex["target_label"]
+        if effect != "navigation" or {t.strip() for t in texts} != {target_label}:
+            return None
+        rule = self._reclassified_rule(ex)
+        if rule is None:
             return None
         receiver = tree.touch_target(*point)
         if not container.clickable or receiver is None or receiver.idx != container.idx or tree.modal_layers():
@@ -444,7 +499,7 @@ class Policy:
         if any(n.clickable and n.idx != container.idx for n in nodes):
             return None
         visible = {t.strip() for n in nodes if tree.shown(n) for t in (n.text, n.description) if t.strip()}
-        if visible != {"充电桩"}:
+        if visible != {target_label}:
             return None
         for source in sources or []:
             if source.get("kind") != "state_navigation_context":
@@ -459,16 +514,17 @@ class Policy:
             if context.type not in ("SearchField", "TextInput") or not tree.shown(context):
                 continue
             rules = source.get("rules") or []
-            if rules and all(r.get("class") == "navigation" and re.fullmatch(r["pattern"], "充电桩")
+            if rules and all(r.get("class") == "navigation" and re.fullmatch(r["pattern"], target_label)
                              for r in rules):
-                group = self._search_filter_group(tree, container, context, scope_idx)
+                group = self._search_filter_group(tree, container, context, scope_idx, ex)
                 if group:
-                    return {**source, "container_idx": container.idx, **group}
+                    return {**source, "container_idx": container.idx, **group, "exemption": ex["id"],
+                            "reclassified_rule": rule, "exempt_label": target_label}
         return None
 
-    def _search_filter_group(self, tree, container, context, scope_idx):
-        """Prove membership in the observed two-label filter group without guessing AA ids/types."""
-        labels = {"充电桩", "电梯口"}
+    def _search_filter_group(self, tree, container, context, scope_idx, ex):
+        """Prove membership in the declared filter group without guessing AA ids/types."""
+        labels, target_label = set(ex["group_labels"]), ex["target_label"]
         for group in tree.ancestors(container):
             if group.parent is None or group.clickable or tree.is_within(context, group):
                 continue
@@ -484,7 +540,7 @@ class Policy:
             if any(len(ids) != 1 for ids in holders.values()):
                 continue
             ids = {next(iter(values)) for values in holders.values()}
-            if len(ids) != 2 or next(iter(holders["充电桩"])) != container.idx:
+            if len(ids) != len(labels) or next(iter(holders[target_label])) != container.idx:
                 continue
             if {n.idx for n in nodes if n.clickable} != ids:
                 continue  # Includes unlabeled and nested receivers, not only text-bearing buttons.

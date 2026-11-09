@@ -694,7 +694,10 @@ TC-QK-242 在修改前肯定读取同一POI的未选标签及搜索基线，添�
 
 Policy 保留原全局规则；仅当当前观测为乾崑前台、明确单 pane，唯一非根 `Stack#VPD_HOME_VIEW`、
 其「收藏及常去」标识及唯一「收藏夹」直接父 `Row` 均完整可见，且该 Row 是真实纯标签触摸接收者时，
-重新分类唯一旧 `user_data` 关键词规则的精确「收藏夹」命中。隐藏、裁剪、重复、编辑/设置控件、嵌套接收者、
+重新分类 id 为 `user_data_keywords` 的全局规则对精确「收藏夹」的命中。
+bundle、首页 id、标题与入口文字、被改归类的规则 id 都在 `policy.json` 的 `reviewed_exemptions` 中声明
+（搜索「充电桩」筛选同理，引用 `vehicle_control_keywords`）；`policy.py` 只实现结构证明，不含 APP 字面量。
+缺少声明即保持拒绝；规则 id 重复或声明格式无效时 Policy 加载失败。隐藏、裁剪、重复、编辑/设置控件、嵌套接收者、
 混合标签、弹窗、其他 APP 或未知 layout 不取得该依据；其他全局及页面限制完整保留，同形重复规则也拒绝。
 标题须为非点击/非长按的静态 `Text`，text/description 不可混入其他值，也不可从 Button、可编辑或设置控件祖先中借值。
 历史 AA 的普通可点击 Column 标题容器仍可用；标题与入口的祖先须 enabled，标题、文字及接收 Row 的完整 bounds 均须包含于首页 bounds。
