@@ -1,5 +1,10 @@
 # 与 ghost_VPD 原工程的复用边界（基于 main@90545b9 的代码核实）
 
+> 原工程（根目录 `run.py` / `app/` 等）已从主干删除。下表路径只存在于提交
+> [`90545b9`](https://github.com/amazing-fish/ghost_VPD/tree/90545b9) 及更早版本；`data/` 和 `fixtures/`
+> 里的 `app/…:行号` 来源注释也指向该提交。这些注释保持原样，避免改动内容和依赖指纹。
+> 删除文件不会清除 git 历史，第 11 条的凭据仍须轮换。
+
 | 分类 | 内容 | 路径 | 理由 |
 |---|---|---|---|
 | 直接复用 | Harmony 选择器（文本/xpath） | `app/config/motor_config.py:288-549` | 已在原脚本中使用；以"定位线索 + 来源行号"导入 `targets.json`，不当作产品规则 |

@@ -73,7 +73,7 @@
 | [#118 现场（承接#107）](https://github.com/amazing-fish/ghost_VPD/issues/118)、[#64 登录与输入](https://github.com/amazing-fish/ghost_VPD/issues/64) | 维护实际到达路径、账密主路径/已登录复用、输入/清空及协议框契约；#110剩余条款已由#64承接 | #118统一交接最小现场。自然出现的起点分支再验，不为造现场强制登出/切园区；清空未知不等于已清空 |
 | [#56 生产事实](https://github.com/amazing-fish/ghost_VPD/issues/56) | 沿既有provider/guard补独立正反证及身份、时点、动作有效范围，不建新事实总线 | Windows实测；首页/回自车/历史记录或业务`--env`不证明当前车辆图内，事实不足不制造NA或通过 |
 | [#54 触摸归属](https://github.com/amazing-fish/ghost_VPD/issues/54)、[#58 手势](https://github.com/amazing-fish/ghost_VPD/issues/58)、[#82 几何](https://github.com/amazing-fish/ghost_VPD/issues/82) | 分别处理表面接收者、真实手势和同帧窗口/裁剪；保留独立验收 | 实际父链/窗口、工具版本/帮助与px/s、真实表面后置；诊断、截图变化、basis或raw注入不代替证明 |
-| [#45 治理与维护](https://github.com/amazing-fish/ghost_VPD/issues/45) | 按真实缺陷推进知识依赖/测试隔离、Legacy、Oracle资格与证据治理 | 判据确认、资产人审和当前重放独立办理，不以文档或Issue关闭扩大批准范围 |
+| [#45 治理与维护](https://github.com/amazing-fish/ghost_VPD/issues/45) | 按真实缺陷推进知识依赖/测试隔离、Oracle资格与证据治理（根目录旧服务已删除） | 判据确认、资产人审和当前重放独立办理，不以文档或Issue关闭扩大批准范围 |
 
 同一缺口只由表中的owner维护验收条款，其他Issue引用它；保留未满足独立目标，不为减少数量关闭任务。
 工作机只提交Issue/评论、原件及最小复验；维护侧修改代码、建PR、审完整diff和调用链，再按授权合入。

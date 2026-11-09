@@ -8,7 +8,7 @@
 - 阶段 3 增加乾崑（`com.yinwang.qiankunapp.hm`）样例：登录→切车→进入 VPD→算路（TC-QK-101）、地图收藏→按名搜索算路→读距离（TC-QK-102）、有人监护的激活→运动→暂停→后台→继续→完成（TC-QK-103）。**目前只在离线回放上验证，未在真机运行**。
 - 登录、切车、改收藏等受控副作用按当前policy申请运行时`--authorize`；进入VPD和算路沿已委派任务许可，仍核真实控件语义。车辆运动另需`--supervisor`与用例`safety`；自动探索不带运动授权。
 - 首版选型依据：当时连接Harmony真机（SGT-AL10，OpenHarmony 7.0，已装3.0.3.200），原工程Harmony选择器最完整（`MOTOR_HARMONY_CONFIG`）；首版切片覆盖页面切换、状态识别、弹窗和定位变化，不需要车辆授权。
-- 与原工程的关系：独立目录增量接入，不 import `app` 包、不改原有功能。复用边界见 [references/repo-reuse.md](references/repo-reuse.md)。
+- 与原工程的关系：从未 import 原 `app` 包；原工程代码已从主干删除，只保留在提交 `90545b9`。当时的复用边界见 [references/repo-reuse.md](references/repo-reuse.md)。
 
 ## 目录
 
@@ -187,7 +187,7 @@ Console 是人工控制入口，手动操作写入独立的 `console-*` 运行�
   以及它在哪个 vp 宽度切换成宽屏布局（用户估计约 640 vp，ArkUI 默认 600/840 vp），都需要折叠屏真机确认后改 `data/layout.json` 和 `targets.json`。
 - 折叠屏上 `hidumper -s DisplayManagerService` 的多屏与折叠状态字段、`const.window.foldscreen.type` 的取值，只按直板机输出推断，未见过折叠屏真机输出。
 - 运行中折叠/展开、旋转：执行器会重新读取显示参数并记录 `layout_changed`，但没有真机或回放用例覆盖运行中切换。
-- 真机上的模板定位（原工程模板图片 `app/assets/imgs/**` 不在仓库中，需要用 `template-crop` 从真机截图重新裁剪）。
+- 真机上的模板定位（原工程模板图片 `app/assets/imgs/**` 从未入仓，需要用 `template-crop` 从真机截图重新裁剪）。
 - 长时间运行、多设备并发、弱网与后台切换等扰动；Android 适配器与其他 APP。
 - 等待时间经验（`wait_timeout`）只在真机上才会产生，离线回放没有覆盖其自动生成路径。
 - 乾崑：部分输入/状态和结果行已依据现场AA登记，范围与剩余复验见[搜索交接](../docs/WORKMACHINE_SEARCH_20261027.md)，不能再概括为“全部未核对”。地图/表面、收藏写操作、标签及算路等仍逐目标核来源和`status`；离线假设世界不认证真实控件或产品预期。
