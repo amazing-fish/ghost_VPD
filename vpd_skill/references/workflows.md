@@ -45,11 +45,12 @@
 .\vpdtest.ps1 act input --select "xpath=//TextInput" --allow-input --text 新名字 --side-effect user_data --authorize user_data --session g1 --device $D
 .\vpdtest.ps1 act tap --select "text=确定" --expect-text "新名字" --side-effect user_data --authorize user_data --session g1 --device $D
 .\vpdtest.ps1 session g1                                                         # 完整轨迹：观察/请求/被拒/失败/中断
-.\vpdtest.ps1 case from-session --session g1 --new-id TC-QK-201 --app qiankun_hm --goal "<目标原文>" --drop A4=与目标无关的试探
+# <新用例ID> 须是尚不存在的 ID（例如 TC-QK-201 已存在，照抄会报 FileExistsError）
+.\vpdtest.ps1 case from-session --session g1 --new-id <新用例ID> --app qiankun_hm --goal "<目标原文>" --drop A4=与目标无关的试探
 # 补齐 purpose / preconditions / assertions（独立 oracle_refs）/ cleanup / knowledge_used 后：
-.\vpdtest.ps1 case lint TC-QK-201
+.\vpdtest.ps1 case lint <新用例ID>
 # 单条 run 可先作非正式取证；晋级或放入任何批量入口前，按下方“探索资产人工审核”操作。
-.\vpdtest.ps1 run TC-QK-201 --device $D --env account_state=logged_in --env favorite_spot_slot=available --env vehicle_in_vpd_map=yes --authorize user_data --record-replay
+.\vpdtest.ps1 run <新用例ID> --device $D --env account_state=logged_in --env favorite_spot_slot=available --env vehicle_in_vpd_map=yes --authorize user_data --record-replay
 ```
 
 - `--select`：`text=` 精确、`text~=` 包含、`id=`、`xpath=`，`--within type=|id=|pane=` 限定范围。只覆盖有 UI 树的页面。

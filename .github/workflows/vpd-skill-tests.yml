@@ -5,12 +5,19 @@ on:
     paths:
       - '.gitattributes'
       - 'vpd_skill/**'
+      # Tests read these fixed baselines, review records and evidence files.
+      - 'docs/baselines/**'
+      - 'docs/evidence/**'
+      - 'docs/reviews/**'
       - '.github/workflows/vpd-skill-tests.yml'
   push:
     branches: [main]
     paths:
       - '.gitattributes'
       - 'vpd_skill/**'
+      - 'docs/baselines/**'
+      - 'docs/evidence/**'
+      - 'docs/reviews/**'
       - '.github/workflows/vpd-skill-tests.yml'
   workflow_dispatch:
 

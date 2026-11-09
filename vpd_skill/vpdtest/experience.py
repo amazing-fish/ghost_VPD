@@ -1,6 +1,7 @@
 """经验与 RSI v0.1：候选记录 → 重放/回归验证 → 采纳（版本化 overlay）→ 可回滚。
 
-- 经验可以自动积累为 candidate；只有 AUTO_ADOPTABLE 类型在验证通过后可自动采纳。
+- 经验可以自动积累为 candidate；AUTO_ADOPTABLE 类型验证通过后可显式 adopt 而无需 reviewer，其余须 reviewer。
+  任何类型都不会自动采纳，overlay 只读取已 adopt 的条目。
 - 产品断言、关键步骤、安全边界不在经验可改范围：case 变更走 cases.promote（需评审），
   policy.json 不会被任何经验读取或修改。
 - 验证必须覆盖产生该经验之外的用例（等待时长绑定单个步骤，改为来源之外的设备），且与基线对比无回退，

@@ -22,7 +22,7 @@
     "hypothesis": "原工程没有、来自用户描述或 Skill 推测的控件/流程；真机校准前不能晋级为回归用例",
     "calibrated_on_device": "已在真机运行中核对（附 run/obs 证据）"
   },
-  "vehicle_boundary": "登录/切换车辆/进入 VPD/算路/改收藏都是 gated，须本次运行 --authorize；激活/继续/泊入等车辆运动是 supervised，须 --authorize vehicle_motion --supervisor 且用例声明 safety。自动探索不带任何运动授权。",
+  "vehicle_boundary": "登录/切换车辆/改收藏是 gated，须本次运行 --authorize；进入 VPD 与算路是 task 类，随已委派的 VPD 测试任务许可，不需要 --authorize，目标仍须声明同一副作用；激活/继续/泊入等车辆运动是 supervised，须 --authorize vehicle_motion --supervisor 且用例声明 safety。自动探索不带任何运动授权。",
   "known_gaps": [
     "原工程乾崑流程只覆盖：登录、按车架号后 6 位切车、ADS 进入 VPD、输入车位号 → 去这里 → 算路、开始/确定激活、暂停/继续/退出。",
     "地图选点、收藏、重命名、标签、按收藏名搜索、算路距离读取：原工程中没有（not found in repo），对应目标全部是 hypothesis。",

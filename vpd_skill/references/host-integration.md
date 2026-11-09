@@ -11,6 +11,7 @@
    | 1 | `--fail-on` 命中 | CI 判失败 |
    | 2 | `action_required`：需要现场人工接管（未确认的安全停止、解锁失败等） | 立即转告用户，不重试 |
    | 3 | 参数或工具错误，`{"error", "message"}`；命令行用法错误为 `"error": "UsageError"` | 修正命令后重试 |
+   | 130 | 被中断（KeyboardInterrupt），输出 `{"error": "KeyboardInterrupt", ...}` 与已分配运行的诊断位置 | 先核对现场与已下发动作，再决定是否重跑 |
 
    环境阻塞（缺授权、缺密钥、`--env` 不符）时退出码仍为 0、`verdict=blocked`，逐项条件在 `findings[].detail`
    （`key` / `required` / `actual`）里，按它补参数，不要解析 `reason` 原文。
