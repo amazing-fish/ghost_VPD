@@ -52,11 +52,12 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
 ## 判定规则（硬约束）
 
 - 通过/失败只来自"确定性证据 + 已确认判据（knowledge status=confirmed）"。判据未确认、冲突、缺失、废弃或状态无效 → 待确认。
-- 结论：通过 / 失败 / 不涉及 / 待确认 / 执行异常 / 流程阻塞；另有归属：产品 / 工具 / 环境 / 需求不明确。
+- 结论：通过 / 失败 / 不涉及 / 待确认 / 执行错误 / 阻塞（与报告、CLI 的 `label` 一致）；另有归属：产品 / 工具 / 环境 / 需求不明确。
 - 模型（包括你自己看截图）的 UI/UX 意见只能写成建议或 `visual_review` 建议断言，不能直接成为缺陷。
 - 看到"待确认""阻塞"时如实汇报原因与缺口，不要为了得到通过去：删步骤、放宽断言、改 expect_state、
   加长超时到 policy 上限以外、把中断标成 reviewed、换成坐标盲点。
-- 恢复只允许执行器内置的三种：重新观察、关闭**已评审的良性中断**、幂等步骤重发。首次失败永远保留在报告里。
+- 恢复只允许执行器内置的几种：重新观察；关闭**已评审的良性**中断（APP 内中断或已登记系统弹窗）；
+  input 显式声明遮挡条件时按一次返回；幂等步骤重发；锁屏时自动解锁。完整列表见 [contracts](references/contracts.md)。首次失败永远保留在报告里。
 - 判据要适用于本次运行：知识的 `applies_to`（版本、形态、账号状态）与实测事实比较，未知或不符 → 待确认。
   `--env` 只用于旧整例调度门禁，不是当前实测产品事实；业务判据需要独立现场证据。
   `conditions` 的正反证由当前观测自动读取，`step.when` 决定操作，`assertion.guard` 及 Oracle 的 `condition_requirements` 决定断言适用性。
@@ -134,7 +135,7 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
 .\vpdtest.ps1 act tap --select "text=重命名" --side-effect user_data --authorize user_data --app qiankun_hm --session s1 --device hdc:<serial>
 .\vpdtest.ps1 act input --select "xpath=//TextInput" --allow-input --text 测试名 --side-effect user_data --authorize user_data --app qiankun_hm --session s1 --device hdc:<serial>
 .\vpdtest.ps1 session s1
-.\vpdtest.ps1 case from-session --session s1 --new-id TC-QK-201 --app qiankun_hm --goal "<目标原文>" [--drop A4=理由]
+.\vpdtest.ps1 case from-session --session s1 --new-id <新用例ID> --app qiankun_hm --goal "<目标原文>" [--drop A4=理由]
 .\vpdtest.ps1 act tap --target tab_my --expect my_tab --session s1 --device hdc:<serial>
 .\vpdtest.ps1 case from-exploration --run <explore-id> --transitions T3 T5 --new-id TC-EXP-001
 .\vpdtest.ps1 experience validate <XP-id> --app motor_hm --suite motor_hm_smoke --device <spec1> --device <spec2>

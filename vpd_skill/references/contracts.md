@@ -283,7 +283,9 @@ Executor、act、探索候选和 Dispatcher 重检共用判定，重定位后从
 Agent 不自动确认产品知识或批准生产资产。
 
 允许的恢复（`recoveries[]`，追加记录，不覆盖首次失败）：
-`reobserve_and_retry`（定位失败）、`dismiss_interrupt`（仅限 `class=benign` 且 `review=reviewed`）、
+`reobserve_and_retry`（定位失败、观测查询失败）、`dismiss_interrupt`（APP 内中断，仅限 `class=benign` 且 `review=reviewed`）、
+`dismiss_system_dialog`（动作后无法观测时，关闭 `system_dialogs.json` 中已评审的良性系统弹窗）、
+`dismiss_input_obstruction`（input 显式声明 `dismiss_obstruction_when` 时按一次返回键）、
 `redispatch` 只允许可靠未下发，或上述明确低风险幂等步骤，并受原有重试预算限制。已发/可能已发的非幂等动作、输入与受控副作用，遇超时、命令错误或动作后观测失败不重放原动作；错误名不证明未执行。
 
 `clear.sent` 保留清空阶段的下发事实，后续输入未发不能将整步改成未发；聚合 clear 的 sent 采用三态（任一字面 true→true、全部字面 false→false、其余→null）。会话对未知发送事实保守计入预算，记录 `effect_unknown`。只有清空成功而未完成输入仍为部分执行，不整步清空重跑。

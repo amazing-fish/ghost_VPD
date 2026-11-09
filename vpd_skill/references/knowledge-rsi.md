@@ -101,8 +101,8 @@ URL、文件路径、多来源自由文本等不从中猜出身份；需要机�
 
 | kind | 来源 | 采纳 |
 |---|---|---|
-| `locator_preference` | 某目标首选策略失败、后备策略成功（`locate.adapted`） | 验证通过后可自动采纳 |
-| `wait_timeout` | 后置条件在超时窗口后 30% 才出现 | 验证通过后可自动采纳，上限 policy `max_wait_s` |
+| `locator_preference` | 某目标首选策略失败、后备策略成功（`locate.adapted`） | 验证通过后可 `experience adopt`，无需 `--reviewer` |
+| `wait_timeout` | 后置条件在超时窗口后 30% 才出现 | 验证通过后可 `experience adopt`，无需 `--reviewer`；上限 policy `max_wait_s` |
 | `interrupt_rule` / `state_signature` / `skill_note` | 人或 Agent 提议 | 必须 `--reviewer` |
 | `assertion_change` / `step_removal` / `policy_change` | — | 禁止走经验通道：断言与关键步骤走用例评审，policy 单独人工修改 |
 
