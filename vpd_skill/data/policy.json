@@ -1,5 +1,5 @@
 {
-  "version": "policy-0.9",
+  "version": "policy-0.10",
   "note": "运行边界。Skill/经验/模型都不能修改本文件；变更需人工评审并单独提交。",
   "allowed_packages": [
     "app.huawei.hmos.motor",
@@ -50,6 +50,7 @@
     },
     {
       "class": "user_data",
+      "id": "user_data_keywords",
       "pattern": "收藏|重命名|修改名称|标签|^删除$",
       "reason": "改变账号下的用户数据（需授权）"
     },
@@ -116,6 +117,15 @@
   "safe_stop_note": "side_effect=safe_stop 的目标（暂停/退出泊车等）在任何授权下都可点击、不占动作预算：安全停止不应被门槛挡住。但点击点所在可点击容器里必须有停止类文字，且不能同时含有其他会触发运动/车控的文字。",
   "changelog": [
     {
+      "version": "policy-0.10",
+      "date": "2026-11-10",
+      "changes": [
+        "Issue207：user_data 全局关键词规则补稳定 id user_data_keywords",
+        "乾崑首页收藏夹浏览与搜索充电桩筛选两项已有豁免从 policy.py 移到 reviewed_exemptions 声明，按规则 id 引用；结构证明与判定结果不变"
+      ],
+      "reviewed_by": "维护者2026-11-09同意按架构评估收敛；实现待当前PR审查，非产品判据确认"
+    },
+    {
       "version": "policy-0.9",
       "date": "2026-10-24",
       "changes": [
@@ -174,6 +184,26 @@
         "vehicle_motion 的 reason 与 policy-0.3 的监护授权语义对齐"
       ],
       "reviewed_by": "待用户评审（PR #2）"
+    }
+  ],
+  "reviewed_exemptions": [
+    {
+      "id": "qiankun_home_favorites_browse",
+      "kind": "home_entry_browse",
+      "reclassifies_rule": "user_data_keywords",
+      "bundle": "com.yinwang.qiankunapp.hm",
+      "home_id": "VPD_HOME_VIEW",
+      "header_text": "收藏及常去",
+      "entry_text": "收藏夹",
+      "basis": "#125/#111：当前乾崑前台、单栏首页及纯收藏夹接收行共同证明浏览 tap，不是数据写入；目标仍 unverified"
+    },
+    {
+      "id": "qiankun_search_charging_filter",
+      "kind": "search_filter_label",
+      "reclassifies_rule": "vehicle_control_keywords",
+      "target_label": "充电桩",
+      "group_labels": ["充电桩", "电梯口"],
+      "basis": "#84：当前搜索签名、已登记搜索输入框及纯标签真实接收者共同证明筛选导航；页面级限制与真实充电不豁免"
     }
   ],
   "generic_confirmation_text": "^(?:确定|确认|OK)$",
