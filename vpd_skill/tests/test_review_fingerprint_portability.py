@@ -1,26 +1,22 @@
-"""Canonical paths are portable; source bytes remain strictly bound."""
+"""Canonical paths are portable; the engine manifest records exact source bytes."""
 import hashlib
 
-from vpdtest import cases
-from vpdtest.util import sha256_obj
+from vpdtest import cases, review_snapshot
 
 
-def test_engine_manifest_uses_portable_paths_and_exact_source_bytes(ws, tmp_path, monkeypatch):
+def test_engine_manifest_uses_portable_paths_and_exact_source_bytes(tmp_path):
     engine = tmp_path / "engine"
     (engine / "providers").mkdir(parents=True)
     (engine / "entry.py").write_bytes(b"pass\n")
     source = engine / "providers/oracle.py"
     source.write_bytes(b"value = 1\n")
-    monkeypatch.setattr(cases, "__file__", str(engine / "entry.py"))
-    case = ws.load_case("TC-QK-244")
-    actual = cases.review_status(ws, case)["current"]["engine_hash"]
-    expected = sha256_obj({"entry.py": hashlib.sha256(b"pass\n").hexdigest(),
-                           "providers/oracle.py": hashlib.sha256(b"value = 1\n").hexdigest()})
-    assert actual == expected
-    # The checkout policy makes source bytes equal across hosts; the gate itself
-    # must still detect any changed bytes, including a manual CRLF edit.
+    actual = review_snapshot.engine_files(engine)
+    assert actual == {"entry.py": hashlib.sha256(b"pass\n").hexdigest(),
+                      "providers/oracle.py": hashlib.sha256(b"value = 1\n").hexdigest()}
+    # The checkout policy makes source bytes equal across hosts; the diagnostic
+    # still reports any changed bytes, including a manual CRLF edit.
     source.write_bytes(b"value = 1\r\n")
-    assert cases.review_status(ws, case)["current"]["engine_hash"] != actual
+    assert review_snapshot.engine_files(engine)["providers/oracle.py"] != actual["providers/oracle.py"]
 
 
 def test_template_manifest_uses_portable_relative_names(ws):

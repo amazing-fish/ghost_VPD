@@ -468,7 +468,8 @@ Replay world 的 env_facts 只是标明 offline_replay 的合成环境，不代�
 suite 摘要及 Console 接受 error；经验验证不对 error 做产品结论排序，未解决错误、错误转 pending 或
 同为 error 但少适配都不能验证通过。可靠的 error→passed 才可计改善。晋级只计无执行错误的确定重放。
 新依赖指纹包含 `result_contract=7`，旧重放需按新口径重新积累；旧无条件内容哈希不变；新 conditions 内容与外部条件定义/目标/规则前置均绑定指纹，历史原始 run/verdict 不改写。
-探索资产现有 engine_hash 也会因引擎变更使审核失效，仍须由人重新审核，Agent 不自动批准。
+判定语义变化时把 `cases.RESULT_CONTRACT` 加 1：它进入依赖指纹，使旧重放和旧人审失效，须由人重新审核，Agent 不自动批准。
+纯重构、注释或与判定无关的引擎改动不改它，也不再让人审失效。
 
 复合步骤按真实子结果判定：`critical` 控制普通失败后的继续，不抑制已发生的产品失败候选、待确认或阻塞。
 当当前结果同时有 `effect_unknown` 与未解决的 `action_required` 时，即使 `critical=false`，
@@ -592,7 +593,8 @@ lint 会指出非法声明，审核和晋级沿用该门禁；不自动改写存
 `case approve` 为旧探索资产补持久 origin；不会自动审核现有资产。
 
 - 用例 `asset_review`：schema=1、非空 reviewer/basis、带时区 ISO ts、binding。
-- binding：case_id、原 content_hash/dependency_hash、review_hash、policy_hash、engine_hash、context_hash。
+- binding：case_id、content_hash、dependency_hash（含 `result_contract`）、review_hash、policy_hash、context_hash。
+  不含引擎源码；旧记录若仍带 `engine_hash` 字段，与当前绑定不相等，按 stale 重审一次。
   review_hash 排除 status/history/replays/product_status/asset_review，其他字段均绑定；重放资格仍按当前内容/依赖指纹核对。
 - `run.json.asset_review`：required、valid、state（approved/stale/pending/not_required/revoked）、origin_signals、
   current、record、use（single/batch）。这是执行前快照，历史运行不按未来配置重算；CLI 与报告展示审核状态。
@@ -608,7 +610,7 @@ lint 会指出非法声明，审核和晋级沿用该门禁；不自动改写存
 这是本地审计约定，不认证身份或防蓄意重写全部历史，不中断已开始运行；详见[生命周期边界](../../docs/ASSET_LIFECYCLE_DECISIONS.md)。
 
 policy、layout 与 dialogs 使用本次运行准入检查时捕获的配置，Observer、preflight 弹窗关闭与恢复诊断共用该弹窗表。
-引擎源码与模板按调用入口指纹核对，运行中外部修改尚无文件锁保障。reviewer 为本地声明身份，不是认证或签名。
+模板按调用入口指纹核对，运行中外部修改尚无文件锁保障。reviewer 为本地声明身份，不是认证或签名。
 
 ## 5. 会话（`runs/session-<name>/`）与会话生成的用例
 

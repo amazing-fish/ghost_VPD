@@ -1,4 +1,4 @@
-"""Optional engine-file evidence explains a review binding; it never authorizes it."""
+"""Engine-file evidence explains what changed since a review; it never authorizes or invalidates it."""
 from pathlib import Path
 import re
 
@@ -6,7 +6,7 @@ from .util import sha256_file, sha256_obj
 
 
 def engine_files(engine_dir: Path) -> dict:
-    """Keep the existing engine_hash input, without caching across inspections."""
+    """Portable relative path → SHA-256 of every engine source file, collected fresh each time."""
     return {p.relative_to(engine_dir).as_posix(): sha256_file(p)
             for p in sorted(engine_dir.rglob("*.py"))}
 
@@ -30,10 +30,13 @@ def _unavailable(reason: str) -> dict:
 
 
 def engine_changes(record, current_files: dict) -> dict:
-    """Compare only a saved manifest consistent with its old engine_hash.
+    """List engine files added/removed/modified since the review's saved manifest.
 
-    Relative names are data, never read paths. Self-consistency is not proof of
-    reviewer identity, source authenticity, or an original device evidence pack.
+    Reviews no longer bind engine bytes. Older records that still carry
+    ``binding.engine_hash`` must agree with their manifest, otherwise the
+    manifest is reported unusable rather than trusted. Relative names are data,
+    never read paths; a consistent manifest is not proof of reviewer identity,
+    source authenticity, or an original device evidence pack.
     """
     if not isinstance(record, dict) or "engine_snapshot" not in record:
         return _unavailable("snapshot_missing")
@@ -46,9 +49,10 @@ def engine_changes(record, current_files: dict) -> dict:
     if not _valid_files(previous):
         return _unavailable("snapshot_manifest_invalid")
     binding = record.get("binding")
-    if not isinstance(binding, dict) or not isinstance(binding.get("engine_hash"), str):
+    if not isinstance(binding, dict):
         return _unavailable("snapshot_binding_missing")
-    if sha256_obj(previous) != binding["engine_hash"]:
+    legacy = binding.get("engine_hash")
+    if legacy is not None and (not isinstance(legacy, str) or sha256_obj(previous) != legacy):
         return _unavailable("snapshot_binding_mismatch")
     if not _valid_files(current_files):
         return _unavailable("current_manifest_invalid")

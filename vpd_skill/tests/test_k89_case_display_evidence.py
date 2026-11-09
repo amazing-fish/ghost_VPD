@@ -94,24 +94,19 @@ def test_assets_preserve_the_users_per_case_review_decisions(ws, number):
 
 
 @pytest.mark.parametrize("number", sorted(ACCEPTED))
-@pytest.mark.parametrize("change", ["dependency", "engine"])
-def test_historical_acceptance_cannot_authorize_changed_execution(ws, tmp_path, monkeypatch, number, change):
+@pytest.mark.parametrize("change", ["dependency", "result_contract"])
+def test_historical_acceptance_cannot_authorize_changed_execution(ws, monkeypatch, number, change):
     case = ws.load_case(f"TC-QK-{number}")
     before = ws.case_path(case["id"]).read_bytes()
     app = ws.app(case["app"])
     current = review_status(ws, case, app=app)["current"]
     if change == "dependency":
         app.states.states["qk_vpd_home"]["forbid_text"].append("Synthetic changed home requirement")
-        changed_key = "dependency_hash"
     else:
-        engine = tmp_path / "unreviewed-engine"
-        engine.mkdir()
-        (engine / "fixture.py").write_bytes(b"pass\n")
-        monkeypatch.setattr(cases, "__file__", str(engine / "fixture.py"))
-        changed_key = "engine_hash"
+        monkeypatch.setattr(cases, "RESULT_CONTRACT", cases.RESULT_CONTRACT + 1)
     result = review_status(ws, case, app=app)
-    assert result["current"][changed_key] != current[changed_key]
-    assert result["current"][changed_key] != case["asset_review"]["binding"][changed_key]
+    assert result["current"]["dependency_hash"] != current["dependency_hash"]
+    assert result["current"]["dependency_hash"] != case["asset_review"]["binding"]["dependency_hash"]
     assert result["required"] and result["valid"] is False and result["state"] == "stale"
     with pytest.raises(PermissionError, match="审核失效"):
         require_review(ws, case, app=app)

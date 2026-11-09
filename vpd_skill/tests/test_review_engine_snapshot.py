@@ -24,13 +24,13 @@ def _approve(ws):
                      "pytest-synthetic", "synthetic engine diagnostic contract only")
 
 
-def test_future_approval_keeps_engine_files_bound_to_existing_hash(verdict_ws):
+def test_approval_records_engine_snapshot_without_binding_engine_bytes(verdict_ws):
     _asset(verdict_ws)
     approved = _approve(verdict_ws)
     record = approved["asset_review"]
     snapshot = record["engine_snapshot"]
-    assert snapshot["schema"] == 1
-    assert C.sha256_obj(snapshot["files"]) == record["binding"]["engine_hash"]
+    assert snapshot["schema"] == 1 and snapshot["files"]
+    assert "engine_hash" not in record["binding"]
     assert C.review_status(verdict_ws, approved)["valid"] is True
 
 
@@ -60,7 +60,7 @@ def test_one_capture_binds_new_review_and_preserves_provider_copy(verdict_ws, mo
     record = approved["asset_review"]
     assert len(calls) == 1
     assert record["engine_snapshot"]["files"] == old
-    assert record["binding"]["engine_hash"] == C.sha256_obj(old)
+    assert "engine_hash" not in record["binding"]
     assert approved["history"][-1]["engine_snapshot"] == record["engine_snapshot"]
     assert C.content_hash(before) == C.content_hash(approved)
     assert before["status"] == approved["status"] == "draft"
@@ -69,7 +69,8 @@ def test_one_capture_binds_new_review_and_preserves_provider_copy(verdict_ws, mo
     assert "later.py" not in record["engine_snapshot"]["files"]
 
 
-def test_added_removed_modified_engine_files_explain_stale_without_weakening_gate(verdict_ws, monkeypatch):
+def test_engine_file_changes_are_explained_without_invalidating_review(verdict_ws, monkeypatch):
+    """Engine refactors no longer stale every review; result semantics use RESULT_CONTRACT."""
     _asset(verdict_ws)
     old = {"z.py": "a" * 64, "sub/removed.py": "b" * 64, "same.py": "c" * 64}
     monkeypatch.setattr(C.review_snapshot, "engine_files", lambda _: old)
@@ -77,16 +78,22 @@ def test_added_removed_modified_engine_files_explain_stale_without_weakening_gat
     current = {"z.py": "d" * 64, "new.py": "e" * 64, "same.py": "c" * 64}
     monkeypatch.setattr(C.review_snapshot, "engine_files", lambda _: current)
     info = C.review_status(verdict_ws, approved)
-    assert info["state"] == "stale" and info["valid"] is False
+    assert info["state"] == "approved" and info["valid"] is True
     assert info["engine_changes"] == {"available": True, "reason": None, "added": ["new.py"],
                                       "removed": ["sub/removed.py"], "modified": ["z.py"], "unchanged_count": 1}
     assert "engine_snapshot" not in info["record"]
-    before = verdict_ws.case_path(NAV_CASE).read_bytes()
+    assert C.require_review(verdict_ws, approved)["valid"] is True
+
+
+def test_result_contract_bump_invalidates_review(verdict_ws, monkeypatch):
+    _asset(verdict_ws)
+    approved = _approve(verdict_ws)
+    monkeypatch.setattr(C, "RESULT_CONTRACT", C.RESULT_CONTRACT + 1)
+    info = C.review_status(verdict_ws, approved)
+    assert info["state"] == "stale" and info["valid"] is False
+    assert info["current"]["dependency_hash"] != approved["asset_review"]["binding"]["dependency_hash"]
     with pytest.raises(PermissionError, match="审核失效"):
         C.require_review(verdict_ws, approved)
-    with pytest.raises(PermissionError, match="审核失效"):
-        C.promote(verdict_ws, NAV_CASE, "candidate", KnowledgeStore(verdict_ws.root), dry_run=True)
-    assert verdict_ws.case_path(NAV_CASE).read_bytes() == before
 
 
 def test_unchanged_engine_is_explained_without_invalidating_review(verdict_ws):
@@ -122,7 +129,6 @@ def test_collected_relative_file_names_remain_explainable(tmp_path, relative):
     ({"schema": 1, "files": []}, "snapshot_manifest_invalid"),
     ({"schema": 1, "files": {"valid.py": "bad-hash"}}, "snapshot_manifest_invalid"),
     ({"schema": 1, "files": {"valid.py": None}}, "snapshot_manifest_invalid"),
-    ({"schema": 1, "files": {"valid.py": "f" * 64}}, "snapshot_binding_mismatch"),
 ])
 def test_corrupt_diagnostic_is_unavailable_and_does_not_change_original_validity(verdict_ws, snapshot, reason):
     _asset(verdict_ws)
@@ -153,12 +159,12 @@ def test_untrusted_snapshot_names_never_become_read_paths(monkeypatch, path):
     assert info["available"] is False and info["reason"] == "snapshot_manifest_invalid"
 
 
-def test_legacy_engine_hash_change_has_no_guessed_file_details(verdict_ws, monkeypatch):
+def test_legacy_engine_hash_binding_is_stale_and_has_no_guessed_file_details(verdict_ws, monkeypatch):
+    """Records approved under the old rule carry binding.engine_hash and need one re-review."""
     _asset(verdict_ws)
-    monkeypatch.setattr(C.review_snapshot, "engine_files", lambda _: {"old.py": "a" * 64})
     approved = _approve(verdict_ws)
+    approved["asset_review"]["binding"]["engine_hash"] = "a" * 64
     approved["asset_review"].pop("engine_snapshot")
-    monkeypatch.setattr(C.review_snapshot, "engine_files", lambda _: {"new.py": "b" * 64})
     info = C.review_status(verdict_ws, approved)
     assert info["state"] == "stale" and info["valid"] is False
     assert info["engine_changes"]["available"] is False
@@ -166,8 +172,16 @@ def test_legacy_engine_hash_change_has_no_guessed_file_details(verdict_ws, monke
     assert info["engine_changes"]["added"] is None
 
 
-@pytest.mark.parametrize("binding", [None, {}, {"engine_hash": None}])
-def test_snapshot_without_old_binding_is_not_attributed_to_current_engine(binding):
+def test_legacy_manifest_inconsistent_with_its_engine_hash_is_not_trusted():
+    files = {"valid.py": "f" * 64}
+    record = {"binding": {"engine_hash": "0" * 64}, "engine_snapshot": {"schema": 1, "files": files}}
+    info = C.review_snapshot.engine_changes(record, {"valid.py": "e" * 64})
+    assert info["available"] is False and info["reason"] == "snapshot_binding_mismatch"
+    assert info["modified"] is None
+
+
+@pytest.mark.parametrize("binding", [None, [], "not-a-binding"])
+def test_snapshot_without_binding_is_not_attributed_to_current_engine(binding):
     files = {"old.py": "a" * 64}
     info = C.review_snapshot.engine_changes({"binding": binding,
         "engine_snapshot": {"schema": 1, "files": files}}, {"new.py": "b" * 64})
@@ -203,8 +217,8 @@ def test_readiness_exposes_compact_changes_without_any_approval_or_device_action
     before = files()
     result = cmd_case(verdict_ws, build_parser().parse_args(["case", "readiness", NAV_CASE]))
     row = result["results"][0]
-    assert row["review"]["changed_binding_fields"] == ["engine_hash"]
+    assert row["review"]["state"] == "approved"
+    assert row["review"]["changed_binding_fields"] == []
     assert row["review"]["engine_changes"]["modified"] == ["dispatch.py"]
     assert "engine_snapshot" not in row["review"]
-    assert row["promotion"]["status"] == "blocked"
     assert before == files()
