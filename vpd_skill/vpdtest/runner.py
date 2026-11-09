@@ -7,6 +7,7 @@ from . import __version__
 from . import layout as layout_mod
 from . import safety as safety_mod
 from .cases import (
+    condition_issues,
     content_hash,
     dependency_hash,
     execution_structure_issues,
@@ -15,25 +16,18 @@ from .cases import (
     review_context,
     review_status,
 )
-from .conditions import (
-    definitions,
-    validate_definitions,
-    validate_guard,
-    validate_input_obstruction,
-)
-from .execute import Executor, unresolved_takeover
+from .conditions import definitions
+from .execute import Executor, halts_sequence, unresolved_takeover
 from .experience import ExperienceStore
 from .knowledge import KnowledgeStore
 from .observe import RunStore
 from .outcomes import load_observation
 from .params import Params
 from .report import render_run
-from .tree import UiTree
 from .util import now_iso, read_json, read_jsonl, write_json
 from .verdict import (
     ATTR_LABEL,
     LABEL,
-    PASSED,
     case_verdict,
     evaluate_assertion,
     oracle_guards,
@@ -82,20 +76,10 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
     structure_issues = execution_structure_issues(case, app)
     if structure_issues:
         raise ValueError(f"执行结构无效：{structure_issues}")
+    problems = condition_issues(case, app)
+    if problems:
+        raise ValueError(f"条件定义无效：{problems}")
     condition_defs = definitions(case, app)
-    condition_issues = validate_definitions(condition_defs, app)
-    step_ids = {s["id"] for s in case.get("steps", [])}
-    for assertion in case.get("assertions", []):
-        if "guard" in assertion:
-            condition_issues += validate_guard(assertion["guard"], condition_defs, step_ids)
-    for child, _, where in iter_case_steps(case, app):
-        condition_issues += [{**x, "field": where + "." + x["field"]}
-                            for x in validate_input_obstruction(child, condition_defs)]
-        if "when" in child:
-            condition_issues += [{**x, "field": where + ".when." + x.get("field", "")} for x in
-                                 validate_guard(child["when"], condition_defs, step_ids)]
-    if condition_issues:
-        raise ValueError(f"条件定义无效：{condition_issues}")
     knowledge, policy = KnowledgeStore(ws.root).snapshot(), ws.policy()
     for item in case.get("assertions", []) + [s for s, _, _ in iter_case_steps(case, app)]:
         oracle_guards(item.get("oracle_refs", []), knowledge)  # 定义错误在任何设备操作之前拒绝。
@@ -225,7 +209,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                 steps.append(res)
                 diagnostic.phase = "step_done"
                 store.event("step_done", step=st["id"], outcome=res["outcome"])
-                if res["outcome"] not in PASSED and (res["critical"] or unresolved_takeover(res)):
+                if halts_sequence(res):
                     halted = res
                     diagnostic.phase = "safety_stop"
                     if ctx.motion.armed or ctx.motion.locked():

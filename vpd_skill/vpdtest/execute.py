@@ -92,6 +92,16 @@ def unresolved_takeover(result):
     return bool(result.get("effect_unknown") and result.get("action_required"))
 
 
+def halts_sequence(result, *, safety=False):
+    """顶层步骤与 flow/recipe 子步骤共用的停止规则：未通过且为关键步骤，或效果未知待接管。
+
+    安全停止序列（safety=True）不因待接管而中断，必须继续尝试停车。
+    """
+    if result["outcome"] in PASSED:
+        return False
+    return bool(result.get("critical", True) or (unresolved_takeover(result) and not safety))
+
+
 class Executor:
     def __init__(self, ctx):
         self.ctx = ctx
@@ -1229,7 +1239,7 @@ class Executor:
             if s["outcome"] == "skipped" and s.get("critical", True):
                 return self._required_skip(base, s, subs)
             takeover = unresolved_takeover(s) and not step.get("_safety")
-            if s["outcome"] != "skipped" and not s["outcome"].startswith("passed") and (s.get("critical", True) or takeover):
+            if s["outcome"] != "skipped" and halts_sequence(s, safety=bool(step.get("_safety"))):
                 return {**base, "outcome": s["outcome"], "attribution": s.get("attribution"),
                         "reason": (f"流程 {step['flow']} 第 {i + 1} 步（{sub.get('desc', sub['action'])}）未通过：{s.get('reason')}" if flow
                                    else f"前置状态 {step['state']} 未到达：{s.get('reason')}"),
