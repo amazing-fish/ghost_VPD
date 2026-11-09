@@ -95,4 +95,4 @@
 - [十月当前来源、九月历史映射](baselines/README.md)：快照ID区分版本；不覆盖九月，不把旧映射改前缀当新验收。
 - [工作机搜索源件存档](evidence/workmachine-search-20261027/README.md)与[session-s293历史现场](WORKMACHINE_SEARCH_EVIDENCE_20261027.md)：历史原件不随工程合入改写；后续材料及当前缺口沿#118和搜索交接登记。
 - [K89逐例交付](K89_0228_CASES.md)、[main补交付索引](evidence/K89_MAIN_DELIVERY_20261027.json)、[批次验收](BATCH_ASSET_ACCEPTANCE.md)：保留各自固定基线和批准范围，不作为实时库存。
-- [架构审计](ARCHITECTURE_REVIEW.md)：已有flow/state、错误归因、恢复、证据与成熟度工程的详细背景；新的改动仍落在现有链路。
+- [架构评估](ARCHITECTURE_REVIEW.md)：main@281e420的职责与依赖、技术债/冗余（P1–P8）、目标结构与分阶段收敛计划；固定基线快照，不作为实时库存。新的改动仍落在现有链路。
