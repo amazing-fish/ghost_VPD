@@ -1,6 +1,6 @@
 # ghost_VPD · Issue 驱动协作规范 v1.0
 
-适用范围：**Issue / PR 协作、证据与授权要求适用于整个 ghost_VPD 仓库**；设备执行规则按实际工作树分域。2026-10-13 主干 `0d20fe0` 已同时包含 Legacy 入口 `app/service/vpd/base.py::vpd_task_run()` 和 Skill 入口 `vpd_skill/vpdtest`（含统一 Dispatcher）；PR #2/#7/#8 已合入。两条设备执行链保持独立，不能假定 Legacy 自动获得 Skill 的授权、重检和运动看门狗能力。历史PR #36已按被#41替代关闭，未整包合入。方向与成熟度快照见 [PROJECT_DIRECTION.md](PROJECT_DIRECTION.md)。
+适用范围：**Issue / PR 协作、证据与授权要求适用于整个 ghost_VPD 仓库**；设备执行只有一个入口：`vpd_skill/vpdtest`（含统一 Dispatcher）。根目录旧服务（`run.py` / `app/`）已删除，未迁移，也不具备 Skill 的授权、重检和运动看门狗能力；旧代码只能从提交 `90545b9` 另开 worktree 只读查阅，不能作为设备执行入口。历史PR #36已按被#41替代关闭，未整包合入。方向与成熟度快照见 [PROJECT_DIRECTION.md](PROJECT_DIRECTION.md)。
 
 核心约束：**Issue 定义任务契约，Agent 负责实现及取证，PR 承载可审查变更，人工负责授权与产品判据确认。**
 
@@ -43,7 +43,7 @@ Issue 标题建议：`[Task] ...`、`[Bug] ...`、`[Knowledge] ...`。优先级�
 
 ### 开工前（Issue 评论或 PR 说明记录一次即可）
 
-- `git status`、`git worktree list`、HEAD / base SHA，核实本次任务实际执行代码；Skill 任务另核对 Skill 入口、`VPD_WORKSPACE` 和未提交的 Beta 资产，Legacy 任务记录原工程入口与已验证的安全边界。
+- `git status`、`git worktree list`、HEAD / base SHA，核实本次任务实际执行代码；另核对 Skill 入口、`VPD_WORKSPACE` 和未提交的 Beta 资产。
 - 先只读检查 Issue 所称的缺陷是否仍存在；例如 `knowledge resolve` 已有命令，应评估语义缺陷而非重新发明命令。
 - 标注任务范围与允许执行的动作。真机入口/算路按已委派任务直接执行；其他受控副作用按现行授权规则执行。未知现场事实自行取证，不能仅为启动一般诊断要求用户预先确认固定园区、故障态或无任务，也不能假造这些条件。
 - 明确文件/模块的 In、Out，测试方案与预计证据类型；有明显冲突时先记录再做。
@@ -52,8 +52,8 @@ Issue 标题建议：`[Task] ...`、`[Bug] ...`、`[Knowledge] ...`。优先级�
 
 - **一个 Agent / 一棵独立 worktree / 一个写入责任主体**，避免多个 Agent 修改相同工作树。可并行审计，但汇总者负责合并冲突。
 - 遵守 stacked PR：标明 `base` 与上游 PR，不能因为多个 PR 都未合并而直接改 `main`。禁止未经许可 `reset --hard`、`clean -fd`、force-push、历史重写或直接合并。
-- **选择真实存在且符合任务范围的执行入口**：Legacy 的实际入口是 `app/service/vpd/base.py::vpd_task_run()`；Skill 使用已合入主干的 `vpdtest` / Dispatcher。Legacy 属于独立执行链，不得假定具备新 Skill 的权限、重检、留证与运动看门狗能力。Legacy 真机任务须先审计实际安全保护、明确本次授权与监护条件；没有可验证的安全边界时停止自动执行，不能为满足 Issue 直接调用驱动/HDC。
-- **Skill 工作树**：设备动作必须走该版本实际存在的 `vpdtest` 受控入口；凡依赖统一 Dispatcher 的任务，须先核对当前代码确实包含该模块并经过相应安全测试。不得绕过 policy/Dispatcher 直接调用 HDC/uitest；如果当前工作树缺少所要求的安全组件，改用经授权且具备组件的工作树，或报告 `blocked`，**绝不自动降级到 Legacy 直连路径**。
+- **选择真实存在且符合任务范围的执行入口**：设备执行只用已合入主干的 `vpdtest` / Dispatcher。旧服务代码已删除，查阅历史提交也不能据此直接调用驱动/HDC。
+- **Skill 工作树**：设备动作必须走该版本实际存在的 `vpdtest` 受控入口；凡依赖统一 Dispatcher 的任务，须先核对当前代码确实包含该模块并经过相应安全测试。不得绕过 policy/Dispatcher 直接调用 HDC/uitest；如果当前工作树缺少所要求的安全组件，改用经授权且具备组件的工作树，或报告 `blocked`，**绝不降级到旧代码或历史提交里的直连路径**。
 - 人工 Console 操作必须作为独立手工行为记录，不能算 Agent 自主动作证据。
 - 保护原始 `runs` 证据；不对失败事件做静默删除。`effect_unknown` 不能当作未下发。按 #32 裁决，树、事件与截图原文取证，不脱敏、不因系统窗口扣留；APP 截图白名单、动作授权及观测新鲜度独立生效。用例中的实际凭据保持外置引用，运行证据仍与版本化资产分开存放。
 - 代码/配置修改后优先加正反向测试；不要只修改 fixture 或断言来掩盖知识 confirmed/unconfirmed 状态漂移。

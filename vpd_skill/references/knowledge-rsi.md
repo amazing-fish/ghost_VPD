@@ -30,7 +30,8 @@ skill_policy / model_inference / observation / test_goal（测试目标里的期
 - 2026-10-13 用户裁决（[#33](https://github.com/amazing-fish/ghost_VPD/issues/33)）：
   K-QK-001 已 `deprecated`，附 `superseded_by: K-AV-001`；K-AV-001 被选为入口基准，
   仍为 `unconfirmed`，仅保持原内部 debug 范围。选定基准不等于确认产品要求，也不代表公网版适用。
-- 原工程选择器：`knowledge import-repo --repo .. --file app/config/motor_config.py --var MOTOR_HARMONY_CONFIG`
+- 原工程选择器：原工程已从主干删除，先把提交 `90545b9` 检出到单独目录
+  （`git worktree add <dir> 90545b9`），再执行 `knowledge import-repo --repo <dir> --file app/config/motor_config.py --var MOTOR_HARMONY_CONFIG`。
   用 AST 读取（不 import），生成带文件、行号、提交号的定位线索，状态为 unconfirmed_locator_hints。
 
 ## 观察判据与用例来源身份
