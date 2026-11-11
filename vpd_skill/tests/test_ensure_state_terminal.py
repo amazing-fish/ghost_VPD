@@ -126,14 +126,14 @@ def test_terminal_check_preserves_observation_errors_and_unreviewed_interrupts(v
         if getattr(device, "terminal_error", False):
             return DeviceResult("dump_tree", True, False, "timeout", "synthetic terminal observation error")
         return dump(device, bundle, path)
-    def observe_terminal(observer, label="", screenshot=True):
+    def observe_terminal(observer, label="", screenshot=True, **kwargs):
         if label == "S2.2#1:after":
             if failure == "collection":
                 observer.device.terminal_error = True
             else:
                 observer.device.world["screens"]["settings"]["root"]["children"].append(
                     {"t": "Text", "text": "Synthetic final gate", "b": [20, 100, 300, 150]})
-        return observe(observer, label, screenshot)
+        return observe(observer, label, screenshot, **kwargs)
     monkeypatch.setattr(Observer, "observe", observe_terminal)
     monkeypatch.setattr(ReplayDevice, "dump_tree", dump_tree)
     run = _run(verdict_ws, case)

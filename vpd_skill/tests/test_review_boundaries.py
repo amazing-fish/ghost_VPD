@@ -168,8 +168,8 @@ def test_stop_observed_after_timeout_does_not_hide_breach(ws, tmp_path):
     ctx.motion.max_s, ctx.motion.stopped = 1, {"lab_done"}
     ctx.motion.arm("fixture", "fixture", "lab_parking")
     observe = ctx.observer.observe
-    def late_stop(label="", screenshot=True):
-        obs, tree = observe(label, screenshot)
+    def late_stop(label="", screenshot=True, **kwargs):
+        obs, tree = observe(label, screenshot, **kwargs)
         if label.endswith(":after"):  # 等后置条件时才第一次看到停止，此时已超过 max_motion_s
             ctx._virtual_s += 2
             obs["page"].update(state="lab_done", active=["lab_done"])
@@ -186,8 +186,8 @@ def _late_stop_before_action(ctx):
     ctx.motion.max_s, ctx.motion.stopped = 1, {"lab_done"}
     ctx.motion.arm("fixture", "fixture", "lab_parking")
     observe = ctx.observer.observe
-    def late_stop(label="", screenshot=True):
-        obs, tree = observe(label, screenshot)
+    def late_stop(label="", screenshot=True, **kwargs):
+        obs, tree = observe(label, screenshot, **kwargs)
         if label.endswith(":before"):
             ctx._virtual_s += 2
             obs["page"].update(state="lab_done", active=["lab_done"])

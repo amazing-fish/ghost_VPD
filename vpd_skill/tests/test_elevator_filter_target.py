@@ -188,7 +188,7 @@ def test_new_observation_retracts_filter_eligibility(ws, tmp_path, monkeypatch, 
     ctx = _context(ws, tmp_path, "overlay" if refresh == "dispatch-relocate" else None)
     observe = ctx.observe
     seen = []
-    def observe_changed(label="", screenshot=True):
+    def observe_changed(label="", screenshot=True, **kwargs):
         if refresh in label:
             root = ctx.device.world["screens"]["home"]["root"]
             if refresh == "dispatch-relocate":
@@ -200,7 +200,7 @@ def test_new_observation_retracts_filter_eligibility(ws, tmp_path, monkeypatch, 
             else:
                 _parts(root)[4]["children"].pop()  # The pure double-label group no longer exists.
             seen.append(label)
-        return observe(label, screenshot)
+        return observe(label, screenshot, **kwargs)
     monkeypatch.setattr(ctx, "observe", observe_changed)
     result = _tap(ctx)
     assert seen and result["outcome"] == "blocked", result

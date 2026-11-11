@@ -116,8 +116,8 @@ def _scroll_case(rig, action, change, parent_guard):
 def test_each_locator_swipe_rechecks_complete_guard_chain(condition_rig, monkeypatch, action, change, parent_guard):
     ws, case, spec, label = _scroll_case(condition_rig, action, change, parent_guard)
     original = RunContext.observe
-    def observe(ctx, name="", screenshot=True):
-        result = original(ctx, name, screenshot)
+    def observe(ctx, name="", screenshot=True, **kwargs):
+        result = original(ctx, name, screenshot, **kwargs)
         if change == "expired" and name == label:
             ctx.sleep(6)  # The observation is real but expires while preparing the next physical swipe.
         return result

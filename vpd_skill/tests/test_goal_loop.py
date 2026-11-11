@@ -113,8 +113,8 @@ def test_foreground_change_before_dispatch_blocks(ws, tmp_path):
     ctx = RunContext(ws, app, dev, store, ExperienceStore(ws.root, app.id).overlay(), mode="agent")
     real = ctx.observe
 
-    def observe(label="", screenshot=True):  # 复核时用户切到了别的应用
-        out = real(label, screenshot)
+    def observe(label="", screenshot=True, **kwargs):  # 复核时用户切到了别的应用
+        out = real(label, screenshot, **kwargs)
         if "predispatch" in label:
             dev.state["foreground"] = "com.tencent.wechat"
         return out

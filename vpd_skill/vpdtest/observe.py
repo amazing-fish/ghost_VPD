@@ -10,6 +10,7 @@ from typing import Optional
 from . import layout as layout_mod
 from .tree import UiTree
 import re
+import time
 
 from .util import append_jsonl, new_id, now_iso, read_jsonl, sha256_file, write_json
 
@@ -117,7 +118,7 @@ class Observer:
         else:
             obs["screenshot"] = {"status": "error", "error_class": r.error_class, "error": r.error, "raw": r.raw}
 
-    def observe(self, label: str = "", screenshot: bool = True) -> tuple:
+    def observe(self, label: str = "", screenshot: bool = True, *, deadline: Optional[float] = None) -> tuple:
         oid, d = self.store.next_obs_dir()
         foreground_errors = []
 
@@ -156,7 +157,35 @@ class Observer:
                                "error_class": r.error_class, "error": r.error, "raw": r.raw}
         else:
             obs["tree"] = {"status": "not_collected", "reason": "目标 APP 不在前台，不采集其他 APP 的布局"}
-        if fg == self.bundle and (obs.get("tree") or {}).get("status") == "empty":
+        # A single bundle-only read before expensive cover diagnostics, inside the
+        # caller's existing postcondition window. Never redispatch the action.
+        recheck_stale = False
+        if (deadline is not None and time.monotonic() < deadline and fg == self.bundle
+                and (obs.get("tree") or {}).get("status") == "empty"):
+            first = dict(obs["tree"])
+            check = {"initial_tree": first, "performed": False}
+            obs["tree_recheck"] = check
+            before = foreground("before_tree_recheck")
+            check["foreground_before"] = before
+            recheck_stale = before != fg or bool(foreground_errors)
+            if not recheck_stale and time.monotonic() < deadline:
+                check["performed"] = True
+                result = self.device.dump_tree(self.bundle, d / "tree_recheck.json")
+                after = foreground("after_tree_recheck")
+                check["foreground_after"] = after
+                recheck_stale = after != fg or bool(foreground_errors)
+                if result.ok:
+                    raw = result.data.get("tree")
+                    write_json(d / "tree_recheck.json", raw)
+                    tree = UiTree(raw)
+                    obs["tree"] = {"status": tree.status, "path": self.store.rel(d / "tree_recheck.json"),
+                                   "nodes": len(tree.nodes)}
+                else:
+                    tree = None
+                    obs["tree"] = {"status": "unavailable" if result.error_class == "tree_unavailable" else "error",
+                                   "error_class": result.error_class, "error": result.error, "raw": result.raw}
+            check["fresh"] = not recheck_stale
+        if not recheck_stale and fg == self.bundle and (obs.get("tree") or {}).get("status") == "empty":
             cover = self._cover_evidence(d)
             obs["screen_cover"] = {k: v for k, v in cover.items() if not k.startswith("_")}
             if cover.get("matched"):
@@ -186,7 +215,7 @@ class Observer:
             # 同一次观测后查成功不会补采早先缺失的树/截图；下一次完整观测独立记录。
             obs["foreground_query_errors"] = foreground_errors
         obs["foreground_after"] = fg_after  # 仅保留查询记录；消费者看 foreground/page/fresh。
-        obs["fresh"] = fg_after is not None and fg_after == fg == foreground_before_shot
+        obs["fresh"] = not recheck_stale and fg_after is not None and fg_after == fg == foreground_before_shot
         if not obs["fresh"]:
             reason = final_error or ("foreground_unknown" if fg_after is None else "foreground_changed")
             alive = self.device.process_alive(self.bundle)

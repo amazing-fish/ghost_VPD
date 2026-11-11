@@ -20,15 +20,62 @@ def stale(obs) -> bool:
     return not obs or obs.get("fresh") is False or (obs.get("tree") or {}).get("status") == "stale"
 
 
-def load_observation(store_dir: Path, obs_id: str):
-    """读回已落盘的观测；不新鲜或树过时的观测不提供 UiTree。"""
+def observation_tree_relative(observed: dict, obs_id: str) -> str:
+    """Only the two collector-owned filenames in this observation are selectable."""
+    import re
+    if (not isinstance(obs_id, str) or not re.fullmatch(r"obs-[0-9]{4,}", obs_id)
+            or int(obs_id[4:]) < 1 or obs_id != f"obs-{int(obs_id[4:]):04d}"):
+        raise ValueError("invalid observation id")
+    prefix = f"obs/{obs_id}/"
+    if not isinstance(observed, dict) or ("tree" in observed and not isinstance(observed["tree"], dict)):
+        raise ValueError("observation and tree metadata must be objects")
+    record = observed.get("tree", {})
+    value = record.get("path", prefix + "tree.json")  # Legacy records omitted path.
+    if value not in (prefix + "tree.json", prefix + "tree_recheck.json"):
+        raise ValueError("tree.path must select this observation's collected tree")
+    return value
+
+
+def _local_evidence_path(root: Path, relative: str) -> Path:
+    """Reject symlinks/junctions before reading selected evidence."""
+    import stat
+    path = Path(root).absolute() / relative
+    current = Path(path.anchor)
+    for part in path.parts[1:]:
+        current = current / part
+        if current.is_symlink():
+            raise ValueError("evidence links are not allowed")
+        if current.exists() and getattr(current.lstat(), "st_file_attributes", 0) & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0):
+            raise ValueError("evidence reparse points are not allowed")
+    return path
+
+
+def load_observation(store_dir: Path, obs_id: str, *, allow_legacy_tree: bool = False):
+    """Load the selected tree, never silently substitute the initial empty tree."""
     from .tree import UiTree
     from .util import read_json
-    directory = Path(store_dir) / "obs" / obs_id
-    observed = read_json(directory / "observation.json")
-    path = directory / "tree.json"
-    usable = observed.get("fresh") is not False and (observed.get("tree") or {}).get("status") != "stale"
-    return observed, (UiTree(read_json(path)) if usable and path.exists() else None)
+    # Validate the observation component before reading its metadata.
+    observation_tree_relative({}, obs_id)
+    directory = _local_evidence_path(store_dir, f"obs/{obs_id}/observation.json")
+    observed = read_json(directory, {}) if allow_legacy_tree else read_json(directory)
+    try:
+        relative = observation_tree_relative(observed, obs_id)
+    except ValueError as exc:
+        return {**(observed if isinstance(observed, dict) else {}),
+                "tree": {"status": "error", "error_class": "tree_collection_error", "error": str(exc)}}, None
+    usable = not stale(observed) and (observed.get("tree") or {}).get("status") not in ("error", "unavailable", "not_collected")
+    if not observed:
+        usable = True
+    if not usable:
+        return observed, None
+    try:
+        path = _local_evidence_path(store_dir, relative)
+        if not path.is_file():
+            raise ValueError("selected observation tree is missing")
+        return observed, UiTree(read_json(path))
+    except (OSError, ValueError) as exc:
+        return {**observed, "tree": {**(observed.get("tree") or {}), "status": "error",
+                                    "error_class": "tree_collection_error", "error": str(exc)}}, None
 
 
 def collection_error(obs: dict) -> dict:

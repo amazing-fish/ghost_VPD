@@ -129,8 +129,8 @@ class RunContext:
         else:
             self._virtual_s += seconds
 
-    def observe(self, label: str = "", screenshot: bool = True) -> tuple:
-        obs, tree = self.observer.observe(label, screenshot)
+    def observe(self, label: str = "", screenshot: bool = True, *, deadline=None) -> tuple:
+        obs, tree = self.observer.observe(label, screenshot, **({"deadline": deadline} if deadline is not None else {}))
         self.last_obs, self.last_tree = obs, tree
         self.motion.on_observation(obs)
         capture = getattr(self, "transient_capture", None)

@@ -1326,7 +1326,7 @@ class Executor:
         t0, polls, post_dismissed, stop_check = time.monotonic(), 0, [], None
         while True:
             polls += 1
-            obs, tree = ctx.observe(f"{step['id']}#{n}:after")
+            obs, tree = ctx.observe(f"{step['id']}#{n}:after", deadline=t0 + timeout)
             obs, tree, dismissed = self._clear_interrupts(obs, tree, f"{step['id']}#{n}:after", safety=bool(step.get("_safety")))
             post_dismissed += dismissed
             page = obs["page"]
@@ -1514,6 +1514,16 @@ class Executor:
             return {"action": "redispatch", "performed": True,
                     "reason": "可靠未下发或明确低风险幂等步骤，允许在既有预算内重试"}
         if st == "unobservable":
+            # Only reuse this attempt's fresh negative diagnosis to avoid doing
+            # the same read again. Never reuse it to authorize a dismissal.
+            last = ctx.last_obs or {}
+            cover = last.get("screen_cover") or {}
+            if (last.get("obs_id") == (att.get("post") or {}).get("obs_id")
+                    and last.get("fresh") is True and cover.get("dump_ok") is True
+                    and not cover.get("matched") and not cover.get("execution_error")):
+                return {"action": "none", "performed": False, "retry_original": False,
+                        "reason": "本次后置观测已完成覆盖诊断且未命中登记弹窗，不重复诊断或重发动作",
+                        "diagnosis_obs": last["obs_id"], "diagnosis": cover}
             # 动作后取不到可判定的观测：先整屏诊断覆盖物。命中已登记且已评审的良性系统弹窗
             #（system_dialogs.json）时用原子能力关掉再重试；锁屏/未知覆盖物不属于允许的恢复范围。
             # 2026-10-08 真机：USB 连接方式弹窗以此路径两次阻塞 S1 后补的能力。
