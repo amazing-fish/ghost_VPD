@@ -339,10 +339,10 @@ def _derive_select(session_dir: Path, obs_id: Optional[str], point) -> Optional[
         return None
     if isinstance(point, str):  # 请求里保存的是命令行原文 "x,y"
         point = [int(v) for v in point.split(",")]
-    tp = session_dir / "obs" / obs_id / "tree.json"
-    if not tp.exists():
+    from .outcomes import load_observation
+    _, tree = load_observation(session_dir, obs_id, allow_legacy_tree=True)
+    if tree is None:
         return None
-    tree = UiTree(read_json(tp))
     node = tree.node_at(*point)
     if node is None:
         return None
@@ -375,10 +375,10 @@ def _auto_within(session_dir: Path, obs_id: Optional[str], strategy: Optional[di
         return None
     if strategy.get("within") or strategy.get("region") or strategy.get("kind") not in ("text", "id"):
         return None
-    tp = session_dir / "obs" / obs_id / "tree.json"
-    if not tp.exists():
+    from .outcomes import load_observation
+    _, tree = load_observation(session_dir, obs_id, allow_legacy_tree=True)
+    if tree is None:
         return None
-    tree = UiTree(read_json(tp))
     if tree.status != "ok":
         return None
     try:

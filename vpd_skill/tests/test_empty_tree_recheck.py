@@ -138,3 +138,80 @@ def test_recheck_foreground_guard_cannot_be_bypassed(ws, tmp_path, monkeypatch, 
         assert tree is None and obs["fresh"] is False and calls["cover"] == 0
     else:
         assert obs["page"]["state"] == "undetermined" and calls["cover"] == 1
+
+def test_saved_tree_reaches_assertion_guard_and_session(ws, tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from vpdtest.outcomes import load_observation
+    from vpdtest.verdict import evaluate_assertion
+    from vpdtest.session import _derive_select
+    ctx, _, _ = setup(ws, tmp_path, monkeypatch)
+    ctx.facts['app_version'] = 'synthetic-recheck-1'
+    obs, live = ctx.observe('after', deadline=15)
+    load = lambda oid: load_observation(ctx.store.dir, oid)
+    _, tree = load(obs['obs_id'])
+    assert tree.visible_texts() == live.visible_texts()
+    steps = {'S1': {'outcome': 'passed', 'final_obs': obs['obs_id']}}
+    knowledge = SimpleNamespace(facts={}, entries={}, oracle_status=lambda refs: {"status": "confirmed"})
+    assertion = {'id': 'A1', 'type': 'text_present', 'text': '唯一入口', 'at': 'S1'}
+    assert evaluate_assertion(assertion, steps, load, knowledge, ctx.app)['result'] == 'pass'
+    defs = {'entry': {'kind': 'page', 'true': {'type': 'text_present', 'text': '唯一入口'},
+                      'false': {'type': 'text_present', 'text': '不存在'}}}
+    assertion['guard'] = {'condition': 'entry', 'equals': True, 'at': 'S1'}
+    guarded = evaluate_assertion(assertion, steps, load, knowledge, ctx.app, defs)
+    assert guarded['result'] == 'pass' and guarded['applicable'] is True, guarded
+    hit = tree.find_text('唯一入口')[0]
+    x1, y1, x2, y2 = hit.bounds
+    selected = _derive_select(ctx.store.dir, obs['obs_id'], [(x1+x2)//2, (y1+y2)//2])
+    assert selected and selected[0]['value'] == '唯一入口'
+    assert read_json(ctx.store.dir / obs['tree_recheck']['initial_tree']['path']) == {}
+
+
+@pytest.mark.parametrize('path', ['../tree.json', '/tree.json', 'obs/obs-9999/tree.json',
+                                  'C:/tree.json', 'obs/obs-0001/../tree.json', None, 'missing'])
+def test_invalid_or_missing_selected_tree_has_no_fallback(ws, tmp_path, monkeypatch, path):
+    from vpdtest.outcomes import load_observation, collection_error
+    from vpdtest.util import write_json
+    ctx, _, _ = setup(ws, tmp_path, monkeypatch)
+    obs, _ = ctx.observe('after', deadline=15)
+    if path == 'missing':
+        (ctx.store.dir / obs['tree']['path']).unlink()
+    else:
+        obs['tree']['path'] = path
+    write_json(ctx.store.dir / 'obs' / obs['obs_id'] / 'observation.json', obs)
+    saved, tree = load_observation(ctx.store.dir, obs['obs_id'])
+    assert tree is None and collection_error(saved)
+
+@pytest.mark.parametrize('oid', ['obs-0001.', 'obs-0001 ', '.. ', 'obs-00001', 'obs-0000', 'obs-1'])
+def test_saved_tree_rejects_noncanonical_observation_ids(tmp_path, oid):
+    from vpdtest.outcomes import load_observation
+    with pytest.raises(ValueError):
+        load_observation(tmp_path, oid)
+
+
+@pytest.mark.parametrize('metadata', [[], [1], None, 'tree'])
+def test_saved_tree_rejects_malformed_metadata(ws, tmp_path, monkeypatch, metadata):
+    from vpdtest.outcomes import load_observation, collection_error
+    from vpdtest.util import write_json
+    ctx, _, _ = setup(ws, tmp_path, monkeypatch)
+    obs, _ = ctx.observe('after', deadline=15)
+    obs['tree'] = metadata
+    write_json(ctx.store.dir / 'obs' / obs['obs_id'] / 'observation.json', obs)
+    saved, tree = load_observation(ctx.store.dir, obs['obs_id'])
+    assert tree is None and collection_error(saved)
+
+
+
+def test_session_within_uses_selected_tree(tmp_path):
+    from vpdtest.devices.replay import expand
+    from vpdtest.session import _auto_within
+    from vpdtest.util import write_json
+    directory = tmp_path / 'obs' / 'obs-0001'
+    directory.mkdir(parents=True)
+    raw = expand({'t': 'Column', 'b': [0, 0, 400, 800], 'children': [
+        {'t': 'TabBar', 'b': [0, 600, 400, 800], 'children': [
+            {'t': 'Text', 'text': '我的', 'b': [100, 650, 200, 700]}]}]})
+    write_json(directory / 'tree.json', {})
+    write_json(directory / 'tree_recheck.json', raw)
+    write_json(directory / 'observation.json', {'fresh': True, 'tree': {
+        'status': 'ok', 'path': 'obs/obs-0001/tree_recheck.json'}})
+    assert _auto_within(tmp_path, 'obs-0001', {'kind': 'text', 'value': '我的'}, [150, 675]) == {'type': 'TabBar'}

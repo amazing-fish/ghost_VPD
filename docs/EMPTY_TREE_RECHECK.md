@@ -13,3 +13,9 @@
 现场触发：`run-20261111-233317-e244` 的首轮后置观察 25.81s / timeout 15s；obs-0007 bundle 空根但截图可读，恢复再次 no_cover。obs-0004 前台变化原因未知，不归因用户或 APP。不能从此单例确定空树根因。
 
 验证：`python -m pytest tests/test_empty_tree_recheck.py -q`（在 `vpd_skill` 下），包含假时钟、持续空树、前台变化、采集失败和一发不重发。
+
+## 保存后消费契约（P1 修正）
+
+初版遗漏了落盘后消费者：在线检查使用重读树，但 `load_observation`、会话固化和离线 scope 诊断仍读初始 `tree.json`。此前本地审查未覆盖这条生产链，不能把在线检查成功视为断言通过。
+
+现在三个消费入口共用选中路径规则，只允许规范 obs ID 下的 `tree.json` 或 `tree_recheck.json`；路径缺省仅兼容旧记录，显式非法、缺失、跨 obs、链接/重解析点不能退回初始树。初始原件不删除。runner 的保存→重载→断言、带 at 的条件 guard、session 选择器/容器固化，以及 scope 诊断的读取/哈希均增加回归。

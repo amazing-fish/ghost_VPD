@@ -622,3 +622,18 @@ def test_unicode_whitespace_floor_duplicates_follow_template_shape_count():
     assert result["observed_labels"]["duplicates"] == ["\u00a0"]
     assert "duplicate_labels" in result["shape"]["problems"]
     assert result["shape"]["nonempty_text_descendants"] == 3
+
+
+def test_saved_scope_uses_selected_recheck_tree_and_hash(package):
+    original = package / f'obs/{OID}/tree.json'
+    selected = package / f'obs/{OID}/tree_recheck.json'
+    selected.write_bytes(original.read_bytes())
+    save(original, {})
+    obs = observation()
+    obs['tree']['path'] = f'obs/{OID}/tree_recheck.json'
+    save(package / f'obs/{OID}/observation.json', obs)
+    result = inspect(package)
+    assert result['localization']['status'] == 'unique'
+    assert 'evidence_path_conflict' not in codes(result)
+    assert result['evidence_files'][f'obs/{OID}/tree_recheck.json']['sha256'] == hashlib.sha256(selected.read_bytes()).hexdigest()
+    assert original.read_text(encoding='utf-8') == '{}'

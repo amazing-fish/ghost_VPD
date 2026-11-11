@@ -2,8 +2,8 @@
 
 inspect_scope(app, spec, observation, tree) is pure (tree may be UiTree/raw JSON).
 inspect_saved_scope(app, spec, evidence_dir, obs_id) reads only fixed files below
-one explicitly selected run/session directory. JSON paths are compared, never
-followed. Neither function creates targets, cases, expectations, or permissions.
+one explicitly selected run/session directory. Only collector-owned tree names
+in the same observation can be selected; arbitrary JSON paths are never followed. Neither function creates targets, cases, expectations, or permissions.
 Hashes bind the bytes read now, not original capture authenticity or same-frame
 provenance. Saved fresh=True refers only to collection time, never applicability
 now. The caller must not use Workspace's local configuration/device facilities.
@@ -28,7 +28,7 @@ from .locate import resolve
 from .tree import UiTree
 
 OBS_ID = re.compile(r"obs-[0-9]{4,12}\Z")
-LIMITS = {"observation.json": 4 * 1024**2, "tree.json": 32 * 1024**2,
+LIMITS = {"observation.json": 4 * 1024**2, "tree.json": 32 * 1024**2, "tree_recheck.json": 32 * 1024**2,
           "screen.png": 32 * 1024**2, "run.json": 32 * 1024**2, "events.jsonl": 32 * 1024**2}
 CAVEATS = [
     "仅离线结构诊断；不生成用例、业务预期、定位登记、生产校准或设备执行许可。",
@@ -644,7 +644,13 @@ def inspect_saved_scope(app, spec, evidence_dir, obs_id):
         return result
     prefix = f"obs/{obs_id}/"
     obs = _json_file(root, prefix + "observation.json", files, result)
-    tree = _json_file(root, prefix + "tree.json", files, result)
+    from .outcomes import observation_tree_relative
+    try:
+        tree_rel = observation_tree_relative(obs or {}, obs_id)
+    except ValueError as exc:
+        tree_rel = None
+        _issue(result, "evidence_path_conflict", "tree.path", str(exc), error=True)
+    tree = _json_file(root, tree_rel, files, result) if tree_rel else None
     screen = _read(root, prefix + "screen.png", files, result)
     run = _json_file(root, "run.json", files, result)
     events = _read(root, "events.jsonl", files, result)
@@ -673,9 +679,8 @@ def inspect_saved_scope(app, spec, evidence_dir, obs_id):
                error=row in structural["inspection_errors"], missing=structural["diagnostic_status"] == "incomplete")
     _compare(result, "observation.obs_id", obs.get("obs_id"), obs_id)
     _identity(app, root, obs, run, headers, result)
-    for key, filename in (("tree", "tree.json"), ("screenshot", "screen.png")):
+    for key, rel in (("tree", tree_rel), ("screenshot", prefix + "screen.png")):
         record = _record(obs.get(key))
-        rel = prefix + filename
         _pointer(result, record, rel, key + ".path")
         claimed = record.get("sha256")
         actual = files.get(rel, {}).get("sha256")
