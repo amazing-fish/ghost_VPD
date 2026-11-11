@@ -103,14 +103,19 @@ def test_unclear_or_high_impact_routes_to_human(ws, risk):
     assert routing(ws, case)["route"] == "human_required"
 
 
-def test_agent_approval_expires_when_evidence_is_modified_or_removed(ws):
+def test_agent_approval_remains_portable_when_evidence_is_modified_or_removed(ws):
     case = _asset(ws); run, path = evidence(ws, case)
     approve_agent(ws, case)
     run["extra"] = "changed"
     write_json(path, run)
-    assert not _review(ws)["valid"]
+    assert _review(ws)["valid"]
+    diagnostic = routing(ws, ws.load_case(case["id"]), run["run_id"])
+    assert diagnostic["recorded_evidence_match"] is False
+    with pytest.raises(PermissionError, match="不一致"):
+        approve_agent(ws, case)
     path.unlink()
-    assert not _review(ws)["valid"]
+    assert routing(ws, ws.load_case(case["id"]), run["run_id"])["route"] == "evidence_needed"
+    assert _review(ws)["valid"]
 
 
 def test_revocation_requires_human_and_old_human_approval_remains_valid(ws):
@@ -160,7 +165,7 @@ def test_hash_is_of_checked_bytes_not_concurrent_replacement(ws, monkeypatch):
     approved = approve_agent(ws, case)
     monkeypatch.setattr(Path, "read_bytes", original)
     assert approved["asset_review"]["review_kind"] == "agent"
-    assert not _review(ws)["valid"]
+    assert _review(ws)["valid"]
 
 
 def test_unclassified_target_needs_agent_work_not_human_signature(ws):
@@ -204,13 +209,13 @@ def initial_tree_evidence(ws):
     return case, run, initial, observation_path
 
 
-def test_empty_initial_tree_is_bound_and_change_invalidates_review(ws):
+def test_initial_tree_change_is_diagnostic_not_portable_review_revocation(ws):
     case, run, initial, _ = initial_tree_evidence(ws)
     assert routing(ws, case, run["run_id"])["route"] == "independent_agent"
     approve_agent(ws, case)
     assert _review(ws)["valid"]
     initial.write_bytes(initial.read_bytes() + b" ")
-    assert not _review(ws)["valid"]
+    assert _review(ws)["valid"]
 
 
 @pytest.mark.parametrize("change", ["missing", "empty", "invalid_json", "other_observation", "traversal"])
@@ -227,4 +232,4 @@ def test_initial_tree_must_be_intact_inside_same_observation(ws, change):
         observation["tree_recheck"]["initial_tree"]["path"] = relative
         write_json(observation_path, observation)
     assert routing(ws, case, run["run_id"])["route"] == "evidence_needed"
-    assert not _review(ws)["valid"]
+    assert _review(ws)["valid"]

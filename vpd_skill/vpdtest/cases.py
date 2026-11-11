@@ -41,7 +41,7 @@ def unresolvable_obs_refs(text: str, runs_dir: Optional[Path] = None) -> list:
     """rationale 里的 obs 引用哪些不可解析（check-refs）。
 
     - 无 run/session 锚点 → 不可解析（裸编号，重放后必过期）；
-    - 有锚点且给出 runs_dir（正常 lint 都给）→ 锚点目录必须真实存在且包含该观测，否则不可解析
+    - 有锚点且显式给出 runs_dir（签发审核/证据诊断）→ 锚点目录必须真实存在且包含该观测，否则不可解析
       （防止「随手加个 run- 前缀」绕过：真机缺陷正是锚点 run 里根本没有被引的那个编号）；
     - 有锚点但没给 runs_dir → 只能核对形式，暂不判不可解析。
     """
@@ -307,12 +307,20 @@ def review_status(ws, case: dict, knowledge=None, app=None, policy=None, context
     lineage_issues = oracle_lineage_issues(case, knowledge)
     required = bool(signals) or withdrawal_required or bool(lineage_issues)
     valid = bool(complete and not revoked and record.get("binding") == binding and not lineage_issues)
+    evidence_verification = None
     if complete and record.get("review_kind") == "agent":
-        from .review_routing import route
-        routing = route(ws, case, knowledge, app, policy, record.get("evidence_run"))
-        valid = bool(valid and routing["route"] == "independent_agent"
-                     and routing.get("evidence_sha256") == record.get("evidence_sha256")
-                     and isinstance(record.get("independent_ref"), str) and record["independent_ref"].strip())
+        from .review_routing import definition_blocker
+        # Approval is portable: recheck its binding and static rules, not the
+        # availability of the original workstation's files. New approval still
+        # verifies evidence in approve(); explicit review-route diagnoses raw.
+        valid = bool(valid and definition_blocker(ws, case, knowledge, app, policy) is None
+                     and isinstance(record.get("independent_ref"), str) and record["independent_ref"].strip()
+                     and isinstance(record.get("evidence_run"), str)
+                     and re.fullmatch(r"run-[A-Za-z0-9_-]+", record["evidence_run"])
+                     and isinstance(record.get("evidence_sha256"), str)
+                     and re.fullmatch(r"[0-9a-f]{64}", record["evidence_sha256"]))
+        evidence_verification = {"status": "not_checked", "affects_review_validity": False,
+                                 "reason": "复用既有审核只核绑定与静态规则，不要求本机原件；review-route可单独诊断原件"}
     state = ("revoked" if revoked else "approved" if valid else
              "stale" if complete else "pending" if required else "not_required")
     # Keep the potentially large manifest in the asset, not every run/suite brief.
@@ -320,6 +328,7 @@ def review_status(ws, case: dict, knowledge=None, app=None, policy=None, context
     return {"required": required, "valid": valid, "state": state, "origin_signals": signals,
             "current": binding, "record": record_view,
             "engine_changes": review_snapshot.engine_changes(record, files),
+            **({"evidence_verification": evidence_verification} if evidence_verification else {}),
             **({"lineage_issues": lineage_issues} if lineage_issues else {}),
             **({"revocation": revocation} if revoked else {})}
 
@@ -412,6 +421,8 @@ def approve(ws, case_id: str, knowledge, reviewer: str, basis: str, *, review_ki
         routing = route(ws, case, knowledge, app, policy, evidence_run)
         if routing["route"] != "independent_agent":
             raise PermissionError(f"不能由 Agent 批准：{routing}")
+        if routing.get("recorded_evidence_match") is False:
+            raise PermissionError("同一 run 的原件与既有审核记录不一致，不能当作原证据重新签发；请使用新的独立运行")
         if not isinstance(independent_ref, str) or not independent_ref.strip():
             raise ValueError("Agent 复核须提供独立评审出处 --independent-ref；身份文字不构成鉴权")
     signals = exploration_signals(case)
@@ -1145,7 +1156,7 @@ def promote(ws, case_id: str, to: str, knowledge, reviewer: Optional[str] = None
     cur = case.get("status", "draft")
     if NEXT.get(cur) != to:
         raise PermissionError(f"不能从 {cur} 晋级到 {to}（允许：{cur} → {NEXT.get(cur)}）")
-    issues = lint(case, app, knowledge, policy, runs_dir=ws.runs_dir)
+    issues = lint(case, app, knowledge, policy)
     if issues:
         raise PermissionError(f"用例不完整，不能晋级：{issues}")
     h = content_hash(case)

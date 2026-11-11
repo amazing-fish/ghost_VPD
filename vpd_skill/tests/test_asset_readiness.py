@@ -329,8 +329,8 @@ def test_readiness_explains_current_review_without_claiming_originals_complete(w
     assert row['status'] == row['recorded_maturity'] == 'regression'
     assert row['promotion']['status'] == 'no_next_stage'
     current = row['current_review_validity']
-    assert current['state'] == row['review']['state'] == ('stale' if missing else 'approved')
-    assert current['valid'] == row['review']['valid'] == (not missing)
+    assert current['state'] == row['review']['state'] == 'approved'
+    assert current['valid'] == row['review']['valid'] is True
     assert current['required'] == row['review']['required']
     assert current['scope'] == 'asset_review_only'
     assert current['execution_eligibility'] == 'not_evaluated'
