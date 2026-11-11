@@ -131,7 +131,7 @@ def build_parser() -> argparse.ArgumentParser:
     x.add_argument("--input", required=True, help="包含模板、独立期望来源与已登记范围目标的 JSON 文件")
     x.add_argument("--write", action="store_true", help="lint 通过后独占创建新用例；不覆盖、不批准、不晋级")
     x = csub.add_parser("readiness", help="只读区分记录成熟度/重放与当前审核有效性；不证明原件完整或现场可执行",
-                        description="记录成熟度与重放摘要不等于当前审核有效性；原件完整性和现场执行资格不在本命令评估范围。")
+                        description="记录成熟度与重放摘要不等于当前审核有效性；本命令不提供全部原件完整性证明，也不评估现场执行资格。")
     x.add_argument("cases", nargs="*", help="预期资产ID；不传则仅枚举当前目录，不推断缺源件")
     x.add_argument("--to", choices=["candidate", "replay_verified", "regression"], help="不传则预检现有定义的下一阶段")
     x.add_argument("--reviewer")

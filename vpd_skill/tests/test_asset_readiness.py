@@ -360,3 +360,5 @@ def test_cli_help_distinguishes_recorded_and_current(capsys, args):
     assert exc.value.code == 0
     text = capsys.readouterr().out
     assert '记录成熟度' in text and '当前审核有效性' in text
+    if 'readiness' in args:
+        assert '不提供全部原件完整性证明' in text
