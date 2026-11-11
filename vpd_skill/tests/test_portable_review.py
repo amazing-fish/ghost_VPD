@@ -115,3 +115,20 @@ def test_reuse_does_not_read_raw_even_when_files_exist(ws, monkeypatch):
         return original(path)
     monkeypatch.setattr(Path, 'read_bytes', no_raw)
     assert _review(ws)['valid']
+
+
+def test_actual_target_change_still_invalidates_portable_binding_without_raw(ws, tmp_path):
+    from vpdtest.util import read_json
+    case = _asset(ws)
+    evidence(ws, case)
+    approve_agent(ws, case)
+    ws.runs_dir = tmp_path / 'other-host'
+    assert _review(ws)['valid']
+    path = ws.root / 'apps/motor_hm/targets.json'
+    targets = read_json(path)
+    targets['targets']['tab_my']['desc'] = 'changed independent target definition'
+    write_json(path, targets)
+    info = _review(ws)
+    assert info['state'] == 'stale' and not info['valid']
+    assert info['record']['binding']['dependency_hash'] != info['current']['dependency_hash']
+    with pytest.raises(PermissionError): C.preflight_batch(ws, [case['id']])
