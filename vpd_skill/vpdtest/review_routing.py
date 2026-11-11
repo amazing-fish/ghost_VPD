@@ -128,17 +128,22 @@ def route(ws, case, knowledge, app, policy, evidence_run=None):
             observation = json.loads(source(f"obs/{oid}/observation.json"))
             if observation.get("obs_id") != oid:
                 return result("evidence_needed", "观测 ID 与引用不匹配")
-            for kind in ("tree", "screenshot"):
+            captures = [(kind, observation.get(kind, {})) for kind in ("tree", "screenshot")]
+            recheck = observation.get("tree_recheck", {})
+            if "initial_tree" in recheck:
+                # The first empty-tree JSON is still a retained original, not absent evidence.
+                captures.append(("initial_tree", recheck["initial_tree"]))
+            for kind, capture in captures:
                 # Pre-action/out-of-app observations may legitimately have no capture.
                 # Their metadata is bound; assertion observations above must be complete.
-                if observation.get(kind, {}).get("status") != "ok":
+                if kind != "initial_tree" and capture.get("status") != "ok":
                     continue
-                relative = observation.get(kind, {}).get("path")
+                relative = capture.get("path")
                 if (not isinstance(relative, str) or not relative.startswith(f"obs/{oid}/")
                         or not (root / relative).resolve().is_relative_to(root / "obs" / oid)):
                     return result("evidence_needed", f"观测 {oid} 缺少 {kind} 原件路径")
                 raw = source(relative)
-                if kind == "tree":
+                if kind in {"tree", "initial_tree"}:
                     json.loads(raw)
         for line in source("events.jsonl").splitlines():
             json.loads(line)

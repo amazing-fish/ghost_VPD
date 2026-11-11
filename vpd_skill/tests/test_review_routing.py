@@ -189,3 +189,42 @@ def test_real_runner_format_remains_offline_until_real_evidence(ws):
         write_json(observation, data)
     decision = routing(ws, case, run["run_id"])
     assert decision["route"] == "independent_agent", decision
+
+
+def initial_tree_evidence(ws):
+    case = _asset(ws)
+    run, path = evidence(ws, case)
+    observation_path = path.parent / "obs/obs-0001/observation.json"
+    observation = read_json(observation_path)
+    relative = "obs/obs-0001/initial-tree.json"
+    observation["tree_recheck"] = {"initial_tree": {"status": "empty", "path": relative, "nodes": 0}}
+    write_json(observation_path, observation)
+    initial = path.parent / relative
+    write_json(initial, {})
+    return case, run, initial, observation_path
+
+
+def test_empty_initial_tree_is_bound_and_change_invalidates_review(ws):
+    case, run, initial, _ = initial_tree_evidence(ws)
+    assert routing(ws, case, run["run_id"])["route"] == "independent_agent"
+    approve_agent(ws, case)
+    assert _review(ws)["valid"]
+    initial.write_bytes(initial.read_bytes() + b" ")
+    assert not _review(ws)["valid"]
+
+
+@pytest.mark.parametrize("change", ["missing", "empty", "invalid_json", "other_observation", "traversal"])
+def test_initial_tree_must_be_intact_inside_same_observation(ws, change):
+    case, run, initial, observation_path = initial_tree_evidence(ws)
+    approve_agent(ws, case)
+    if change == "missing": initial.unlink()
+    elif change == "empty": initial.write_bytes(b"")
+    elif change == "invalid_json": initial.write_bytes(b"invalid")
+    else:
+        observation = read_json(observation_path)
+        relative = "obs/obs-0002/tree.json" if change == "other_observation" else "obs/obs-0001/../outside.json"
+        write_json(initial.parents[2] / relative, {})
+        observation["tree_recheck"]["initial_tree"]["path"] = relative
+        write_json(observation_path, observation)
+    assert routing(ws, case, run["run_id"])["route"] == "evidence_needed"
+    assert not _review(ws)["valid"]
