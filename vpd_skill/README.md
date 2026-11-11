@@ -90,6 +90,8 @@ $env:VPD_SECRET_QIANKUN_PHONE = '<账号>'; $env:VPD_SECRET_QIANKUN_PASSWORD = '
 探索/会话/母版实例资产须经 `case review` 与人明确确认后的 `case approve --reviewer --basis` 才能晋级或批量使用；
 单条未审核诊断仍标 informal。审核不 confirm 产品要求、不授予设备动作，也不自动提升成熟度。
 
+**不知道怎么审批？** 看[资产审核：你需要决定什么](references/asset-review-quickstart.md)。你只需审核 Agent 提交的具体用例与证据；命令和记录由 Agent 处理，不需要一次审批整个库存。当前 Console 没有审批按钮。
+
 240/241/243 显示规则可由 `case instantiate --input <json>` 预览为字面冻结实例，
 `--write` 只新建未审核 draft，不运行设备、覆盖旧例或继承旧确认。需要独立预期与已登记专用 scope；
 新通用 Oracle 仍为 unconfirmed，当前未登记生产 scope。见[母版与实例边界](references/case-templates.md)。
