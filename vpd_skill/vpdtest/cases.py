@@ -1,6 +1,6 @@
 """用例生命周期：exploration_record → candidate → replay_verified → regression。
 
-- 探索来源晋级和批量运行前须有效人工审核；转候选还须补齐目的、前置、数据、步骤、判据、清理、来源。
+- 探索来源晋级和批量运行前须有效资产审核；转候选还须补齐目的、前置、数据、步骤、判据、清理、来源。
 - 判定依据必须是独立的知识条目；不能用"探索时看到了什么"来证明"应该是什么"。
 - replay_verified 需要当前内容和依赖版本下至少 2 次不同运行的确定、一致重放（失败须登记缺陷）；
   regression 还需评审人、全部判据已确认，默认要求至少 1 次真机重放。
@@ -307,6 +307,12 @@ def review_status(ws, case: dict, knowledge=None, app=None, policy=None, context
     lineage_issues = oracle_lineage_issues(case, knowledge)
     required = bool(signals) or withdrawal_required or bool(lineage_issues)
     valid = bool(complete and not revoked and record.get("binding") == binding and not lineage_issues)
+    if complete and record.get("review_kind") == "agent":
+        from .review_routing import route
+        routing = route(ws, case, knowledge, app, policy, record.get("evidence_run"))
+        valid = bool(valid and routing["route"] == "independent_agent"
+                     and routing.get("evidence_sha256") == record.get("evidence_sha256")
+                     and isinstance(record.get("independent_ref"), str) and record["independent_ref"].strip())
     state = ("revoked" if revoked else "approved" if valid else
              "stale" if complete else "pending" if required else "not_required")
     # Keep the potentially large manifest in the asset, not every run/suite brief.
@@ -331,10 +337,10 @@ def require_review(ws, case: dict, knowledge=None, app=None, policy=None, contex
         if info["state"] == "revoked":
             raise PermissionError(f"用例 {case['id']} 的资产审核已撤销；请由人重新审查后执行 case approve "
                                   f"{case['id']} --reviewer <人> --basis <依据>。撤销不改写历史结论或授予动作权限")
-        why = "审核失效：内容、审阅语义或执行依赖已变" if info["state"] == "stale" else "尚无有效人工审核"
+        why = "审核失效：内容、审阅语义或执行依赖已变" if info["state"] == "stale" else "尚无有效资产审核"
         origin = " 来自探索/会话" if info["origin_signals"] else ""
-        raise PermissionError(f"用例 {case['id']}{origin}，{why}；请由人审查后执行 case approve "
-                              f"{case['id']} --reviewer <人> --basis <依据>。审核不代替 Oracle 确认或动作授权")
+        raise PermissionError(f"用例 {case['id']}{origin}，{why}；先用 case review-route 分流，再经相应评审执行 case approve "
+                              f"{case['id']} --reviewer <评审人> --basis <依据>。审核不代替 Oracle 确认或动作授权")
     return info
 
 
@@ -386,9 +392,12 @@ def revoke_review(ws, case_id: str, reviewer: str, basis: str) -> dict:
 
 
 @_case_update
-def approve(ws, case_id: str, knowledge, reviewer: str, basis: str) -> dict:
+def approve(ws, case_id: str, knowledge, reviewer: str, basis: str, *, review_kind="human",
+            evidence_run=None, independent_ref=None) -> dict:
     if not isinstance(reviewer, str) or not reviewer.strip() or not isinstance(basis, str) or not basis.strip():
         raise ValueError("资产审核须提供非空 --reviewer 与 --basis")
+    if review_kind not in {"human", "agent"}:
+        raise ValueError("review_kind 须为 human 或 agent")
     case = ws.load_case(case_id)
     # Bind the approval to the same knowledge version that passed lint.
     # Later status queries still compare against the live knowledge store.
@@ -397,6 +406,14 @@ def approve(ws, case_id: str, knowledge, reviewer: str, basis: str) -> dict:
     issues = lint(case, app, knowledge, policy, runs_dir=ws.runs_dir)
     if issues:
         raise PermissionError(f"用例不完整，不能审核为可复用资产：{issues}")
+    routing = None
+    if review_kind == "agent":
+        from .review_routing import route
+        routing = route(ws, case, knowledge, app, policy, evidence_run)
+        if routing["route"] != "independent_agent":
+            raise PermissionError(f"不能由 Agent 批准：{routing}")
+        if not isinstance(independent_ref, str) or not independent_ref.strip():
+            raise ValueError("Agent 复核须提供独立评审出处 --independent-ref；身份文字不构成鉴权")
     signals = exploration_signals(case)
     origin = case.get("origin")
     if signals and not (isinstance(origin, dict) and isinstance(origin.get("type"), str)
@@ -407,6 +424,9 @@ def approve(ws, case_id: str, knowledge, reviewer: str, basis: str) -> dict:
     binding = _review_binding(ws, case, app, knowledge, policy)
     record = {"schema": 1, "reviewer": reviewer.strip(), "basis": basis.strip(), "ts": now_iso(), "binding": binding,
               "engine_snapshot": review_snapshot.capture(files)}
+    if routing is not None:
+        record.update(review_kind="agent", independent_ref=independent_ref.strip(),
+                      evidence_run=routing["evidence_run"], evidence_sha256=routing["evidence_sha256"])
     case["asset_review"] = record
     case["history"] = case.get("history", []) + [{"event": "asset_review", **record}]
     write_json(ws.case_path(case_id), case)

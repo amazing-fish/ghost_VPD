@@ -105,8 +105,21 @@
 母版 `case instantiate` 保留独立、更严格的 `TC-[A-Z0-9]+(?:-[A-Z0-9]+)*` 规则。
 
 `from-exploration` / `from-session` 只生成探索资产；`case instantiate` 只生成要求审核的母版实例。它们均不授予晋级或批量准入。补齐字段、lint 通过、
-已有 `sources.type=reviewer` 或 `case promote --reviewer` 都不代替本次资产审核。Agent 必须向人提供
-完整用例及来源证据，由人明确确认后才执行 `case approve`；不得自行填审核人来批准自己生成的资产。
+已有 `sources.type=reviewer` 或 `case promote --reviewer` 都不代替本次资产审核。先按证据与风险分流：
+
+- `case review-route ID --evidence-run run-...` 返回 `independent_agent`：已确认且适用的独立判据、同版真机证据、仅支持的导航动作，可交独立 Agent 复核，不再逐条请用户重复批准。
+- `evidence_needed`：Agent 先修定义、补当前取证；这不是需要人签字的理由。单条非正式运行仍受原动作门禁。
+- `human_required`：产品判据未明/冲突/同源、受控副作用或已撤销的批准，需要具体判断；人工审核不会解除运行门禁。
+
+实现者不得自审自批。独立复核需记录评审出处；`reviewer` 和出处是审计材料，不是身份鉴权，也不证明签名者真实独立。工作区原件本身不是防恶意篡改存储。
+当前 Agent 路径核验 `runs/<id>/run.json` 的内容/依赖/策略/配置绑定、实际判据上下文、所有非建议断言、其引用观测的树/截图原件与事件轨迹哈希；确定的产品失败也可复核，不要求绿灯。不自动晋级、不把缺实测当通过。
+
+```powershell
+.\vpdtest.ps1 case review-route ID --evidence-run run-...
+.\vpdtest.ps1 case approve ID --review-kind agent --reviewer "<独立评审Agent>" --basis "<复核结论>" --independent-ref "<独立评审记录出处>" --evidence-run run-...
+```
+
+人审路径仍须向人提供完整用例与来源证据，由人明确确认后记录；不得冒用人的名字批准自己生成的资产。
 
 ```powershell
 .\vpdtest.ps1 case lint TC-EXP-001
@@ -147,7 +160,7 @@ policy、布局和弹窗使用本次检查的配置快照。模板仅核对入�
 先用 `case readiness [预期用例ID ...]` 只读查看当前成熟度、人审绑定差异和既有晋级门槛。
 不传ID仅枚举目录，不能发现未入仓源件；不提升、不审批、不确认知识。[完整口径与用法](asset-readiness.md)。
 
-每一级均须 `case lint` 无问题；有探索/会话/母版来源时，还须上述当前有效的人工审核。
+每一级均须 `case lint` 无问题；有探索/会话/母版来源时，还须上述当前有效的资产审核。
 候选用例须补齐目的、前置、测试数据（或 `test_data_none: true`）、步骤（目标已登记、终点为已声明状态）、
 至少一条非建议断言且每条有独立 `oracle_refs`、清理和来源；
 假设目标未校准、流程已被证伪或判据来自本次探索观察时，不能靠人审绕过 lint。

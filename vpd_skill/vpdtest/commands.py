@@ -580,8 +580,13 @@ def cmd_case(ws: Workspace, a) -> dict:
     if a.case_cmd == "review":
         case = ws.load_case(a.case)
         return {"case": a.case, "status": case.get("status"), "asset_review": case_mod.review_status(ws, case, kn)}
+    if a.case_cmd == "review-route":
+        from .review_routing import route
+        case = ws.load_case(a.case)
+        return {"case": a.case, **route(ws, case, kn.snapshot(), ws.app(case["app"]), ws.policy(), a.evidence_run)}
     if a.case_cmd == "approve":
-        case = case_mod.approve(ws, a.case, kn, a.reviewer, a.basis)
+        case = case_mod.approve(ws, a.case, kn, a.reviewer, a.basis, review_kind=a.review_kind,
+                                evidence_run=a.evidence_run, independent_ref=a.independent_ref)
         return {"case": a.case, "status": case.get("status"), "asset_review": case_mod.review_status(ws, case, kn)}
     if a.case_cmd == "lint":
         case = ws.load_case(a.case)
