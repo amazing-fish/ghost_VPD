@@ -7,7 +7,8 @@ from .knowledge import NOT_ORACLE_KINDS, item_status
 from .util import sha256_obj
 
 
-def route(ws, case, knowledge, app, policy, evidence_run=None):
+def definition_blocker(ws, case, knowledge, app, policy):
+    """Static review/risk checks only: portable reuse must not require local raw files."""
     from . import cases as C
     reasons, engineering = [], []
     def result(kind, *extra, **fields):
@@ -46,9 +47,19 @@ def route(ws, case, knowledge, app, policy, evidence_run=None):
         return result("human_required")
     if engineering:
         return result("evidence_needed", *engineering)
-    issues = C.lint(case, app, knowledge, policy, runs_dir=ws.runs_dir)
+    issues = C.lint(case, app, knowledge, policy)
     if issues:
         return result("evidence_needed", "先由 Agent 修复定义或补证据", issues=issues)
+    return None
+
+
+def route(ws, case, knowledge, app, policy, evidence_run=None):
+    from . import cases as C
+    blocked = definition_blocker(ws, case, knowledge, app, policy)
+    if blocked:
+        return blocked
+    def result(kind, *reasons, **fields):
+        return {"route": kind, "reasons": list(reasons), **fields}
     if not evidence_run:
         return result("evidence_needed", "需指定当前定义的真机运行证据；无需因此请求用户签字")
     if not isinstance(evidence_run, str) or not re.fullmatch(r"run-[A-Za-z0-9_-]+", evidence_run):
@@ -147,7 +158,11 @@ def route(ws, case, knowledge, app, policy, evidence_run=None):
                     json.loads(raw)
         for line in source("events.jsonl").splitlines():
             json.loads(line)
+        digest = sha256_obj(manifest)
+        previous = case.get("asset_review") or {}
+        match = (previous.get("evidence_sha256") == digest
+                 if previous.get("review_kind") == "agent" and previous.get("evidence_run") == evidence_run else None)
         return result("independent_agent", "独立判据已确认且在证据范围适用；仅导航动作；当前真机原件完整",
-                      evidence_run=evidence_run, evidence_sha256=sha256_obj(manifest))
+                      evidence_run=evidence_run, evidence_sha256=digest, recorded_evidence_match=match)
     except (OSError, ValueError, TypeError, AttributeError, KeyError) as exc:
         return result("evidence_needed", f"运行原件不可验证：{exc}")

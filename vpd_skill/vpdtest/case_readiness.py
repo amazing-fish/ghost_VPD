@@ -98,7 +98,7 @@ def _one(ws, cid, knowledge, policy, to, reviewer, allow_offline, known_issue):
         row["review"] = _review(review)
         row["current_review_validity"] = _current_review(review)
         stage = "definition"
-        row["issues"] = C.lint(case, app, knowledge, policy, runs_dir=ws.runs_dir)
+        row["issues"] = C.lint(case, app, knowledge, policy)
         stage = "replay"
         basis = C.replay_basis(case, review["current"]["dependency_hash"])
         row["replay"] = {k: basis[k] for k in
