@@ -390,6 +390,9 @@ def approve(ws, case_id: str, knowledge, reviewer: str, basis: str) -> dict:
     if not isinstance(reviewer, str) or not reviewer.strip() or not isinstance(basis, str) or not basis.strip():
         raise ValueError("资产审核须提供非空 --reviewer 与 --basis")
     case = ws.load_case(case_id)
+    # Bind the approval to the same knowledge version that passed lint.
+    # Later status queries still compare against the live knowledge store.
+    knowledge = knowledge.snapshot()
     app, policy = ws.app(case["app"]), ws.policy()
     issues = lint(case, app, knowledge, policy, runs_dir=ws.runs_dir)
     if issues:
