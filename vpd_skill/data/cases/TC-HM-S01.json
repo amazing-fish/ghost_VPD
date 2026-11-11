@@ -163,7 +163,7 @@
       "id": "K-MOT-002",
       "use": "判据：设置页应有「退出登录」",
       "applicability": "applies",
-      "rationale": "applies_to=motor_hm 3.0.3.200，本机实测 3.0.3.200；状态 unconfirmed，结论只能待确认",
+      "rationale": "独立知识库已记录确认；历史与本次 APP 均为 3.0.3.200，实际执行仍核对适用性与断言。",
       "steps": [
         "S4"
       ]
