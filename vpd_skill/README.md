@@ -87,7 +87,7 @@ $env:VPD_SECRET_QIANKUN_PHONE = '<账号>'; $env:VPD_SECRET_QIANKUN_PASSWORD = '
 每次运行输出到 `runs/<run_id>/`：`report.md`、`run.json`、`events.jsonl`、`obs/<id>/{observation.json, tree.json, screen.png}`。
 按 #32 裁决，UI 树、事件、运行汇总与截图保留采集原文，不脱敏，也不因系统覆盖物或窗口查询失败停止取证。截图仍受 APP 白名单约束，业务树仍要求属于本次目标 APP 且观测新鲜；空业务树另留整屏诊断证据。`runs/` 已 gitignore。用例中的账号/密码继续写成 `{"secret": "NAME"}`，由环境变量 `VPD_SECRET_NAME` 或 `config.local.json` 的 `secrets` 提供；生成资产保持外置参数引用。
 
-探索/会话/母版实例资产须经 `case review` 与人明确确认后的 `case approve --reviewer --basis` 才能晋级或批量使用；
+探索/会话/母版实例资产须经 `case review-route` 分流与有效 `case approve` 记录才能晋级或批量使用；
 单条未审核诊断仍标 informal。审核不 confirm 产品要求、不授予设备动作，也不自动提升成熟度。
 
 **不知道怎么审批？** 看[资产审核：你需要决定什么](references/asset-review-quickstart.md)。你只需审核 Agent 提交的具体用例与证据；命令和记录由 Agent 处理，不需要一次审批整个库存。当前 Console 没有审批按钮。
@@ -205,4 +205,4 @@ Console 是人工控制入口，手动操作写入独立的 `console-*` 运行�
 ### 审核期间知识更新
 
 `case approve` 在现有用例锁内截取一次只读知识快照，lint 和审核绑定使用同一版本。
-若审核期间相关知识发生变化，审核记录保留已检查版本，命令返回及后续检查仍依据当前知识报告 `stale`；不会把未检查的新版本自动批准。无关知识变化不使审核失效。此机制不确认产品判据、不晋级资产，也不代替人工审阅。
+若审核期间相关知识发生变化，审核记录保留已检查版本，命令返回及后续检查仍依据当前知识报告 `stale`；不会把未检查的新版本自动批准。无关知识变化不使审核失效。此机制不确认产品判据、不晋级资产，也不代替相应的独立审阅。

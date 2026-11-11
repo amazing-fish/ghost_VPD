@@ -38,7 +38,8 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
    看 obs_after 确认实际效果后写 `effect_reviewed`（或写理由排除）。`--app` 必须与会话记录一致。补齐 purpose / preconditions / assertions
    （`oracle_refs` 必须独立于本会话）/ cleanup / `knowledge_used`（用了哪条知识、判断是否适用及理由、映射到哪一步），
    然后 `case lint`。晋级或批量使用前必须按[探索资产人工审核](references/workflows.md#探索资产人工审核30)
-   取得人的明确确认，Agent 不得自行批准；单条诊断可先作 informal 取证。
+   先执行 `case review-route`：明确判据、当前证据充分且仅导航的资产可由独立 Agent 复核；
+   知识未明/高影响须人确认，缺证据由 Agent 补齐，不反复请求签字。不得自审自批；单条诊断可先作 informal 取证。
    审核、产品判据确认、成熟度与动作授权分别办理，完整门槛见[晋级条件](references/workflows.md#晋级条件)。
 6. **执行与判定**：`run <case> --device <spec> --authorize …`。结论只取执行器的 verdict；读 report 的
    "尚未验证的检查""清理""用到的知识与适用性"。退出码 2 或 `action_required` 表示需要人工接管，立即转告用户；
