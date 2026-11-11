@@ -36,10 +36,12 @@
     },
     {
       "id": "S1b",
-      "action": "ensure_state",
-      "state": "my_tab",
+      "action": "tap",
       "critical": true,
-      "note": "会话里启动后直接回到了上次的「我的」页，A2（点「我的」多匹配）被排除；复测时起点可能是爱车页，用已有 recipe 显式到达"
+      "note": "从当前爱车页或我的页直接点击已登记的我的页签并验证落点，不调用包含停止/重启的状态恢复recipe。",
+      "target": "tab_my",
+      "expect_state": "my_tab",
+      "revalidate": true
     },
     {
       "id": "S3",
@@ -155,13 +157,7 @@
       ]
     }
   ],
-  "cleanup": [
-    {
-      "id": "C1",
-      "action": "back",
-      "required": false
-    }
-  ],
+  "cleanup": [],
   "knowledge_used": [
     {
       "id": "K-MOT-002",
@@ -183,7 +179,7 @@
     },
     {
       "id": "target:tab_my / state:my_tab",
-      "use": "操作经验：ensure_state my_tab 的 recipe",
+      "use": "操作经验：已有 tab_my 导航目标与 my_tab 落点验证",
       "rationale": "states.json 中 my_tab 签名已在 3.0.3.200 真机校准",
       "steps": [
         "S1b"
@@ -401,5 +397,7 @@
         "workspace.py": "69a575274bc631bb93f6339ad9b751eac3b1d70342159ea9f4ae472d135df6b3"
       }
     }
-  }
+  },
+  "cleanup_note": "仅页面导航，没有写入账号或车辆数据；S5 已返回我的页，无需额外 back，以免在失败路径退出 APP。",
+  "cleanup_none": true
 }

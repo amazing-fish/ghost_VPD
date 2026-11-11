@@ -715,11 +715,33 @@ def condition_issues(case: dict, app) -> list:
     return issues
 
 
+def _navigation_without_cleanup(case: dict, app) -> bool:
+    """Bounded opt-in, independent of optional policy and authorization declarations."""
+    if (case.get("cleanup_none") is not True or not isinstance(case.get("cleanup_note"), str)
+            or not case["cleanup_note"].strip() or case.get("authorizations")):
+        return False
+    try:
+        for step, _, _ in iter_case_steps(case, app, strict=True):
+            action = step.get("action")
+            if action == "tap":
+                target = step.get("target")
+                target = app.targets.get(target) if isinstance(target, str) else target
+                if not isinstance(target, dict) or target.get("side_effect") != "navigation":
+                    return False
+            elif action not in {"launch", "stop_app", "back", "home", "resume", "wait", "swipe", "flow", "ensure_state"}:
+                return False
+    except (ValueError, TypeError, KeyError):
+        return False
+    return True
+
+
 def lint(case: dict, app, knowledge, policy=None, runs_dir: Optional[Path] = None) -> list:
     """runs_dir 用于 check-refs：核对 rationale 里「run/会话 + obs」引用是否真的可解析到留存证据。"""
     issues = execution_structure_issues(case, app)
     for k in REQUIRED:
         v = case.get(k)
+        if k == "cleanup" and v == [] and _navigation_without_cleanup(case, app):
+            continue  # Side-effect cleanup obligations remain enforced by _lint_effects.
         if v is None or v == [] or v == "" or (k == "test_data" and v == {} and not case.get("test_data_none")):
             issues.append({"field": k, "problem": "缺失或为空" + ("（无测试数据请写 test_data_none: true）" if k == "test_data" else "")})
     step_ids = {s.get("id") for s in case.get("steps", [])}
