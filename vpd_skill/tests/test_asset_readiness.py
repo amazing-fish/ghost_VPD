@@ -94,7 +94,7 @@ def test_review_pending_stale_and_binding_dimensions_remain_distinct(verdict_ws)
     pending = _query(ws, NAV_CASE)["results"][0]
     assert pending["review"]["state"] == "pending"
     assert pending["promotion"]["status"] == "blocked"
-    assert "尚无有效人工审核" in pending["promotion"]["reason"]
+    assert "尚无有效资产审核" in pending["promotion"]["reason"]
     C.approve(ws, NAV_CASE, KnowledgeStore(ws.root), "pytest-synthetic", "Synthetic fixture only")
     assert _query(ws, NAV_CASE)["results"][0]["review"]["state"] == "approved"
     case = ws.load_case(NAV_CASE)
@@ -294,3 +294,71 @@ def test_malformed_nested_source_does_not_suppress_later_healthy_assets(verdict_
     assert field in bad["error"]["message"]
     assert good["promotion"]["status"] == "eligible"
     assert _files(ws) == before
+
+
+def test_recorded_regression_and_replays_are_not_current_execution_permission(verdict_ws):
+    ws = verdict_ws
+    _replay_case(ws, 'regression', level='real_device')
+    case = ws.load_case(NAV_CASE)
+    case['status'] = 'regression'
+    write_json(ws.case_path(NAV_CASE), case)
+    before = _files(ws)
+    row = _query(ws, NAV_CASE)['results'][0]
+    assert row['recorded_maturity'] == row['status'] == 'regression'
+    assert row['replay']['count'] == 2 and row['replay']['product'] == 'conforming'
+    assert row['promotion']['status'] == 'no_next_stage'
+    assert row['replay_basis_scope']['original_evidence_completeness'] == 'not_evaluated'
+    current = row['current_review_validity']
+    assert current['state'] == row['review']['state'] == 'not_required'
+    assert current['execution_eligibility'] == 'not_evaluated'
+    assert '不是已审核' in current['message']
+    assert _files(ws) == before
+
+
+@pytest.mark.parametrize('missing', [False, True])
+def test_readiness_explains_current_review_without_claiming_originals_complete(ws, tmp_path, missing):
+    from test_asset_review import _asset
+    from test_review_routing import evidence, approve_agent
+    case = _asset(ws, status='regression')
+    evidence(ws, case)
+    approve_agent(ws, case)
+    if missing:
+        ws.runs_dir = tmp_path / 'other-machine-runs'
+    before = _files(ws)
+    row = _query(ws, case['id'])['results'][0]
+    assert row['status'] == row['recorded_maturity'] == 'regression'
+    assert row['promotion']['status'] == 'no_next_stage'
+    current = row['current_review_validity']
+    assert current['state'] == row['review']['state'] == ('stale' if missing else 'approved')
+    assert current['valid'] == row['review']['valid'] == (not missing)
+    assert current['required'] == row['review']['required']
+    assert current['scope'] == 'asset_review_only'
+    assert current['execution_eligibility'] == 'not_evaluated'
+    assert row['replay_basis_scope']['original_evidence_completeness'] == 'not_evaluated'
+    assert _files(ws) == before
+
+
+def test_changed_binding_stale_is_not_mislabelled_as_missing_originals(verdict_ws):
+    ws = verdict_ws
+    case = ws.load_case(NAV_CASE)
+    case['origin'] = {'type': 'session'}
+    write_json(ws.case_path(NAV_CASE), case)
+    C.approve(ws, NAV_CASE, KnowledgeStore(ws.root), 'fixture', 'fixture')
+    case = ws.load_case(NAV_CASE)
+    case['asset_review']['binding']['policy_hash'] = 'changed-fixture'
+    write_json(ws.case_path(NAV_CASE), case)
+    row = _query(ws, NAV_CASE)['results'][0]
+    assert row['current_review_validity']['state'] == 'stale'
+    assert '原件缺失' not in row['current_review_validity']['message']
+    assert row['review']['changed_binding_fields'] == ['policy_hash']
+
+
+@pytest.mark.parametrize("args", [["case", "--help"], ["case", "readiness", "--help"]])
+def test_cli_help_distinguishes_recorded_and_current(capsys, args):
+    with pytest.raises(SystemExit) as exc:
+        build_parser().parse_args(args)
+    assert exc.value.code == 0
+    text = capsys.readouterr().out
+    assert '记录成熟度' in text and '当前审核有效性' in text
+    if 'readiness' in args:
+        assert '不提供全部原件完整性证明' in text

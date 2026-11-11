@@ -82,3 +82,17 @@
 需要负责人后续裁定的是具体产品契约和资产复用依据，不需要再批准本片的每一次测试。
 显式降级、证据排除和跨 scope 资格重算应分别交付；尤其先明确历史离线豁免的可追溯方式，
 再扩大运行时“正式资格”的含义。不会为了凑齐一套状态机同时改动这些门禁。
+
+
+### readiness：记录成熟度不等于当前可用资格（#225）
+
+`status`、`replay` 保留原兼容字段；`recorded_maturity` 明确 status 是资产记录的阶段。
+`replay_basis_scope` 明确数量/产品结论来自当前定义下的记录，不证明本机原件完整。
+`current_review_validity` 原样投影现有 `review_status` 的 required/valid/state，并给出解释：
+- approved 只表示当前审核有效，不保证全部重放原件完整或现场可执行。
+- stale/pending/revoked 不被历史 regression 或 conforming 覆盖。
+- not_required 不等于已审核或可执行。
+- regression 的 `promotion=no_next_stage` 只表示没有更高晋级阶段，不是执行许可。
+
+原件缺失可能使依赖原件的独立审核变 stale；不将所有 stale 都归因为缺原件。
+本命令不新增原件核验或现场预检，不修改原有审核、晋级和设备门禁。

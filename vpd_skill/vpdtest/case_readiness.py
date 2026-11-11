@@ -62,6 +62,21 @@ def _review(info):
         **({"revocation": info.get("revocation")} if info["state"] == "revoked" else {})}
 
 
+def _current_review(info):
+    """Explain the existing review result without inventing execution eligibility."""
+    state = info["state"]
+    message = {
+        "approved": "资产审核在当前上下文有效；不等于所有重放原件完整或当前现场可执行。",
+        "not_required": "当前资产无需该审核；这不是已审核、原件齐全或可执行的证明。",
+        "stale": "当前审核已失效；记录成熟度与历史重放不能替代当前有效审核。",
+        "pending": "尚无当前有效审核；记录成熟度与历史重放不能替代审核。",
+        "revoked": "审核已撤销；保留历史成熟度不代表恢复资格。",
+    }.get(state, "请核对当前审核状态；本输出不证明现场执行资格。")
+    return {"scope": "asset_review_only", "state": state,
+            "required": info["required"], "valid": info["valid"],
+            "execution_eligibility": "not_evaluated", "message": message}
+
+
 def _one(ws, cid, knowledge, policy, to, reviewer, allow_offline, known_issue):
     path = ws.case_path(cid)
     row = {"case": cid, "source": "present" if path.is_file() else "missing", "status": None}
@@ -75,12 +90,13 @@ def _one(ws, cid, knowledge, policy, to, reviewer, allow_offline, known_issue):
         _validate_source(case)
         status = case.get("status", "draft")
         row.update(app=case["app"], status=status if isinstance(status, str) else None,
-                   scope=dict(SCOPE))
+                   scope=dict(SCOPE), recorded_maturity=status if isinstance(status, str) else None)
         stage = "app"
         app = ws.app(case["app"])
         stage = "review"
         review = C.review_status(ws, case, knowledge, app=app, policy=policy)
         row["review"] = _review(review)
+        row["current_review_validity"] = _current_review(review)
         stage = "definition"
         row["issues"] = C.lint(case, app, knowledge, policy, runs_dir=ws.runs_dir)
         stage = "replay"
@@ -88,6 +104,10 @@ def _one(ws, cid, knowledge, policy, to, reviewer, allow_offline, known_issue):
         row["replay"] = {k: basis[k] for k in
                          ("ok", "why", "hash", "count", "replays", "ignored", "coverage", "product", "signature", "conflicts")
                          if k in basis}
+        row["replay_basis_scope"] = {
+            "source": "asset_replay_records_for_current_definition",
+            "original_evidence_completeness": "not_evaluated",
+            "message": "重放数量和产品结论来自资产记录，不表示本机原件已完整核验。"}
         product = case.get("product_status")
         row["recorded_product_status"] = ({k: product[k] for k in ("status", "issue", "signature", "since_hash")
                                            if k in product} if isinstance(product, dict) else None)
