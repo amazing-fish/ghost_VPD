@@ -399,3 +399,57 @@ def test_promotion_uses_one_checked_case_and_policy_snapshot(ws, monkeypatch):
     monkeypatch.setattr(ws, "load_case", case)
     promoted = C.promote(ws, "TC-REVIEW-1", "candidate", KnowledgeStore(ws.root))
     assert promoted["status"] == "candidate" and len(policy_calls) == len(case_calls) == 1
+
+
+@pytest.mark.parametrize("related", [True, False])
+def test_approval_binds_knowledge_checked_by_lint_not_later_edits(ws, monkeypatch, related):
+    case = _asset(ws)
+    case["origin"] = {"type": "session"}
+    write_json(ws.case_path(case["id"]), case)
+    kn = KnowledgeStore(ws.root)
+    before = C._review_binding(ws, case, ws.app(case["app"]), kn, ws.policy())
+    original_lint = C.lint
+
+    def lint_then_edit(*args, **kwargs):
+        issues = original_lint(*args, **kwargs)
+        assert not issues
+        data = read_json(kn.path)
+        if related:
+            next(i for i in data["items"] if i["id"] == "K-MOT-001")["statement"] += " changed after lint"
+        else:
+            data["items"].append({"id": "K-UNRELATED", "status": "unconfirmed", "statement": "unrelated"})
+        write_json(kn.path, data)
+        return issues
+
+    monkeypatch.setattr(C, "lint", lint_then_edit)
+    result = cli(ws, "case", "approve", case["id"], "--reviewer", REVIEWER, "--basis", BASIS)
+    assert result["asset_review"]["valid"] is (not related)
+    approved = ws.load_case(case["id"])
+    assert approved["asset_review"]["binding"] == before
+    assert approved["history"][-1]["binding"] == before
+    assert _review(ws)["valid"] is (not related)
+    if related:
+        with pytest.raises(PermissionError, match="审核"):
+            C.preflight_batch(ws, [case["id"]])
+
+
+def test_approval_snapshot_failure_preserves_existing_record(ws, monkeypatch):
+    case = _asset(ws)
+    _approve(ws)
+    before = ws.case_path(case["id"]).read_bytes()
+
+    def fail_snapshot(self):
+        raise ValueError("unreadable knowledge snapshot")
+
+    monkeypatch.setattr(KnowledgeStore, "snapshot", fail_snapshot)
+    with pytest.raises(ValueError, match="unreadable knowledge snapshot"):
+        _approve(ws)
+    assert ws.case_path(case["id"]).read_bytes() == before
+
+
+def test_approval_accepts_existing_readonly_knowledge_snapshot(ws):
+    case = _asset(ws)
+    kn = KnowledgeStore(ws.root).snapshot()
+    approved = C.approve(ws, case["id"], kn, reviewer=REVIEWER, basis=BASIS)
+    assert approved["asset_review"]["reviewer"] == REVIEWER
+    assert _review(ws)["valid"]
