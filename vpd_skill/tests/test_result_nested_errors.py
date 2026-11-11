@@ -95,10 +95,10 @@ def test_advisory_collection_error_remains_execution_error_with_required_product
                                 raw="ADVISORY_COLLECTION_RAW_EVIDENCE")
         return original_dump(self, bundle, path)
 
-    def observe_with_error(self, label="", screenshot=True):
+    def observe_with_error(self, label="", screenshot=True, **kwargs):
         self.device.synthetic_collection_error = label == "S2#1:after"
         try:
-            return original_observe(self, label, screenshot)
+            return original_observe(self, label, screenshot, **kwargs)
         finally:
             self.device.synthetic_collection_error = False
 

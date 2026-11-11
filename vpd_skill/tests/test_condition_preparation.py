@@ -63,7 +63,7 @@ def _dialogs(count):
 
 def _hook(monkeypatch, boundary, change, *, count=1):
     original = RunContext.observe
-    def observe(ctx, label="", screenshot=True):
+    def observe(ctx, label="", screenshot=True, **kwargs):
         root = ctx.device.world["screens"]["dashboard"]["root"]
         if label == "S2:when":
             root["children"].extend(_dialogs(count))
@@ -78,7 +78,7 @@ def _hook(monkeypatch, boundary, change, *, count=1):
             for child in root["children"]:
                 if child.get("text") == FAULT:
                     child["text"] = HEALTHY
-        return original(ctx, label, screenshot)
+        return original(ctx, label, screenshot, **kwargs)
     monkeypatch.setattr(RunContext, "observe", observe)
 
 
@@ -180,8 +180,8 @@ def test_failed_unlock_inside_preparation_preserves_its_unknown_physical_effect(
     _hook(monkeypatch, boundary, "true")
     original_locked = ReplayDevice.screen_locked
     original_observe = RunContext.observe
-    def observe(ctx, label="", screenshot=True):
-        result = original_observe(ctx, label, screenshot)
+    def observe(ctx, label="", screenshot=True, **kwargs):
+        result = original_observe(ctx, label, screenshot, **kwargs)
         if label == boundary:
             ctx.device._preparation_lock_pending = True
         return result

@@ -513,8 +513,8 @@ def test_automatic_unlock_invalidates_true_condition_before_the_intended_tap(con
     ws.config = {"unlock_secrets": {spec: "LOCK_PIN"}, "secrets": {"LOCK_PIN": "1234"}}
     original = Observer.observe
 
-    def lock_after_current_observation(self, label="", screenshot=True):
-        result = original(self, label, screenshot)
+    def lock_after_current_observation(self, label="", screenshot=True, **kwargs):
+        result = original(self, label, screenshot, **kwargs)
         if label == "S2#1:before":
             # 观测之后手机自动锁屏；下发前复核会走真实受控解锁，无直接动作调用。
             self.device.state["locked"] = True

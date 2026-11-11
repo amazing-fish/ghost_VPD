@@ -57,8 +57,8 @@ def test_clear_then_foreground_gate_retains_partial_execution(ws, tmp_path):
     ctx = _context(ws, tmp_path)
     observe = ctx.observe
 
-    def switch_after_snapshot(label="", screenshot=True):
-        result = observe(label, screenshot)
+    def switch_after_snapshot(label="", screenshot=True, **kwargs):
+        result = observe(label, screenshot, **kwargs)
         if label.endswith(":after-clear"):
             # User switches app after the clear observation, before input's
             # final dispatcher gate. The latest input location is still valid.

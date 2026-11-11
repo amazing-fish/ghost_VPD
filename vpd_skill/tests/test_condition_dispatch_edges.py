@@ -25,10 +25,10 @@ def _edge(verdict_ws, tmp_path, *, after_obs=None, flip_after_clear=None):
     ctx.conditions={'cond':{'kind':'page','true':{'type':'text_present','text':'CONST'},'false':{'type':'text_present','text':'COUNTER'}}}
     if flip_after_clear:
         original=ctx.observe
-        def observe(label='',screenshot=True):
+        def observe(label='',screenshot=True, **kwargs):
             if label.endswith(':after-clear'):
                 ctx.device.state['stack'][-1]=flip_after_clear
-            return original(label,screenshot)
+            return original(label,screenshot, **kwargs)
         ctx.observe=observe
     return Executor(ctx)
 
