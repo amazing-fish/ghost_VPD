@@ -322,6 +322,15 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                                   "screen_tree": (e.get("diagnosis") or {}).get("screen_tree")}
                                  for e in read_jsonl(store.events_path)
                                  if e.get("event") == "capability_result" and e.get("capability") == "system_dialog"]
+        # Diagnostic screenshots at a rejected preflight are not product evidence.
+        # Count all dispatcher receipts, including rejected/unknown auxiliary actions.
+        dispatch_events = read_jsonl(store.events_path)
+        if not (pre["ok"] and envc["ok"]) and any(e.get("event") == "run_start" for e in dispatch_events):
+            run["preflight_evidence"] = {
+                "schema": 1, "case_execution_started": False,
+                "dispatch_count": sum(e.get("event") == "dispatch" for e in dispatch_events),
+                "product_observations": sum(bool(s.get("final_obs")) for s in steps),
+            }
         diagnostic.phase = "experience"
         try:
             run["experience_candidates"] = [c["id"] for c in xstore.propose_from_run(run)] if propose else []
