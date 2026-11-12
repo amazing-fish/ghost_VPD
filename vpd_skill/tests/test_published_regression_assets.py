@@ -1,4 +1,4 @@
-"""Real published assets, fresh workspace, no private original evidence."""
+"""Published historical approvals remain portable evidence, but #236 changes their dependencies."""
 import json
 from pathlib import Path
 import pytest
@@ -12,16 +12,17 @@ ASSETS = [
 ]
 
 @pytest.mark.parametrize('cid,content,deps,review_hash', ASSETS)
-def test_published_asset_is_complete_and_portable(ws, cid, content, deps, review_hash):
+def test_historical_asset_preserved_but_navigation_dependency_is_stale(ws, cid, content, deps, review_hash):
     case = ws.load_case(cid)
     assert not list(ws.runs_dir.glob('run-*'))
     assert case['status'] == 'regression'
     assert C.content_hash(case) == content
     assert case['asset_review']['binding']['review_hash'] == review_hash
     info = C.review_status(ws, case)
-    assert info['valid'], info
+    assert not info['valid'] and info['state'] == 'stale', info
+    assert info['current']['dependency_hash'] != deps
     assert info['evidence_verification']['status'] == 'not_checked'
-    assert C.preflight_batch(ws, [cid])[0]['valid']
+    assert not C.replay_basis(case, info['current']['dependency_hash'])['ok']
     basis = C.replay_basis(case, deps)
     assert basis['ok'] and len(basis['replays']) == 2, basis
     assert len({r['device'] for r in basis['rows']}) == 1
@@ -35,10 +36,22 @@ def test_published_asset_is_complete_and_portable(ws, cid, content, deps, review
 def test_new_execution_does_not_inherit_historical_pass(ws, cid, content, deps, review_hash):
     case = ws.load_case(cid)
     original = ws.case_path(cid).read_bytes()
-    run = run_case(ws, cid, device_spec=world('motor_hm_popup.json'), propose=False, require_asset_review=True)
-    assert run['asset_review']['valid']
-    assert run['run_id'] not in {r['run_id'] for r in case['replays']}
-    assert run['validation_level'] == 'offline_replay'
-    assert run['steps']
-    assert run['verdict']['verdict'] != 'passed'
+    info = C.review_status(ws, case)
+    if info['required']:
+        with pytest.raises(PermissionError, match='审核失效'):
+            C.preflight_batch(ws, [cid])
+        with pytest.raises(PermissionError, match='审核失效'):
+            run_case(ws, cid, device_spec=world('motor_hm_popup.json'), propose=False, require_asset_review=True)
+        assert not list(ws.runs_dir.glob('run-*'))
+    else:
+        # Existing contract: ordinary non-exploration cases do not require approval.
+        # This is not valid approved-asset reuse; explicitly expose the stale result.
+        assert not C.preflight_batch(ws, [cid])[0]['valid']
+        run = run_case(ws, cid, device_spec=world('motor_hm_popup.json'), propose=False, require_asset_review=True)
+        assert not run['asset_review']['valid']
+        assert run['asset_review']['state'] == 'stale'
+        assert run['run_id'] not in {r['run_id'] for r in case['replays']}
+        assert run['validation_level'] == 'offline_replay'
+        assert run['steps']
+        assert run['verdict']['verdict'] != 'passed'
     assert ws.case_path(cid).read_bytes() == original

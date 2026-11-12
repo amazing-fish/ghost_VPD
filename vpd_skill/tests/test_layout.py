@@ -133,8 +133,8 @@ def test_when_condition_skips_instead_of_guessing(ws):
     r = resolve("x", t, tree, None, app.dir, layout=None)
     assert r["attempts"][0]["status"] == "skipped_layout_unknown" and "窗口形态" in r["reason"]
     # 窄屏底部区域的后备策略在宽屏侧边导航上会失效，所以真实目标文件里它带 when；within TabBar 两种形态都适用
-    loc = resolve("tab_my", app.targets["tab_my"], tree, None, app.dir, overlay_pref=1, layout=fold)
-    assert loc["status"] == "found" and loc["strategy_index"] == 1 and loc["point"] == [120, 1155]
+    loc = resolve("tab_my", app.targets["tab_my"], tree, None, app.dir, layout=fold)
+    assert loc["status"] == "found" and loc["strategy_index"] == 0 and loc["point"] == [120, 1155]
 
 
 def test_compact_partially_hidden_row_is_not_tapped_at_bounds_center(ws):

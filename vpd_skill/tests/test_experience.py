@@ -3,7 +3,7 @@ import pytest
 
 from vpdtest.experience import ExperienceStore
 from vpdtest.runner import run_case
-from vpdtest.util import read_json
+from vpdtest.util import read_json, write_json
 
 from conftest import confirm, widen_scope, world
 
@@ -11,6 +11,13 @@ BASE, DRIFT = world("motor_hm_base.json"), world("motor_hm_drift.json")
 
 
 def _confirm(ws, *ids):
+    # Deliberately inject a legacy ambiguous locator into this isolated workspace.
+    # RSI lifecycle tests must exercise adaptation, not require a production bug (#236).
+    path = ws.app("motor_hm").dir / "targets.json"
+    targets = read_json(path)
+    strategies = targets["targets"]["tab_my"]["strategies"]
+    strategies.insert(0, {"kind": "text", "value": "我的", "source": "synthetic RSI defect"})
+    write_json(path, targets)
     # 漂移世界是 3.0.4.100：评审人确认这些判据对新版本仍适用后才能跨版本判定（applies_to 参与适用性）
     for k in ("K-MOT-001", "K-MOT-002"):
         if k in ids:
