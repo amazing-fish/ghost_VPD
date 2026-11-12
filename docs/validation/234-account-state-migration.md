@@ -1,0 +1,63 @@
+# #234 登录前置迁移：根因、影响清单与未完成项
+
+基线：`73baf23`。这是问题定位和回归契约，不是实机通过记录，也不关闭 #234。
+
+## 当前判断
+
+- `HarmonyHdcDevice.env_facts()` 返回空对象。S01 在 launch 前执行 `_env_check`，所以不知道 account_state 就整例 blocked，零次下发。这不是产品失败，更不是未登录实测。
+- `--env account_state=logged_in` 可以使历史环境检查通过，但只是一条声明。`run_case` 将它排除在 `oracle_facts` 外，不能把它说成测得登录。
+- S01 只做页面导航，确实值得将登录前置移到依赖登录的断言，而不是挡住全部导航。但目前缺少可复用、独立于被测「退出登录」结果的登录证据契约，不能靠删字段完成迁移。
+
+## 已核对的真实证据
+
+家庭机本地 `ghost_VPD-live-validation/vpd_skill/runs/run-20261112-001121-471b`：
+- obs-0005/0006：我的页有账户昵称和我的车辆。
+- obs-0007/0008/0009：上滑后，昵称不再在当前树中。
+- obs-0010/0011：设置页有手机认证、安全管理、隐私管理、车辆管理及退出登录；没有可唯一读取的账户身份。
+
+只在本地读取历史树，未触碰设备、未上传图片。单个已登录样本不能证明「手机认证」等文字一定为登录专属；目前没有同版未登录的独立对照。Replay 的注册/登录占位不是该版本真实反证。
+
+## 为什么不直接套现有 guard
+
+1. `kind=account` 必须有当前账户身份目标。设置页无此目标，不能用固定账号声明代替。
+2. 目前所有页面条件在动作下发后失效，`guard.at=S1b` 不能跨上滑/点击，把旧页账户快照当新页事实。
+3. `settings` 状态签名依赖「退出登录」。它既是 A1 被测结果，不能再被当作登录前置来证明 A1。
+4. 未定义 guard 虽有运行期 unknown 防御分支，结构校验仍拒绝未定义条件；不能为单个用例移除全局校验。
+
+因此本次不改 S01/其余 35 个资产、不改条件引擎、不改产品知识，不生成永远 pending 的假修复。
+
+## 迁移取舍
+
+- S01 优先单独迁移：保留独立导航断言；登录专属 A1 必须有与 logout_entry 独立的实测条件。未知为待验证，明确不适用不计通过，不得产品失败。
+- `app_version` / `device_form`：设备有当前测量源，保留兼容性检查，不能让声明覆盖。
+- 其余账户/车辆/任务/网络等：逐条找真实 provider 和断言依赖；没有证据时保留原语义并明确缺证，不批量删前置。车辆动作的授权/安全检查完全不在此次迁移范围内。
+- 当前共 41 个用例，36 个含任一环境要求，25 个含 account_state。数量按字段独立计数，不可相加。
+
+|字段|用例数|用例|
+|---|---:|---|
+|account_state|25|`TC-HM-S01`, `TC-MOTOR-HM-003`, `TC-MOTOR-HM-006`, `TC-MOTOR-HM-007`, `TC-MOTOR-HM-008`, `TC-QK-101`, `TC-QK-102`, `TC-QK-103`, `TC-QK-201`, `TC-QK-202`, `TC-QK-211`, `TC-QK-212`, `TC-QK-213`, `TC-QK-214`, `TC-QK-215`, `TC-QK-216`, `TC-QK-217`, `TC-QK-218`, `TC-QK-219`, `TC-QK-221`, `TC-QK-222`, `TC-QK-226`, `TC-QK-227`, `TC-QK-228`, `TC-QK-229`|
+|app_version|29|`TC-MOTOR-HM-006`, `TC-MOTOR-HM-007`, `TC-MOTOR-HM-008`, `TC-QK-211`, `TC-QK-212`, `TC-QK-213`, `TC-QK-214`, `TC-QK-215`, `TC-QK-216`, `TC-QK-217`, `TC-QK-218`, `TC-QK-219`, `TC-QK-221`, `TC-QK-222`, `TC-QK-223`, `TC-QK-226`, `TC-QK-227`, `TC-QK-228`, `TC-QK-229`, `TC-QK-240`, `TC-QK-241`, `TC-QK-242`, `TC-QK-243`, `TC-QK-244`, `TC-QK-245`, `TC-QK-246`, `TC-QK-247`, `TC-QK-248`, `TC-QK-249`|
+|destination_spot|1|`TC-QK-219`|
+|device_form|19|`TC-MOTOR-HM-006`, `TC-MOTOR-HM-007`, `TC-MOTOR-HM-008`, `TC-QK-211`, `TC-QK-212`, `TC-QK-213`, `TC-QK-214`, `TC-QK-215`, `TC-QK-216`, `TC-QK-217`, `TC-QK-218`, `TC-QK-219`, `TC-QK-221`, `TC-QK-222`, `TC-QK-223`, `TC-QK-226`, `TC-QK-227`, `TC-QK-228`, `TC-QK-229`|
+|favorite_spot_slot|1|`TC-QK-201`|
+|location_relation|1|`TC-QK-227`|
+|network|7|`TC-QK-221`, `TC-QK-222`, `TC-QK-223`, `TC-QK-226`, `TC-QK-227`, `TC-QK-228`, `TC-QK-229`|
+|parking_area|4|`TC-QK-219`, `TC-QK-223`, `TC-QK-226`, `TC-QK-227`|
+|task_type|1|`TC-QK-216`|
+|vehicle_fault_state|3|`TC-QK-214`, `TC-QK-219`, `TC-QK-227`|
+|vehicle_in_vpd_map|3|`TC-QK-102`, `TC-QK-201`, `TC-QK-202`|
+|vehicle_name|3|`TC-QK-217`, `TC-QK-227`, `TC-QK-229`|
+|vehicle_state|2|`TC-QK-217`, `TC-QK-229`|
+|vpd_task_state|8|`TC-QK-214`, `TC-QK-215`, `TC-QK-216`, `TC-QK-219`, `TC-QK-223`, `TC-QK-226`, `TC-QK-227`, `TC-QK-228`|
+
+## 下一步证据与验收
+
+先用工作机已有登录/未登录观测，补同一版本我的页和设置页的独立正反标记及可见性。不要为补证擅自退出当前账号；没有既存样本则明确尚缺对照。若确实没有页内标记，另行设计最小的账户事实生命周期：必须覆盖账户切换、登出、重启/失效、证据未知和过期，不复用任意旧快照。
+
+完成 provider 后才提交 S01 定义迁移，并验证：无 --env 能执行真实导航；登录且退出登录入口存在通过；登录但入口缺失应失败；未登录/未知不伪通过或产品失败；CLI 声明不能覆盖真实相反证据。真实机验收与合成引擎回归分开报告。
+
+定义一旦变化，旧 content/dependency hash 对应的 review/replay 不再覆盖新资产。保留历史记录，明确待新独立审查和无 env 实测，不能静默重签或伪造历史。已有 K-MOT-001/002 产品判据不因技术迁移要求用户重复确认；#236 目标依赖修改后需联合复核。
+
+## 本次离线回归
+
+`tests/test_measured_preconditions.py` 新增两个固定反例：HDC 式空业务事实源下 S01 零动作 blocked，且非产品失败；声明登录后允许历史调度，但声明始终不进入 oracle_facts。均为 Replay 合成测试，不宣称覆盖真机。

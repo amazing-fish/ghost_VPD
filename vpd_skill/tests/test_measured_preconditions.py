@@ -162,3 +162,26 @@ def test_matching_layout_allows_preflight_recovery_and_keeps_business_env(ws, tm
     assert run["env"]["ok"] and run["preflight"]["unlock"]["status"] == "unlocked"
     assert run["steps"][0]["outcome"] == "passed"
     assert any(e.get("op") == "launch" for e in _sent(run))
+
+
+# #234: mirror HDC's unavailable business-fact provider without touching a device.
+def test_s01_without_business_measurements_reproduces_environment_block(ws, monkeypatch):
+    monkeypatch.setattr(ReplayDevice, "env_facts", lambda self: {})
+    run = run_case(ws, "TC-HM-S01", device_spec=world("motor_hm_base.json"), propose=False)
+    assert run["env"]["unmet"] == [
+        {"key": "account_state", "required": "logged_in", "actual": None}]
+    assert run["verdict"]["verdict"] == "blocked"
+    assert run["actions"] == 0 and not _sent(run)
+    assert all(step["outcome"] == "not_run" for step in run["steps"])
+    assert not run["verdict"]["product_failed"]
+
+
+def test_s01_declared_login_is_not_a_measured_account_fact(ws, monkeypatch):
+    monkeypatch.setattr(ReplayDevice, "env_facts", lambda self: {})
+    run = run_case(ws, "TC-HM-S01", device_spec=world("motor_hm_base.json"),
+                   env={"account_state": "logged_in"}, propose=False)
+    assert run["env"]["ok"] and run["actions"] > 0
+    assert run["declarations"] == {"source": "cli_env", "values": {"account_state": "logged_in"},
+                                   "measured": False}
+    assert "account_state" not in run["oracle_facts"]
+    assert run["validation_level"] == "offline_replay"
