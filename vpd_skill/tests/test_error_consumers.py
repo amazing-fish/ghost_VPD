@@ -10,7 +10,8 @@ import pytest
 from verdict_fixtures import NAV_CASE
 from vpdtest import cases, cli, commands
 from vpdtest.experience import ExperienceStore
-from vpdtest.util import read_jsonl
+from vpdtest.locate import locator_fingerprint
+from vpdtest.util import read_jsonl, write_json
 
 
 def _verdict(result="error", *, execution_error=True, product="pending"):
@@ -62,10 +63,25 @@ def test_run_and_suite_briefs_preserve_error_evidence(verdict_ws, monkeypatch):
     assert events[-1]["verdicts"] == ["error"] and out["completed"] is True
 
 
+# These consumer tests exercise coverage/error handling after the binding gate.
+# Model a real current locator and receipt rather than unbound legacy history.
+_TARGET = {"strategies": [{"kind": "text", "value": "primary"},
+                          {"kind": "text", "value": "fallback"}]}
+
+
+def _locate_receipt(overlay):
+    pref = overlay.locator_pref("target", target=_TARGET)
+    assert pref == (1 if overlay.trial else None)
+    return {"target": "target", "adapted": pref is None,
+            "locator_fingerprint": locator_fingerprint(_TARGET), "overlay_pref": pref}
+
+
 def _experience(tmp_path):
     xs = ExperienceStore(tmp_path, "synthetic")
+    write_json(xs.targets_path, {"targets": {"target": _TARGET}})
     xs.save_item({"id": "XP-error", "kind": "locator_preference",
-                  "change": {"target": "target", "prefer_strategy_index": 1}, "status": "candidate",
+                  "change": {"target": "target", "prefer_strategy_index": 1,
+                             "locator_fingerprint": locator_fingerprint(_TARGET)}, "status": "candidate",
                   "requires_review": False, "origin_case": "origin", "evidence": [], "validations": [], "history": []})
     return xs
 
@@ -78,7 +94,7 @@ def _validate(xs, baseline, trial, *, mixed=False, healthy_independent=False):
         v = _verdict(result, execution_error=result == "error" or mixed,
                      product="failed" if result == "failed" or mixed else ("passed" if result == "passed" else "pending"))
         return {"run_id": f"{cid}-{bool(overlay.trial)}", "verdict": v,
-                "steps": [{"attempts": [{"locate": {"target": "target", "adapted": not overlay.trial}}]}]}
+                "steps": [{"attempts": [{"locate": _locate_receipt(overlay)}]}]}
     return xs.validate("XP-error", ["origin", "other"], ["fixture"], run_case)
 
 
