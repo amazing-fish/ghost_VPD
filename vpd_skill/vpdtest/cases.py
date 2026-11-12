@@ -345,7 +345,562 @@ def require_review(ws, case: dict, knowledge=None, app=None, policy=None, contex
     if info["required"] and not info["valid"]:
         if info["state"] == "revoked":
             raise PermissionError(f"用例 {case['id']} 的资产审核已撤销；请由人重新审查后执行 case approve "
-                                  …9384 tokens truncated…gin": {"type": "exploration"},
+                                  f"{case['id']} --reviewer <人> --basis <依据>。撤销不改写历史结论或授予动作权限")
+        why = "审核失效：内容、审阅语义或执行依赖已变" if info["state"] == "stale" else "尚无有效资产审核"
+        origin = " 来自探索/会话" if info["origin_signals"] else ""
+        raise PermissionError(f"用例 {case['id']}{origin}，{why}；先用 case review-route 分流，再经相应评审执行 case approve "
+                              f"{case['id']} --reviewer <评审人> --basis <依据>。审核不代替 Oracle 确认或动作授权")
+    return info
+
+
+def validate_case_id(case_id: str) -> None:
+    """The shared stable identity contract for general case creation and lifecycle."""
+    if not isinstance(case_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", case_id):
+        raise ValueError("用例 ID 不能是路径，须为字母/数字开头的稳定 ID")
+
+
+def _case_update(function):
+    """Serialize every case read-modify-write; a replay must not restore an old approval."""
+    @wraps(function)
+    def locked(ws, case_id, *args, **kwargs):
+        validate_case_id(case_id)
+        if kwargs.get("dry_run"):
+            return function(ws, case_id, *args, **kwargs)  # No lock file for read-only previews.
+        try:
+            # The writable workspace must suffice; do not require its parent to
+            # be writable (e.g. a separately mounted data directory).
+            with session_lock(ws.root / ".case-locks" / case_id):
+                return function(ws, case_id, *args, **kwargs)
+        except TimeoutError as exc:
+            raise TimeoutError(f"用例 {case_id} 更新等待超时；请检查是否有并发操作") from exc
+    return locked
+
+
+@_case_update
+def revoke_review(ws, case_id: str, reviewer: str, basis: str) -> dict:
+    """Withdraw a recorded approval without loading broken execution dependencies."""
+    if not isinstance(reviewer, str) or not reviewer.strip() or not isinstance(basis, str) or not basis.strip():
+        raise ValueError("撤销资产审核须提供非空 --reviewer 与 --basis")
+    case = deepcopy(ws.load_case(case_id))
+    if not isinstance(case, dict) or case.get("id") != case_id:
+        raise ValueError("用例文件须为对象，且 ID 与文件名一致")
+    history = case.get("history", [])
+    if not isinstance(history, list) or any(not isinstance(h, dict) for h in history):
+        raise ValueError("history 须为对象列表；不能覆盖无法保全的审核历史")
+    record = case.get("asset_review")
+    if _withdrawal(case, record)[1]:
+        raise PermissionError("资产审核已撤销；保留原撤销依据，重新启用须由人执行 case approve")
+    if not _complete_review(record):
+        raise PermissionError("没有完整的既有审核记录可撤销；该命令不创建批准")
+    revocation = {"reviewer": reviewer.strip(), "basis": basis.strip(), "ts": now_iso()}
+    record["revocation"] = revocation
+    case["history"] = history + [{"event": "asset_review_revoked", **revocation,
+                                  "binding": deepcopy(record.get("binding"))}]
+    write_json(ws.case_path(case_id), case)
+    return case
+
+
+@_case_update
+def approve(ws, case_id: str, knowledge, reviewer: str, basis: str, *, review_kind="human",
+            evidence_run=None, independent_ref=None) -> dict:
+    if not isinstance(reviewer, str) or not reviewer.strip() or not isinstance(basis, str) or not basis.strip():
+        raise ValueError("资产审核须提供非空 --reviewer 与 --basis")
+    if review_kind not in {"human", "agent"}:
+        raise ValueError("review_kind 须为 human 或 agent")
+    case = ws.load_case(case_id)
+    # Bind the approval to the same knowledge version that passed lint.
+    # Later status queries still compare against the live knowledge store.
+    knowledge = knowledge.snapshot()
+    app, policy = ws.app(case["app"]), ws.policy()
+    issues = lint(case, app, knowledge, policy, runs_dir=ws.runs_dir)
+    if issues:
+        raise PermissionError(f"用例不完整，不能审核为可复用资产：{issues}")
+    routing = None
+    if review_kind == "agent":
+        from .review_routing import route
+        routing = route(ws, case, knowledge, app, policy, evidence_run)
+        if routing["route"] != "independent_agent":
+            raise PermissionError(f"不能由 Agent 批准：{routing}")
+        if routing.get("recorded_evidence_match") is False:
+            raise PermissionError("同一 run 的原件与既有审核记录不一致，不能当作原证据重新签发；请使用新的独立运行")
+        if not isinstance(independent_ref, str) or not independent_ref.strip():
+            raise ValueError("Agent 复核须提供独立评审出处 --independent-ref；身份文字不构成鉴权")
+    signals = exploration_signals(case)
+    origin = case.get("origin")
+    if signals and not (isinstance(origin, dict) and isinstance(origin.get("type"), str)
+                        and origin["type"] in EXPLORATION_ORIGINS):
+        session_origin = "source:session" in signals or "step:from_session" in signals
+        case["origin"] = {"type": "session" if session_origin else "exploration", "inferred_from": signals}
+    files = review_snapshot.engine_files(Path(__file__).parent)
+    binding = _review_binding(ws, case, app, knowledge, policy)
+    record = {"schema": 1, "reviewer": reviewer.strip(), "basis": basis.strip(), "ts": now_iso(), "binding": binding,
+              "engine_snapshot": review_snapshot.capture(files)}
+    if routing is not None:
+        record.update(review_kind="agent", independent_ref=independent_ref.strip(),
+                      evidence_run=routing["evidence_run"], evidence_sha256=routing["evidence_sha256"])
+    case["asset_review"] = record
+    case["history"] = case.get("history", []) + [{"event": "asset_review", **record}]
+    write_json(ws.case_path(case_id), case)
+    return case
+
+
+def preflight_batch(ws, case_ids: list) -> list:
+    from .knowledge import KnowledgeStore
+    knowledge, policy = KnowledgeStore(ws.root), ws.policy()
+    return [require_review(ws, ws.load_case(cid), knowledge, policy=policy) for cid in case_ids]
+
+
+def iter_case_steps(case: dict, app, *, strict=False):
+    """步骤、清理、安全停止和引用的 flow/recipe 共用来源；保留可定位的字段路径。"""
+    def walk(step, parent, where, ancestry=()):
+        action = step.get("action")
+        children, key = [], None
+        if action == "flow":
+            key = (action, step.get("flow"))
+            flow = app.flows.get(key[1])
+            if strict and (not isinstance(flow, dict) or not isinstance(flow.get("steps"), list)):
+                raise ValueError(f"{where}: flows.json 中没有可展开流程 {key[1]}")
+            children = (flow or {}).get("steps", [])
+        elif action == "ensure_state":
+            key = (action, step.get("state"))
+            if strict and not isinstance(app.states.recipes.get(key[1]), list):
+                raise ValueError(f"{where}: 没有到达 {key[1]} 的可展开 recipe")
+            children = app.states.recipes.get(key[1], [])
+        if key is not None and key in ancestry:
+            if strict:
+                raise ValueError(f"{where}: flow/recipe 存在递归引用")
+            yield {**step, "_lint_cycle": True}, parent, where
+            return
+        yield step, parent, where
+        for i, sub in enumerate(children):
+            label = f"{where}→{action}:{key[1]}.{sub.get('id', f'S{i + 1}')}"
+            yield from walk(sub, step, label, ancestry + (key,))
+    sources = [("steps", case.get("steps", [])), ("cleanup", case.get("cleanup", [])),
+               ("safe_stop", (case.get("safety") or {}).get("safe_stop", []))]
+    for source, steps in sources:
+        prefix = {"steps": "S", "cleanup": "C", "safe_stop": "SAFE"}[source]
+        for i, step in enumerate(steps):
+            yield from walk(step, None, f"{source}.{step.get('id', f'{prefix}{i + 1}')}")
+
+
+def execution_structure_issues(case: dict, app, *, read_sources=True) -> list:
+    """lint、Runner 与选中的复合步骤共用；只核执行结构，不代替资产审核。"""
+    from .readrefs import structure_issues as read_reference_issues
+    issues = assertion_scope_issues(case, app) + read_reference_issues(case, app, sources=read_sources)
+    seen, runtime_ids, child_counts, root_counts = {}, {}, {}, {}
+    main = {s.get("id"): s for s in case.get("steps", []) if isinstance(s.get("id"), str)}
+    for i, cleanup in enumerate(case.get("cleanup", [])):
+        if "after_dispatch" not in cleanup:
+            continue
+        owner = cleanup["after_dispatch"]
+        source = main.get(owner) if isinstance(owner, str) and owner else None
+        target = (source or {}).get("target")
+        target = app.targets.get(target) if isinstance(target, str) else target
+        if (source is None or source.get("action") not in {"tap", "input"}
+                or not isinstance(target, dict) or target.get("side_effect") != "user_data"):
+            issues.append({"field": f"cleanup.{cleanup.get('id', f'C{i + 1}')}.after_dispatch",
+                           "problem": "须引用本用例顶层tap/input步骤，且其目标明确声明user_data"})
+
+    def reserve(step_id, where):
+        if not isinstance(step_id, str) or not step_id:
+            issues.append({"field": where, "problem": "步骤 ID 必须为非空字符串"})
+        elif step_id in seen:
+            issues.append({"field": where, "problem": f"运行步骤 ID {step_id!r} 重复，与 {seen[step_id]} 冲突"})
+        else:
+            seen[step_id] = where
+
+    for step, parent, where in iter_case_steps(case, app):
+        if "after_dispatch" in step and (parent is not None or not where.startswith("cleanup.")):
+            issues.append({"field": where + ".after_dispatch", "problem": "只允许在顶层cleanup声明清理归属"})
+        if parent is None:
+            source = where.split(".", 1)[0]
+            root_counts[source] = root_counts.get(source, 0) + 1
+            number = root_counts[source]
+            step_id = (f"SAFE{number}" if source == "safe_stop" else
+                       step.get("id", f"C{number}" if source == "cleanup" else None))
+        else:
+            child_counts[id(parent)] += 1
+            step_id = f"{runtime_ids[id(parent)]}.{child_counts[id(parent)]}"
+        runtime_ids[id(step)], child_counts[id(step)] = step_id, 0
+        reserve(step_id, where)
+        error = swipe_options_error(step) or swipe_scope_definition_error(step, app)
+        if error:
+            issues.append({"field": where, "problem": error})
+        from .transient import options_error as transient_options_error
+        error = transient_options_error(step, app)
+        if error:
+            issues.append({"field": where + ".capture_transient", "problem": error})
+        if step.get("_lint_cycle"):
+            issues.append({"field": where, "problem": "flow/recipe 存在递归引用，不能展开执行"})
+        # ensure_state 自动添加的终态检查也写入同一 step_results 命名空间。
+        if step.get("action") == "ensure_state" and not step.get("_lint_cycle"):
+            recipe = app.states.recipes.get(step.get("state"))
+            if recipe:
+                reserve(f"{step_id}.{len(recipe) + 1}", f"{where}→终态检查")
+    for assertion in case.get("assertions", []):
+        if assertion.get("type") != "transient_text_seen":
+            continue
+        source = main.get(assertion.get("at")) or {}
+        field = f"assertions.{assertion.get('id', '?')}"
+        if "capture_transient" not in source:
+            issues.append({"field": field, "problem": "transient_text_seen须绑定本例声明capture_transient的顶层tap"})
+        try:
+            if not isinstance(assertion.get("pattern"), str) or not assertion["pattern"]:
+                raise ValueError("pattern须为非空正则")
+            re.compile(assertion["pattern"])
+        except (ValueError, re.error) as exc:
+            issues.append({"field": field + ".pattern", "problem": str(exc)})
+        if "expected" in assertion and type(assertion["expected"]) is not bool:
+            issues.append({"field": field + ".expected", "problem": "expected须为布尔值"})
+        if "min_count" in assertion and (type(assertion["min_count"]) is not int or assertion["min_count"] < 1):
+            issues.append({"field": field + ".min_count", "problem": "min_count须为正整数"})
+    return issues
+
+
+def assertion_scope_issues(case: dict, app) -> list:
+    """Registered tree scopes; strict display checks are explicit, positive-only."""
+    issues = []
+    for assertion in case.get("assertions", []):
+        if "strict_visible_text" in assertion:
+            strict_field = f"assertions.{assertion.get('id', '?')}.strict_visible_text"
+            if (type(assertion["strict_visible_text"]) is not bool
+                    or assertion.get("type") not in ("text_present", "text_present_any")
+                    or "within" not in assertion):
+                issues.append({"field": strict_field, "problem": "strict_visible_text 须为布尔值，"
+                               "且只支持带已登记 within 的 text_present/text_present_any"})
+        if "within" not in assertion:
+            continue
+        field = f"assertions.{assertion.get('id', '?')}.within"
+        if assertion.get("type") not in ("text_present", "text_absent", "text_present_any"):
+            issues.append({"field": field, "problem": "within 只支持 text_present/text_absent/text_present_any"})
+        target_id = assertion["within"]
+        if not isinstance(target_id, str) or not target_id or target_id not in app.targets:
+            issues.append({"field": field, "problem": "within 须引用已登记的容器目标 ID"})
+            continue
+        target = app.targets[target_id]
+        strategies = target.get("strategies") if isinstance(target, dict) else None
+        if (not isinstance(strategies, list) or not strategies
+                or any(not isinstance(s, dict) or s.get("kind") not in TREE_KINDS
+                       or not isinstance(s.get("value"), str) or not s["value"] for s in strategies)):
+            issues.append({"field": field, "problem": "within 容器只支持带非空字符串 value 的 text/id/xpath 树定位策略"})
+        if assertion.get("type") == "text_present_any":
+            values = assertion.get("any")
+            if not isinstance(values, list) or not values or any(not isinstance(v, str) or not v for v in values):
+                issues.append({"field": field, "problem": "限定范围的 any 须为非空文本列表"})
+        elif assertion.get("type") in ("text_present", "text_absent"):
+            if not isinstance(assertion.get("text"), str) or not assertion["text"]:
+                issues.append({"field": field, "problem": "限定范围的 text 须为非空文本"})
+            if "exact" in assertion and type(assertion["exact"]) is not bool:
+                issues.append({"field": field, "problem": "限定范围的 exact 须为布尔值"})
+    return issues
+
+
+def hypothesis_targets(case: dict, app, knowledge=None) -> list:
+    """实际用到的 hypothesis 目标；资产 lint 传 knowledge 以包含规则的条件前提。"""
+    used = []
+    for s, _, _ in iter_case_steps(case, app):
+        for t in (s.get("target"), relative_scope_target(s)):
+            if isinstance(t, str) and (app.targets.get(t) or {}).get("status") == "hypothesis" and t not in used:
+                used.append(t)
+    for a in case.get("assertions", []):
+        for t in (a.get("target"), a.get("within")):
+            target = app.targets.get(t) if isinstance(t, str) else None
+            if isinstance(target, dict) and target.get("status") == "hypothesis" and t not in used:
+                used.append(t)
+    _, _, conditions = _condition_references(case, app, knowledge)
+    for provider in conditions.values() if isinstance(conditions, dict) else []:
+        for t in _provider_target_refs(provider):
+            target = app.targets.get(t) if isinstance(t, str) else None
+            if isinstance(target, dict) and target.get("status") == "hypothesis" and t not in used:
+                used.append(t)
+    for state in app.states.states.values():
+        for t in (state.get("require_target"), state.get("navigation_context_target")):
+            target = app.targets.get(t) if isinstance(t, str) else None
+            if isinstance(target, dict) and target.get("status") == "hypothesis" and t not in used:
+                used.append(t)
+    return used
+
+
+def _lint_effects(case: dict, app, policy) -> list:
+    """副作用相关检查：申请的授权要覆盖实际会点的目标；运动类必须有安全声明；改用户数据必须有清理；
+    密钥只能以引用形式写入 secret 输入框；流程与监视参数完整。"""
+    import re
+    issues = []
+    requested = {a["effect"] if isinstance(a, dict) else a for a in case.get("authorizations", [])}
+    authorizable = policy.authorizable if policy else set()
+    secrets = {k for k, v in (case.get("test_data") or {}).items() if isinstance(v, dict) and "secret" in v}
+    for s, parent, where in iter_case_steps(case, app):
+        if s.get("action") == "flow":
+            spec = app.flows.get(s.get("flow"))
+            if spec is None:
+                issues.append({"field": where, "problem": f"flows.json 中没有流程 {s.get('flow')}"})
+            else:
+                if spec.get("status") == "falsified_on_device":
+                    issues.append({"field": where, "problem": f"流程 {s['flow']} 已被真机证伪：{spec.get('status_note', '')[:80]}"})
+                miss = [p for p in spec.get("params", {}) if p not in (s.get("params") or {})]
+                if miss:
+                    issues.append({"field": where, "problem": f"流程 {s['flow']} 缺少参数 {miss}"})
+        t = s.get("target")
+        target = app.targets.get(t) if isinstance(t, str) else (t if isinstance(t, dict) else None)
+        eff = (target or {}).get("side_effect")
+        if s.get("action") in ("tap", "input") and eff in authorizable and eff not in requested:
+            verb = "点击" if s.get("action") == "tap" else "输入到"
+            issues.append({"field": where, "problem": f"会{verb} side_effect={eff} 的目标 {t}，但用例 authorizations 未申请 {eff}"})
+        if s.get("action") == "tap" and eff == "safe_stop" and untreed_strategies(target):
+            issues.append({"field": where, "problem": f"safe_stop 目标 {t} 含非 UI 树策略 {untreed_strategies(target)}，运行时无树会拒绝点击"})
+        if s.get("action") == "input" and target is not None:
+            text = str(s.get("text", ""))
+            pm = re.fullmatch(r"\$\{param:([A-Za-z0-9_]+)\}", text)
+            if parent and pm:  # 流程子步骤：按调用方传入的参数值检查
+                text = str((parent.get("params") or {}).get(pm.group(1), text))
+            ref = re.fullmatch(r"\$\{var:([A-Za-z0-9_]+)\}", text)
+            if target.get("secret") and not (ref and ref.group(1) in secrets):
+                issues.append({"field": where, "problem": "敏感输入框只能写 ${var:x}，且 x 须在 test_data 中声明为 {\"secret\": NAME}"})
+            if ref and ref.group(1) in secrets and not target.get("secret"):
+                issues.append({"field": where, "problem": "密钥引用只能写入声明了 secret 的输入框"})
+        if s.get("action") == "monitor" and policy:
+            cap = policy.max_monitor_s
+            if float(s.get("duration_s", 30)) > cap:
+                issues.append({"field": where, "problem": f"监视时长超过 policy 上限 {cap}s"})
+            for k, v in (s.get("watch") or {}).items():
+                try:
+                    re.compile(v)
+                except re.error as e:
+                    issues.append({"field": where, "problem": f"watch.{k} 不是合法正则：{e}"})
+            for k in set(s.get("stop_on", [])) | set(s.get("abort_on", [])):
+                if k not in (s.get("watch") or {}):
+                    issues.append({"field": where, "problem": f"stop_on/abort_on 引用了未定义的 watch 规则 {k}"})
+    if "vehicle_motion" in requested and policy:
+        from .safety import problems
+        issues += problems(case.get("safety"), app, policy)
+    if "user_data" in requested and not case.get("cleanup"):
+        issues.append({"field": "cleanup", "problem": "申请了 user_data（收藏/重命名/标签）的用例必须有清理步骤，恢复账号数据"})
+    if policy:
+        bad = [r for r in requested if r not in authorizable]
+        if bad:
+            issues.append({"field": "authorizations", "problem": f"{bad} 不可授权（policy 硬禁止）或不是已知副作用类"})
+    return issues
+
+
+def _source_run_ids(source) -> set:
+    """Declared identities only; an unparsed ref is neither an ID nor proof of independence."""
+    from .observe import observation_number
+
+    if not isinstance(source, dict):
+        return set()
+    identities = set()
+    run = source.get("run")
+    if isinstance(run, str) and SOURCE_ID_RE.fullmatch(run):
+        identities.add(run)  # Explicit legacy IDs need not use run-/session- prefixes.
+    ref = source.get("ref")
+    if isinstance(ref, str):
+        parts = ref.removeprefix("runs/").split("/obs/")
+        name = parts[0]
+        try:
+            locator = len(parts) == 1 or (len(parts) == 2 and observation_number(parts[1]) is not None)
+        except ValueError:  # An oversized integer is an unsupported locator, not a broken lint request.
+            locator = False
+        if (locator and SOURCE_ID_RE.fullmatch(name)
+                and (SOURCE_RUN_RE.fullmatch(name) or (name.startswith("session-") and len(name) > 8))):
+            identities.add(name)
+    return identities
+
+
+def oracle_lineage_issues(case: dict, knowledge) -> list:
+    """The existing non-advisory Oracle gate, shared by lint and formal preflight."""
+    origins = set().union(*(_source_run_ids(source) for source in case.get("sources") or []))
+    issues = []
+    for assertion in case.get("assertions", []):
+        if assertion.get("advisory"):
+            continue
+        for ref in assertion.get("oracle_refs", []):
+            item = knowledge.get(ref)
+            source = (item or {}).get("source")
+            if (item is not None and item_status(item) in ACTIVE and isinstance(source, dict)
+                    and source.get("type") == "observation" and origins & _source_run_ids(source)):
+                issues.append({"field": f"assertions.{assertion.get('id')}",
+                               "problem": f"判据 {ref} 来自本用例的探索观察，不独立"})
+    return issues
+
+
+def condition_issues(case: dict, app) -> list:
+    """条件定义、step.when、assertion.guard 与输入遮挡声明的唯一校验入口；lint 与 Runner 共用。"""
+    from .conditions import definitions, validate_definitions, validate_guard, validate_input_obstruction
+
+    def at(prefix, problems):
+        return [{"field": prefix + (f".{p['field'].removeprefix('guard.')}" if p.get("field") else ""),
+                 "problem": p["problem"]} for p in problems]
+
+    defs = definitions(case, app)
+    issues = validate_definitions(defs, app)
+    if not isinstance(defs, dict):
+        defs = {}  # 结构问题已保留；继续检查其余字段。
+    step_ids = {s.get("id") for s in case.get("steps", [])}
+    for step, _, where in iter_case_steps(case, app):
+        issues += [{**p, "field": where + "." + p["field"]} for p in validate_input_obstruction(step, defs)]
+        if "when" in step:
+            issues += at(f"{where}.when", validate_guard(step["when"], defs, step_ids))
+    for assertion in case.get("assertions", []):
+        if "guard" in assertion:
+            issues += at(f"assertions.{assertion.get('id')}.guard", validate_guard(assertion["guard"], defs, step_ids))
+    return issues
+
+
+def _navigation_without_cleanup(case: dict, app) -> bool:
+    """Bounded opt-in, independent of optional policy and authorization declarations."""
+    if (case.get("cleanup_none") is not True or not isinstance(case.get("cleanup_note"), str)
+            or not case["cleanup_note"].strip() or case.get("authorizations")):
+        return False
+    try:
+        for step, _, _ in iter_case_steps(case, app, strict=True):
+            action = step.get("action")
+            if action == "tap":
+                target = step.get("target")
+                target = app.targets.get(target) if isinstance(target, str) else target
+                if not isinstance(target, dict) or target.get("side_effect") != "navigation":
+                    return False
+            elif action not in {"launch", "stop_app", "back", "home", "resume", "wait", "swipe", "flow", "ensure_state"}:
+                return False
+    except (ValueError, TypeError, KeyError):
+        return False
+    return True
+
+
+def lint(case: dict, app, knowledge, policy=None, runs_dir: Optional[Path] = None) -> list:
+    """runs_dir 用于 check-refs：核对 rationale 里「run/会话 + obs」引用是否真的可解析到留存证据。"""
+    issues = execution_structure_issues(case, app)
+    for k in REQUIRED:
+        v = case.get(k)
+        if k == "cleanup" and v == [] and _navigation_without_cleanup(case, app):
+            continue  # Side-effect cleanup obligations remain enforced by _lint_effects.
+        if v is None or v == [] or v == "" or (k == "test_data" and v == {} and not case.get("test_data_none")):
+            issues.append({"field": k, "problem": "缺失或为空" + ("（无测试数据请写 test_data_none: true）" if k == "test_data" else "")})
+    step_ids = {s.get("id") for s in case.get("steps", [])}
+    issues += condition_issues(case, app)
+    from .conditions import definitions
+    condition_defs = definitions(case, app)
+    if not isinstance(condition_defs, dict):
+        condition_defs = {}  # 结构问题已在 condition_issues 中报告。
+    for k, v in (case.get("test_data") or {}).items():
+        if isinstance(v, dict) and v.get("missing_from_session"):
+            issues.append({"field": f"test_data.{k}", "problem": "会话没有保留这次输入的原文（不允许输入/敏感框/疑似密钥）："
+                                                                 "非敏感数据请直接填值，账号密码改写为 {\"secret\": NAME}"})
+    for s, _, where in iter_case_steps(case, app):
+        if s["action"] in ("tap", "input"):
+            t = s.get("target")
+            if isinstance(t, dict):
+                # 现场选择器：只用 UI 树策略、且附有"在哪次观测中解析成功"的来源，才可以直接留在用例里
+                kinds = {st.get("kind") for st in t.get("strategies", [])}
+                if not kinds:
+                    issues.append({"field": where, "problem": "内联目标没有定位策略（会话里是坐标点击且无法"
+                                                                           "从 UI 树推出选择器）：请补文本/id/xpath 选择器或模板"})
+                elif not kinds <= set(TREE_KINDS) or not t.get("observed"):
+                    issues.append({"field": where, "problem": "内联目标需只含 text/id/xpath 策略并附 observed 来源"
+                                                                           "（会话观测），否则请登记到 targets.json 并评审"})
+                elif not (t["observed"].get("node") and t["observed"].get("dispatched")):
+                    # 只要求"选择器在现场解析到了唯一节点并实际下发过"，不要求该步通过（缺陷复现步骤本身可能失败）
+                    issues.append({"field": where, "problem": f"内联选择器在会话中没有解析成功并下发过"
+                                                                           f"（会话结果 {t['observed'].get('outcome')}）：重新观察后"
+                                                                           "用能唯一定位的选择器再做一次，或写明理由排除该步"})
+            elif not isinstance(t, str) or t not in app.targets:
+                issues.append({"field": where, "problem": f"目标 {t} 未登记"})
+        if s.get("expect_state_unresolved"):
+            issues.append({"field": where, "problem": "终点是未声明状态，缺少可判定的后置条件"})
+        if s.get("point") is not None or (isinstance(s.get("target"), dict) and any(
+                st.get("kind") == "point" for st in s["target"].get("strategies", []))):
+            issues.append({"field": where, "problem": "用例中不能写像素坐标：屏幕尺寸/密度/折叠状态不同坐标就失效，"
+                                                                   "请登记为 targets.json 中的文本/xpath/id/模板目标"})
+        if s["action"] == "ensure_state" and s.get("state") not in app.states.recipes:
+            issues.append({"field": where, "problem": f"没有到达 {s.get('state')} 的 recipe"})
+    from .layout import REQUIREMENT_KEYS
+    for k in case.get("layout_requirements", {}):
+        if k not in REQUIREMENT_KEYS:
+            issues.append({"field": "layout_requirements", "problem": f"{k} 不能在启动前判定，可用 {list(REQUIREMENT_KEYS)}；"
+                                                                     "是否分栏请写成步骤后的断言"})
+    issues += _lint_effects(case, app, policy)
+    hyp = hypothesis_targets(case, app, knowledge)
+    if hyp:
+        issues.append({"field": "targets", "problem": f"用到未经真机校准的假设目标 {hyp}（status=hypothesis）："
+                                                      "先在真机上校准选择器并改为 calibrated_on_device，才能晋级"})
+    real = [a for a in case.get("assertions", []) if not a.get("advisory")]
+    if not real and case.get("assertions"):
+        issues.append({"field": "assertions", "problem": "没有非建议类断言"})
+    for a in case.get("assertions", []):
+        if a.get("at") not in step_ids:
+            issues.append({"field": f"assertions.{a.get('id')}", "problem": f"at={a.get('at')} 不是用例中的步骤 ID"})
+    for src in case.get("sources", []):
+        for r in src.get("rejected") or []:
+            if r.get("dispatched"):
+                issues.append({"field": f"sources.rejected.A{r.get('seq')}",
+                               "problem": "已下发过手势/按键的动作被记成了被拒：现场可能已改变，须作为效果未知的步骤保留，"
+                                          "或用 --drop 写明理由排除"})
+    for s, _, where in iter_case_steps(case, app):
+        fs = s.get("from_session") or {}
+        if fs.get("effect_unknown") and not s.get("effect_reviewed"):
+            issues.append({"field": where, "problem": f"会话里这一步已下发但结果未确认（{fs.get('outcome')}）："
+                                                                   "看 obs_after 确认实际效果后写 effect_reviewed，"
+                                                                   "或用 --drop 写明理由排除"})
+    if any(s.get("type") == "session" for s in case.get("sources", [])) and not case.get("knowledge_used"):
+        issues.append({"field": "knowledge_used", "problem": "由会话生成的用例须说明用到了哪些知识、是否适用、怎样映射到动作"
+                                                             "（没有可用知识也要写明，例如 [{\"id\": null, \"note\": \"...\"}]）"})
+    # Issue #14：支持可解析的 run/session + obs 证据引用，不能一刀切禁止 obs 编号——
+    # 不可解析的引用（裸编号、锚点目录未留存该观测）才拦。稳定引用 = 知识 ID / 步骤 ID，
+    # 或「run 目录名/会话名 + obs 编号」且证据确实还在。
+    for index, k in enumerate(case.get("knowledge_used") or []):
+        if not k:
+            continue
+        if "applicability" in k and (not isinstance(k["applicability"], str)
+                                     or k["applicability"] not in ("applies", "unknown", "out_of_scope")):
+            issues.append({"field": f"knowledge_used[{index}].applicability", "problem":
+                "适用性声明仅可为 applies / unknown / out_of_scope；确认状态写在知识条目，范围和依据写在 rationale。"
+                "此声明不替代运行时独立判据适用性判断"})
+        bad = unresolvable_obs_refs(str(k.get("rationale") or ""), runs_dir)
+        if bad:
+            issues.append({"field": "knowledge_used", "problem":
+                f"knowledge_used[{k.get('id')}] 的 rationale 引用了不可解析的 obs 证据（{'；'.join(bad)}）："
+                "观测编号属于单次运行、重放后会过期。请改引稳定标识（知识 ID / 步骤 ID），"
+                "或写成「run 目录名/会话名 + obs 编号」并确保该目录留存了对应观测"})
+    for a in real:
+        if not a.get("oracle_refs"):
+            issues.append({"field": f"assertions.{a.get('id')}", "problem": "缺少 oracle_refs（需求/已确认用例/产品规则）"})
+        for r in a.get("oracle_refs", []):
+            it = knowledge.get(r)
+            if it is None:
+                issues.append({"field": f"assertions.{a.get('id')}", "problem": f"判据 {r} 不存在"})
+            elif item_status(it) not in ACTIVE:
+                issues.append({"field": f"assertions.{a.get('id')}",
+                               "problem": f"判据 {r} 的状态 {it.get('status')!r} 已废弃或无效，不能作判据"})
+            if it and it.get("condition_requirements") is not None:
+                requirements = it["condition_requirements"]
+                if not isinstance(requirements, dict) or any(not isinstance(cid, str) or type(value) is not bool
+                                                              for cid, value in requirements.items()):
+                    issues.append({"field": f"assertions.{a.get('id')}.oracle_refs",
+                                   "problem": f"判据 {r} 的 condition_requirements 须为条件 ID 到布尔值的映射"})
+                else:
+                    for cid in requirements:
+                        if cid not in condition_defs:
+                            issues.append({"field": f"assertions.{a.get('id')}.oracle_refs",
+                                           "problem": f"判据 {r} 的条件 {cid} 没有当前事实 provider，不能用于确定判定"})
+    return issues + oracle_lineage_issues(case, knowledge)
+
+
+def from_exploration(exp: dict, transitions: list, case_id: str, app_id: str) -> dict:
+    by_id = {t["id"]: t for t in exp["transitions"]}
+    chain = [by_id[t] for t in transitions]
+    for a, b in zip(chain, chain[1:]):
+        if a["to"] != b["from"]:
+            raise ValueError(f"迁移 {a['id']} 的终点 {a['to']} 与 {b['id']} 的起点 {b['from']} 不连续")
+    steps = [{"id": "S1", "action": "ensure_state", "state": chain[0]["from"]}]
+    for i, t in enumerate(chain, start=2):
+        st = {"id": f"S{i}", "action": "tap", "target": t["target"], "timeout_s": 8, "retry": 1, "critical": True,
+              "oracle_refs": [], "from_transition": t["id"]}
+        if t.get("to_declared"):
+            st["expect_state"] = t["to"]
+        else:
+            st["expect_state_unresolved"] = t["to"]
+        steps.append(st)
+    return {"id": case_id, "version": 1, "status": "exploration_record", "app": app_id,
+            "origin": {"type": "exploration"},
             "title": f"[探索生成] {' → '.join([chain[0]['from']] + [t['to'] for t in chain])}",
             "purpose": "", "preconditions": [f"APP 处于 {chain[0]['from']}"], "env_requirements": {},
             "test_data": {}, "steps": steps, "assertions": [], "cleanup": [],
