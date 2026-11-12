@@ -204,12 +204,14 @@ def test_layout_requirement_blocks_as_environment_not_failure(ws):
 
 
 def test_locator_preference_is_scoped_to_window_form():
+    from vpdtest.locate import locator_fingerprint
+    target = {"strategies": [{"kind": "text", "value": "a"}, {"kind": "text", "value": "b"}]}
     ov = Overlay([{"kind": "locator_preference", "change": {"target": "tab_my", "prefer_strategy_index": 1,
-                                                            "layout_key": "sm/portrait"}}])
-    assert ov.locator_pref("tab_my", "sm/portrait") == 1
-    assert ov.locator_pref("tab_my", "md/portrait") is None  # 直板上学到的偏好不带到折叠屏展开态
+               "locator_fingerprint": locator_fingerprint(target), "layout_key": "sm/portrait"}}])
+    assert ov.locator_pref("tab_my", "sm/portrait", target) == 1
+    assert ov.locator_pref("tab_my", "md/portrait", target) is None
     legacy = Overlay([{"kind": "locator_preference", "change": {"target": "tab_my", "prefer_strategy_index": 1}}])
-    assert legacy.locator_pref("tab_my", "md/portrait") == 1
+    assert legacy.locator_pref("tab_my", "md/portrait", target) is None
 
 
 def test_template_scale_follows_density():

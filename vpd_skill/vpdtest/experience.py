@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from .cases import has_execution_error
+from .locate import locator_fingerprint
 from .util import append_jsonl, new_id, now_iso, read_json, read_jsonl, write_json
 
 AUTO_ADOPTABLE = {"locator_preference", "wait_timeout"}  # 其余类型（interrupt_rule、state_signature…）adopt 须 --reviewer
@@ -22,30 +23,42 @@ FORBIDDEN = {"assertion_change", "step_removal", "policy_change"}
 class Overlay:
     def __init__(self, items: list, version: int = 0, trial: Optional[dict] = None):
         self.version, self.trial = version, (trial or {}).get("id")
-        self.locator, self.waits = {}, {}
+        self.locator, self.waits, self.bindings = {}, {}, {}
+        self.locator_ignored = {}
         for it in items + ([trial] if trial else []):
             ch = it["change"]
             if it["kind"] == "locator_preference":
                 # 按窗口形态分组：直板窄屏上学到的偏好不带到折叠屏展开态（旧条目无 layout_key 时对所有形态生效）
-                self.locator[_pref_key(ch["target"], ch.get("layout_key"))] = ch["prefer_strategy_index"]
+                key = _pref_key(ch["target"], ch.get("layout_key"))
+                self.locator[key] = ch["prefer_strategy_index"]
+                self.bindings[key] = ch.get("locator_fingerprint")
             elif it["kind"] == "wait_timeout":
                 self.waits[ch["key"]] = float(ch["timeout_s"])
 
-    def locator_pref(self, target_id: str, layout_key: Optional[str] = None) -> Optional[int]:
-        if layout_key and _pref_key(target_id, layout_key) in self.locator:
-            return self.locator[_pref_key(target_id, layout_key)]
-        return self.locator.get(target_id)
+    def locator_pref(self, target_id: str, layout_key: Optional[str] = None, target: Optional[dict] = None) -> Optional[int]:
+        key = _pref_key(target_id, layout_key)
+        if key not in self.locator:
+            key = target_id
+        index = self.locator.get(key)
+        if (target is not None and self.bindings.get(key) == locator_fingerprint(target)
+                and type(index) is int and 0 <= index < len(target.get("strategies", []))):
+            self.locator_ignored.pop(key, None)
+            return index
+        if key in self.locator:
+            self.locator_ignored[key] = "missing_binding" if not self.bindings.get(key) else "definition_changed_or_invalid_index"
+        return None  # Legacy/unbound or stale history is preserved, never guessed.
 
     def wait_for(self, key: str, default: float, cap: float) -> float:
         return min(self.waits.get(key, default), cap)
 
     def describe(self) -> dict:
-        return {"version": self.version, "trial": self.trial, "locator": self.locator, "waits": self.waits}
+        return {"version": self.version, "trial": self.trial, "locator": self.locator, "waits": self.waits, "locator_ignored": self.locator_ignored}
 
 
 class ExperienceStore:
     def __init__(self, root: Path, app_id: str):
         self.dir = root / "experience" / app_id
+        self.targets_path = root / "apps" / app_id / "targets.json"
         self.items_path, self.active_path = self.dir / "items.json", self.dir / "active.json"
         self.ledger_path = self.dir / "ledger.jsonl"
 
@@ -84,7 +97,8 @@ class ExperienceStore:
                 loc = att.get("locate") or {}
                 if loc.get("status") == "found" and loc.get("adapted") and loc.get("strategy_index") is not None:
                     change = {"target": loc["target"], "prefer_strategy_index": loc["strategy_index"],
-                              "strategy_kind": loc["strategy_kind"]}
+                              "strategy_kind": loc["strategy_kind"],
+                              "locator_fingerprint": loc.get("locator_fingerprint")}
                     if loc.get("layout_key"):
                         change["layout_key"] = loc["layout_key"]
                     created.append(self._upsert("locator_preference", change,
@@ -113,10 +127,19 @@ class ExperienceStore:
         self.log("candidate_created", id=item["id"], kind=kind, change=change, evidence=ev)
         return item
 
+    def _require_locator_binding(self, item: dict) -> None:
+        if item["kind"] != "locator_preference":
+            return
+        ch = item["change"]
+        target = read_json(self.targets_path, {}).get("targets", {}).get(ch["target"])
+        if target is None or Overlay([item]).locator_pref(ch["target"], ch.get("layout_key"), target) is None:
+            raise PermissionError("定位经验缺少当前策略绑定或定义已变化；保留历史，请从当前定位重新采集并验证")
+
     # ---- 验证 / 采纳 / 回滚 ----
     def validate(self, xid: str, case_ids: list, devices: list, run_case: Callable) -> dict:
         """run_case(case_id, device_spec, overlay) -> run dict。基线 = 当前已采纳 overlay；试验 = 基线 + 该候选。"""
         item = self.get(xid)
+        self._require_locator_binding(item)
         rows, regress, improved, exercised = [], False, set(), set()
         incomplete = False
         plan = [(dev, cid, phase) for dev in devices for cid in case_ids for phase in ("baseline", "trial")]
@@ -235,6 +258,7 @@ class ExperienceStore:
 
     def adopt(self, xid: str, reviewer: Optional[str] = None) -> dict:
         item = self.get(xid)
+        self._require_locator_binding(item)
         if item["kind"] in FORBIDDEN:
             raise PermissionError(f"{item['kind']} 不能通过经验通道变更，请走用例评审")
         if item["status"] != "validated":
@@ -312,7 +336,14 @@ def _exercised(item: dict, run: dict, case_id: str) -> bool:
     """试验运行是否真正用到了这条经验：定位偏好看目标与窗口形态；等待时长看对应步骤是否走到了后置条件判定。"""
     ch = item["change"]
     if item["kind"] == "locator_preference":
-        return _touches(run, ch["target"], ch.get("layout_key"))
+        return any(loc.get("target") == ch["target"]
+                   and (ch.get("layout_key") is None or loc.get("layout_key") == ch["layout_key"])
+                   and loc.get("locator_fingerprint") == ch.get("locator_fingerprint")
+                   and bool(ch.get("locator_fingerprint"))
+                   and type(loc.get("overlay_pref")) is int
+                   and loc["overlay_pref"] == ch["prefer_strategy_index"]
+                   for s in run.get("steps", []) for a in s.get("attempts", [])
+                   if (loc := a.get("locate") or {}))
     if item["kind"] == "wait_timeout":
         cid, _, sid = ch["key"].rpartition(":")
         return cid == case_id and any(s.get("step_id") == sid and any(a.get("post") for a in s.get("attempts", []))
@@ -346,13 +377,6 @@ def _improvement_gap(item: dict, improved: set) -> Optional[str]:
         return ("改进只出现在来源用例上，其他用例走到该目标但没有改进，暂不晋级" if item["kind"] == "locator_preference"
                 else "改进只出现在来源设备上，其他设备走到该等待但没有改进，暂不晋级")
     return None
-
-
-def _touches(run: dict, target: str, layout_key: Optional[str] = None) -> bool:
-    """该运行是否真正用到了这条偏好：同一目标，且（偏好限定形态时）在同一窗口形态下定位。"""
-    return any((a.get("locate") or {}).get("target") == target
-               and (layout_key is None or (a.get("locate") or {}).get("layout_key") == layout_key)
-               for s in run.get("steps", []) for a in s.get("attempts", []))
 
 
 def _pref_key(target: str, layout_key: Optional[str]) -> str:
