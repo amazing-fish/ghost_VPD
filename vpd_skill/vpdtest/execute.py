@@ -713,7 +713,7 @@ class Executor:
     def _locate(self, tid, target, obs, tree, step, scroll_ok: bool = True) -> tuple:
         ctx = self.ctx
         lay = obs.get("layout")
-        pref = ctx.overlay.locator_pref(tid, layout_key(lay)) if ctx.overlay else None
+        pref = ctx.overlay.locator_pref(tid, layout_key(lay), target) if ctx.overlay else None
         point, note = (step.get("point") if ctx.mode == "agent" else None), None
         if point is not None and step.get("point_window") and lay and lay.get("window_px") \
                 and list(step["point_window"]) != list(lay["window_px"]):
