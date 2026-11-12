@@ -70,7 +70,7 @@ def test_write_only_creates_the_frozen_draft_and_does_not_approve(ws, tmp_path, 
     assert set(after) - set(before) == {f"cases/{spec['new_case_id']}.json"}
     assert all(after[key] == value for key, value in before.items())
     assert result['hash'] == preview['hash'] and result['deps'] == preview['deps']
-    with pytest.raises(PermissionError, match='尚无有效人工审核'):
+    with pytest.raises(PermissionError, match='尚无有效资产审核.*case review-route'):
         cases.promote(ws, spec['new_case_id'], 'candidate', KnowledgeStore(ws.root), dry_run=True)
 
 

@@ -98,7 +98,7 @@ def test_public_cli_normal_id_stays_visible_and_exclusive(tmp_path, real_sources
     assert row["review"]["state"] == "pending" and row["promotion"]["status"] == "blocked"
     assert _snapshot(root) == created
     ws = Workspace(str(root / "data"), load_local_config=False)
-    with pytest.raises(PermissionError, match="尚无有效人工审核"):
+    with pytest.raises(PermissionError, match="尚无有效资产审核.*case review-route"):
         cases.promote(ws, cid, "candidate", commands.KnowledgeStore(ws.root), dry_run=True)
     assert _snapshot(root) == created
 

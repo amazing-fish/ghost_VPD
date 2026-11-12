@@ -1,7 +1,9 @@
 """知识治理（Issue #9）：冲突裁决的废弃范围按适用范围（构建/版本）限定；入库数据不得出现
 完整车架号或未脱敏手机号（不可逆的尾位标识允许）。隐私测试是防回潮的闸——新增的知识、
 用例、参考文档带敏感明文会直接红。"""
+import json
 import re
+import pytest
 from pathlib import Path
 
 from vpdtest.knowledge import KnowledgeStore
@@ -123,9 +125,98 @@ def test_no_full_vin_in_committed_data():
     assert not hits, f"发现疑似完整车架号，须脱敏为尾位（不可逆标识允许）：{hits}"
 
 
+def _unique_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("Duplicate JSON key: scan raw text instead")
+        result[key] = value
+    return result
+
+
+def _phone_hits(text, suffix):
+    """Exclude only schema-1 engine-manifest SHA-256 values, not arbitrary hex.
+
+    Keys, notes, other fields, malformed JSON and duplicate keys remain scanned.
+    """
+    if suffix == ".json":
+        try:
+            data = json.loads(text, object_pairs_hook=_unique_object)
+            if isinstance(data, dict):
+                records = [data.get("asset_review")]
+                if isinstance(data.get("history"), list):
+                    records.extend(data["history"])
+                for record in records:
+                    if not isinstance(record, dict):
+                        continue
+                    snap = record.get("engine_snapshot")
+                    if not isinstance(snap, dict) or type(snap.get("schema")) is not int or snap["schema"] != 1:
+                        continue
+                    files = snap.get("files")
+                    if not isinstance(files, dict):
+                        continue
+                    for path, digest in list(files.items()):
+                        if (re.fullmatch(r"(?:[A-Za-z0-9_-]+/)*[A-Za-z0-9_-]+\.py", path)
+                                and isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{64}", digest)):
+                            files[path] = "<sha256>"
+                text = json.dumps(data, ensure_ascii=False)
+        except (ValueError, TypeError):
+            pass  # Fall back to raw scan; never hide data behind invalid JSON.
+    return [m.group(0) for m in PHONE_RE.finditer(text)]
+
+
 def test_no_raw_phone_number_in_committed_data():
     hits = []
     for p in _data_files():
-        for m in PHONE_RE.finditer(p.read_text("utf-8")):
-            hits.append(f"{p.relative_to(SKILL)}:{m.group(0)}")
+        hits.extend(f"{p.relative_to(SKILL)}:{phone}" for phone in _phone_hits(p.read_text("utf-8"), p.suffix))
     assert not hits, f"发现未脱敏手机号（151****3183 形式允许）：{hits}"
+
+
+PHONE = "152" + "64986892"  # Synthetic phone-shaped substring in the observed tree.py digest.
+DIGEST = "6da" + PHONE + "f2cb680bafeb035b8c27f2278a9c52e56a455a8f195f093078"
+
+
+def _manifest(digest=DIGEST, path="tree.py", schema=1):
+    return {"engine_snapshot": {"schema": schema, "files": {path: digest}}}
+
+
+@pytest.mark.parametrize("location", ["asset_review", "history"])
+def test_phone_scanner_accepts_only_manifest_sha256(location):
+    record = _manifest()
+    data = {location: [record] if location == "history" else record}
+    assert _phone_hits(json.dumps(data), ".json") == []
+
+
+@pytest.mark.parametrize("data", [
+    {"note": DIGEST},
+    {"engine_snapshot": _manifest()["engine_snapshot"]},
+    {"asset_review": _manifest(PHONE)},
+    {"asset_review": _manifest(DIGEST + "a")},
+    {"asset_review": _manifest(DIGEST[:-1])},
+    {"asset_review": _manifest(DIGEST.replace("f", "z", 1))},
+    {"asset_review": _manifest(schema=True)},
+    {"asset_review": _manifest(schema=2)},
+    {"asset_review": _manifest(path="../tree.py")},
+    {"asset_review": _manifest(path="note.txt")},
+    {"asset_review": _manifest(path=PHONE + ".py")},
+    {"asset_review": {**_manifest(), "note": PHONE}},
+    {"asset_review": _manifest(), "phone": PHONE},
+    {"asset_review": {"engine_snapshot": {"schema": 1, "files": {"tree.py": DIGEST}, "note": PHONE}}},
+])
+def test_phone_scanner_keeps_real_or_ambiguous_sensitive_values(data):
+    assert PHONE in _phone_hits(json.dumps(data), ".json")
+
+
+@pytest.mark.parametrize("suffix,text", [
+    (".md", DIGEST),
+    (".md", "contact: " + PHONE),
+    (".json", '{"contact": "' + PHONE + '", "contact": "masked"}'),
+    (".json", '{"contact": "' + PHONE + '"'),
+    (".json", json.dumps({"contact": "a" + PHONE + "b"})),
+])
+def test_phone_scanner_never_exempts_free_text_or_invalid_json(suffix, text):
+    assert PHONE in _phone_hits(text, suffix)
+
+
+def test_phone_scanner_allows_existing_masked_phone():
+    assert _phone_hits("151****3183", ".md") == []
