@@ -12,7 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Callable, Optional
 
-from .cases import has_execution_error
+from .cases import has_execution_error, iter_case_steps
 from .locate import locator_fingerprint
 from .util import append_jsonl, new_id, now_iso, read_json, read_jsonl, write_json
 
@@ -57,6 +57,7 @@ class Overlay:
 
 class ExperienceStore:
     def __init__(self, root: Path, app_id: str):
+        self.root, self.app_id = root, app_id
         self.dir = root / "experience" / app_id
         self.targets_path = root / "apps" / app_id / "targets.json"
         self.items_path, self.active_path = self.dir / "items.json", self.dir / "active.json"
@@ -127,10 +128,41 @@ class ExperienceStore:
         self.log("candidate_created", id=item["id"], kind=kind, change=change, evidence=ev)
         return item
 
-    def _require_locator_binding(self, item: dict) -> None:
+    def _require_locator_binding(self, item: dict, case_ids=None, *, require_exercised=False) -> None:
         if item["kind"] != "locator_preference":
             return
         ch = item["change"]
+        if ch["target"].startswith("inline:"):
+            from .workspace import App
+            app = App(self.root, self.app_id)
+            # Resolve authoritative current case files, never a definition or path
+            # supplied by a candidate. Exact IDs also avoid candidate path traversal.
+            cases_dir = (self.root / "cases").resolve()
+            def current_case(cid):
+                if not isinstance(cid, str) or not cid or Path(cid).name != cid or any(c in cid for c in "/\\:"):
+                    return None
+                path = (cases_dir / f"{cid}.json").resolve()
+                if path.parent != cases_dir:
+                    return None
+                case = read_json(path, {})
+                return case if case.get("id") == cid and case.get("app") == self.app_id else None
+            origin = item.get("origin_case")
+            if require_exercised and (not case_ids or not (set(case_ids) - {origin})
+                    or not item.get("validations") or item["validations"][-1].get("status") != "validated"):
+                raise PermissionError("内联定位经验缺少有效独立验证集合；请重新验证")
+            required = {origin} | (set(case_ids or []) if require_exercised else set())
+            for cid in {origin, *(case_ids or [])}:
+                case = current_case(cid)
+                definitions = [step["target"] for step, _, _ in iter_case_steps(case, app, strict=True)
+                               if isinstance(step.get("target"), dict)
+                               and app.target(step["target"])[0] == ch["target"]] if case else []
+                # Parameterized/dynamic definitions do not equal the measured
+                # fingerprint: fail closed rather than trusting stored expansion.
+                if ((cid in required and not definitions)
+                        or any(Overlay([item]).locator_pref(ch["target"], ch.get("layout_key"), t) is None
+                               for t in definitions)):
+                    raise PermissionError("内联定位经验的当前用例定义缺失或绑定已变化；请重新采集并验证")
+            return
         target = read_json(self.targets_path, {}).get("targets", {}).get(ch["target"])
         if target is None or Overlay([item]).locator_pref(ch["target"], ch.get("layout_key"), target) is None:
             raise PermissionError("定位经验缺少当前策略绑定或定义已变化；保留历史，请从当前定位重新采集并验证")
@@ -258,7 +290,8 @@ class ExperienceStore:
 
     def adopt(self, xid: str, reviewer: Optional[str] = None) -> dict:
         item = self.get(xid)
-        self._require_locator_binding(item)
+        self._require_locator_binding(item, (item.get("validations") or [{}])[-1].get("exercised_cases"),
+                                      require_exercised=True)
         if item["kind"] in FORBIDDEN:
             raise PermissionError(f"{item['kind']} 不能通过经验通道变更，请走用例评审")
         if item["status"] != "validated":
