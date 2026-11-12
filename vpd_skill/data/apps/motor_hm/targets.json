@@ -1,22 +1,17 @@
 {
-  "note": "定位目标。strategies 按顺序尝试；repo 来源的策略保留原样，skill 追加的后备策略标注 source=skill 且未经真机验证。经验 overlay 只能调整顺序。",
+  "note": "定位目标。strategies 按顺序尝试；source 保留来源和约束。导航目标必须限定容器或已知窄屏底部区域，不能用无范围同名文本兜底。经验 overlay 只能调整顺序。",
   "targets": {
     "tab_car": {
       "desc": "导航「爱车」（窄屏在底部，宽屏可能在侧边）",
       "side_effect": "navigation",
       "strategies": [
         {
-          "kind": "xpath",
-          "value": "//*[@text=\"爱车\"]",
-          "source": "app/config/motor_config.py:315-317 MOTOR_HARMONY_CONFIG.car"
-        },
-        {
           "kind": "text",
           "value": "爱车",
           "within": {
             "type": "TabBar"
           },
-          "source": "skill：限定在 TabBar 容器内（TabBar 类型按 2026-09-29 真机布局确认，与导航在底部还是侧边无关）"
+          "source": "基于 app/config/motor_config.py:315-317 MOTOR_HARMONY_CONFIG.car 收窄为 TabBar 导航容器；2026-09-29 真机确认容器类型。宽屏仅支持仍暴露 TabBar 的布局，侧栏真实适用性须现场验证；无 TabBar 时不猜同名标题。"
         },
         {
           "kind": "text",
@@ -41,15 +36,10 @@
         {
           "kind": "text",
           "value": "我的",
-          "source": "app/config/motor_config.py:295-297 MOTOR_HARMONY_CONFIG.my（elements text=我的）"
-        },
-        {
-          "kind": "text",
-          "value": "我的",
           "within": {
             "type": "TabBar"
           },
-          "source": "skill：限定在 TabBar 容器内（TabBar 类型按 2026-09-29 真机布局确认，与导航在底部还是侧边无关）"
+          "source": "基于 app/config/motor_config.py:295-297 MOTOR_HARMONY_CONFIG.my（elements text=我的） 收窄为 TabBar 导航容器；2026-09-29 真机确认容器类型。宽屏仅支持仍暴露 TabBar 的布局，侧栏真实适用性须现场验证；无 TabBar 时不猜同名标题。"
         },
         {
           "kind": "text",
