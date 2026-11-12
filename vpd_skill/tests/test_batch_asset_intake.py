@@ -36,15 +36,15 @@ def _holds(ws, cid, aid, texts, opacity=None):
 
 
 @pytest.mark.parametrize("cid", IDS)
-def test_batch_candidate_needs_human_review_before_promotion_or_device(ws, monkeypatch, cid):
+def test_batch_candidate_needs_asset_review_before_promotion_or_device(ws, monkeypatch, cid):
     calls = []
     monkeypatch.setattr(ws, "device", lambda *a, **k: calls.append((a, k)))
     case = ws.load_case(cid)
     assert C.review_status(ws, case)["required"]
     before = ws.case_path(cid).read_bytes()
-    with pytest.raises(PermissionError, match="人工审核"):
+    with pytest.raises(PermissionError, match="尚无有效资产审核.*case review-route"):
         C.promote(ws, cid, "candidate", KnowledgeStore(ws.root))
-    with pytest.raises(PermissionError, match="人工审核"):
+    with pytest.raises(PermissionError, match="尚无有效资产审核.*case review-route"):
         run_case(ws, cid, device_spec="replay:unused", require_asset_review=True)
     assert ws.case_path(cid).read_bytes() == before and not calls and not list(ws.runs_dir.glob("run-*"))
 
