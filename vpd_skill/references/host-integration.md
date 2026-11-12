@@ -27,6 +27,13 @@
 不需要：常驻服务、数据库、网络（除 hdc 连接设备外）、多 Agent 编排。状态都在 `data/` 与 `runs/` 文件中，
 任一宿主会话中断后可以从文件继续。
 
+## HDC 设备未连接
+
+HDC 的 `[Fail][E001005] Device not found or connected` 明确归为 `device_offline`，
+即使进程退出码为 0，`doctor` 也不会将 `device_online` 标为通过。后续锁屏、应用和显示查询失败仍保留原始
+`execution_error`，未知值保持未知，不能把这些失败当作“确实锁屏”或“没有安装 APP”的证据。
+普通 `[Fail]Connect failed` 不足以单独确定原因，仍保留通用命令失败；不因此自动重连或尝试设备操作。
+
 ## 已知宿主的挂载方式
 
 - **Claude Code**：`install.ps1 -LinkSkill` 在 `%USERPROFILE%\.claude\skills\vpd-app-test` 建目录联接指向本目录。
