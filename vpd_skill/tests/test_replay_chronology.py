@@ -377,9 +377,12 @@ def test_real_cli_delayed_ingestion_and_sequential_controls(verdict_ws, tmp_path
     before = {path: hashlib.sha256(path.read_bytes()).hexdigest() for path in ws.root.rglob("*") if path.is_file()}
     row = cli(["case", "readiness", NAV_CASE, "--known-issue", "synthetic-only"])["results"][0]
     assert row["review"]["state"] == "not_required"
-    assert row["replay"]["ok"] is bad_first
-    assert row["promotion"]["status"] == ("eligible" if bad_first else "blocked")
-    if bad_first:
+    # #235: the whole-run control is a proven zero-dispatch preflight rejection;
+    # unlike an observed pending assertion, it cannot reset prior product evidence.
+    eligible = bad_first or not branch_reset
+    assert row["replay"]["ok"] is eligible
+    assert row["promotion"]["status"] == ("eligible" if eligible else "blocked")
+    if eligible:
         preview = C.promote(ws, NAV_CASE, "replay_verified", KnowledgeStore(ws.root),
                             known_issue="synthetic-only", dry_run=True)
         assert preview["replays"] == row["replay"]["replays"]

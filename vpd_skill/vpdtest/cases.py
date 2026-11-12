@@ -938,12 +938,26 @@ def record_replay(ws, case_id: str, run: dict) -> dict:
         "assertions": [{k: a[k] for k in ("id", "result", "advisory", "oracle_refs", "oracle", "facts", "guard", "verified")
                         if k in a} for a in run.get("assertions", [])],
         **{k: v[k] for k in ("execution", "product_verdict", "product_failed", "coverage") if k in v}}
+    proof = run.get("preflight_evidence")
+    if (_empty_preflight_proof(proof)
+            and type(run.get("actions")) is int and run["actions"] == 0
+            and run.get("cleanup") == [] and run.get("safety_stops") == []
+            and "safety_hold" in run and run["safety_hold"] is None
+            and isinstance(run.get("steps"), list) and bool(run["steps"])
+            and all(s.get("outcome") == "not_run" and s.get("attempts") == []
+                    and s.get("recoveries") == [] and not s.get("final_obs") for s in run["steps"])
+            and isinstance(run.get("assertions"), list)
+            and all(a.get("result") == "not_run" for a in run["assertions"])):
+        summary["preflight_evidence"] = proof.copy()
     previous = [r for r in case.get("replays", []) if r["run_id"] == summary["run_id"]]
     compared = summary
     if previous and all(not ({"started", "finished"} & row.keys()) for row in previous):
         # Only a wholly legacy history permits this no-write retry. A mixed
         # history must keep strict comparison, including every present interval.
         compared = {k: v for k, v in summary.items() if k not in ("started", "finished")}
+    if previous and all("preflight_evidence" not in row for row in previous):
+        # Idempotent legacy retry must not retroactively reclassify recorded runs.
+        compared = {k: v for k, v in compared.items() if k != "preflight_evidence"}
     fields = sorted({field for r in previous for field in _replay_difference_fields(r, compared)})
     if fields:
         raise ValueError(_replay_conflict_reason([{"run_id": summary["run_id"], "fields": fields}]))
@@ -960,6 +974,23 @@ def has_execution_error(summary: dict) -> bool:
     return (summary.get("verdict") == "error" or execution.get("status") == "error"
             or bool(execution.get("errors"))
             or any(f.get("result") == "error" for f in summary.get("findings") or []))
+
+
+def _empty_preflight_proof(proof) -> bool:
+    expected = {"schema": 1, "case_execution_started": False, "dispatch_count": 0,
+                "product_observations": 0}
+    return (isinstance(proof, dict) and proof == expected
+            and all(type(proof[k]) is type(value) for k, value in expected.items()))
+
+
+def _preflight_only_replay(row: dict) -> bool:
+    """Only explicit runner evidence exempts an unexecuted attempt, never missing fields."""
+    return (row.get("verdict") == "blocked" and not has_execution_error(row)
+            and not row.get("alerts") and not row.get("product_failed")
+            and row.get("product_verdict") != "failed"
+            and _empty_preflight_proof(row.get("preflight_evidence"))
+            and all(a.get("result") == "not_run" for a in row.get("assertions") or [])
+            and all(a.get("result") == "not_run" for a in (row.get("coverage") or {}).get("assertions") or []))
 
 
 def _replay_instant(value):
@@ -1050,6 +1081,8 @@ def _assertion_replay_coverage(case: dict, rows: list, history: list | None = No
         eligible = {row["run_id"] for row in rows}
         all_results = set()
         for row in history:
+            if _preflight_only_replay(row):
+                continue
             coverage = row.get("coverage") or {}
             actual = next((a for a in coverage.get("assertions") or [] if a.get("id") == aid), None)
             if (actual and actual.get("verified") is True and actual.get("applicable") is True
@@ -1079,7 +1112,8 @@ def replay_basis(case: dict, deps: Optional[str] = None) -> dict:
     """用例成熟度（能否稳定复测）与产品状态（是否符合要求）分开判断。
     当前内容版本下，最近一次待确认/阻塞的重放之后至少 2 次来自不同运行、结论确定的重放，
     且该版本下所有确定结论一致：全部通过 → conforming；全部失败且失败特征相同 → known_failure（需登记缺陷单）。
-    混合说明不稳定；后续运行须在全部不确定运行完成后开始，不能靠录入顺序推断。"""
+    混合说明不稳定；后续运行须在全部不确定运行完成后开始，不能靠录入顺序推断。
+    显式证明零执行/零下发/无产品观测的前置阻塞仅留历史，不计覆盖也不重置。"""
     h = content_hash(case)
     history = case.get("replays", [])
     cur = [r for r in history if r["hash"] == h]
@@ -1118,9 +1152,11 @@ def replay_basis(case: dict, deps: Optional[str] = None) -> dict:
     # 判据确认之前的待确认运行因此不会永久挡住晋级，只要求确认之后重新重放
     order = list(runs.values())  # Preserve stored history, not an execution order.
     decisive = [r for r in order if r["verdict"] in ("passed", "failed") and not has_execution_error(r)]
-    resets = [r for r in order if r not in decisive]
+    resets = [r for r in order if r not in decisive and not _preflight_only_replay(r)]
     rows, timing = _replays_after_resets(decisive, resets)
-    out["ignored"] = [{"run_id": r["run_id"], "verdict": r["verdict"]} for r in order if r not in rows]
+    out["ignored"] = [{"run_id": r["run_id"], "verdict": r["verdict"],
+                       **({"reason": "preflight_only_no_product_evidence"} if _preflight_only_replay(r) else {})}
+                      for r in order if r not in rows]
     if timing:
         out["timing"] = timing
     if len(rows) < 2:
