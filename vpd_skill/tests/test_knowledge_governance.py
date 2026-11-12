@@ -138,10 +138,11 @@ def _phone_hits(text, suffix):
     """Exclude only schema-1 engine-manifest SHA-256 values, not arbitrary hex.
 
     Keys, notes, other fields, malformed JSON and duplicate keys remain scanned.
+    Preserve float/exponent tokens: normalization must not hide a phone-shaped lexeme.
     """
     if suffix == ".json":
         try:
-            data = json.loads(text, object_pairs_hook=_unique_object)
+            data = json.loads(text, object_pairs_hook=_unique_object, parse_float=str)
             if isinstance(data, dict):
                 records = [data.get("asset_review")]
                 if isinstance(data.get("history"), list):
@@ -220,3 +221,12 @@ def test_phone_scanner_never_exempts_free_text_or_invalid_json(suffix, text):
 
 def test_phone_scanner_allows_existing_masked_phone():
     assert _phone_hits("151****3183", ".md") == []
+
+
+@pytest.mark.parametrize("token", [PHONE, PHONE + "e1", PHONE + "E+1", PHONE + ".0", "0.5e" + PHONE])
+def test_phone_scanner_preserves_numeric_lexemes(token):
+    assert PHONE in _phone_hits('{"numeric": ' + token + '}', ".json")
+
+
+def test_phone_scanner_preserves_numeric_keys():
+    assert PHONE in _phone_hits(json.dumps({PHONE: "value"}), ".json")
