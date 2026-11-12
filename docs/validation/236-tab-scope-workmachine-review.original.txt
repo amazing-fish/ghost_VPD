@@ -1,0 +1,40 @@
+独立复核（工作机侧，只读；未改文件、未连设备、未执行 case approve）
+
+A. 结论：有条件建议写入新的独立审核绑定。定位链与断言链在 3.0.3.200／SGT-AL10／sm 直板上闭合，
+   条件为：basis 保留三项排除（不扩展版本与设备、不宣称宽屏侧栏适用、不确认登录前置已由独立判据测量）；
+   issue 如实披露 A1 证据包缺口与 708c launch 零落点校验；说明 1b94 的布置动作无独立日志留痕。
+
+B1. 页签定位：七处 tab 点击全部 strategy_index=0、within={type:TabBar}、matches=1、adapted=false。
+    以 e255/obs-0011 与 1b94/obs-0004 为例：TabBar=[0,2565][1320,2848]，页签「我的」属第 5 列
+    [1056,2565][1320,2754]，派发点 [1189,2699] 在该列内；同名标题 text_nav_title=[54,178][963,273]
+    距离极远，不可能被命中。同一真树复算：旧无范围 text=我的 → ambiguous/matches=2；新定义 → found/si=0。
+    五次旧口径运行 + 新增 1b94 均 experience_candidates=[]，无 ambiguous、无「定位适配」。
+
+B2. 断言：HM002 A1（obs-0012）我的 sel=false，同树爱车列 Column[528,2565][792,2754] sel=true；
+    A2（obs-0014）sel=true 来自 Column[1056,2565][1320,2754]；文本节点 selected 恒 false，
+    is_selected 走 clickable_container 已实算确认。S01 A1 logout_entry bounds[330,2619][990,2754]、
+    visible_fraction=1.0 且未点击；A2 state_is my_tab。K-MOT-001/002 confirmed、applies、mismatch=[]。
+
+B3. 返回与清理：S01 S5 settings→my_tab 与 expect 一致；cleanup_none 合理（无账号/车辆写入，
+    残留仅为 APP 停在前台「我的」页）。HM002 C1 后 obs-0016 fg=com.ohos.sceneboard、
+    process_alive=false、process_ended=true，确实离开 APP。
+
+B4. 起跑页：e255 obs-0001=car_tab 为真从爱车起跑；376e obs-0001=my_tab（S1 ensure_state 短路、
+    attempts=[]）；708c obs-0001/0002=out_of_app（S1 launch post.expected=None，零落点校验），
+    首个 in-app obs-0003/0004=car_tab（爱车列 sel=true）→ S1b 起点确为爱车页；
+    1b94 obs-0001=my_tab、sig-1f38af5dc8，且上一运行 376e 于 15:31:53 结束于 out_of_app
+    （fg=com.ohos.sceneboard、process_alive=false），故 15:46:38 的 my_tab 不可能继承自上一运行。
+    保留：布置的三条 act 在本工作树没有独立事件日志，独立性由 obs-0001 状态+签名与 376e 结束于
+    out_of_app 共同印证。
+
+B5. 资产：两条均 regression、review stale、changed_binding_fields 仅 ['dependency_hash']；
+    content_hash 未变（515054e86da9／b4de659323c5），policy/context/review_hash 未变；
+    deps：S01 ceda4e9f6e57→9c4436c1b914、HM002 23a0aa57d7bb→19d7bdc10603，变化恰为 6 个 motor_hm 资产。
+    新定义下 replay.ok=true：S01 count=3（708c、0e00、1b94）、HM002 count=3（e255、f470、376e），A1/A2 全 pass。
+
+C. 证据链缺口（不改变通过结论）：A1 证据包只记「我的 sel=false」未记「爱车列 sel=true」；
+    708c 的 S1 launch post.expected=None；两次「从我的页起跑」中 0e00 为继承残留的同页点击；
+    HM002 review.required=false → informal=false 与 stale 并存，易被误读为绑定仍有效；
+    pr240 的既有经验候选 XP-20261013-101449-def5 为 prefer_strategy_index=1，而新定义下 index 1 已是
+    区域兜底，语义漂移，若并入经验库需退役或重写；K-MOT-001 自述选中态为 Skill 推断，S01 的 A2
+    用其支撑「back 回到我的页」偏宽。
