@@ -6,6 +6,7 @@ from verdict_fixtures import COPY_RULE, NAV_CASE, NAV_RULE
 
 from vpdtest import cases
 from vpdtest.experience import ExperienceStore
+from vpdtest.locate import locator_fingerprint
 from vpdtest.knowledge import KnowledgeStore
 from vpdtest.util import sha256_obj, write_json
 
@@ -225,9 +226,24 @@ def test_promotion_requires_current_dependency_contract_despite_complete_branch_
         assert promoted["history"][-1]["replays"] == [row["run_id"] for row in stored["replays"]]
 
 
+# These consumer tests exercise coverage/error handling after the binding gate.
+# Model a real current locator and receipt rather than unbound legacy history.
+_TARGET = {"strategies": [{"kind": "text", "value": "primary"},
+                          {"kind": "text", "value": "fallback"}]}
+
+
+def _locate_receipt(overlay):
+    pref = overlay.locator_pref("target", target=_TARGET)
+    assert pref == (1 if overlay.trial else None)
+    return {"target": "target", "adapted": pref is None,
+            "locator_fingerprint": locator_fingerprint(_TARGET), "overlay_pref": pref}
+
+
 def _experience(tmp_path):
     xs = ExperienceStore(tmp_path, "synthetic")
-    xs.save_item({"id": "XP-condition", "kind": "locator_preference", "change": {"target": "target", "prefer_strategy_index": 1},
+    write_json(xs.targets_path, {"targets": {"target": _TARGET}})
+    xs.save_item({"id": "XP-condition", "kind": "locator_preference", "change": {"target": "target", "prefer_strategy_index": 1,
+                             "locator_fingerprint": locator_fingerprint(_TARGET)},
                   "status": "candidate", "requires_review": False, "origin_case": "origin", "evidence": [],
                   "validations": [], "history": []})
     return xs
@@ -239,7 +255,7 @@ def test_experience_cannot_improve_by_losing_a_verified_branch(tmp_path, trial_r
         trial = bool(overlay.trial)
         coverage = _coverage(A1="pass", A2=trial_result if trial else "pass")
         return {"run_id": f"{cid}-{trial}", "verdict": {"verdict": "passed", "coverage": coverage},
-                "steps": [{"attempts": [{"locate": {"target": "target", "adapted": not trial}}]}]}
+                "steps": [{"attempts": [{"locate": _locate_receipt(overlay)}]}]}
     result = _experience(tmp_path).validate("XP-condition", ["origin", "other"], ["synthetic"], run)
     assert result["status"] != "validated"
     assert not result["rows"][0].get("improved")
@@ -249,5 +265,5 @@ def test_experience_cannot_improve_by_losing_a_verified_branch(tmp_path, trial_r
 def test_experience_comparable_verified_branches_can_validate(tmp_path):
     def run(cid, dev, overlay):
         return {"run_id": f"{cid}-{bool(overlay.trial)}", "verdict": {"verdict": "passed", "coverage": _coverage(A1="pass", A2="pass")},
-                "steps": [{"attempts": [{"locate": {"target": "target", "adapted": not overlay.trial}}]}]}
+                "steps": [{"attempts": [{"locate": _locate_receipt(overlay)}]}]}
     assert _experience(tmp_path).validate("XP-condition", ["origin", "other"], ["synthetic"], run)["status"] == "validated"
