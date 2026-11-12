@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import math
 from typing import Callable, Optional
 
 from .outcomes import PASSED, collection_error, error_attribution, execution_error  # noqa: F401 - re-exported
@@ -66,7 +67,7 @@ def _result_nodes(results, ancestors=(), inherited=(), oracle_source=None, requi
             yield step, ancestors, refs, step["step_id"] if step.get("final_status") == "anomaly" else source, item_required
 
 
-def _step_findings(steps, knowledge):
+def _step_findings(steps, knowledge, inapplicable_cancelled=frozenset()):
     findings = []
     for step, ancestors, refs, source, _ in _result_nodes(steps):
         outcome = step["outcome"]
@@ -80,7 +81,11 @@ def _step_findings(steps, knowledge):
             base["evidence"].update(parent_step=ancestors[-1], ancestors=list(ancestors))
         if outcome == "not_run" and step.get("final_status") == "required_step_skipped":
             base["evidence"]["blocked_by"] = step.get("blocked_by")
-            finding = {"result": "pending", "attribution": "requirement_unclear", "reason": step.get("reason")}
+            if step["step_id"] in inapplicable_cancelled:
+                finding = {"result": "not_applicable", "attribution": None,
+                           "reason": "本步骤及全部必需断言在取消时均有明确不适用证据；未执行"}
+            else:
+                finding = {"result": "pending", "attribution": "requirement_unclear", "reason": step.get("reason")}
         elif outcome in (*PASSED, "not_run", "skipped", "error"):
             continue  # Errors have their own recursive projection and priority.
         elif outcome == "pending":
@@ -334,6 +339,46 @@ def oracle_guards(refs, knowledge) -> list:
     return guards
 
 
+def _cancelled_applicability(a, step, steps, load, app, definitions, guards):
+    """Prove non-applicability at cancellation time, never execution or success."""
+    evidence = step.get("applicability_evidence") or {}
+    source = steps.get(step.get("blocked_by")) or {}
+    guard = a.get("guard")
+    cause = source.get("condition") or {}
+    if (step.get("outcome") != "not_run" or step.get("final_status") != "required_step_skipped"
+            or step.get("attempts") != [] or step.get("final_obs")
+            or source.get("outcome") != "skipped" or source.get("final_status") != "condition_false"
+            or source.get("attempts") != [] or source.get("recoveries") != []
+            or cause.get("status") != "false" or cause.get("at")
+            or guard != {"condition": cause.get("condition"), "equals": cause.get("equals")}
+            or evidence.get("operation_guard") != guard
+            or evidence.get("source_step") != step.get("blocked_by")
+            or not evidence.get("source_obs") or evidence["source_obs"] != source.get("final_obs")
+            or not evidence.get("cancelled_obs") or evidence["source_obs"] == evidence["cancelled_obs"]):
+        return None
+    try:
+        prior, prior_tree = load(evidence["source_obs"])
+        current, current_tree = load(evidence["cancelled_obs"])
+    except (OSError, ValueError):
+        return None  # Missing/damaged causal evidence cannot exempt an assertion.
+    before = select_applicability(guards, definitions, steps, load, app, prior, prior_tree)
+    after = select_applicability(guards, definitions, steps, load, app, current, current_tree)
+    if after.get("status") == "error":
+        return after
+    if before.get("status") != "false" or after.get("status") != "false":
+        return None
+    for old, new in zip(before["records"], after["records"]):
+        epoch, clock, now = old.get("action_epoch"), old.get("clock_s"), new.get("clock_s")
+        if (type(epoch) is not int or epoch != new.get("action_epoch")
+                or old.get("scope") != new.get("scope")
+                or type(clock) not in (int, float) or type(now) not in (int, float)
+                or not math.isfinite(clock) or not math.isfinite(now) or now < clock
+                or (old.get("max_age_s") is not None and now - clock > old["max_age_s"])):
+            return None
+    return {**after, "cancelled_by": step["blocked_by"], "selection_evidence": evidence,
+            "reason": "前置步骤的明确不适用原因在取消本步骤时仍成立；未执行且不计通过"}
+
+
 def evaluate_assertion(a: dict, steps: dict, load: Callable, knowledge, app, conditions=None) -> dict:
     """先选择适用断言，再评价预先声明的响应；不从响应反推前置。"""
     definitions = conditions if conditions is not None else getattr(app, "meta", {}).get("conditions", {})
@@ -356,6 +401,15 @@ def evaluate_assertion(a: dict, steps: dict, load: Callable, knowledge, app, con
     if not guards and a["type"] == "value_present" and step is not None and step["outcome"] in PASSED:
         result = _evaluate_applicable(a, steps, load, knowledge, app)
         return {**out, **result, "applicable": True, "verified": not out["advisory"] and result["result"] in ("pass", "fail")}
+    if step is not None and step.get("outcome") == "not_run":
+        cancelled = _cancelled_applicability(a, step, steps, load, app, definitions, guards)
+        if cancelled is not None and cancelled.get("status") == "error":
+            error = next(r for r in cancelled["records"] if r["status"] == "error")
+            return {**out, **{k: error.get(k) for k in ("attribution", "stage", "error_class", "error", "evidence")},
+                    "result": "error", "guard": cancelled, "reason": cancelled["reason"]}
+        if cancelled is not None:
+            return {**out, "applicable": False, "result": "not_applicable", "guard": cancelled,
+                    "reason": cancelled["reason"]}
     if step is None or step["outcome"] not in (*PASSED, "skipped", "pending") or not step.get("final_obs"):
         return {**out, "result": "not_run", "reason": f"关联步骤 {a.get('at')} 未成功执行"}
     obs, tree = load(step["final_obs"])
@@ -536,7 +590,15 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
                                                   "detail": env_check["unmet"]}], [], steps, assertions=assertions)
     findings.extend(_execution_findings(steps, "step"))
     findings.extend(_execution_findings(cleanup or [], "cleanup"))
-    findings.extend(_step_findings(steps, knowledge))
+    inapplicable_cancelled = set()
+    for step in steps:
+        required = [a for a in assertions if a.get("at") == step["step_id"] and not a.get("advisory")]
+        if required and all(a.get("result") == "not_applicable" and
+                            (a.get("guard") or {}).get("cancelled_by") == step.get("blocked_by") and
+                            (a.get("guard") or {}).get("selection_evidence") == step.get("applicability_evidence")
+                            for a in required) and step.get("applicability_evidence"):
+            inapplicable_cancelled.add(step["step_id"])
+    findings.extend(_step_findings(steps, knowledge, inapplicable_cancelled))
     for a in assertions:
         if a["result"] == "not_applicable" and not a["advisory"]:
             findings.append({"kind": "assertion", "id": a["id"], "result": "not_applicable", "attribution": None,

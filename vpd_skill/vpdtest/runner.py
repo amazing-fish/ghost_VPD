@@ -197,6 +197,23 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                     if halted["outcome"] == "skipped":
                         blocked.update(final_status="required_step_skipped", blocked_by=halted["step_id"],
                                        reason="必需前置步骤因操作条件未满足而未执行，后继步骤停止")
+                    # A cancelled operation is still not_run. Only gather a separate,
+                    # read-only applicability observation before cleanup; never invent
+                    # final_obs or reuse the old observation as a current timestamp.
+                    cause = halted.get("condition") or {}
+                    matched = any(a.get("at") == st["id"] and a.get("guard") == {
+                        "condition": cause.get("condition"), "equals": cause.get("equals")}
+                        for a in case.get("assertions", []))
+                    if (halted.get("final_status") == "condition_false" and cause.get("status") == "false"
+                            and halted.get("outcome") == "skipped" and halted.get("attempts") == []
+                            and halted.get("recoveries") == [] and not cause.get("at")
+                            and matched and st.get("when") == {"condition": cause.get("condition"), "equals": cause.get("equals")}
+                            and not ctx.safety_hold and not ctx.motion.locked()):
+                        diagnostic.phase, diagnostic.step = "cancelled_applicability", st["id"]
+                        applicability_obs, _ = ctx.observe(f"{st['id']}:cancelled-applicability")
+                        blocked["applicability_evidence"] = {
+                            "source_step": halted["step_id"], "source_obs": halted.get("final_obs"),
+                            "cancelled_obs": applicability_obs["obs_id"], "operation_guard": st["when"]}
                     if unresolved_takeover(halted):
                         blocked.update(blocked_by=halted["step_id"],
                                        reason="前置动作效果未知且需要人工接管，后继业务步骤停止")
