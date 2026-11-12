@@ -134,6 +134,10 @@ def _unique_object(pairs):
     return result
 
 
+class _NumericLexeme(str):
+    """Keep JSON number spelling without granting string-only digest exemptions."""
+
+
 def _phone_hits(text, suffix):
     """Exclude only schema-1 engine-manifest SHA-256 values, not arbitrary hex.
 
@@ -142,7 +146,7 @@ def _phone_hits(text, suffix):
     """
     if suffix == ".json":
         try:
-            data = json.loads(text, object_pairs_hook=_unique_object, parse_float=str)
+            data = json.loads(text, object_pairs_hook=_unique_object, parse_float=_NumericLexeme)
             if isinstance(data, dict):
                 records = [data.get("asset_review")]
                 if isinstance(data.get("history"), list):
@@ -158,7 +162,7 @@ def _phone_hits(text, suffix):
                         continue
                     for path, digest in list(files.items()):
                         if (re.fullmatch(r"(?:[A-Za-z0-9_-]+/)*[A-Za-z0-9_-]+\.py", path)
-                                and isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{64}", digest)):
+                                and type(digest) is str and re.fullmatch(r"[0-9a-f]{64}", digest)):
                             files[path] = "<sha256>"
                 text = json.dumps(data, ensure_ascii=False)
         except (ValueError, TypeError):
@@ -230,3 +234,21 @@ def test_phone_scanner_preserves_numeric_lexemes(token):
 
 def test_phone_scanner_preserves_numeric_keys():
     assert PHONE in _phone_hits(json.dumps({PHONE: "value"}), ".json")
+
+
+@pytest.mark.parametrize("location", ["asset_review", "history"])
+@pytest.mark.parametrize("token", [PHONE + "e" + "0" * 52, PHONE + "e+" + "0" * 51,
+                                  "-" + PHONE + "e" + "0" * 51])
+def test_numeric_manifest_values_cannot_receive_string_digest_exemption(location, token):
+    record = '{"engine_snapshot":{"schema":1,"files":{"tree.py":' + token + '}}}'
+    value = '[' + record + ']' if location == "history" else record
+    text = '{"' + location + '":' + value + '}'
+    assert PHONE in _phone_hits(text, ".json")
+
+
+def test_same_64_hex_characters_are_exempt_only_when_json_string_digest():
+    token = PHONE + "e" + "0" * 52
+    assert len(token) == 64
+    assert _phone_hits(json.dumps({"asset_review": _manifest(token)}), ".json") == []
+    raw = '{"asset_review":{"engine_snapshot":{"schema":1,"files":{"tree.py":' + token + '}}}}'
+    assert PHONE in _phone_hits(raw, ".json")
