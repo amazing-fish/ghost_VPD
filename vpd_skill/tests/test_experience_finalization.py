@@ -17,6 +17,13 @@ from vpdtest.util import SKILL_ROOT, read_json, read_jsonl, write_json
 def rig(tmp_path, monkeypatch):
     monkeypatch.setattr(workspace, 'load_config', lambda: {})
     ws = make_verdict_workspace(tmp_path, SKILL_ROOT)
+    # This fault-injection suite needs a candidate-producing adaptation, not a
+    # production locator defect. Keep the ambiguous strategy local to this rig.
+    targets_path = ws.app('motor_hm').dir / 'targets.json'
+    targets = read_json(targets_path)
+    targets['targets']['tab_my']['strategies'].insert(0, {
+        'kind': 'text', 'value': '我的', 'source': 'synthetic proposal-failure trigger'})
+    write_json(targets_path, targets)
     data = read_json(ws.root / 'knowledge/items.json')
     for item in data['items']:
         if item['id'] in (NAV_RULE, SETTINGS_RULE):
