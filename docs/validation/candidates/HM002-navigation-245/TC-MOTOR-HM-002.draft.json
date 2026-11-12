@@ -1,0 +1,112 @@
+{
+  "id": "TC-MOTOR-HM-002",
+  "version": 1,
+  "status": "draft",
+  "app": "motor_hm",
+  "title": "底部导航「爱车」「我的」往返切换选中态",
+  "purpose": "验证在「我的」与「爱车」之间往返切换时，页面与选中态随之变化。",
+  "preconditions": [
+    "手机已解锁",
+    "APP 已安装",
+    "不涉及车辆操作"
+  ],
+  "env_requirements": {},
+  "test_data": {},
+  "test_data_none": true,
+  "steps": [
+    {
+      "id": "S1",
+      "action": "ensure_state",
+      "state": "my_tab"
+    },
+    {
+      "id": "S2",
+      "action": "tap",
+      "target": "tab_car",
+      "expect_state": "car_tab",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [
+        "K-MOT-001"
+      ],
+      "when": {
+        "condition": "hm_car_navigation_variant_245",
+        "equals": true
+      }
+    },
+    {
+      "id": "S3",
+      "action": "tap",
+      "target": "tab_my",
+      "expect_state": "my_tab",
+      "timeout_s": 8,
+      "retry": 1,
+      "critical": true,
+      "oracle_refs": [
+        "K-MOT-001"
+      ],
+      "when": {
+        "condition": "hm_car_navigation_variant_245",
+        "equals": true
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "id": "A1",
+      "at": "S2",
+      "type": "node_selected",
+      "target": "tab_my",
+      "expected": false,
+      "desc": "切到爱车后「我的」不再是选中态",
+      "oracle_refs": [
+        "K-MOT-001"
+      ],
+      "guard": {
+        "condition": "hm_car_navigation_variant_245",
+        "equals": true
+      }
+    },
+    {
+      "id": "A2",
+      "at": "S3",
+      "type": "node_selected",
+      "target": "tab_my",
+      "expected": true,
+      "desc": "切回后「我的」为选中态",
+      "oracle_refs": [
+        "K-MOT-001"
+      ],
+      "guard": {
+        "condition": "hm_car_navigation_variant_245",
+        "equals": true
+      }
+    }
+  ],
+  "cleanup": [
+    {
+      "action": "stop_app"
+    }
+  ],
+  "sources": [
+    {
+      "type": "repo_code",
+      "ref": "app/service/vpd/vpd.py:2269, 2354",
+      "commit": "90545b9"
+    }
+  ],
+  "conditions": {
+    "hm_car_navigation_variant_245": {
+      "kind": "page",
+      "true": {
+        "type": "target_present",
+        "target": "hm245_car_tab_presence"
+      },
+      "false": {
+        "type": "target_present",
+        "target": "hm245_buy_tab_presence"
+      }
+    }
+  }
+}

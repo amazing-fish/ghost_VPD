@@ -1,0 +1,26 @@
+{
+  "targets": {
+    "hm245_car_tab_presence": {
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "爱车",
+          "within": {
+            "type": "TabBar"
+          }
+        }
+      ]
+    },
+    "hm245_buy_tab_presence": {
+      "strategies": [
+        {
+          "kind": "text",
+          "value": "购车",
+          "within": {
+            "type": "TabBar"
+          }
+        }
+      ]
+    }
+  }
+}
