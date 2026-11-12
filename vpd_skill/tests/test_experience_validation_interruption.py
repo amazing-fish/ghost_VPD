@@ -9,17 +9,20 @@ import pytest
 from verdict_fixtures import make_verdict_workspace, NAV_CASE
 from vpdtest import cli, experience, workspace
 from vpdtest.experience import ExperienceStore
+from vpdtest.locate import locator_fingerprint
 from vpdtest.util import SKILL_ROOT, write_json
 
 XID = 'XP-interruption'
 CASES = ['origin', 'independent']
 DEVICE = 'synthetic'
+TARGET = {'strategies': [{'kind': 'text', 'value': 'a'}, {'kind': 'text', 'value': 'b'}]}
 
 
 def seed(root, status='candidate'):
     store = ExperienceStore(root, 'motor_hm')
+    write_json(store.targets_path, {'targets': {'tab_my': TARGET}})
     store.save_item({'id': XID, 'kind': 'locator_preference',
-                     'change': {'target': 'tab_my', 'prefer_strategy_index': 1},
+                     'change': {'target': 'tab_my', 'prefer_strategy_index': 1, 'locator_fingerprint': locator_fingerprint(TARGET)},
                      'status': 'candidate', 'requires_review': False, 'origin_case': 'origin',
                      'evidence': [], 'validations': [], 'history': []})
     if status != 'candidate':
@@ -31,7 +34,7 @@ def seed(root, status='candidate'):
 
 def good(cid, dev, overlay):
     return {'run_id': f'{cid}-{bool(overlay.trial)}', 'verdict': {'verdict': 'passed'},
-            'steps': [{'attempts': [{'locate': {'target': 'tab_my', 'adapted': not overlay.trial}}]}]}
+            'steps': [{'attempts': [{'locate': {'target': 'tab_my', 'adapted': not overlay.trial, 'locator_fingerprint': locator_fingerprint(TARGET), 'overlay_pref': 1 if overlay.trial else None}}]}]}
 
 
 @pytest.mark.parametrize('status', ['candidate', 'validated', 'adopted'])
@@ -71,7 +74,7 @@ def test_interruption_preserves_completed_pairs_and_prior_history(tmp_path, stat
     assert 'SECRET' not in json.dumps(saved)
     assert store.active() == active
     if status == 'adopted':
-        assert store.overlay().locator_pref('tab_my') == 1
+        assert store.overlay().locator_pref('tab_my', target=TARGET) == 1
     with pytest.raises(PermissionError):
         store.adopt(XID)
     assert store.active() == active

@@ -14,8 +14,14 @@ from typing import Optional
 
 from .layout import resolve_scope, when_matches
 from .tree import UiTree, in_box
+from .util import sha256_obj
 
 DEFAULT_SCALES = (0.5, 2.0, 31)
+
+
+def locator_fingerprint(target: dict) -> str:
+    """Bind an index to its complete locator definition, including scope/order."""
+    return sha256_obj(target)
 
 
 def ordered_strategies(target: dict, overlay_pref: Optional[int] = None) -> list:
@@ -130,6 +136,7 @@ def resolve(target_id: str, target: dict, tree: Optional[UiTree], screenshot: Op
         return {"target": target_id, "status": "found", "point": found["point"], "bounds": found.get("bounds"),
                 "visible": found.get("visible"),
                 "strategy_index": found["index"], "strategy_kind": found["kind"],
+                "locator_fingerprint": locator_fingerprint(target),
                 "basis": {"xpath": "tree", "text": "tree", "id": "tree", "template": "template"}.get(found["kind"], "point"),
                 # adapted：本次首个尝试的策略失败、由后备策略定位成功（经验候选的来源）
                 "adapted": any(a.get("status") in ("not_found", "ambiguous", "error")
