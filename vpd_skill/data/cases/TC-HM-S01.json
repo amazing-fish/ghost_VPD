@@ -1,7 +1,7 @@
 {
   "id": "TC-HM-S01",
   "version": 1,
-  "status": "exploration_record",
+  "status": "regression",
   "app": "motor_hm",
   "title": "[会话生成] 从爱车页进入我的页的设置并返回",
   "goal": "从爱车页进入我的页的设置并返回",
@@ -304,6 +304,109 @@
           "workspace.py": "69a575274bc631bb93f6339ad9b751eac3b1d70342159ea9f4ae472d135df6b3"
         }
       }
+    },
+    {
+      "event": "asset_review",
+      "schema": 1,
+      "reviewer": "independent-agent:inspect_ghost_runtime_evidence",
+      "basis": "独立评审当前content515054e86da9/depsceda4e9f6e57；K-MOT-001/002适用3.0.3.200；两次真实同版run断言均pass。仅导航，退出登录不点击，无车辆动作。第二次既存TabBar后备定位，无overlay或断言改动；原运行informal保留，不扩展版本或设备覆盖。",
+      "ts": "2026-11-12T00:18:22.731+08:00",
+      "binding": {
+        "case_id": "TC-HM-S01",
+        "content_hash": "515054e86da9",
+        "dependency_hash": "ceda4e9f6e57",
+        "review_hash": "61d354464b8e4b24c568224e60ba9db5be020a29eb251f18ea035d8610480e51",
+        "policy_hash": "df49729c2e37",
+        "context_hash": "d5886b1ba609598d159f6d52ff40d782b5ba06a1b276cfea48b88c0adce95102"
+      },
+      "engine_snapshot": {
+        "schema": 1,
+        "files": {
+          "__init__.py": "d07745ada0c3f26dc86d1296159d8182750a55476e07a5869a7236e820e25b5c",
+          "__main__.py": "13a1a5b340cdcfc1902b62be90e508c7c71886000d5bf087e7854aadf09fb35e",
+          "case_readiness.py": "96e70c5b1e444069b859cd11af42b03dede4a8b6fba179a491c95a3b630691e0",
+          "case_templates.py": "5cc6b0e09d9b0e3b8c5a19b73bc935ef436c28cdc03b304eda20b04396f0c2f6",
+          "cases.py": "de3dfbc2160785f8e678715a6246db3097cd6e76978d26c73eee2c370b7d870c",
+          "cli.py": "2582432d4e7dc024f685cfcf9c64f58ae03376684a14648fbfc5f66b52c446b9",
+          "commands.py": "957d29122a970cdae47183c16b0c8d26eadd06adf48eefe9c8078d734f944644",
+          "conditions.py": "55079ababf3fccf8bb8d14fa277da87c502d86637c51adc9523c95eef7126645",
+          "console/__init__.py": "70c7e584504ba8934cede9eb4f0b1b8563e49129c6959095363ec746e5c474e3",
+          "console/control.py": "bec67dd10cd879d0714b9d42df9cc24ec1f4f2f250877a0e5511dbe9a83a232d",
+          "console/frames.py": "9aaa4e113ad121873e52b8a7c96ba44cd86cbdf2c51264f8b0c8468f0cfe363c",
+          "console/progress.py": "2de810ca1e7eca334e9f3478dd929e52ceb405b717e98d2cba431806bfc2f449",
+          "console/server.py": "90b8b9fbfe32014dbc9582d93056ac845025c1227712f87c3133b5e04eda4d7c",
+          "devices/__init__.py": "5e10f49500466437b161f42b682d04852e0c3c19b0c5e23f6e9ff6bf08f7d314",
+          "devices/harmony_hdc.py": "61dddb54b2e16b1b41ab6d75a9aadf8d4134aa2b57dcf2a7ea2a9dd0fd9750c5",
+          "devices/replay.py": "96b80e42c9a1b4af6eb31cebc91f5c842eec3775a407ee9a2d930ffe5b31c434",
+          "dispatch.py": "41a730203c8cae6284571cbecab7e4c5e67849d8b6dd6fd6d964ef084d49ae98",
+          "execute.py": "bd6c23d4e2d1302b3912eb78821a0ef208abf1241a7cec2023a4662f1c2a7be9",
+          "experience.py": "abfbce50f2b24cbeea5ad5c04da4f4c37e04249eea0b6ed435d1e6c1c34f8a69",
+          "explore.py": "c6208740920641636dceb7487ab7730ada0a8de242caf29bf4bba7614fe5ec64",
+          "knowledge.py": "2157175e37d45e0944acff3c22a556633fc04765e968fd93eab8018b2eaba76b",
+          "layout.py": "aea31e631e06a7478e8d0c2a27976f422dcc49406e35ddbbca58e8abca4f75db",
+          "locate.py": "8b2f122800a4e635afb1ff41fe520cf547d64cfbf61801cf8b65a94027c30270",
+          "observe.py": "3502f0d6c48fc36de9518800c0761c421ab4249b43e9cf573279ec4122de990c",
+          "outcomes.py": "88d03d14ed001ae6120dfde42bb811725821191e19a1e302bbe744da684bfc00",
+          "params.py": "309256e226c9c20041e3a3a296a2bdac1d96f0c66977fc8a1c51ffe0392f0220",
+          "policy.py": "eb034937f7be10fcf1588b83c31ddf528fdbe2b9b6c14695f56a1f2c8b6d27de",
+          "readrefs.py": "f274f71c31264514893be11317c3dd0c029133ebc8d1c070c858444e4c369953",
+          "report.py": "55cc42840ac3e03cdf0459f9a6771561fd17e0f1a52336c3beac65c3f26c72ba",
+          "review_routing.py": "4fbb1b33f3c51043ac72b7500bd8f3d00906eda9ac8b3eaf8f022eaa082f91d4",
+          "review_snapshot.py": "5b1dd1818efb903583c6ef239cb67b1f78cce67245a914fb7209aaeb03180428",
+          "run_diagnostic.py": "a9b63604100aebe593a8904fc4eeccfaf864c2870659c3c43cb370e2e494dd46",
+          "runner.py": "b9ee01cd83b5dea6fb6b844adcd4c0217a7f930b52d94398324cf8209d030f2e",
+          "safety.py": "700b9d3478b5a095e1d87cdbe02d749f8d1965cde96b90120767b8f2bb0da453",
+          "scope_inspection.py": "7c9ff56a91a5c306ef47b46020576ba1331fad3839b47888ebb16d99614e81dc",
+          "search.py": "f29e58529774280e3b77ac38189c59091830e2b791cfd0d2add161a3ac7769dd",
+          "session.py": "6086a11a209e2d28768fd3656c8f77e9010e7fea8c82524de8f62a84557da5ce",
+          "states.py": "5c62d7df24080b4761e5f5060636cbc1fc73c3aa99a7e58ae72a119f90cfa829",
+          "sysdialog.py": "45922c2fa16cf712dfd4149b864d2b5a0d366809986799e9c3020e55d0452340",
+          "templates.py": "5e8ab174f1bb2795c484445ceed4125c5ed637057b668b78b0b7a484beb7b6f3",
+          "transient.py": "d745aaf57eb8faf7ea891dc869e4d22eaef0c640904a1bf17819f49b9128722e",
+          "tree.py": "6da15264986892f2cb680bafeb035b8c27f2278a9c52e56a455a8f195f093078",
+          "unlock.py": "17a76d905adda818e696bd8f50d3afbe98b1f2a2c817086845e6d79187fd1e70",
+          "util.py": "28096fdad8fbf97efdccb5c42c1627ebb9dd5f356dd17db0e0ae0ea6171db6db",
+          "verdict.py": "0376395ccd6c09d11795f791dd0af7c90dbe6596392baf87c9bc9852be1cf075",
+          "workspace.py": "636733deae57f4de52358e6af84c607c265363ecb67b327ec55368d5eb1c730a"
+        }
+      },
+      "review_kind": "agent",
+      "independent_ref": "docs/validation/S01-20261112-review.md#original-review-sha256=ADB5BDE3C8DAEF063CF29C6F215A9EDC2A976DF8A5841F62E1D4DB3DF9448898",
+      "evidence_run": "run-20261112-001425-c086",
+      "evidence_sha256": "92945fbcf4f74a81827560fb38e6fe9ca95ebbdfde3a85f85e751ad769332395"
+    },
+    {
+      "ts": "2026-11-12T00:18:23.320+08:00",
+      "from": "exploration_record",
+      "to": "candidate",
+      "by": null,
+      "hash": "515054e86da9",
+      "replays": [],
+      "product_status": null
+    },
+    {
+      "ts": "2026-11-12T00:18:23.745+08:00",
+      "from": "candidate",
+      "to": "replay_verified",
+      "by": null,
+      "hash": "515054e86da9",
+      "replays": [
+        "run-20261112-001121-471b",
+        "run-20261112-001425-c086"
+      ],
+      "product_status": "conforming"
+    },
+    {
+      "ts": "2026-11-12T00:18:24.197+08:00",
+      "from": "replay_verified",
+      "to": "regression",
+      "by": "independent-agent:inspect_ghost_runtime_evidence",
+      "hash": "515054e86da9",
+      "replays": [
+        "run-20261112-001121-471b",
+        "run-20261112-001425-c086"
+      ],
+      "product_status": "conforming"
     }
   ],
   "replays": [
@@ -312,7 +415,7 @@
       "verdict": "pending",
       "hash": "0b048a3b3dc6",
       "validation_level": "real_device",
-      "device": "hdc:5MT0225B05000904",
+      "device": "legacy-validation-device",
       "ts": "2026-09-30T03:53:37.819+08:00",
       "failure_signature": [],
       "alerts": 0,
@@ -322,6 +425,364 @@
         "app": "motor_hm",
         "app_version": "3.0.3.200",
         "device_form": "bar"
+      }
+    },
+    {
+      "run_id": "run-20261112-001121-471b",
+      "verdict": "passed",
+      "hash": "515054e86da9",
+      "deps": "ceda4e9f6e57",
+      "validation_level": "real_device",
+      "device": "validation-device-20261112",
+      "ts": "2026-11-12T00:12:38.470+08:00",
+      "failure_signature": [],
+      "alerts": 0,
+      "not_verified": 0,
+      "facts": {
+        "account_state": "logged_in",
+        "app": "motor_hm",
+        "app_version": "3.0.3.200",
+        "device_form": "bar"
+      },
+      "oracle_facts": {
+        "app": "motor_hm",
+        "app_version": "3.0.3.200",
+        "device_form": "bar"
+      },
+      "started": "2026-11-12T00:11:21.821+08:00",
+      "finished": "2026-11-12T00:12:38.413+08:00",
+      "assertions": [
+        {
+          "id": "A1",
+          "result": "pass",
+          "advisory": false,
+          "oracle_refs": [
+            "K-MOT-002"
+          ],
+          "oracle": {
+            "status": "confirmed",
+            "items": [
+              {
+                "id": "K-MOT-002",
+                "status": "confirmed",
+                "statement": "「我的」页（上滑后）有「设置」入口，设置页中有「退出登录」。",
+                "source": "app/service/vpd/vpd.py:2458-2471 _account_logout; app/config/motor_config.py:522-527",
+                "applies_to": {
+                  "app": "motor_hm",
+                  "app_version": "3.0.3.200"
+                },
+                "applicability": {
+                  "status": "applies",
+                  "unknown": [],
+                  "mismatch": []
+                },
+                "condition_requirements": {}
+              }
+            ]
+          },
+          "facts": {
+            "app": "motor_hm",
+            "app_version": "3.0.3.200",
+            "device_form": "bar"
+          },
+          "verified": true
+        },
+        {
+          "id": "A2",
+          "result": "pass",
+          "advisory": false,
+          "oracle_refs": [
+            "K-MOT-001"
+          ],
+          "oracle": {
+            "status": "confirmed",
+            "items": [
+              {
+                "id": "K-MOT-001",
+                "status": "confirmed",
+                "statement": "底部导航有「爱车」「我的」入口，点击后切换到对应页面且该入口呈选中态。",
+                "source": "app/config/motor_config.py:295-297, 315-317; app/service/vpd/vpd.py:2269, 2354",
+                "applies_to": {
+                  "app": "motor_hm",
+                  "app_version": "3.0.3.200"
+                },
+                "applicability": {
+                  "status": "applies",
+                  "unknown": [],
+                  "mismatch": []
+                },
+                "condition_requirements": {}
+              }
+            ]
+          },
+          "facts": {
+            "app": "motor_hm",
+            "app_version": "3.0.3.200",
+            "device_form": "bar"
+          },
+          "verified": true
+        }
+      ],
+      "execution": {
+        "status": "completed",
+        "errors": []
+      },
+      "product_verdict": "passed",
+      "product_failed": false,
+      "coverage": {
+        "assertions": [
+          {
+            "id": "A1",
+            "result": "pass",
+            "applicable": true,
+            "verified": true,
+            "guard": null,
+            "oracle": {
+              "status": "confirmed",
+              "items": [
+                {
+                  "id": "K-MOT-002",
+                  "status": "confirmed",
+                  "statement": "「我的」页（上滑后）有「设置」入口，设置页中有「退出登录」。",
+                  "source": "app/service/vpd/vpd.py:2458-2471 _account_logout; app/config/motor_config.py:522-527",
+                  "applies_to": {
+                    "app": "motor_hm",
+                    "app_version": "3.0.3.200"
+                  },
+                  "applicability": {
+                    "status": "applies",
+                    "unknown": [],
+                    "mismatch": []
+                  },
+                  "condition_requirements": {}
+                }
+              ]
+            },
+            "facts": {
+              "app": "motor_hm",
+              "app_version": "3.0.3.200",
+              "device_form": "bar"
+            }
+          },
+          {
+            "id": "A2",
+            "result": "pass",
+            "applicable": true,
+            "verified": true,
+            "guard": null,
+            "oracle": {
+              "status": "confirmed",
+              "items": [
+                {
+                  "id": "K-MOT-001",
+                  "status": "confirmed",
+                  "statement": "底部导航有「爱车」「我的」入口，点击后切换到对应页面且该入口呈选中态。",
+                  "source": "app/config/motor_config.py:295-297, 315-317; app/service/vpd/vpd.py:2269, 2354",
+                  "applies_to": {
+                    "app": "motor_hm",
+                    "app_version": "3.0.3.200"
+                  },
+                  "applicability": {
+                    "status": "applies",
+                    "unknown": [],
+                    "mismatch": []
+                  },
+                  "condition_requirements": {}
+                }
+              ]
+            },
+            "facts": {
+              "app": "motor_hm",
+              "app_version": "3.0.3.200",
+              "device_form": "bar"
+            }
+          }
+        ],
+        "verified": [
+          "A1",
+          "A2"
+        ],
+        "not_applicable": [],
+        "unverified": []
+      }
+    },
+    {
+      "run_id": "run-20261112-001425-c086",
+      "verdict": "passed",
+      "hash": "515054e86da9",
+      "deps": "ceda4e9f6e57",
+      "validation_level": "real_device",
+      "device": "validation-device-20261112",
+      "ts": "2026-11-12T00:15:41.280+08:00",
+      "failure_signature": [],
+      "alerts": 0,
+      "not_verified": 0,
+      "facts": {
+        "account_state": "logged_in",
+        "app": "motor_hm",
+        "app_version": "3.0.3.200",
+        "device_form": "bar"
+      },
+      "oracle_facts": {
+        "app": "motor_hm",
+        "app_version": "3.0.3.200",
+        "device_form": "bar"
+      },
+      "started": "2026-11-12T00:14:25.157+08:00",
+      "finished": "2026-11-12T00:15:41.223+08:00",
+      "assertions": [
+        {
+          "id": "A1",
+          "result": "pass",
+          "advisory": false,
+          "oracle_refs": [
+            "K-MOT-002"
+          ],
+          "oracle": {
+            "status": "confirmed",
+            "items": [
+              {
+                "id": "K-MOT-002",
+                "status": "confirmed",
+                "statement": "「我的」页（上滑后）有「设置」入口，设置页中有「退出登录」。",
+                "source": "app/service/vpd/vpd.py:2458-2471 _account_logout; app/config/motor_config.py:522-527",
+                "applies_to": {
+                  "app": "motor_hm",
+                  "app_version": "3.0.3.200"
+                },
+                "applicability": {
+                  "status": "applies",
+                  "unknown": [],
+                  "mismatch": []
+                },
+                "condition_requirements": {}
+              }
+            ]
+          },
+          "facts": {
+            "app": "motor_hm",
+            "app_version": "3.0.3.200",
+            "device_form": "bar"
+          },
+          "verified": true
+        },
+        {
+          "id": "A2",
+          "result": "pass",
+          "advisory": false,
+          "oracle_refs": [
+            "K-MOT-001"
+          ],
+          "oracle": {
+            "status": "confirmed",
+            "items": [
+              {
+                "id": "K-MOT-001",
+                "status": "confirmed",
+                "statement": "底部导航有「爱车」「我的」入口，点击后切换到对应页面且该入口呈选中态。",
+                "source": "app/config/motor_config.py:295-297, 315-317; app/service/vpd/vpd.py:2269, 2354",
+                "applies_to": {
+                  "app": "motor_hm",
+                  "app_version": "3.0.3.200"
+                },
+                "applicability": {
+                  "status": "applies",
+                  "unknown": [],
+                  "mismatch": []
+                },
+                "condition_requirements": {}
+              }
+            ]
+          },
+          "facts": {
+            "app": "motor_hm",
+            "app_version": "3.0.3.200",
+            "device_form": "bar"
+          },
+          "verified": true
+        }
+      ],
+      "execution": {
+        "status": "completed",
+        "errors": []
+      },
+      "product_verdict": "passed",
+      "product_failed": false,
+      "coverage": {
+        "assertions": [
+          {
+            "id": "A1",
+            "result": "pass",
+            "applicable": true,
+            "verified": true,
+            "guard": null,
+            "oracle": {
+              "status": "confirmed",
+              "items": [
+                {
+                  "id": "K-MOT-002",
+                  "status": "confirmed",
+                  "statement": "「我的」页（上滑后）有「设置」入口，设置页中有「退出登录」。",
+                  "source": "app/service/vpd/vpd.py:2458-2471 _account_logout; app/config/motor_config.py:522-527",
+                  "applies_to": {
+                    "app": "motor_hm",
+                    "app_version": "3.0.3.200"
+                  },
+                  "applicability": {
+                    "status": "applies",
+                    "unknown": [],
+                    "mismatch": []
+                  },
+                  "condition_requirements": {}
+                }
+              ]
+            },
+            "facts": {
+              "app": "motor_hm",
+              "app_version": "3.0.3.200",
+              "device_form": "bar"
+            }
+          },
+          {
+            "id": "A2",
+            "result": "pass",
+            "applicable": true,
+            "verified": true,
+            "guard": null,
+            "oracle": {
+              "status": "confirmed",
+              "items": [
+                {
+                  "id": "K-MOT-001",
+                  "status": "confirmed",
+                  "statement": "底部导航有「爱车」「我的」入口，点击后切换到对应页面且该入口呈选中态。",
+                  "source": "app/config/motor_config.py:295-297, 315-317; app/service/vpd/vpd.py:2269, 2354",
+                  "applies_to": {
+                    "app": "motor_hm",
+                    "app_version": "3.0.3.200"
+                  },
+                  "applicability": {
+                    "status": "applies",
+                    "unknown": [],
+                    "mismatch": []
+                  },
+                  "condition_requirements": {}
+                }
+              ]
+            },
+            "facts": {
+              "app": "motor_hm",
+              "app_version": "3.0.3.200",
+              "device_form": "bar"
+            }
+          }
+        ],
+        "verified": [
+          "A1",
+          "A2"
+        ],
+        "not_applicable": [],
+        "unverified": []
       }
     }
   ],
@@ -336,14 +797,14 @@
   },
   "asset_review": {
     "schema": 1,
-    "reviewer": "用户（本对话）",
-    "basis": "2026-11-11 本对话用户针对 ghost-s01-decision-20261111.html 中 TC-HM-S01 定义回复：同意，说清楚为什么这个用例需要我审批，看着没有任何疑点。认可登录后进入我的页、打开设置、确认退出登录入口存在但不点击、返回我的页。对应content_hash=0b048a3b3dc6；只认可定义，不确认当前实机通过，不扩大判据适用版本，不授权车辆动作。由菲儿按该明确决定代录。",
-    "ts": "2026-11-11T22:54:16.703+08:00",
+    "reviewer": "independent-agent:inspect_ghost_runtime_evidence",
+    "basis": "独立评审当前content515054e86da9/depsceda4e9f6e57；K-MOT-001/002适用3.0.3.200；两次真实同版run断言均pass。仅导航，退出登录不点击，无车辆动作。第二次既存TabBar后备定位，无overlay或断言改动；原运行informal保留，不扩展版本或设备覆盖。",
+    "ts": "2026-11-12T00:18:22.731+08:00",
     "binding": {
       "case_id": "TC-HM-S01",
-      "content_hash": "0b048a3b3dc6",
-      "dependency_hash": "d3f62d48892a",
-      "review_hash": "4ef4559d8aa0175fd6cc132d40a6c0f4dbb5f68d647df412ab6054f5182ceff4",
+      "content_hash": "515054e86da9",
+      "dependency_hash": "ceda4e9f6e57",
+      "review_hash": "61d354464b8e4b24c568224e60ba9db5be020a29eb251f18ea035d8610480e51",
       "policy_hash": "df49729c2e37",
       "context_hash": "d5886b1ba609598d159f6d52ff40d782b5ba06a1b276cfea48b88c0adce95102"
     },
@@ -354,9 +815,9 @@
         "__main__.py": "13a1a5b340cdcfc1902b62be90e508c7c71886000d5bf087e7854aadf09fb35e",
         "case_readiness.py": "96e70c5b1e444069b859cd11af42b03dede4a8b6fba179a491c95a3b630691e0",
         "case_templates.py": "5cc6b0e09d9b0e3b8c5a19b73bc935ef436c28cdc03b304eda20b04396f0c2f6",
-        "cases.py": "24271a22c0df6f0d14447a40c22bb1f85b8106d66f857199299811c629a86b27",
-        "cli.py": "52cf12e14bd524d7eae2c545663f754f0389607a782d55e30ef128a05ba8be90",
-        "commands.py": "92fc0b1f435350181dfb1db07fdd87c71d1f89d7b753f8c4aa03479a9b76c9ec",
+        "cases.py": "de3dfbc2160785f8e678715a6246db3097cd6e76978d26c73eee2c370b7d870c",
+        "cli.py": "2582432d4e7dc024f685cfcf9c64f58ae03376684a14648fbfc5f66b52c446b9",
+        "commands.py": "957d29122a970cdae47183c16b0c8d26eadd06adf48eefe9c8078d734f944644",
         "conditions.py": "55079ababf3fccf8bb8d14fa277da87c502d86637c51adc9523c95eef7126645",
         "console/__init__.py": "70c7e584504ba8934cede9eb4f0b1b8563e49129c6959095363ec746e5c474e3",
         "console/control.py": "bec67dd10cd879d0714b9d42df9cc24ec1f4f2f250877a0e5511dbe9a83a232d",
@@ -367,25 +828,26 @@
         "devices/harmony_hdc.py": "61dddb54b2e16b1b41ab6d75a9aadf8d4134aa2b57dcf2a7ea2a9dd0fd9750c5",
         "devices/replay.py": "96b80e42c9a1b4af6eb31cebc91f5c842eec3775a407ee9a2d930ffe5b31c434",
         "dispatch.py": "41a730203c8cae6284571cbecab7e4c5e67849d8b6dd6fd6d964ef084d49ae98",
-        "execute.py": "0b10c8a339e7bdc91aaccd4af62493ee41eee4e5ca6e45a9cac8b6c595b74541",
+        "execute.py": "bd6c23d4e2d1302b3912eb78821a0ef208abf1241a7cec2023a4662f1c2a7be9",
         "experience.py": "abfbce50f2b24cbeea5ad5c04da4f4c37e04249eea0b6ed435d1e6c1c34f8a69",
         "explore.py": "c6208740920641636dceb7487ab7730ada0a8de242caf29bf4bba7614fe5ec64",
         "knowledge.py": "2157175e37d45e0944acff3c22a556633fc04765e968fd93eab8018b2eaba76b",
         "layout.py": "aea31e631e06a7478e8d0c2a27976f422dcc49406e35ddbbca58e8abca4f75db",
         "locate.py": "8b2f122800a4e635afb1ff41fe520cf547d64cfbf61801cf8b65a94027c30270",
-        "observe.py": "728f19c53116aeb4b615c609cbe4755ce607d87f18633e829f64eb9110d1dbcf",
-        "outcomes.py": "c1c77d10719fd754d1e1ff76da02596ec76149a59df7b9ed703d0982f71df3b7",
+        "observe.py": "3502f0d6c48fc36de9518800c0761c421ab4249b43e9cf573279ec4122de990c",
+        "outcomes.py": "88d03d14ed001ae6120dfde42bb811725821191e19a1e302bbe744da684bfc00",
         "params.py": "309256e226c9c20041e3a3a296a2bdac1d96f0c66977fc8a1c51ffe0392f0220",
         "policy.py": "eb034937f7be10fcf1588b83c31ddf528fdbe2b9b6c14695f56a1f2c8b6d27de",
         "readrefs.py": "f274f71c31264514893be11317c3dd0c029133ebc8d1c070c858444e4c369953",
         "report.py": "55cc42840ac3e03cdf0459f9a6771561fd17e0f1a52336c3beac65c3f26c72ba",
+        "review_routing.py": "4fbb1b33f3c51043ac72b7500bd8f3d00906eda9ac8b3eaf8f022eaa082f91d4",
         "review_snapshot.py": "5b1dd1818efb903583c6ef239cb67b1f78cce67245a914fb7209aaeb03180428",
         "run_diagnostic.py": "a9b63604100aebe593a8904fc4eeccfaf864c2870659c3c43cb370e2e494dd46",
         "runner.py": "b9ee01cd83b5dea6fb6b844adcd4c0217a7f930b52d94398324cf8209d030f2e",
         "safety.py": "700b9d3478b5a095e1d87cdbe02d749f8d1965cde96b90120767b8f2bb0da453",
-        "scope_inspection.py": "9493d1e27604c247c81ec829a3f3f75d20cd1ec50550797a8d326d5f003bf722",
+        "scope_inspection.py": "7c9ff56a91a5c306ef47b46020576ba1331fad3839b47888ebb16d99614e81dc",
         "search.py": "f29e58529774280e3b77ac38189c59091830e2b791cfd0d2add161a3ac7769dd",
-        "session.py": "e9927ab8e13a53bbecddde412d9fd36f953b64f1cc322ffa763e37a17a1d73c2",
+        "session.py": "6086a11a209e2d28768fd3656c8f77e9010e7fea8c82524de8f62a84557da5ce",
         "states.py": "5c62d7df24080b4761e5f5060636cbc1fc73c3aa99a7e58ae72a119f90cfa829",
         "sysdialog.py": "45922c2fa16cf712dfd4149b864d2b5a0d366809986799e9c3020e55d0452340",
         "templates.py": "5e8ab174f1bb2795c484445ceed4125c5ed637057b668b78b0b7a484beb7b6f3",
@@ -394,10 +856,18 @@
         "unlock.py": "17a76d905adda818e696bd8f50d3afbe98b1f2a2c817086845e6d79187fd1e70",
         "util.py": "28096fdad8fbf97efdccb5c42c1627ebb9dd5f356dd17db0e0ae0ea6171db6db",
         "verdict.py": "0376395ccd6c09d11795f791dd0af7c90dbe6596392baf87c9bc9852be1cf075",
-        "workspace.py": "69a575274bc631bb93f6339ad9b751eac3b1d70342159ea9f4ae472d135df6b3"
+        "workspace.py": "636733deae57f4de52358e6af84c607c265363ecb67b327ec55368d5eb1c730a"
       }
-    }
+    },
+    "review_kind": "agent",
+    "independent_ref": "docs/validation/S01-20261112-review.md#original-review-sha256=ADB5BDE3C8DAEF063CF29C6F215A9EDC2A976DF8A5841F62E1D4DB3DF9448898",
+    "evidence_run": "run-20261112-001425-c086",
+    "evidence_sha256": "92945fbcf4f74a81827560fb38e6fe9ca95ebbdfde3a85f85e751ad769332395"
   },
   "cleanup_note": "仅页面导航，没有写入账号或车辆数据；S5 已返回我的页，无需额外 back，以免在失败路径退出 APP。",
-  "cleanup_none": true
+  "cleanup_none": true,
+  "product_status": {
+    "status": "conforming",
+    "since_hash": "515054e86da9"
+  }
 }
