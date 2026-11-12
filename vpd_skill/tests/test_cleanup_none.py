@@ -1,6 +1,6 @@
 """Explicit no-cleanup declaration, isolated fixtures only."""
 import json
-from pathlib import Path
+from copy import deepcopy
 import pytest
 from conftest import SKILL
 from vpdtest import cases as C
@@ -20,10 +20,27 @@ def test_empty_cleanup_requires_explicit_boolean_and_reason(ws, flag, note):
     assert any(i["field"] == "cleanup" for i in issues(ws, case))
 
 
-def test_s01_definition_preserves_review_but_invalidates_it(ws):
+@pytest.fixture
+def stale_cleanup_case(ws):
+    """Create a cleanup-definition change locally; never rely on seed approval age."""
     case = ws.load_case("TC-HM-S01")
+    case["cleanup"] = [{"action": "stop_app"}]
+    write_json(ws.case_path(case["id"]), case)
+    approved = C.approve(ws, case["id"], KnowledgeStore(ws.root),
+                         reviewer="pytest-cleanup-reviewer",
+                         basis="isolated fixture: definition with stop_app cleanup")
+    assert C.review_status(ws, approved)["valid"]
+    original_review = deepcopy(approved["asset_review"])
+    approved["cleanup"] = []
+    write_json(ws.case_path(case["id"]), approved)
+    return approved, original_review
+
+
+def test_s01_definition_preserves_review_but_invalidates_it(ws, stale_cleanup_case):
+    case, original_review = stale_cleanup_case
     assert not issues(ws, case)
-    assert case["asset_review"]["binding"]["content_hash"] == "0b048a3b3dc6"
+    assert case["asset_review"] == original_review
+    assert original_review["binding"]["content_hash"] != C.content_hash(case)
     assert C.review_status(ws, case)["state"] == "stale"
     assert case["cleanup"] == [] and case["cleanup_none"] is True
     assert not any(s["action"] == "ensure_state" for s in case["steps"])
@@ -53,7 +70,7 @@ def test_nested_user_data_without_declared_authorization_is_still_rejected(ws):
     assert any(i["field"] == "cleanup" for i in found)
 
 
-def test_s01_offline_navigation_avoids_restart_and_extra_back(ws, tmp_path):
+def test_s01_offline_navigation_avoids_restart_and_extra_back(ws, tmp_path, stale_cleanup_case):
     world = json.loads((SKILL / "fixtures/worlds/motor_hm_base.json").read_text(encoding="utf8"))
     world["env_facts"]["account_state"] = "logged_in"
     world["app_version"] = "3.0.3.200"
