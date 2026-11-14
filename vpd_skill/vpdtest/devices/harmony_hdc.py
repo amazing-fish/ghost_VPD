@@ -33,7 +33,8 @@ def classify_output(text: str) -> Optional[str]:
         return "screen_locked"
     if any(m in low for m in _TRANSPORT_MARKERS):
         return "transport_unavailable"
-    if "not match target" in low or "connect-key" in low:
+    if ("not match target" in low or "connect-key" in low
+            or re.search(r"\[fail\]\s*\[e001005\]\s*device not found or connected\b", low)):
         return "device_offline"
     if any(m in low for m in _FAIL_MARKERS):
         return "command_failed"
