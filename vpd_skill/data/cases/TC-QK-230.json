@@ -125,14 +125,13 @@
     {
       "id": "A1-query",
       "at": "S7",
-      "type": "text_present",
-      "text": "1号车位",
-      "exact": true,
-      "within": "qk_search_input",
-      "desc": "实际搜索词与已独立核实的本轮 fixture 名称一致；同步修改 test_data 与此值",
+      "type": "target_text_equals",
+      "desc": "实际搜索框的 text 与已独立核实的本轮 fixture 名称一致；同步修改 test_data 与此值。辅助描述及子节点不能代替输入。",
       "oracle_refs": [
         "K-QK-TC-059"
-      ]
+      ],
+      "expected": "1号车位",
+      "target": "qk_search_input"
     },
     {
       "id": "A1",
@@ -159,14 +158,13 @@
     {
       "id": "A2-query",
       "at": "S12",
-      "type": "text_present",
-      "text": "1号停车点",
-      "exact": true,
-      "within": "qk_search_input",
-      "desc": "实际搜索词与已独立核实的本轮 fixture 名称一致；同步修改 test_data 与此值",
+      "type": "target_text_equals",
+      "desc": "实际搜索框的 text 与已独立核实的本轮 fixture 名称一致；同步修改 test_data 与此值。辅助描述及子节点不能代替输入。",
       "oracle_refs": [
         "K-QK-TC-059"
-      ]
+      ],
+      "expected": "1号停车点",
+      "target": "qk_search_input"
     },
     {
       "id": "A2",

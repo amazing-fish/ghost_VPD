@@ -25,8 +25,8 @@ def test_both_production_queries_are_bound_to_their_search_observation(ws):
     for i, data, at in [(1, "fav_spot", "S7"), (2, "fav_waypoint", "S12")]:
         assertions = {a["id"]: a for a in case["assertions"]}
         assert assertions[f"A{i}-state"]["state"] == "qk_spot_search"
-        assert assertions[f"A{i}-query"]["text"] == case["test_data"][data]
-        assert assertions[f"A{i}-query"]["within"] == "qk_search_input"
+        assert assertions[f"A{i}-query"]["expected"] == case["test_data"][data]
+        assert assertions[f"A{i}-query"]["target"] == "qk_search_input"
         assert assertions[f"A{i}"]["within"] == "qk_search_name_result_row"
         assert all(assertions[aid]["at"] == at for aid in (f"A{i}-state", f"A{i}-query", f"A{i}"))
 
@@ -36,7 +36,7 @@ def test_production_assertion_cannot_borrow_a_neighbouring_row_number(ws, tmp_pa
     from test_condition_runner import COMMON_RULE
     app, tree, case = ws.app("qiankun_hm"), _tree(), ws.load_case("TC-QK-230")
     assertions = _assertions(case, which, COMMON_RULE)
-    query, number = assertions[1]["text"], assertions[2]["text"]
+    query, number = assertions[1]["expected"], assertions[2]["text"]
     row = tree.nodes[_locate(app, tree)["attempts"][-1]["node"]["idx"]]
     other = deepcopy(_raw(tree, row))
     _replace(_raw(tree, row), {"1号车位": query, "I1": "not-the-number"})
@@ -82,4 +82,25 @@ def test_wrong_actual_query_cannot_satisfy_the_complete_group(ws, tmp_path):
     _raw(tree, field)["attributes"]["text"] = "different query"
     results = _evaluate(app, UiTree(tree.raw), _oracle(tmp_path), assertions=assertions)
     assert results[1]["result"] == "fail"
+    assert not all(r["result"] == "pass" for r in results)
+
+
+@pytest.mark.parametrize("which", [1, 2])
+@pytest.mark.parametrize("impostor", ["description", "child"])
+def test_auxiliary_text_cannot_impersonate_actual_query(ws, tmp_path, which, impostor):
+    from test_condition_runner import COMMON_RULE
+    app, tree, case = ws.app("qiankun_hm"), _tree(), ws.load_case("TC-QK-230")
+    assertions = _assertions(case, which, COMMON_RULE)
+    row = tree.nodes[_locate(app, tree)["attempts"][-1]["node"]["idx"]]
+    _replace(_raw(tree, row), {"1号车位": "different query", "I1": assertions[2]["text"]})
+    field = next(n for n in tree.nodes if n.attrs.get("id") == "__SearchField__search_input")
+    attrs = _raw(tree, field)["attributes"]
+    attrs.update(text="different query", description="")
+    if impostor == "description":
+        attrs["description"] = assertions[1]["expected"]
+    else:
+        _raw(tree, field).setdefault("children", []).append({"attributes": {
+            "type": "Text", "text": assertions[1]["expected"], "bounds": attrs["bounds"]}, "children": []})
+    results = _evaluate(app, UiTree(tree.raw), _oracle(tmp_path), assertions=assertions)
+    assert results[1]["result"] != "pass", results
     assert not all(r["result"] == "pass" for r in results)
