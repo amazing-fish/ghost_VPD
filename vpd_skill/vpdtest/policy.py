@@ -12,6 +12,7 @@ from .util import sha256_obj
 
 VALID_BASIS = ("tree", "template", "point")
 EDITABLE_TYPES = frozenset(("TextInput", "TextArea", "EditText", "SearchField"))
+SCROLL_LAYOUT_TYPES = frozenset(("Row", "Column", "ListItem", "ListItemGroup", "GridItem", "Flex"))
 
 
 class Policy:
@@ -152,6 +153,49 @@ class Policy:
                     "label": None, "deny": {"class": effect, "gated": True, "supervised": sup}}
         return None
 
+    def _scroll_layout_texts(self, tree, node, scope):
+        """Own labels of a complete passive native chain; None keeps full tap audit.
+
+        A type alone is not enough: the chain must reach this exact validated
+        scroll scope without another gesture owner. Clickable ancestors outside
+        the scope are also owners and must retain their complete semantics.
+        """
+        if (scope is None or scope.parent is None or not scope.scrollable
+                or scope.type not in ("Scroll", "List", "Grid")
+                or not (0 <= scope.idx < len(tree.nodes)) or tree.nodes[scope.idx] is not scope
+                or not (0 <= node.idx < len(tree.nodes)) or tree.nodes[node.idx] is not node
+                or tree.clickable_container(node) is not node):
+            return None
+        ancestry = [node] + tree.ancestors(node)
+        # The dump/replay document wrapper is not an application input owner.
+        # Exclude only its exact metadata-only form, never a real/unknown root
+        # or an orgRoot that carries interaction attributes.
+        owners = [item for item in ancestry if not (
+            item.idx == 0 and item.parent is None and item.type == "orgRoot"
+            and set(item.attrs) <= {"type", "bounds"}
+            and not item.text and not item.description)]
+        # UiTree normalizes malformed booleans to defaults. That is not evidence
+        # of passivity: missing/unknown clickable flags anywhere on the ownership
+        # lineage must not qualify for the narrower audit.
+        if any(str(item.attrs.get("clickable")).strip().lower() not in ("false", "0")
+               or any(str(item.attrs.get(key, False)).strip().lower() not in ("false", "0", "")
+                      for key in ("longClickable", "long-clickable")) for item in owners):
+            return None
+        chain = []
+        for current in ancestry:
+            if current.clickable:
+                return None
+            if current is scope:
+                if str(current.attrs.get("scrollable")).strip().lower() not in ("true", "1"):
+                    return None
+                chain.append(current)
+                return [label for item in chain for label in (item.text, item.description) if label]
+            if (current.type not in SCROLL_LAYOUT_TYPES or current.scrollable
+                    or str(current.attrs.get("scrollable")).strip().lower() not in ("false", "0")):
+                return None
+            chain.append(current)
+        return None
+
     def check_tap(self, tree: Optional[UiTree], point: tuple, basis: str, target: Optional[dict] = None,
                   state_deny: Optional[list] = None, authorized: Optional[set] = None, node=None,
                   confirmation_sources: list | None = None, layout: dict | None = None,
@@ -231,20 +275,12 @@ class Policy:
         if hit_type and not target.get("allow_node_type"):
             return {"allowed": False, "reason": f"控件类型 {sorted(hit_type)} 会直接改变设置，需目标显式声明 allow_node_type",
                     "label": None, "deny": {"class": "setting_change", "types": sorted(hit_type)}}
-        # A validated relative swipe passes its scroll scope, not a tap target.
-        # Labels elsewhere in a passive List or its native Row do not describe
-        # dragging that layout node's blank area. This is not a blanket exemption
-        # for non-clickable controls: only the observed Row layout is added here.
-        # Crossed text/controls, clickable ancestors and other container types
-        # retain full tap semantics; the executor still audits the entire path.
-        scope_only = (basis == "tree" and effect == "navigation"
-                      and scroll_scope is not None and scroll_scope.parent is not None
-                      and scroll_scope.type in ("Scroll", "List", "Grid") and scroll_scope.scrollable
-                      and container is node and not node.clickable
-                      and (node is scroll_scope or (
-                          node.type == "Row" and tree.is_within(node, scroll_scope))))
-        texts = ([container.text, container.description] if scope_only
-                 else tree.subtree_texts(container)) + [node.text, node.description]
+        # Relative scroll may traverse blank parts of several nested layouts.
+        # Audit every label on the verified ownership chain, not off-path child
+        # controls. Leaf/actual receivers and any uncertain chain keep tap audit.
+        layout_texts = (self._scroll_layout_texts(tree, node, scroll_scope)
+                        if basis == "tree" and effect == "navigation" else None)
+        texts = (layout_texts if layout_texts is not None else tree.subtree_texts(container)) + [node.text, node.description]
         texts = [t for t in texts if t]
         label = (texts[0] if texts else "")[:40]
         hits = self.match_all(texts, state_deny)

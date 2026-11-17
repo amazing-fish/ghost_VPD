@@ -59,7 +59,7 @@ def test_page_rule_on_scope_label_is_not_bypassed(ws, tmp_path, monkeypatch):
     assert ctx.actions == 0
 
 
-@pytest.mark.parametrize("variant", ["description", "clickable_ancestor", "nested_container"])
+@pytest.mark.parametrize("variant", ["description", "clickable_ancestor"])
 def test_scope_narrowing_keeps_other_semantic_owners(ws, tmp_path, variant):
     spec = _world(tmp_path, kind="List", children=[
         {"t": "Text", "text": "收藏", "b": [110, 210, 220, 260]}])
@@ -71,9 +71,6 @@ def test_scope_narrowing_keeps_other_semantic_owners(ws, tmp_path, variant):
         scope["desc"] = "支付"
     elif variant == "clickable_ancestor":
         root["click"] = True
-    else:
-        scope["children"] = [{"t": "Column", "b": [100, 200, 900, 800],
-                              "children": scope["children"]}]
     write_json(spec.split(":", 1)[1], data)
     ctx = _ctx(ws, spec)
     result = Executor(ctx).run_step(_step(), "semantic-owner-scroll")

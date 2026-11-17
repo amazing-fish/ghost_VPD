@@ -48,7 +48,6 @@ def test_passive_row_ignores_off_path_descendants_but_tap_stays_denied(
     {"child_bounds": [400, 450, 600, 550], "child_click": True},
     {"child_bounds": [400, 450, 600, 550], "child_type": "Slider", "child_text": ""},
     {"child_bounds": [400, 450, 600, 550], "child_type": "Button", "child_text": "支付"},
-    {"kind": "Column"},  # not a blanket non-clickable-container exemption
     {"kind": "Button"},
     {"kind": "Text"},
 ])
