@@ -72,11 +72,39 @@ def parse_kv(dump: str, key: str) -> Optional[str]:
     return m.group(1) if m else None
 
 
+def _parse_bundle_version(dump: str, bundle: Optional[str] = None) -> tuple[Optional[str], Optional[str]]:
+    """Prefer the BundleInfo root; nested versionName values belong to other objects."""
+    raw = (dump or "").strip()
+    header = re.match(r"^([^\s:{}]+):\s*(?=\{)", raw)
+    if header:
+        if bundle and header.group(1) != bundle:
+            return None, "app_version_bundle_mismatch"
+        raw = raw[header.end():]
+    try:
+        obj = json.loads(raw)
+    except (ValueError, TypeError):
+        if raw.startswith("{"):
+            return None, "app_version_unavailable"
+        obj = None
+    if isinstance(obj, dict):
+        name = obj.get("name")
+        if bundle and name and name != bundle:
+            return None, "app_version_bundle_mismatch"
+        version = obj.get("versionName")
+        if isinstance(version, str) and version:
+            return version, None
+        return None, "app_version_unavailable"
+    # Legacy partial output is accepted only when it names one distinct version.
+    versions = {v for v in re.findall(r'"versionName"\s*:\s*"([^\"]*)"', raw) if v}
+    if len(versions) == 1 and not header:
+        return next(iter(versions)), None
+    if len(versions) > 1:
+        return None, "app_version_ambiguous"
+    return None, "app_version_unavailable"
+
+
 def parse_version(dump: str) -> Optional[str]:
-    for v in re.findall(r'"versionName":\s*"([^"]*)"', dump or ""):
-        if v:
-            return v
-    return None
+    return _parse_bundle_version(dump)[0]
 
 
 _WIN_ROW_RE = re.compile(r"^(\S+)\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+(-?\d+)\s+\d+\s+\[\s*-?\d+\s+-?\d+\s+(\d+)\s+(\d+)\s*\]")
@@ -342,7 +370,14 @@ class HdcDevice:
         # bm 的通用空结果错误同时覆盖缺包、权限及服务失败，不能凭这条文案证明 APP 不存在。
         # 保留查询错误；独立缺包证据与官方返回来源见 tests/test_result_app_query_ambiguity.py。
         self.version_query_error = None if r.ok else {"error_class": r.error_class, "error": r.error, "raw": r.raw}
-        return parse_version(r.raw) if r.ok else None
+        if not r.ok:
+            return None
+        version, reason = _parse_bundle_version(r.raw, bundle)
+        if reason:
+            self.version_query_error = {"error_class": reason,
+                                        "error": "bm dump 无法确认目标应用的版本和包身份",
+                                        "raw": r.raw}
+        return version
 
     def preflight(self, bundle: str) -> dict:
         checks = []
@@ -370,7 +405,9 @@ class HdcDevice:
                           if not lock.ok else {})})
         ver = self.app_version(bundle)
         checks.append({"check": "app_installed", "ok": ver is not None, "value": ver,
-                       "error_class": None if ver else "app_missing",
+                       "error_class": (self.version_query_error["error_class"]
+                                       if self.version_query_error and self.version_query_error.get("error_class", "").startswith("app_version_")
+                                       else None if ver else "app_missing"),
                        **({"execution_error": self.version_query_error} if self.version_query_error else {})})
         info, display = self.info(), self.display_info()
         display_error = display.get("execution_error")

@@ -69,3 +69,11 @@ CI 或无人值守执行时不需要 Agent：`.\vpdtest.ps1 suite motor_hm_smoke
 `not_applicable` 不计通过或覆盖；全部不涉及时整例不涉及。`step.when` 的 skipped 不计产品分支覆盖。
 `--fail-on not_applicable` 可配置退出码1，人工接管仍优先2。缺独立条件证据是 pending，明确采集异常是 error，正常受阻是 blocked。
 业务 `--env` 只保留调度声明；不得据旧故障声明或开始可用反推当前健康。
+
+## HDC 版本号解析
+
+`bm dump -n <目标包>` 的目标 BundleInfo 顶层 `versionName` 才是本次前置检查的应用版本；
+内嵌对象可能包含自己的同名字段，不按出现顺序选择。带包名前缀或顶层 name 时，必须与查询包一致。
+旧式片段只有一个不同的非空版本时保持兼容；多个不同版本、不匹配的包名或结构化输出缺顶层版本
+返回未知并给出 `app_version_ambiguous`、`app_version_bundle_mismatch` 或 `app_version_unavailable`。
+它们不是 APP 缺失的证据，也不自动扩大用例适用范围；现场格式仍须在工作机验证。
