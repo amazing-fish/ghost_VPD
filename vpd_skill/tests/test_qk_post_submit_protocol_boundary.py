@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from test_issue64_login_paths import _password_flow, _password_world, _run_world, _sent, login_rig
+from test_issue64_login_paths import _password_flow, _password_world, _run_world, login_rig
 from vpdtest.util import read_json, write_json
 
 
