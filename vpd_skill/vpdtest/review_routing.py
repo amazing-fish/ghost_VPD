@@ -84,8 +84,20 @@ def route(ws, case, knowledge, app, policy, evidence_run=None):
             manifest[relative] = hashlib.sha256(raw).hexdigest()
             return raw
         run = json.loads(source("run.json"))
-        current = C._review_binding(ws, case, app, knowledge, policy)
         old = run.get("asset_review", {}).get("current", {})
+        if not isinstance(old, dict):
+            return result("evidence_needed", "运行审核上下文无效")
+        schema = old.get("context_schema", 1)
+        if type(schema) is not int or schema not in (1, 2):
+            return result("evidence_needed", "运行审核上下文版本未知")
+        context = C.review_context(ws, app)
+        current = C._review_binding(ws, case, app, knowledge, policy, context, context_schema=schema)
+        if (schema == 1 and old.get("context_hash") != current["context_hash"]
+                and C._can_ignore_unreferenced_templates(case, app, context)):
+            empty = C._review_binding(ws, case, app, knowledge, policy,
+                                      {**context, "templates": {}}, context_schema=1)
+            if old.get("context_hash") == empty["context_hash"]:
+                current = empty
         definition = run.get("case", {})
         if (run.get("run_id") != evidence_run or run.get("validation_level") != "real_device"
                 or definition.get("id") != case["id"] or definition.get("hash") != current["content_hash"]

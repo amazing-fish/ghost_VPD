@@ -97,3 +97,43 @@ def test_metadata_does_not_change_new_review_scope(ws):
     approved['replays']=[{'run_id':'synthetic', 'note':'${not a strategy}'}]
     write_json(ws.case_path(approved['id']), approved)
     assert _review(ws)['valid']
+
+
+def test_legacy_run_evidence_with_proven_empty_context_remains_reviewable(ws):
+    from test_review_routing import evidence, routing
+    case=_asset(ws); run, path=evidence(ws,case)
+    kn=KnowledgeStore(ws.root); legacy=C._review_binding(ws,case,ws.app(case['app']),kn,ws.policy(),context_schema=1)
+    run['asset_review']['current']=legacy; write_json(path,run)
+    assert routing(ws,case,run['run_id'])['route']=='independent_agent'
+    _template(ws)
+    assert routing(ws,case,run['run_id'])['route']=='independent_agent'
+
+
+def test_legacy_run_with_changed_nonempty_manifest_needs_new_evidence(ws):
+    from test_review_routing import evidence, routing
+    case=_asset(ws); template=_template(ws); run, path=evidence(ws,case)
+    kn=KnowledgeStore(ws.root); run['asset_review']['current']=C._review_binding(ws,case,ws.app(case['app']),kn,ws.policy(),context_schema=1)
+    write_json(path,run); assert routing(ws,case,run['run_id'])['route']=='independent_agent'
+    template.write_bytes(b'changed synthetic image')
+    assert routing(ws,case,run['run_id'])['route']=='evidence_needed'
+
+
+@pytest.mark.parametrize('schema', [True, 2.0, '2', 3, None])
+def test_unknown_evidence_context_schema_is_rejected(ws,schema):
+    from test_review_routing import evidence, routing
+    case=_asset(ws); run,path=evidence(ws,case)
+    run['asset_review']['current']['context_schema']=schema; write_json(path,run)
+    assert routing(ws,case,run['run_id'])['route']=='evidence_needed'
+
+
+@pytest.mark.parametrize('change', ['policy', 'system_dialog'])
+def test_legacy_empty_context_fallback_still_rejects_changed_safety_context(ws, change):
+    from test_review_routing import evidence, routing
+    case=_asset(ws); run,path=evidence(ws,case)
+    kn=KnowledgeStore(ws.root)
+    run['asset_review']['current']=C._review_binding(ws,case,ws.app(case['app']),kn,ws.policy(),context_schema=1)
+    write_json(path,run); _template(ws)
+    assert routing(ws,case,run['run_id'])['route']=='independent_agent'
+    p=ws.root/('policy.json' if change=='policy' else 'system_dialogs.json')
+    data=read_json(p); data['synthetic_review_change']={'enabled':True}; write_json(p,data)
+    assert routing(ws,case,run['run_id'])['route']=='evidence_needed'
