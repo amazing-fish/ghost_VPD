@@ -75,7 +75,7 @@ def parse_kv(dump: str, key: str) -> Optional[str]:
 def _parse_bundle_version(dump: str, bundle: Optional[str] = None) -> tuple[Optional[str], Optional[str]]:
     """Prefer the BundleInfo root; nested versionName values belong to other objects."""
     raw = (dump or "").strip()
-    header = re.match(r"^([^\s:{}]+):\s*(?=\{)", raw)
+    header = re.match(r"^([^\s:{}]+):\s*(?=[\{\[])", raw)
     if header:
         if bundle and header.group(1) != bundle:
             return None, "app_version_bundle_mismatch"
@@ -93,6 +93,9 @@ def _parse_bundle_version(dump: str, bundle: Optional[str] = None) -> tuple[Opti
         version = obj.get("versionName")
         if isinstance(version, str) and version:
             return version, None
+        return None, "app_version_unavailable"
+    if obj is not None:
+        # A valid JSON array or scalar is not a BundleInfo object.
         return None, "app_version_unavailable"
     # Legacy partial output is accepted only when it names one distinct version.
     versions = {v for v in re.findall(r'"versionName"\s*:\s*"([^\"]*)"', raw) if v}

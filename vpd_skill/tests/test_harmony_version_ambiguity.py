@@ -25,6 +25,8 @@ def test_legacy_partial_output_does_not_guess_distinct_versions():
     ('"versionName":"1" "versionName":"2"', "app_version_ambiguous"),
     ('{"name":"synthetic.app","nested":{"versionName":"1"}}', "app_version_unavailable"),
     ('synthetic.app:\n{"versionName":"1"', "app_version_unavailable"),
+    ('[{"name":"other.app","versionName":"1"}]', "app_version_unavailable"),
+    ('synthetic.app:\n[{"name":"other.app","versionName":"1"}]', "app_version_unavailable"),
 ])
 def test_unknown_version_records_diagnostic(monkeypatch, raw, reason):
     device = HdcDevice("synthetic")
