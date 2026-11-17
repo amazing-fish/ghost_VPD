@@ -152,3 +152,34 @@ def test_document_wrapper_exception_cannot_hide_real_interaction_metadata(ws, tm
     del root.attrs["clickable"]
     root.attrs["longClickable"] = "true"
     assert ctx.policy._scroll_layout_texts(tree, node, scope) is None
+
+
+@pytest.mark.parametrize("key", ["longClickable", "long-clickable"])
+@pytest.mark.parametrize("value", ["", "  "])
+def test_explicit_empty_long_click_flag_is_unknown_not_absent(ws, tmp_path, key, value):
+    ctx = _ctx(ws, hierarchy(tmp_path, 3, lambda root, scope, nodes, button:
+                             nodes[1].update(attrs={key: value})))
+    result = Executor(ctx).run_step(step(), "empty-long-click")
+    assert result["final_status"] == "policy_denied", result
+    assert ctx.actions == 0
+
+
+@pytest.mark.parametrize("key", ["longClickable", "long-clickable"])
+def test_optional_long_click_attribute_can_be_absent_but_not_empty(ws, tmp_path, key):
+    ctx = _ctx(ws, hierarchy(tmp_path, 3))
+    _, tree = ctx.observe("optional-long-click")
+    scope = next(n for n in tree.nodes if n.id == "gesture_scope")
+    node = tree.node_at(1292, 640)
+    owner = next(n for n in tree.nodes if n.id == "layout_1")
+    owner.attrs.pop(key, None)
+    assert ctx.policy._scroll_layout_texts(tree, node, scope) == []
+    owner.attrs[key] = ""
+    assert ctx.policy._scroll_layout_texts(tree, node, scope) is None
+
+
+def test_replay_default_does_not_rewrite_explicit_unknown_or_placeholder():
+    from vpdtest.devices.replay import expand, placeholder_tree
+    assert expand({"t": "Row"})["attributes"]["longClickable"] == "false"
+    assert expand({"t": "Row", "attrs": {"longClickable": ""}})["attributes"]["longClickable"] == ""
+    assert expand({"t": "Row", "attrs": {"long-clickable": ""}})["attributes"]["long-clickable"] == ""
+    assert placeholder_tree()["attributes"]["longClickable"] == ""

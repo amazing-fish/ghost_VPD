@@ -41,6 +41,9 @@ def expand(spec: dict, bundle: str = "") -> dict:
     attrs.update({"type": spec.get("t", "Column"), "text": spec.get("text", ""), "id": spec.get("id", ""),
                   "description": spec.get("desc", ""), "bounds": f"[{b[0]},{b[1]}][{b[2]},{b[3]}]",
                   "clickable": "true" if spec.get("click") or spec.get("go") or spec.get("dismiss_system_dialog") else "false",
+                  # Synthetic specs have no long-click behavior by default.
+                  # Explicit attrs below still preserve unknown/empty test data.
+                  "longClickable": "false",
                   "selected": "true" if spec.get("sel") else "false", "enabled": "true", "visible": "true",
                   "scrollable": "true" if spec.get("scroll") else "false", "bundleName": bundle})
     attrs.update({k: str(v) for k, v in spec.get("attrs", {}).items()})

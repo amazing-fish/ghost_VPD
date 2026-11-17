@@ -178,7 +178,7 @@ class Policy:
         # of passivity: missing/unknown clickable flags anywhere on the ownership
         # lineage must not qualify for the narrower audit.
         if any(str(item.attrs.get("clickable")).strip().lower() not in ("false", "0")
-               or any(str(item.attrs.get(key, False)).strip().lower() not in ("false", "0", "")
+               or any(key in item.attrs and str(item.attrs[key]).strip().lower() not in ("false", "0")
                       for key in ("longClickable", "long-clickable")) for item in owners):
             return None
         chain = []
