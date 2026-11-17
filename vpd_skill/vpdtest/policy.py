@@ -232,12 +232,17 @@ class Policy:
             return {"allowed": False, "reason": f"控件类型 {sorted(hit_type)} 会直接改变设置，需目标显式声明 allow_node_type",
                     "label": None, "deny": {"class": "setting_change", "types": sorted(hit_type)}}
         # A validated relative swipe passes its scroll scope, not a tap target.
-        # Only the non-clickable scope itself has non-actionable descendants:
-        # labels elsewhere in the list do not describe dragging its blank area.
-        # Crossed children/actual receivers still use the full tap semantics.
-        scope_only = (node is scroll_scope and container is scroll_scope
-                      and not node.clickable and node.scrollable
-                      and node.parent is not None and node.type in ("Scroll", "List", "Grid"))
+        # Labels elsewhere in a passive List or its native Row do not describe
+        # dragging that layout node's blank area. This is not a blanket exemption
+        # for non-clickable controls: only the observed Row layout is added here.
+        # Crossed text/controls, clickable ancestors and other container types
+        # retain full tap semantics; the executor still audits the entire path.
+        scope_only = (basis == "tree" and effect == "navigation"
+                      and scroll_scope is not None and scroll_scope.parent is not None
+                      and scroll_scope.type in ("Scroll", "List", "Grid") and scroll_scope.scrollable
+                      and container is node and not node.clickable
+                      and (node is scroll_scope or (
+                          node.type == "Row" and tree.is_within(node, scroll_scope))))
         texts = ([container.text, container.description] if scope_only
                  else tree.subtree_texts(container)) + [node.text, node.description]
         texts = [t for t in texts if t]
