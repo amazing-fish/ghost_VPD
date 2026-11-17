@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Optional
 
 from . import LAUNCHER, DeviceResult
+from ..tree_contract import bundle_dump_origin
 
 KEYS = {"back": "Back", "home": "Home", "move_end": "2082", "delete": "2055"}
 _FAIL_MARKERS = ("[fail]", "error:", "error code:")
@@ -428,6 +429,7 @@ class HdcDevice:
                 return p
             try:
                 r.data["tree"] = json.loads((tmp_dir / "tree.json").read_text(encoding="utf-8"))
+                r.data["document_root_origin"] = bundle_dump_origin(r.data["tree"], bundle)
             except (ValueError, OSError) as e:
                 r.ok, r.error_class, r.error = False, "tree_parse_error", str(e)
             return r

@@ -9,6 +9,7 @@ from typing import Optional
 
 from . import layout as layout_mod
 from .tree import UiTree
+from .tree_contract import document_root_evidence
 import re
 import time
 
@@ -149,8 +150,10 @@ class Observer:
                 raw = r.data.get("tree")
                 write_json(d / "tree.json", raw)
                 r.data["tree"] = raw
+                origin = r.data.get("document_root_origin") if self.device.kind == "hdc" else None
                 tree = UiTree(raw)
                 obs["tree"] = {"status": tree.status, "path": self.store.rel(d / "tree.json"), "nodes": len(tree.nodes)}
+                obs["tree"]["document_root"] = document_root_evidence(raw, origin)
             else:
                 # 解析失败/拉取失败：记录设备的实际采集错误
                 obs["tree"] = {"status": "unavailable" if r.error_class == "tree_unavailable" else "error",
@@ -177,9 +180,11 @@ class Observer:
                 if result.ok:
                     raw = result.data.get("tree")
                     write_json(d / "tree_recheck.json", raw)
+                    origin = result.data.get("document_root_origin") if self.device.kind == "hdc" else None
                     tree = UiTree(raw)
                     obs["tree"] = {"status": tree.status, "path": self.store.rel(d / "tree_recheck.json"),
                                    "nodes": len(tree.nodes)}
+                    obs["tree"]["document_root"] = document_root_evidence(raw, origin)
                 else:
                     tree = None
                     obs["tree"] = {"status": "unavailable" if result.error_class == "tree_unavailable" else "error",

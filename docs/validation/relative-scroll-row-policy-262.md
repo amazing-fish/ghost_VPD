@@ -42,3 +42,39 @@
 都不能证明没有长按行为，须保留完整审计。仅显式 false/0 可视为禁用。
 回放生成器仅将“没有声明长按行为的合成节点”默认设为 false；显式 attrs 覆盖（包括空值）
 和真实失败占位树的空值保持不变。此改动不改写真机 dump，也不把空字段强行补成 false。
+
+## 输入契约：空属性聚合根不是未知控件的 false 默认值
+
+官方 OpenHarmony 7.0 的固定源码 `85f4f79861c42e91d7eb8f83b707743f7b968bbf` 说明：
+
+- [命令入口](https://github.com/openharmony/testfwk_arkxtest/blob/85f4f79861c42e91d7eb8f83b707743f7b968bbf/uitest/server/server_main.cpp#L273-L286)：只有 `-i` 启用窗口列表，本仓 `dumpLayout -b ... -p ...` 不含 `-i/-a`。
+- [聚合序列化](https://github.com/openharmony/testfwk_arkxtest/blob/85f4f79861c42e91d7eb8f83b707743f7b968bbf/uitest/core/ui_driver.cpp#L125-L190)：此模式主动创建非 widget 文档根；26 属性为空，仅 bounds 为从零开始的窗口并集，children 为匹配 bundle 的窗口树。
+- [属性集合](https://github.com/openharmony/testfwk_arkxtest/blob/85f4f79861c42e91d7eb8f83b707743f7b968bbf/uitest/core/ui_model.h#L90-L117) 与 [widget 序列化](https://github.com/openharmony/testfwk_arkxtest/blob/85f4f79861c42e91d7eb8f83b707743f7b968bbf/uitest/core/ui_model.cpp#L155-L168)：真实窗口 widget 额外具有 hierarchy/visible/hashcode/hint，窗口根另补 abilityName/bundleName/pagePath。
+
+适配器根据其自身受控 bundle 命令结果记录**候选 profile 诊断**；不改原 JSON，
+不接受 JSON 内自称的来源标记。Observer 记录完整 raw 的语义 SHA256、schema 匹配和拒绝原因。
+它们分别证明采集方式、结构与输入完整性，**不证明未知现场二进制的根没有输入所有权**。
+
+现场仅给出 OS 版本，尚未证明厂商 uitest/ArkXTest 二进制与上述 commit 的实现相同。
+因此即使结构完全匹配，仍返回 `status=unverified`、`reason=producer_build_unverified`、
+`may_exclude_root=false`。本次不改变 policy/UiTree 的权限行为，不排除新形态根，页顶仍应
+保持 blocked；不把 clickable/longClickable 空值判成 false，不新加布局类型豁免。
+
+下一步工作机只以 Issue 文字补充（不必重复整例动作）：
+1. 设备侧 `uitest` 版本查询结果（不支持也如实记录）、二进制路径/SHA256，以及可核验的
+   厂商构建来源/对应实现或“该根不参与输入接收”的明确生产者契约。哈希本身不是语义证明。
+2. 实际调用模式是否为 `dumpLayout -b <被测bundle> -p <临时路径>`、无 `-i/-a`；不回传账号信息。
+3. 根26键是否精确匹配、其余25值是否严格空；直接窗口数、窗口bundle是否与请求一致，
+   widget的hierarchy/visible/hashcode/hint及窗口字段是否齐全。只回报布尔结论/计数/缺失键名。
+4. 新观测中的 `obs.tree.document_root` 诊断（status/reason/profile/schema_status，必要时语义指纹）。
+
+收到可验证生产者语义后再独立安全评审，未取得前不启用旁路。原树与截图始终留工作机，
+已有页顶首败和页底通过要保留；结构形似与一次通过均不能替代此证明。
+
+## 集成口径更正
+
+旧期望 tree `33738a26...` 误含67项 pytest/pycache 产物，不能作交付基线。
+按六个固定PR的 path/blob/mode 重建后，419项源码全部一致、无覆盖或遗漏，干净 tree 为
+`a5d605913cc0ed7d633e8b02a8eb8ff1d7569e52`，与工作机一致；干净树502项回归通过。
+后续只按精确 manifest 暂存文件，不广泛 `git add -f .`。本修复在 harmony_hdc.py 与 #260
+同文件不同区段，须三方合并两份增量并核新 manifest，不能整文件覆盖版本识别修复。
