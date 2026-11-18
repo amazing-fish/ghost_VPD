@@ -495,10 +495,35 @@ def _run_brief(run: dict) -> dict:
             "asset_review": run.get("asset_review")}
 
 
+def _assertion_followups(run: dict) -> list:
+    """Unresolved final-frame text evidence, not a diagnosis or a new oracle."""
+    if (run.get("verdict") or {}).get("verdict") != "pending":
+        return []
+    observations = {s["step_id"]: s["final_obs"] for s in run.get("steps", [])
+                    if s.get("step_id") and s.get("outcome") in PASSED and s.get("final_obs")}
+    rows = []
+    for assertion in run.get("assertions", []):
+        at = assertion.get("at")
+        evidence = assertion.get("evidence") or {}
+        obs = observations.get(at)
+        if (assertion.get("type") not in ("text_present", "text_absent", "text_present_any")
+                or assertion.get("applicable") is not True or assertion.get("advisory")
+                or not assertion.get("id") or not obs or evidence.get("obs") != obs):
+            continue
+        if assertion.get("result") == "pending" and assertion.get("observed_holds") is False:
+            status = "observation_mismatch"
+        elif assertion.get("result") == "undeterminable" and evidence.get("within"):
+            status = "scope_undetermined"
+        else:
+            continue
+        rows.append({"id": assertion["id"], "step": at, "status": status, "final_obs": obs})
+    return rows
+
+
 def _host_followup(run: dict) -> Optional[dict]:
     """Read-only host routing, never an action grant or an alternative verdict.
 
-    Only bind a terminal top-level failure to its own final attempt/observation.
+    Bind step failures to their own attempts and assertions to their evaluated frames.
     Composite/recovered/unbound evidence is intentionally not guessed here.
     """
     rows = []
@@ -523,7 +548,8 @@ def _host_followup(run: dict) -> Optional[dict]:
             continue
         rows.append({"step": step["step_id"], "attempt": last["n"], "status": status,
                      "final_obs": obs})
-    if not rows:
+    assertions = _assertion_followups(run)
+    if not rows and not assertions:
         return None
 
     def risk(steps):
@@ -533,6 +559,7 @@ def _host_followup(run: dict) -> Optional[dict]:
     human = bool((run.get("verdict") or {}).get("action_required") or run.get("safety_hold") or
                  risk(run.get("steps", []) + run.get("cleanup", [])))
     return {"run_id": run["run_id"], "steps": rows,
+            **({"assertions": assertions} if assertions else {}),
             "next": "inspect" if human else "observe_only", "requires_human": human,
             "guide": "references/asset-drift.md", "read_only": True,
             "action_authorized": False, "run_budget_inherited": False,
