@@ -88,13 +88,25 @@ def test_normal_runner_keeps_separate_result_observations_and_records_only_a_dec
     assert not ws.load_case(CASE).get("replays")
 
 
-@pytest.mark.parametrize("mode", ["matching", "wrong-query", "duplicate", "missing-screenshot", "capture-error"])
+@pytest.mark.parametrize("mode", ["matching", "wrong-query", "duplicate", "viewport-swap",
+                                  "missing-screenshot", "capture-error"])
 def test_even_a_confirmed_rule_cannot_turn_declared_input_into_verified_identity(ws, tmp_path, mode):
     case, app, tree = ws.load_case(CASE), ws.app("qiankun_hm"), _tree("obs-0046")
     if mode == "duplicate":
         row = tree.nodes[_locate(app, tree)["attempts"][-1]["node"]["idx"]]
         _raw(tree, tree.nodes[row.parent])["children"].append(deepcopy(_raw(tree, row)))
         tree = UiTree(tree.raw)
+    second_tree = tree
+    if mode == "viewport-swap":
+        # A virtual list mounts one matching row per frame, with a different entity each time.
+        second_tree = UiTree(deepcopy(tree.raw))
+        row = second_tree.nodes[_locate(app, second_tree)["attempts"][-1]["node"]["idx"]]
+        entity = second_tree.nodes[row.parent]
+        assert entity.id.startswith("searchPoiSpot_")
+        _raw(second_tree, entity)["attributes"]["id"] = "searchPoiSpot_synthetic_other"
+        second_tree = UiTree(second_tree.raw)
+        assert tree.find_id(entity.id) and not second_tree.find_id(entity.id)
+        assert second_tree.find_id("searchPoiSpot_synthetic_other")
     name = "合成的另一名称" if mode == "wrong-query" else "1号车位"
     values = prepare(case, {"fav_spot": name})
     oracle = _oracle(tmp_path)
@@ -107,8 +119,9 @@ def test_even_a_confirmed_rule_cannot_turn_declared_input_into_verified_identity
         shot = {"status": "error", "error_class": "screenshot_capture_error"}
 
     def load(frame):
+        observed_tree = second_tree if frame == "S5-frame" else tree
         return {"obs_id": frame, "fresh": True, "layout": layout, "page": page,
-                "tree": {"status": "ok"}, "screenshot": shot}, tree
+                "tree": {"status": "ok"}, "screenshot": shot}, observed_tree
 
     steps = {step: {"step_id": step, "action": "wait", "outcome": "passed", "final_obs": step + "-frame"}
              for step in ("S4", "S5")}
@@ -120,7 +133,7 @@ def test_even_a_confirmed_rule_cannot_turn_declared_input_into_verified_identity
     identity = by_id["favorite-identity"]
     assert not identity["verified"] and not identity["advisory"]
     assert identity["result"] == ("error" if mode == "capture-error" else "pending")
-    if mode == "matching":
+    if mode in ("matching", "viewport-swap"):
         assert all(a["result"] == "pass" and not a["verified"] for a in results if a["advisory"])
     elif mode == "wrong-query":
         assert by_id["second-query"]["result"] == "fail"
@@ -130,7 +143,7 @@ def test_even_a_confirmed_rule_cannot_turn_declared_input_into_verified_identity
     assert verdict["product_verdict"] == "pending"
     assert verdict["verdict"] == ("error" if mode == "capture-error" else "pending")
     assert "favorite-identity" in verdict["coverage"]["unverified"]
-    if mode == "matching":
+    if mode in ("matching", "viewport-swap"):
         records = [{"run_id": run_id, "hash": content_hash(case), "verdict": verdict["verdict"]}
                    for run_id in ("synthetic-source-A", "synthetic-source-B")]
         assert not replay_basis({**case, "replays": records})["ok"]
