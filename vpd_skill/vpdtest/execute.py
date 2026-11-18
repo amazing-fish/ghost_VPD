@@ -579,7 +579,7 @@ class Executor:
                 att["resolved"] = _resolved(loc, obs)
             res = self._send_target("input_text", loc, obs, tree, target, tid, step, att, text)
             if att.get("status"):
-                if att["status"] in ("target_obscured", "clear_not_confirmed", "clear_value_unobservable"):
+                if att["status"] in ("target_obscured", "target_stale", "clear_not_confirmed", "clear_value_unobservable"):
                     att["dispatch"] = {"op": res.op, "sent": res.sent, "executor_ok": res.ok,
                                        "error_class": res.error_class, "error": res.error,
                                        "duration_ms": res.duration_ms}
@@ -807,8 +807,11 @@ class Executor:
             if not self._cleared_input_ok(target, loc, obs, tree, att, "after_clear", require_empty):
                 return DeviceResult(op, False, False, att["status"], att["execution_error"]["error"])
         def pack(loc, obs, tree):
-            return {"loc": loc, "tree": tree, "target": target, "target_ref": tid, "page": obs["page"],
-                    "state_deny": ctx.app.states.deny_for_page(obs["page"]), "layout": obs.get("layout")}
+            tap = {"loc": loc, "tree": tree, "target": target, "target_ref": tid, "page": obs["page"],
+                   "state_deny": ctx.app.states.deny_for_page(obs["page"]), "layout": obs.get("layout")}
+            if op == "input_text" and require_empty:
+                tap["observed_action_epoch"] = ctx.actions
+            return tap
         def refresh():
             o, t = ctx.observe(f"{step['id']}:dispatch-relocate", screenshot=False)
             l = resolve(tid, target, t, ctx.observer.screenshot_abs(o), ctx.app.dir,

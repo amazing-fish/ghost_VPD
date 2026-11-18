@@ -279,3 +279,40 @@ def test_required_empty_validates_step_before_dispatch(clear_rig, action, clear,
     result = Executor(ctx).run_step(_step(action, clear=clear, require_empty_after_clear=strict), "invalid-clear")
     assert result["final_status"] == "invalid_step"
     assert _counts(ctx.device)["tap"] == 0 and _counts(ctx.device)["input_text"] == 0
+
+
+def test_unlock_action_after_relocation_invalidates_empty_observation(clear_rig, monkeypatch):
+    ctx, _ = clear_rig
+    ctx.device.partial_clear = False
+    ctx.device.cover_after_clear = True
+    observe, state = ctx.observe, ctx.dispatcher._state
+    relocate_finished = False
+
+    def refreshed(label, *args, **kwargs):
+        nonlocal relocate_finished
+        if label.endswith(":dispatch-relocate"):
+            children = ctx.device.world["screens"]["fixture"]["root"]["children"]
+            children[:] = [n for n in children if n["t"] != "SyntheticCover"]
+            observed = observe(label, *args, **kwargs)
+            relocate_finished = True
+            return observed
+        return observe(label, *args, **kwargs)
+
+    def unlock_after_observation(conditions, att):
+        nonlocal relocate_finished
+        if relocate_finished:
+            # Model an action performed by the post-relocation lock/foreground check.
+            relocate_finished = False
+            ctx.actions += 1
+            ctx.device.bound["name"] = "restored"
+        return state(conditions, att)
+
+    monkeypatch.setattr(ctx, "observe", refreshed)
+    monkeypatch.setattr(ctx.dispatcher, "_state", unlock_after_observation)
+    result = run_input(ctx, require_empty_after_clear=True)
+    assert result["final_status"] == "target_stale"
+    assert _counts(ctx.device)["input_text"] == 0 and ctx.device.bound["name"] == "restored"
+    att = result["attempts"][0]
+    assert att["dispatch"]["sent"] is False and len(result["attempts"]) == 1
+    epochs = att["dispatch_recheck"]["checks"]["target_observation"]
+    assert epochs["dispatch_epoch"] > epochs["observed_epoch"]
