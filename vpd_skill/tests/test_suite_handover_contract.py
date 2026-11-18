@@ -81,6 +81,9 @@ def test_suite_stops_at_real_unlock_handover_and_preserves_remaining_plan(
     assert handover["verdict"] == "blocked"
     assert handover["action_required"]
     assert output["action_required"] == handover["action_required"]
+    notice, = output["human_handoffs"]
+    assert notice["source"] == {"record": handover["run_id"]}
+    assert read_json(ws.runs_dir / ".human-handoffs" / (notice["event_id"] + ".json")) == notice
 
     _assert_real_run_evidence(ws, output, plan)
     trigger_dir = ws.runs_dir / handover["run_id"]
@@ -115,6 +118,7 @@ def test_suite_without_handover_executes_every_case_on_every_device(ws, tmp_path
     assert output["completed"] is True
     assert output["not_run"] == []
     assert not output.get("action_required")
+    assert "human_handoffs" not in output and not (ws.runs_dir / ".human-handoffs").exists()
     _assert_real_run_evidence(ws, output, plan)
     assert len([event for event in events if event["event"] == "case_start"]) == len(plan)
     assert len([event for event in events if event["event"] == "case_done"]) == len(plan)

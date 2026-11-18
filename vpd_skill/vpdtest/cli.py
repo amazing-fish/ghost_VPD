@@ -11,6 +11,7 @@ import sys
 import traceback
 
 from . import commands as c
+from .human_handoff import cmd_handoff, register_handoffs
 from .util import dumps
 from .workspace import Workspace
 
@@ -34,6 +35,10 @@ def build_parser() -> argparse.ArgumentParser:
     p = _Parser(prog="vpdtest", description="VPD 手机 APP 智能测试执行器（Skill v0.1）")
     p.add_argument("--workspace", help="数据目录（默认 vpd_skill/data，或环境变量 VPD_WORKSPACE）")
     sub = p.add_subparsers(dest="cmd", required=True)
+
+    h = sub.add_parser("handoff", help="查询或一次领取本工作区的人工交接事件")
+    h.add_argument("event_id")
+    h.add_argument("--claim", action="store_true", help="原子领取，供宿主去重，不发送通知")
 
     d = sub.add_parser("doctor", help="检查依赖与设备前置条件")
     d.add_argument("--device")
@@ -248,7 +253,7 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
-HANDLERS = {"doctor": c.cmd_doctor, "observe": c.cmd_observe, "act": c.cmd_act, "run": c.cmd_run,
+HANDLERS = {"handoff": cmd_handoff, "doctor": c.cmd_doctor, "observe": c.cmd_observe, "act": c.cmd_act, "run": c.cmd_run,
             "suite": c.cmd_suite, "explore": c.cmd_explore, "case": c.cmd_case, "knowledge": c.cmd_knowledge,
             "experience": c.cmd_experience, "template-crop": c.cmd_template_crop, "session": c.cmd_session,
             "unlock": c.cmd_unlock, "sysdiag": c.cmd_sysdiag, "console": c.cmd_console}
@@ -263,7 +268,7 @@ def main(argv=None) -> int:
             pass
     args = build_parser().parse_args(argv)
     try:
-        offline_scope = args.cmd == "case" and args.case_cmd == "inspect-scope"
+        offline_scope = args.cmd == "handoff" or (args.cmd == "case" and args.case_cmd == "inspect-scope")
         ws = (Workspace(args.workspace, load_local_config=False) if offline_scope
               else Workspace(args.workspace))
         if getattr(args, "authorize", None):
@@ -280,6 +285,11 @@ def main(argv=None) -> int:
         print(json.dumps({"error": type(e).__name__, "message": str(e), "trace": traceback.format_exc()[-2000:], **exception_diagnostic(e)},
                          ensure_ascii=False))
         return 3
+    res = out.get("results")
+    rows = [out] + ([r for r in res if isinstance(r, dict)] if isinstance(res, list) else [])
+    handoffs = register_handoffs(ws.runs_dir, args.cmd, out, rows)
+    if handoffs:
+        out["human_handoffs"] = handoffs
     print(dumps(out))
     if (args.cmd == "case" and args.case_cmd == "inspect-scope"
             and out.get("inspection_errors")):
@@ -287,9 +297,7 @@ def main(argv=None) -> int:
     if (args.cmd == "case" and args.case_cmd == "readiness"
             and out.get("summary", {}).get("inspection_errors")):
         return 3  # Report all rows, but never hide an unexpected inspection fault behind exit 0.
-    res = out.get("results")
-    rows = [out] + ([r for r in res if isinstance(r, dict)] if isinstance(res, list) else [])
-    if any(r.get("action_required") for r in rows):
+    if handoffs:
         return 2  # 需要现场人工接管：任何调用方都不能把它当成普通结论
     verdicts = [r.get("verdict") for r in rows]
     return 1 if set(getattr(args, "fail_on", []) or []) & set(verdicts) else 0

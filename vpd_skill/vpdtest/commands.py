@@ -49,7 +49,7 @@ def cmd_unlock(ws: Workspace, a) -> dict:
     from .unlock import unlock_device
     store = RunStore(ws.runs_dir, kind="unlock")
     dev = ws.device(a.device)
-    return unlock_device(ws, dev, store, getattr(a, "lock_secret", None))
+    return {"run": store.run_id, **unlock_device(ws, dev, store, getattr(a, "lock_secret", None))}
 
 
 def cmd_sysdiag(ws: Workspace, a) -> dict:
