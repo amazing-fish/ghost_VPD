@@ -156,6 +156,8 @@ def dependency_hash(case: dict, app, knowledge) -> str:
     data = {k: v for k, v in (case.get("test_data") or {}).items()
             if not (isinstance(v, dict) and ("secret" in v or "template" in v or "runtime" in v))}
     params = Params(data, {}, "dependency")
+    runtime_contract = ({"runtime_data_contract": 1} if any(
+        isinstance(v, dict) and "runtime" in v for v in (case.get("test_data") or {}).values()) else {})
 
     def want(t, local=None, substitute=False):
         if isinstance(t, str) and t in app.targets:
@@ -200,12 +202,11 @@ def dependency_hash(case: dict, app, knowledge) -> str:
     for interrupt in app.states.interrupts.values():
         want(interrupt.get("dismiss_target"))
         want(interrupt.get("dismiss_target"), substitute=True)  # recovery uses _attempt → _target
-    return sha256_obj({"steps": steps, "targets": targets, "states": app.states.states,
+    return sha256_obj({**runtime_contract, "steps": steps, "targets": targets, "states": app.states.states,
                        "interrupts": app.states.interrupts, "oracles": facts, "conditions": conditions,
                        **({"templates": templates} if templates else {}), "result_contract": RESULT_CONTRACT,
                        **({"condition_evidence_contract": 1} if used_conditions else {}),
-                       **({"read_references_contract": 1} if has_read_ref(case) else {}),
-                       **({"runtime_data_contract": 1} if any(isinstance(v, dict) and "runtime" in v for v in (case.get("test_data") or {}).values()) else {})})[:12]
+                       **({"read_references_contract": 1} if has_read_ref(case) else {})})[:12]
 
 
 # 审核覆盖审阅语义；成熟度/运行记录不使正常晋级或新重放自失效。
