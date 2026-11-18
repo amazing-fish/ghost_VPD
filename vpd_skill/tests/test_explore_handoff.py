@@ -10,6 +10,7 @@ from vpdtest import workspace as workspace_module
 from vpdtest.cli import main
 from vpdtest.execute import Executor
 from vpdtest.util import read_json
+from vpdtest.workspace import RunContext
 
 
 INSTRUCTION = "请核对当前页面，保留原操作结果"
@@ -18,6 +19,13 @@ INSTRUCTION = "请核对当前页面，保留原操作结果"
 def _explore_cli(ws, capsys, monkeypatch, stop=None, *, unknown=False, has_post=False, skip_first=False):
     calls = []
     monkeypatch.setattr(workspace_module, "load_config", lambda: {})
+    observe = RunContext.observe
+
+    def observe_before_takeover(self, *args, **kwargs):
+        assert stop not in calls, "exploration observed the device after the handoff"
+        return observe(self, *args, **kwargs)
+
+    monkeypatch.setattr(RunContext, "observe", observe_before_takeover)
     candidates = [{"label": name, "target": name, "selected": False, "policy": {"allowed": True}}
                   for name in ("alpha", "beta")]
     monkeypatch.setattr(explore_module, "_candidates", lambda *_: candidates)
@@ -36,8 +44,8 @@ def _explore_cli(ws, capsys, monkeypatch, stop=None, *, unknown=False, has_post=
             return {"step_id": sid, "outcome": "passed"}
         if skip_first and sid == "E1":
             return {"step_id": sid, "outcome": "blocked", "attempts": [{"status": "target_unresolved"}]}
-        return {"step_id": sid, "outcome": "passed_after_recovery",
-                "attempts": [{"status": "target_stale"},
+        return {"step_id": sid, "outcome": "passed_after_recovery", "effect_unknown": True,
+                "attempts": [{"status": "target_stale", "effect_unknown": True, "action_required": True},
                              {"status": "ok", "dispatch": {"sent": True}, "post": {"observed": "car_tab"},
                               "obs_before": "obs-from", "obs_after": "obs-to"}]}
 
@@ -89,27 +97,30 @@ def test_unresolved_candidate_without_takeover_is_still_skippable(ws, capsys, mo
     ("explore", False, True), ("regression", False, False), ("explore", True, False),
 ])
 def test_optional_recipe_child_keeps_original_source_and_mode_boundary(monkeypatch, mode, safety, stopped):
-    executor = Executor(SimpleNamespace(mode=mode))
+    flow = {"steps": [{"action": "wait", "critical": False}, {"action": "wait"}]}
+    executor = Executor(SimpleNamespace(mode=mode, params=None, app=SimpleNamespace(flows={"inner": flow})))
     calls = []
 
     def child(step, case_id):
         calls.append(step["id"])
+        if step["action"] == "flow":
+            return executor._flow(step, case_id)
         result = {"step_id": step["id"], "outcome": "passed", "critical": step["critical"],
                   "attempts": [], "recoveries": [], "adapted": False}
-        if step["id"] == "R1.1":
+        if step["id"] == "R1.1.1":
             result.update(outcome="blocked", reason="input missing", action_required=INSTRUCTION,
                           final_status="input_required", effect_unknown=False, final_obs="obs-child")
         return result
 
     monkeypatch.setattr(executor, "run_step", child)
     source = {"id": "R1", "state": "car_tab", "_safety": safety}
-    result = executor._run_children(source, "explore", [{"action": "wait", "critical": False}, {"action": "wait"}],
-                                    {"step_id": "R1", "action": "ensure_state"})
+    children = [{"action": "flow", "flow": "inner", "critical": False}, {"action": "wait"}]
+    result = executor._run_children(source, "explore", children, {"step_id": "R1", "action": "ensure_state"})
     if stopped:
-        assert calls == ["R1.1"] and result["failure_source"] == "R1.1"
+        assert calls == ["R1.1", "R1.1.1"] and result["failure_source"] == "R1.1.1"
         exp = {}
         assert explore_module._stop_for_handoff(exp, result, "car_tab", "reset_candidate")
-        assert exp["action_required"] == INSTRUCTION and exp["exit"]["source_step"] == "R1.1"
+        assert exp["action_required"] == INSTRUCTION and exp["exit"]["source_step"] == "R1.1.1"
         assert exp["exit"]["effect_unknown"] is False
     else:
-        assert calls == ["R1.1", "R1.2"] and "action_required" not in result
+        assert calls == ["R1.1", "R1.1.1", "R1.1.2", "R1.2"] and "action_required" not in result
