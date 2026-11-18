@@ -161,7 +161,11 @@ class Dispatcher:
             result = dev.input_text(*args)
         elif op == "clear_text":
             # 聚合动作只汇总结果；内部物理动作各自计数、检查、记录，外层不重复计数。
-            result = dev.clear_text(*args, dispatcher=self, preconditions=preconditions, att=att)
+            key_conditions = preconditions
+            if tap is not None and "observed_action_epoch" in tap:
+                # 单个按键没有重新定位能力；中途锁屏时保留已发动作，避免解锁后向新的焦点继续删除。
+                key_conditions = {**preconditions, "recover_unlock": False}
+            result = dev.clear_text(*args, dispatcher=self, preconditions=key_conditions, att=att)
         elif op == "wake":
             result = dev.wake()
         elif op == "launch":

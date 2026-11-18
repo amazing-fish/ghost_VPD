@@ -809,7 +809,7 @@ class Executor:
         def pack(loc, obs, tree):
             tap = {"loc": loc, "tree": tree, "target": target, "target_ref": tid, "page": obs["page"],
                    "state_deny": ctx.app.states.deny_for_page(obs["page"]), "layout": obs.get("layout")}
-            if op == "input_text" and require_empty:
+            if op in ("clear_text", "input_text") and require_empty:
                 tap["observed_action_epoch"] = ctx.actions
             return tap
         def refresh():

@@ -316,3 +316,17 @@ def test_unlock_action_after_relocation_invalidates_empty_observation(clear_rig,
     assert att["dispatch"]["sent"] is False and len(result["attempts"]) == 1
     epochs = att["dispatch_recheck"]["checks"]["target_observation"]
     assert epochs["dispatch_epoch"] > epochs["observed_epoch"]
+
+
+def test_lock_during_required_clear_stops_remaining_keys_and_append(clear_rig, monkeypatch):
+    ctx, _ = clear_rig
+    ctx.device.partial_clear = False
+    screen_locked = ctx.device.screen_locked
+    monkeypatch.setattr(ctx.device, "screen_locked",
+                        lambda: True if _counts(ctx.device)["key:delete"] else screen_locked())
+    result = run_input(ctx, require_empty_after_clear=True)
+    assert result["final_status"] == "screen_locked"
+    assert _counts(ctx.device)["key:delete"] == 1 and _counts(ctx.device)["input_text"] == 0
+    assert len(result["attempts"]) == 1
+    att = result["attempts"][0]
+    assert att["clear"]["sent"] is True and att["clear"]["ok"] is False
