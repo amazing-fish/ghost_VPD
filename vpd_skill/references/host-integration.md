@@ -73,10 +73,14 @@ CI 或无人值守执行时不需要 Agent：`.\vpdtest.ps1 suite motor_hm_smoke
 
 ## 人工接管事件与宿主去重（#254）
 
-`run`、`suite`、`act` 等 CLI 返回 `action_required` 时，先处理这条现场指令。stdout 的
+`run`、`suite`、`explore`、`act` 等 CLI 返回 `action_required` 时，先处理这条现场指令。stdout 的
 `human_handoffs` 列出对应的本机事件与源记录；无需有资产偏差或 `host_followup`。
 普通 pending、blocked 或只读断言线索不会触发。用例集指向实际停止的子 run，同一来源和接管指令在同一
 工作区反复读取只产生一个编号。独立新 run/新会话步骤有自己的事件，不按相似文字猜测是否同一事故。
+
+探索在进入已知状态、复位候选或执行候选时收到人工指令会立即收尾。查看 `exploration.json` 或 CLI 的
+`exit.phase/step/source_step` 定位原始步骤（包括 recipe/flow 子步骤），按 `action_required` 处理。
+已经完成的迁移保留；需接管的候选不会记作迁移。事件归属整个探索 run，领取方式与普通用例相同。
 
 1. 先核原命令的 `action_required` 以及源 run 的 `run.json` / report、会话步骤或能力事件。
    事件记录保存在本机 `runs/.human-handoffs/<event_id>.json`，只含编号与源引用。

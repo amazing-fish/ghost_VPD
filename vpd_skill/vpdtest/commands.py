@@ -536,6 +536,7 @@ def cmd_suite(ws: Workspace, a) -> dict:
 def cmd_explore(ws: Workspace, a) -> dict:
     exp = explore(ws, a.app, a.start, a.device, a.budget, a.goal or "", a.prefer)
     return {"run_id": exp["run_id"], "exit": exp["exit"], "coverage": exp["coverage"],
+            **({"action_required": exp["action_required"]} if exp.get("action_required") else {}),
             "transitions": [{k: t[k] for k in ("id", "from", "label", "to", "to_declared")} for t in exp["transitions"]],
             "skipped": len(exp["skipped"]), "anomalies": exp["anomalies"], "report": str(Path(exp["dir"]) / "report.md")}
 

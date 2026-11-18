@@ -49,6 +49,18 @@ def _candidates(ctx, tree, page: dict, layout: dict) -> list:
     return out
 
 
+def _stop_for_handoff(exp, result, state, phase):
+    """Preserve the current step's instruction before any further device call."""
+    if not result.get("action_required"):
+        return False
+    exp["action_required"] = result["action_required"]
+    exp["exit"] = {"reason": "human_handoff", "state": state, "phase": phase,
+                   "step": result["step_id"], "source_step": result.get("failure_source") or result["step_id"],
+                   **{key: result[key] for key in ("effect_unknown", "final_status", "final_obs")
+                      if result.get(key) is not None}}
+    return True
+
+
 def explore(ws: Workspace, app_id: str, start: str, device_spec: Optional[str], budget: int = 30,
             goal: str = "", prefer: Optional[list] = None) -> dict:
     app = ws.app(app_id)
@@ -70,6 +82,8 @@ def explore(ws: Workspace, app_id: str, start: str, device_spec: Optional[str], 
     while pre["ok"] and frontier:
         state = frontier.pop(0)
         home = ex.run_step({"id": f"R{n}", "action": "ensure_state", "state": state}, "explore")
+        if _stop_for_handoff(exp, home, state, "enter_state"):
+            break
         if not home["outcome"].startswith("passed"):
             exp["anomalies"].append(f"无法回到已知状态 {state}：{home.get('reason')}")
             exp["exit"] = {"reason": "reset_failed", "state": state}
@@ -99,10 +113,14 @@ def explore(ws: Workspace, app_id: str, start: str, device_spec: Optional[str], 
                 break
             n += 1
             reset = ex.run_step({"id": f"R{n}", "action": "ensure_state", "state": state}, "explore")
+            if _stop_for_handoff(exp, reset, state, "reset_candidate"):
+                break
             if not reset["outcome"].startswith("passed"):
                 exp["exit"] = {"reason": "reset_failed", "state": state}
                 break
             step = ex.run_step({"id": f"E{n}", "action": "tap", "target": c["target"], "retry": 0}, "explore")
+            if _stop_for_handoff(exp, step, state, "tap_candidate"):
+                break
             att = step["attempts"][-1] if step["attempts"] else {}
             if not (att.get("dispatch") or {}).get("sent") or not att.get("post"):
                 # 没点出去（定位失败、被关口拦下）或点后没有观测：不知道会去哪，不能当成迁移写进记录，

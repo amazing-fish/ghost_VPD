@@ -288,7 +288,7 @@ def main(argv=None) -> int:
     res = out.get("results")
     rows = [out] + ([r for r in res if isinstance(r, dict)] if isinstance(res, list) else [])
     # Other commands can echo arbitrary user-authored data (e.g. knowledge show).
-    if args.cmd in ("run", "suite", "act", "observe", "unlock", "sysdiag") or (
+    if args.cmd in ("run", "suite", "explore", "act", "observe", "unlock", "sysdiag") or (
             args.cmd == "experience" and args.x_cmd == "validate"):
         handoffs = register_handoffs(ws.runs_dir, args.cmd, out, rows)
         if handoffs:
