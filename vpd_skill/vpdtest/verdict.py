@@ -11,7 +11,7 @@ from typing import Callable, Optional
 
 from .outcomes import PASSED, collection_error, error_attribution, execution_error  # noqa: F401 - re-exported
 from .outcomes import stale as _stale
-from .tree import UiTree, intersect
+from .tree import MODAL_TYPES, UiTree, intersect
 
 RANK = {"error": 0, "failed": 1, "blocked": 2, "pending": 3, "passed": 4}
 LABEL = {"passed": "通过", "not_applicable": "不涉及", "failed": "失败", "error": "执行错误", "blocked": "阻塞", "pending": "待确认"}
@@ -249,10 +249,11 @@ def _check(a: dict, obs: dict, tree: UiTree, app) -> tuple:
                 and obs.get("fresh") is True and (obs.get("tree") or {}).get("status") == "ok"
                 and not collection_error(obs) and isinstance(node.attrs.get("text"), str)
                 and isinstance(a.get("expected"), str)):
-            # Ordinary navigation also tolerates a modal covering only an edge.
-            # A partially covered label is insufficient for a host mismatch hint.
-            if not any(layer.idx > node.idx and intersect(node.bounds, tree.visible_rect(layer))
-                       for layer in tree.modal_layers()):
+            # The navigation geometry can drop a dialog whose center is covered
+            # by a later dialog. Its remaining edge may still obscure this node.
+            if not any(layer.type in MODAL_TYPES and tree.visible_lineage(layer)
+                       and (not layer.area or intersect(node.bounds, layer.bounds))
+                       for layer in tree.nodes[node.idx + 1:]):
                 ev["unique_target_text"] = True
         return actual == a["expected"], ev
     raise ValueError(f"未知断言类型 {t}")

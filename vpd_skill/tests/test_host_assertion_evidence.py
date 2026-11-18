@@ -82,7 +82,8 @@ def test_assertion_route_preserves_human_handoff(evidence_run):
     ("mismatch", True), ("empty", True), ("equal", False), ("missing-text", False),
     ("null-text", False), ("ambiguous", False), ("offscreen-duplicate", False),
     ("unpositioned-duplicate", False), ("clipped", False), ("oversized-offscreen", False),
-    ("no-root-bounds", False), ("dialog-crosses-edge", False), ("dialog-beside", True), ("stale", False),
+    ("no-root-bounds", False), ("dialog-crosses-edge", False), ("dialog-beside", True),
+    ("stacked-dialogs", False), ("unpositioned-dialog", False), ("hidden-dialog", True), ("stale", False),
     ("missing-frame", False), ("different-frame", False), ("unsuccessful-step", False),
     ("old-record", False),
 ])
@@ -114,9 +115,17 @@ def test_exact_target_text_handoff_uses_only_bound_readable_evidence(ws, tmp_pat
         fields.append(other)
     search = _node("Search", "[0,0][200,100]", id="search_input", children=fields)
     root = _node("Column", "[0,0][200,100]", id="SearchPoiPage", children=[search])
-    if case in ("dialog-crosses-edge", "dialog-beside"):
-        bounds = "[130,0][200,100]" if case == "dialog-crosses-edge" else "[190,0][200,100]"
-        root["children"].append(_node("Dialog", bounds))
+    if case in ("dialog-crosses-edge", "dialog-beside", "stacked-dialogs", "unpositioned-dialog", "hidden-dialog"):
+        bounds = "[190,0][200,100]" if case == "dialog-beside" else "[130,0][200,100]"
+        dialog = _node("Dialog", bounds)
+        if case == "unpositioned-dialog":
+            del dialog["attributes"]["bounds"]
+        elif case == "hidden-dialog":
+            dialog["attributes"]["visible"] = "false"
+        root["children"].append(dialog)
+        if case == "stacked-dialogs":
+            # Covers the first dialog's center, leaving an edge over the field.
+            root["children"].append(_node("Dialog", "[150,50][180,80]"))
     if case == "no-root-bounds":
         del root["attributes"]["bounds"]
     tree = UiTree(root)
