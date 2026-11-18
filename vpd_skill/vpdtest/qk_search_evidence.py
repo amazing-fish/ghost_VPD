@@ -16,9 +16,9 @@ def _fully_inside(tree, node, row):
     return left <= x1 < x2 <= right and top <= y1 < y2 <= bottom
 
 
-def _other_possible_title(tree, results, row, name):
+def _other_possible_title(tree, results, title, name):
     others = [n for n in tree.nodes if name in (n.text, n.description) and tree.visible_lineage(n)
-              and tree.is_within(n, results) and not tree.is_within(n, row)]
+              and tree.is_within(n, results) and n.idx != title.idx]
     if not others:
         return False
     # Both entity and generic POI cards in the exported trees have a title in
@@ -69,15 +69,16 @@ def inspect_name(app, obs_id, obs, tree, name):
     lists = [n for n in tree.nodes if n.id == "search_list" and tree.visible_lineage(n)]
     if len(lists) != 1 or not tree.is_within(node, lists[0]):
         return {**result, "reason": "result_list_unresolved"}
-    if _other_possible_title(tree, lists[0], node, name):
-        return {**result, "reason": "another_result_may_have_this_name"}
     # The registered selector binds a real title to the actual query. Require its
     # own exact geometry; a clipped optional field must not invalidate this title.
     texts = [n for n in tree.nodes if n.text.strip() and tree.is_within(n, node)]
     titles = [n for n in tree.xpath("//Row/Column[1]/__Common__[1]/Text")
-              if tree.ancestors(n)[2].idx == node.idx and n.text == name]
-    if len(titles) != 1 or not _fully_inside(tree, titles[0], node):
+              if tree.is_within(n, node) and tree.visible_lineage(n)]
+    if (len(titles) != 1 or tree.ancestors(titles[0])[2].idx != node.idx
+            or titles[0].text != name or not _fully_inside(tree, titles[0], node)):
         return {**result, "reason": "row_title_unresolved"}
+    if _other_possible_title(tree, lists[0], titles[0], name):
+        return {**result, "reason": "another_result_may_have_this_name"}
     visible = [n.text for n in texts if _fully_inside(tree, n, node)]
     result["row_texts"] = visible
     result["omitted_text_nodes"] = len(texts) - len(visible)

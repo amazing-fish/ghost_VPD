@@ -87,6 +87,22 @@ def test_name_in_an_unknown_neighbor_role_still_blocks(ws):
     assert report["reason"] == "another_result_may_have_this_name" and "row_texts" not in report
 
 
+@pytest.mark.parametrize("nested_name", ["1号停车点", "另一个地点"])
+def test_nested_generic_poi_cannot_borrow_the_selected_row(ws, nested_name):
+    app, obs_id, name = ws.app("qiankun_hm"), "obs-0056", "1号停车点"
+    tree = _tree(obs_id)
+    obs = observation(app, tree, obs_id)
+    selected = tree.nodes[inspect_name(app, obs_id, obs, tree, name)["row_node"]["idx"]]
+    neighbor = tree.find_text("远望1号停车点")[-1]
+    card = next(n for n in tree.ancestors(neighbor)
+                if n.type == "__Common__" and tree.nodes[n.parent].type == "List")
+    nested = UiTree(deepcopy(_raw(tree, card)))
+    _raw(nested, nested.find_text("远望1号停车点", include_clipped=True)[-1])["attributes"]["text"] = nested_name
+    _raw(tree, selected)["children"].append(nested.raw)
+    report = inspect_name(app, obs_id, obs, UiTree(tree.raw), name)
+    assert report["row_observation"] == "blocked" and "row_texts" not in report
+
+
 def test_neighbor_number_cannot_supply_the_waypoint_field(ws):
     app, obs_id = ws.app("qiankun_hm"), "obs-0056"
     tree = _tree(obs_id)
