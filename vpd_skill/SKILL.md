@@ -33,6 +33,7 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
    `observe` 看页面与可点元素（label/type/id），`act tap|input --select "text=…"` 现场定位，
    或 `--target` 复用已登记目标。失败、被拒、超时都会留在会话里。允许修正定位、处理适用的弹窗、尝试其他入口；
    但如果原路径本身就是测试对象，替代路径成功不能替原路径判通过。
+   资产名称/节点与现场不一致时，先按[资产偏差续行协议](references/asset-drift.md)判断；能安全完成同一目的就通过现有单步能力继续并告知测试人，不把每次改名升级成人工审批。未知效果、安全暂停、未授权副作用仍停止；原 run 不改判。
 5. **固化**：`case from-session --session <s> --new-id <id> --app <app> --goal "<原文>"`。与目标无关的试探可以
    `--drop A4=理由` 排除，失败和效果未知的动作不能静默删掉：已下发后才报错/中断的步骤会保留并被 lint 标出，
    看 obs_after 确认实际效果后写 `effect_reviewed`（或写理由排除）。`--app` 必须与会话记录一致。补齐 purpose / preconditions / assertions

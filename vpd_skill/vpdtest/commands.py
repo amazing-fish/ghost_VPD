@@ -420,7 +420,9 @@ def diagnose(res: dict) -> Optional[dict]:
             out["hint"] = "目标被当前窗口/祖先裁剪：先核对同帧截图与裁剪链，确认属于可滚动内容后再滑动，不据此放宽可见性"
         else:
             out["hint"] = ("当前 UI 树里没有：看截图确认文字；地图等自绘区域（XComponent）不在 UI 树里，选择器无法覆盖；"
-                           "通知横幅盖住的部分也会从树里消失，几秒后重新 observe 再试")
+                           "通知横幅盖住的部分也会从树里消失，几秒后重新 observe 再试。若怀疑资产文字漂移，"
+                           "按 references/asset-drift.md 核对稳定身份与父链，再经现有 act 续行并告知测试人；"
+                           "不能仅按近似名称替换目标")
     elif st == "target_stale":
         out["revalidate"] = last.get("revalidate")
         out["hint"] = "观察与下发之间页面变了：重新 observe 后再决定"
@@ -469,7 +471,9 @@ def cmd_run(ws: Workspace, a) -> dict:
 
 def _run_brief(run: dict) -> dict:
     v = run["verdict"]
+    followup = _host_followup(run)
     return {"run_id": run["run_id"], "case": run["case"]["id"], "verdict": v["verdict"], "label": v["label"],
+            **({"host_followup": followup} if followup else {}),
             "action_required": v.get("action_required"), "product_failed": v.get("product_failed"),
             "product_verdict": v.get("product_verdict"), "execution": v.get("execution"),
             "coverage": v.get("coverage"),
@@ -489,6 +493,52 @@ def _run_brief(run: dict) -> dict:
             "report": str(Path(run["dir"]) / "report.md"),
             "informal": run.get("informal", run["case"].get("status") != "regression"),
             "asset_review": run.get("asset_review")}
+
+
+def _host_followup(run: dict) -> Optional[dict]:
+    """Read-only host routing, never an action grant or an alternative verdict.
+
+    Only bind a terminal top-level failure to its own final attempt/observation.
+    Composite/recovered/unbound evidence is intentionally not guessed here.
+    """
+    rows = []
+    for step in run.get("steps", []):
+        if step.get("outcome") not in ("blocked", "pending", "error", "fail_candidate"):
+            continue
+        status, obs = step.get("final_status"), step.get("final_obs")
+        if status not in ("target_unresolved", "postcondition_not_met") or not obs:
+            continue
+        last = (step.get("attempts") or [{}])[-1]
+        if not last.get("n") or last.get("status") != status or step.get("sub_steps"):
+            continue
+        # A performed/unknown recovery can own different facts. A proven no-op
+        # recovery without a new attempt/post keeps the last attempt binding.
+        if any(r.get("after_attempt") == last["n"] and
+               (r.get("performed") is not False or r.get("post") or r.get("attempt"))
+               for r in step.get("recoveries", [])):
+            continue
+        source_obs = ((last.get("post") or {}).get("obs_id")
+                      if status == "postcondition_not_met" else last.get("obs_before"))
+        if source_obs != obs or not step.get("step_id"):
+            continue
+        rows.append({"step": step["step_id"], "attempt": last["n"], "status": status,
+                     "final_obs": obs})
+    if not rows:
+        return None
+
+    def risk(steps):
+        return any(s.get("action_required") or s.get("effect_unknown") or
+                   risk(s.get("sub_steps", [])) for s in steps)
+
+    human = bool((run.get("verdict") or {}).get("action_required") or run.get("safety_hold") or
+                 risk(run.get("steps", []) + run.get("cleanup", [])))
+    return {"run_id": run["run_id"], "steps": rows,
+            "next": "inspect" if human else "observe_only", "requires_human": human,
+            "guide": "references/asset-drift.md", "read_only": True,
+            "action_authorized": False, "run_budget_inherited": False,
+            "notification_destination": "existing_authorized_task_channel",
+            "note": "先检查完整运行与当前现场；原结论不变。工作机只通过 Issue 必要文字交接。"
+                    "新 session 不继承原 run 预算；未核清累计动作与未解风险时不得物理续行。"}
 
 
 def _operation_conditions(steps: list, phase: str = "steps") -> list:
