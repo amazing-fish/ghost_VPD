@@ -35,6 +35,7 @@ def test_230_reaches_second_search_without_backing_out_of_home(ws, tmp_path, mon
     case = ws.load_case("TC-QK-230")
     ctx = RunContext(ws, app, device, store, ExperienceStore(ws.root, app.id).overlay(), mode="agent")
     ctx.params = Params(case["test_data"], {}, store.run_id)
+    ctx.params.vars.update({"fav_waypoint": "合成回程目标"})
     executor = Executor(ctx)
     results = []
     for step in case["steps"][7:]:
@@ -42,7 +43,7 @@ def test_230_reaches_second_search_without_backing_out_of_home(ws, tmp_path, mon
         results.append(result)
         assert result["outcome"] == "passed", (step["id"], result)
     assert device.current_screen() == "qk_search"
-    assert device.bound["search_q"] == case["test_data"]["fav_waypoint"]
+    assert device.bound["search_q"] == "合成回程目标"
     assert "qk_vpd_home" not in backs
     # Once S8 reached home, navigation has no dispatch or recipe side effects.
     if not keyboard_open:

@@ -14,7 +14,12 @@ def _replace(raw, mapping):
         _replace(child, mapping)
 
 
+FIXTURE = {"fav_spot": "1号车位", "fav_waypoint": "合成路点", "fav_spot_number": "I1", "fav_waypoint_number": "J9"}
+
+
 def _assertions(case, which, rule):
+    from vpdtest.runtime_data import bind_assertion
+    case = {**case, "assertions": [bind_assertion(a, FIXTURE) for a in case["assertions"]]}
     ids = [f"A{which}-state", f"A{which}-query", f"A{which}"]
     return [{**next(a for a in case["assertions"] if a["id"] == aid),
              "at": "S3", "oracle_refs": [rule]} for aid in ids]
@@ -25,7 +30,7 @@ def test_both_production_queries_are_bound_to_their_search_observation(ws):
     for i, data, at in [(1, "fav_spot", "S7"), (2, "fav_waypoint", "S12")]:
         assertions = {a["id"]: a for a in case["assertions"]}
         assert assertions[f"A{i}-state"]["state"] == "qk_spot_search"
-        assert assertions[f"A{i}-query"]["expected"] == case["test_data"][data]
+        assert assertions[f"A{i}-query"]["expected"] == "${var:" + data + "}"
         assert assertions[f"A{i}-query"]["target"] == "qk_search_input"
         assert assertions[f"A{i}"]["within"] == "qk_search_name_result_row"
         assert all(assertions[aid]["at"] == at for aid in (f"A{i}-state", f"A{i}-query", f"A{i}"))
@@ -104,3 +109,4 @@ def test_auxiliary_text_cannot_impersonate_actual_query(ws, tmp_path, which, imp
     results = _evaluate(app, UiTree(tree.raw), _oracle(tmp_path), assertions=assertions)
     assert results[1]["result"] != "pass", results
     assert not all(r["result"] == "pass" for r in results)
+

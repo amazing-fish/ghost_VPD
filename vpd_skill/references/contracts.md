@@ -733,3 +733,31 @@ Executor 使用当前观测的 foreground/layout；Dispatcher 紧邻派发重新
 finished 更新至 proposal 失败时点，started 和取证时间不改。显式手工登记后也受既有执行错误资格限制。
 候选可能已部分写入，因此失败记录不提供 experience_candidates 完成列表；报告明确说明未完成，
 不重试、不回滚、不清理候选库。正常自动生成、propose=False 及运行前 active/trial overlay 门禁不变。
+
+### 运行级非敏感测试数据
+
+`test_data` 中显式声明 `{"runtime": true}` 的字段由单次 `run --data key=value` 提供；
+没有默认值，不改变资产 JSON。所有声明必须一次完整提供，不得覆盖普通静态参数或密钥。
+缺值、多余/重复字段、空值、模板语法、控制字符及超过 512 字符在创建设备之前拒绝。
+`Params` 不把缺失的声明对象或占位符当输入，直接调用路径同样须提供已校验值。
+
+只允许完整 `${var:key}` 出现在顶层 `input.text`、`target_text_equals.expected`，以及
+`exact=true` 的 `text_present/text_absent.text`。不接受目标/选择器、状态、flow/recipe、
+条件、安全、授权或清理字段中的运行参数；不拼接 XPath、正则或其他模板。
+这类资产将 `runtime_data_contract=1` 纳入依赖指纹；审核仍绑定用例内容、依赖、策略及配置，
+引擎源码快照仅用于诊断，不把本轮值当成资产变更。具体值进入每次 `run.json` 的 `runtime_data` 和 `test_data`。`runtime_data.measured=false` 明示
+调用者声明不等于实测，更不能作为产品判据或收藏身份的独立来源。重放摘要保留非空
+运行参数及其声明身份；同一 run_id 变更这些值会报证据冲突，不能伪装成幂等重试。
+不同 run_id 可以使用不同参数，仍须满足原有判据、覆盖与时间顺序门禁。
+
+QK-230 的名称与编号都是本轮参数。可选择当前收藏，或在已经授权的 setup 中设置一个
+本轮名称后独立读回；本用例本身不改收藏，不提供造数或清理动作。调用示例中的值是合成占位：
+
+```powershell
+.\vpdtest.ps1 run TC-QK-230 --device <设备> --data 'fav_spot=本轮车位名称' --data 'fav_spot_number=独立车位编号' --data 'fav_waypoint=本轮路点名称' --data 'fav_waypoint_number=独立路点编号'
+```
+
+传参前记录当前对象的独立来源，不能把搜索返回的编号反填期望。未取得独立编号就不执行，
+不能借用历史 A224/C156 或用地址替代。名称搜索与编号搜索仍分开验收，K-QK-TC-059 未确认
+仍 pending；单栏结果行能力不能证明真实折叠布局。suite/experience 暂不接受运行值，包含此类
+资产时拒绝缺值而不是沿用旧参数；本切片不声称完成批跑、生产值自动读取或真机验收。

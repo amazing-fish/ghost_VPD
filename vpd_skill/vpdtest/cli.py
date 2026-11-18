@@ -96,6 +96,7 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("case")
     r.add_argument("--device")
     r.add_argument("--env", action="append", type=_kv, help="声明环境事实 key=value，如 account_state=logged_out")
+    r.add_argument("--data", action="append", type=_kv, help="本轮声明的非敏感测试数据 key=value；仅限用例显式 runtime 字段，不是独立证据")
     r.add_argument("--trial", help="试用一条经验候选（不采纳）")
     r.add_argument("--record-replay", action="store_true", help="把结果记入用例的 replays（晋级依据）")
     r.add_argument("--authorize", nargs="*", default=[],
