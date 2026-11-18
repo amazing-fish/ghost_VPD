@@ -81,7 +81,8 @@ def test_assertion_route_preserves_human_handoff(evidence_run):
 @pytest.mark.parametrize(("case", "routed"), [
     ("mismatch", True), ("empty", True), ("equal", False), ("missing-text", False),
     ("null-text", False), ("ambiguous", False), ("offscreen-duplicate", False),
-    ("unpositioned-duplicate", False), ("clipped", False), ("stale", False),
+    ("unpositioned-duplicate", False), ("clipped", False), ("oversized-offscreen", False),
+    ("no-root-bounds", False), ("dialog-crosses-edge", False), ("dialog-beside", True), ("stale", False),
     ("missing-frame", False), ("different-frame", False), ("unsuccessful-step", False),
     ("old-record", False),
 ])
@@ -101,6 +102,9 @@ def test_exact_target_text_handoff_uses_only_bound_readable_evidence(ws, tmp_pat
         field["attributes"]["text"] = None
     elif case == "clipped":
         field["attributes"]["bounds"] = "[10,10][240,50]"
+    elif case == "oversized-offscreen":
+        # The generic window heuristic takes the largest node, even this offscreen one.
+        field["attributes"]["bounds"] = "[0,110][500,210]"
     elif case in ("ambiguous", "offscreen-duplicate", "unpositioned-duplicate"):
         other = deepcopy(field)
         if case == "offscreen-duplicate":
@@ -109,7 +113,13 @@ def test_exact_target_text_handoff_uses_only_bound_readable_evidence(ws, tmp_pat
             del other["attributes"]["bounds"]
         fields.append(other)
     search = _node("Search", "[0,0][200,100]", id="search_input", children=fields)
-    tree = UiTree(_node("Column", "[0,0][200,100]", id="SearchPoiPage", children=[search]))
+    root = _node("Column", "[0,0][200,100]", id="SearchPoiPage", children=[search])
+    if case in ("dialog-crosses-edge", "dialog-beside"):
+        bounds = "[130,0][200,100]" if case == "dialog-crosses-edge" else "[190,0][200,100]"
+        root["children"].append(_node("Dialog", bounds))
+    if case == "no-root-bounds":
+        del root["attributes"]["bounds"]
+    tree = UiTree(root)
     definition = {"id": "QUERY", "at": "S3", "type": "target_text_equals",
                   "target": "qk_search_input", "expected": "B", "oracle_refs": []}
     assertion, = _evaluate(ws.app("qiankun_hm"), tree, _oracle(tmp_path, confirmed=False),
