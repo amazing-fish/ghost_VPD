@@ -9,19 +9,25 @@ from .util import read_json, sha256_obj, write_json
 
 def _source(result):
     # A formal run has the same identity in run, suite and experience validate.
-    nested = result.get("handoff") or {}
-    record = result.get("run_id") or result.get("run") or nested.get("run_id")
-    if record:
+    nested = result.get("handoff")
+    record = result.get("run_id") or result.get("run")
+    if not record and isinstance(nested, dict):
+        record = nested.get("run_id")
+    if isinstance(record, str) and record:
         return {"record": record}
-    if result.get("session"):
+    if isinstance(result.get("session"), str) and result["session"]:
         return {"record": result["session"],
                 **{k: result[k] for k in ("seq", "status") if result.get(k) is not None}}
     return None
 
 
+def _link(path):
+    return path.is_symlink() or getattr(path, "is_junction", lambda: False)()
+
+
 def _directory(runs_dir):
     directory = Path(runs_dir) / ".human-handoffs"
-    if directory.resolve() != Path(runs_dir).resolve() / directory.name or directory.is_symlink():
+    if _link(directory) or directory.resolve() != Path(runs_dir).resolve() / directory.name:
         raise ValueError("人工交接目录须位于本工作区的 runs 下")
     return directory
 
@@ -45,7 +51,7 @@ def register_handoffs(runs_dir, command, result, rows):
             continue
         try:
             path = _directory(runs_dir) / (event_id + ".json")
-            if path.is_symlink():
+            if _link(path):
                 raise ValueError("人工交接记录不能是符号链接")
             if path.exists():
                 if read_json(path) != record:
@@ -53,7 +59,7 @@ def register_handoffs(runs_dir, command, result, rows):
             else:
                 # Atomic replacement; concurrent producers of this key write identical bytes.
                 write_json(path, record)
-        except (OSError, ValueError):
+        except (OSError, ValueError, RuntimeError):
             notices.append({**record, "registration": "unavailable"})
         else:
             notices.append(record)
@@ -67,7 +73,7 @@ def cmd_handoff(ws, args):
         raise ValueError("需要已登记的完整 event_id")
     directory = _directory(ws.runs_dir)
     path = directory / (event_id + ".json")
-    if path.is_symlink():
+    if _link(path):
         raise ValueError("人工交接记录不能是符号链接")
     record = read_json(path)
     if not isinstance(record, dict) or record.get("event_id") != event_id or not record.get("source"):
@@ -77,13 +83,13 @@ def cmd_handoff(ws, args):
         try:
             marker.mkdir()
         except FileExistsError:
-            if not marker.is_dir() or marker.is_symlink():
+            if _link(marker) or not marker.is_dir():
                 raise ValueError("人工交接领取记录无效")
             claim = "already_claimed"
         else:
             claim = "acquired"
     else:
-        if marker.is_symlink() or (marker.exists() and not marker.is_dir()):
+        if _link(marker) or (marker.exists() and not marker.is_dir()):
             raise ValueError("人工交接领取记录无效")
         claim = "claimed" if marker.is_dir() else "unclaimed"
     return {"event_id": event_id, "source": record["source"], "claim": claim}

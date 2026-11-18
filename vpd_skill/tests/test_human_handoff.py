@@ -68,6 +68,29 @@ def test_separate_session_steps_and_changed_instruction_do_not_collapse(ws):
     assert one == again and len({one["event_id"], two["event_id"], changed["event_id"]}) == 3
 
 
+def test_static_knowledge_fields_do_not_register_device_interventions(ws, monkeypatch, capsys):
+    from vpdtest.knowledge import KnowledgeStore
+    entry = {"id": "K-TEST", "action_required": "示例文字", "handoff": "非执行记录", "run_id": "example"}
+    monkeypatch.setattr(KnowledgeStore, "get", lambda self, key: entry)
+    # Keep the existing general exit convention even when a data command echoes this field.
+    assert main(["--workspace", str(ws.root), "knowledge", "show", entry["id"]]) == 2
+    assert json.loads(capsys.readouterr().out) == entry
+    assert not (ws.runs_dir / ".human-handoffs").exists()
+
+
+def test_path_resolution_error_preserves_takeover_exit(ws, monkeypatch, capsys):
+    from vpdtest import human_handoff
+
+    def unavailable(_):
+        raise RuntimeError("symlink loop on Python 3.12")
+
+    monkeypatch.setattr(human_handoff, "_directory", unavailable)
+    monkeypatch.setitem(HANDLERS, "unlock", lambda *_: {"run": "unlock-a", "action_required": True})
+    assert main(["--workspace", str(ws.root), "unlock"]) == 2
+    out = json.loads(capsys.readouterr().out)
+    assert out["action_required"] and out["human_handoffs"][0]["registration"] == "unavailable"
+
+
 def test_unbound_and_unwritable_still_report_intervention(ws, monkeypatch, capsys):
     monkeypatch.setitem(HANDLERS, "unlock", lambda *_: {"action_required": True})
     assert main(["--workspace", str(ws.root), "unlock"]) == 2

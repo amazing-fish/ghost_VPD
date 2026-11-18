@@ -287,9 +287,12 @@ def main(argv=None) -> int:
         return 3
     res = out.get("results")
     rows = [out] + ([r for r in res if isinstance(r, dict)] if isinstance(res, list) else [])
-    handoffs = register_handoffs(ws.runs_dir, args.cmd, out, rows)
-    if handoffs:
-        out["human_handoffs"] = handoffs
+    # Other commands can echo arbitrary user-authored data (e.g. knowledge show).
+    if args.cmd in ("run", "suite", "act", "observe", "unlock", "sysdiag") or (
+            args.cmd == "experience" and args.x_cmd == "validate"):
+        handoffs = register_handoffs(ws.runs_dir, args.cmd, out, rows)
+        if handoffs:
+            out["human_handoffs"] = handoffs
     print(dumps(out))
     if (args.cmd == "case" and args.case_cmd == "inspect-scope"
             and out.get("inspection_errors")):
@@ -297,7 +300,7 @@ def main(argv=None) -> int:
     if (args.cmd == "case" and args.case_cmd == "readiness"
             and out.get("summary", {}).get("inspection_errors")):
         return 3  # Report all rows, but never hide an unexpected inspection fault behind exit 0.
-    if handoffs:
+    if any(r.get("action_required") for r in rows):
         return 2  # 需要现场人工接管：任何调用方都不能把它当成普通结论
     verdicts = [r.get("verdict") for r in rows]
     return 1 if set(getattr(args, "fail_on", []) or []) & set(verdicts) else 0
