@@ -3,14 +3,16 @@ from copy import deepcopy
 
 import pytest
 
-from conftest import world
+from conftest import WORLDS, world
 from test_condition_runner import COMMON_RULE
 from test_search_name_row import _locate, _oracle, _raw, _tree
 from vpdtest.cases import content_hash, lint, replay_basis
+from vpdtest.devices.replay import load_world
 from vpdtest.knowledge import KnowledgeStore
 from vpdtest.runner import run_case
 from vpdtest.runtime_data import bind_assertion, prepare
 from vpdtest.tree import UiTree
+from vpdtest.util import write_json
 from vpdtest.verdict import case_verdict, evaluate_assertion
 
 CASE = "TC-QK-230-SPOT-NAME"
@@ -38,10 +40,33 @@ def test_unusable_or_out_of_scope_inputs_stop_before_device_creation(ws, monkeyp
         run_case(ws, CASE, runtime_values=values)
 
 
-def test_normal_runner_keeps_separate_result_observations_and_records_only_a_declaration(ws):
+def _world_with_named_result(ws, tmp_path, name):
+    """Add a renamed historical row to the stock replay world; retain the real app/runner/targets."""
+    fixture = load_world(WORLDS / "qiankun_hm_ready.json")
+    fixture.pop("_path", None)
+    page = fixture["screens"]["qk_search"]["root"]
+    search = page["children"][0]["children"][0]
+    assert search["t"] == "Search"
+    tree = _tree("obs-0046")
+    row = tree.nodes[_locate(ws.app("qiankun_hm"), tree)["attempts"][-1]["node"]["idx"]]
+
+    def replay_node(node):
+        return {"t": node.type, "b": list(node.bounds), "text": name if node.text == "1号车位" else node.text,
+                "children": [replay_node(tree.nodes[child]) for child in node.children]}
+
+    result = {**replay_node(row), "show_if_bound": "search_q"}
+    page["children"] = [search, {"t": "Column", "id": "search_list", "b": [0, 300, 1320, 2000],
+                                 "children": [result]}]
+    path = tmp_path / "spot-name-world.json"
+    write_json(path, fixture)
+    return "replay:" + str(path)
+
+
+@pytest.mark.parametrize("has_row", [False, True], ids=["unrecognized-list", "named-row"])
+def test_normal_runner_keeps_separate_result_observations_and_records_only_a_declaration(ws, tmp_path, has_row):
     name = "可替换的本轮合成车位"
-    run = run_case(ws, CASE, device_spec=world("qiankun_hm_ready.json"),
-                   propose=False, runtime_values={"fav_spot": name})
+    spec = _world_with_named_result(ws, tmp_path, name) if has_row else world("qiankun_hm_ready.json")
+    run = run_case(ws, CASE, device_spec=spec, propose=False, runtime_values={"fav_spot": name})
     assert all(s["outcome"] == "passed" for s in run["steps"]), run["steps"]
     assert all(s["outcome"] == "passed" for s in run["cleanup"]), run["cleanup"]
     assert run["runtime_data"] == {"values": {"fav_spot": name}, "source": "run_arguments", "measured": False}
@@ -51,6 +76,12 @@ def test_normal_runner_keeps_separate_result_observations_and_records_only_a_dec
     for step, tag in (("S4", "first"), ("S5", "second")):
         assert evidence[tag + "-query"]["evidence"]["obs"] == steps[step]["final_obs"]
         assert evidence[tag + "-query"]["evidence"]["actual_text"] == name
+        row = evidence[tag + "-row"]
+        assert row["evidence"]["obs"] == steps[step]["final_obs"]
+        if has_row:
+            assert row["observed_holds"] is True and row["verified"] is False
+        else:
+            assert row["result"] == "undeterminable"
     assert evidence["favorite-identity"]["evidence"]["obs"] == steps["S5"]["final_obs"]
     assert evidence["favorite-identity"]["result"] == "pending"
     assert run["verdict"]["product_verdict"] == "pending"
