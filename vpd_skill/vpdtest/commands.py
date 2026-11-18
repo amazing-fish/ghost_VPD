@@ -506,9 +506,14 @@ def _assertion_followups(run: dict) -> list:
         at = assertion.get("at")
         evidence = assertion.get("evidence") or {}
         obs = observations.get(at)
-        if (assertion.get("type") not in ("text_present", "text_absent", "text_present_any")
-                or assertion.get("applicable") is not True or assertion.get("advisory")
+        if (assertion.get("applicable") is not True or assertion.get("advisory")
                 or not assertion.get("id") or not obs or evidence.get("obs") != obs):
+            continue
+        kind = assertion.get("type")
+        if kind == "target_text_equals":
+            if evidence.get("unique_target_text") is not True or assertion.get("result") != "pending":
+                continue
+        elif kind not in ("text_present", "text_absent", "text_present_any"):
             continue
         if assertion.get("result") == "pending" and assertion.get("observed_holds") is False:
             status = "observation_mismatch"

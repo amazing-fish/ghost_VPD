@@ -239,6 +239,16 @@ def _check(a: dict, obs: dict, tree: UiTree, app) -> tuple:
             return sel == a.get("expected", True), ev
         actual = node.text if node else None
         ev["actual_text"] = actual
+        # Keep the historical assertion verdict. Host handoff needs stronger
+        # provenance: the node's own raw text, including a genuinely empty field.
+        if (hit and hit.get("known_tree_matches") == 1
+                and all(prior["status"] in ("not_found", "skipped_layout")
+                        and not prior.get("known_tree_matches") for prior in loc["attempts"][:-1])
+                and node.parent is not None and tree.visible_lineage(node) and tree.visible_rect(node) == node.bounds
+                and obs.get("fresh") is True and (obs.get("tree") or {}).get("status") == "ok"
+                and not collection_error(obs) and isinstance(node.attrs.get("text"), str)
+                and isinstance(a.get("expected"), str)):
+            ev["unique_target_text"] = True
         return actual == a["expected"], ev
     raise ValueError(f"未知断言类型 {t}")
 

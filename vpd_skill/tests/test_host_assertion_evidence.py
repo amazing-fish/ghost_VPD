@@ -76,3 +76,63 @@ def test_assertion_route_preserves_human_handoff(evidence_run):
     offer = _host_followup(run)
     assert offer["next"] == "inspect" and offer["requires_human"]
     assert not offer["action_authorized"]
+
+
+@pytest.mark.parametrize(("case", "routed"), [
+    ("mismatch", True), ("empty", True), ("equal", False), ("missing-text", False),
+    ("null-text", False), ("ambiguous", False), ("offscreen-duplicate", False),
+    ("unpositioned-duplicate", False), ("clipped", False), ("stale", False),
+    ("missing-frame", False), ("different-frame", False), ("unsuccessful-step", False),
+    ("old-record", False),
+])
+def test_exact_target_text_handoff_uses_only_bound_readable_evidence(ws, tmp_path, case, routed):
+    from test_search_name_row import _evaluate, _node, _oracle
+    from vpdtest.tree import UiTree
+
+    field = _node("SearchField", "[10,10][190,50]", id="__SearchField__search_input", text="A")
+    fields = [field]
+    if case == "equal":
+        field["attributes"]["text"] = "B"
+    elif case == "empty":
+        field["attributes"]["text"] = ""
+    elif case == "missing-text":
+        del field["attributes"]["text"]
+    elif case == "null-text":
+        field["attributes"]["text"] = None
+    elif case == "clipped":
+        field["attributes"]["bounds"] = "[10,10][240,50]"
+    elif case in ("ambiguous", "offscreen-duplicate", "unpositioned-duplicate"):
+        other = deepcopy(field)
+        if case == "offscreen-duplicate":
+            other["attributes"]["bounds"] = "[10,210][190,260]"
+        elif case == "unpositioned-duplicate":
+            del other["attributes"]["bounds"]
+        fields.append(other)
+    search = _node("Search", "[0,0][200,100]", id="search_input", children=fields)
+    tree = UiTree(_node("Column", "[0,0][200,100]", id="SearchPoiPage", children=[search]))
+    definition = {"id": "QUERY", "at": "S3", "type": "target_text_equals",
+                  "target": "qk_search_input", "expected": "B", "oracle_refs": []}
+    assertion, = _evaluate(ws.app("qiankun_hm"), tree, _oracle(tmp_path, confirmed=False),
+                           fresh=case != "stale", assertions=[definition])
+    step = {"step_id": "S3", "outcome": "passed", "final_obs": "result-obs"}
+    if case == "missing-frame":
+        step.pop("final_obs")
+    elif case == "different-frame":
+        step["final_obs"] = "other-obs"
+    elif case == "unsuccessful-step":
+        step["outcome"] = "not_run"
+    elif case == "old-record":
+        assertion["evidence"].pop("unique_target_text", None)
+    run = {"run_id": "test-run", "steps": [step], "assertions": [assertion],
+           "verdict": {"verdict": "pending"}}
+    original = deepcopy(run)
+    offer = _host_followup(run)
+    assert run == original
+    if routed:
+        assert assertion["result"] == "pending" and assertion["observed_holds"] is False
+        assert offer["read_only"] and offer["next"] == "observe_only"
+        assert not offer["action_authorized"] and "notification_sent" not in offer
+        assert offer["assertions"] == [
+            {"id": "QUERY", "step": "S3", "status": "observation_mismatch", "final_obs": "result-obs"}]
+    else:
+        assert offer is None
