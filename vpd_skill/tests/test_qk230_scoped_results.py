@@ -27,7 +27,12 @@ def _assertions(case, which, rule):
 
 def test_both_production_queries_are_bound_to_their_search_observation(ws):
     case = ws.load_case("TC-QK-230")
-    for i, data, at in [(1, "fav_spot", "S7"), (2, "fav_waypoint", "S12")]:
+    steps = {step["id"]: step for step in case["steps"]}
+    for i, data, input_id, at in [(1, "fav_spot", "S6", "S7"), (2, "fav_waypoint", "S11", "S12")]:
+        query = steps[input_id]
+        assert query["action"] == "input" and query["target"] == "qk_search_input"
+        assert query["text"] == "${var:" + data + "}"
+        assert query["clear"] is True and query["require_empty_after_clear"] is True
         assertions = {a["id"]: a for a in case["assertions"]}
         assert assertions[f"A{i}-state"]["state"] == "qk_spot_search"
         assert assertions[f"A{i}-query"]["expected"] == "${var:" + data + "}"
