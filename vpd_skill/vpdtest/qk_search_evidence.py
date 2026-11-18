@@ -16,6 +16,23 @@ def _fully_inside(tree, node, row):
     return left <= x1 < x2 <= right and top <= y1 < y2 <= bottom
 
 
+def _other_possible_title(tree, results, row, name):
+    others = [n for n in tree.nodes if name in (n.text, n.description) and tree.visible_lineage(n)
+              and tree.is_within(n, results) and not tree.is_within(n, row)]
+    if not others:
+        return False
+    # Both entity and generic POI cards in the exported trees have a title in
+    # their first Column. Only their known metadata/route slots can be excluded.
+    cards = ("//Row[count(Column[1]/__Common__[1]/Text)=1]"
+             "[(count(*)=3 and *[1][self::Image] and *[2][self::Column] and *[3][self::Column])"
+             " or (count(*)=2 and *[1][self::Column] and *[2][self::Stack])]")
+    slots = ("/Column[1]/Row/Text", "/Column[1]/Row/Row/Text",
+             "/Column[2][Stack and count(Text)=1]/Text[@text='路线']",
+             "/Stack/Column[Stack and count(Text)=1]/Text[@text='路线']")
+    known = {n.idx for n in tree.xpath(" | ".join(cards + slot + "[not(*)]" for slot in slots))}
+    return any(n.idx not in known or n.text != name for n in others)
+
+
 def inspect_name(app, obs_id, obs, tree, name):
     """The supplied name is a comparison value. Its origin is not authenticated here."""
     result = {"obs_id": obs_id, "source": obs.get("source"), "row_observation": "blocked",
@@ -52,13 +69,13 @@ def inspect_name(app, obs_id, obs, tree, name):
     lists = [n for n in tree.nodes if n.id == "search_list" and tree.visible_lineage(n)]
     if len(lists) != 1 or not tree.is_within(node, lists[0]):
         return {**result, "reason": "result_list_unresolved"}
-    if any(name in (n.text, n.description) and tree.visible_lineage(n)
-           and tree.is_within(n, lists[0]) and not tree.is_within(n, node) for n in tree.nodes):
+    if _other_possible_title(tree, lists[0], node, name):
         return {**result, "reason": "another_result_may_have_this_name"}
     # The registered selector binds a real title to the actual query. Require its
     # own exact geometry; a clipped optional field must not invalidate this title.
     texts = [n for n in tree.nodes if n.text.strip() and tree.is_within(n, node)]
-    titles = [n for n in texts if n.type == "Text" and n.text == name and tree.visible_lineage(n)]
+    titles = [n for n in tree.xpath("//Row/Column[1]/__Common__[1]/Text")
+              if tree.ancestors(n)[2].idx == node.idx and n.text == name]
     if len(titles) != 1 or not _fully_inside(tree, titles[0], node):
         return {**result, "reason": "row_title_unresolved"}
     visible = [n.text for n in texts if _fully_inside(tree, n, node)]

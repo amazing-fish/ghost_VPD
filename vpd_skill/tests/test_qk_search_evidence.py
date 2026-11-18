@@ -64,6 +64,29 @@ def test_uncertain_name_or_scope_blocks_evidence(ws, mutation):
     assert report["favorite_identity"] == "undetermined" and report["number_requirement"] == "pending"
 
 
+@pytest.mark.parametrize("name", ["I1", "L1层", "路线", "175米"])
+def test_name_may_equal_a_known_field_or_action_without_becoming_ambiguous(ws, name):
+    app, obs_id = ws.app("qiankun_hm"), "obs-0046"
+    tree = _tree(obs_id)
+    for n in tree.nodes:
+        if n.text == "1号车位":
+            _raw(tree, n)["attributes"]["text"] = name
+    tree = UiTree(tree.raw)
+    report = inspect_name(app, obs_id, observation(app, tree, obs_id), tree, name)
+    assert report["row_observation"] == "observed", report
+    assert report["favorite_identity"] == "undetermined" and report["number_requirement"] == "pending"
+
+
+def test_name_in_an_unknown_neighbor_role_still_blocks(ws):
+    app, obs_id, name = ws.app("qiankun_hm"), "obs-0056", "1号停车点"
+    tree = _tree(obs_id)
+    neighbor = tree.find_text("16.5公里")[-1]
+    _raw(tree, neighbor)["attributes"].update(type="UnidentifiedLabel", text=name)
+    tree = UiTree(tree.raw)
+    report = inspect_name(app, obs_id, observation(app, tree, obs_id), tree, name)
+    assert report["reason"] == "another_result_may_have_this_name" and "row_texts" not in report
+
+
 def test_neighbor_number_cannot_supply_the_waypoint_field(ws):
     app, obs_id = ws.app("qiankun_hm"), "obs-0056"
     tree = _tree(obs_id)
