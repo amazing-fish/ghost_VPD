@@ -12,7 +12,7 @@ OneBox 第 59 行的期望是“搜索成功，显示结果”。本轮先问两
 python -m vpdtest.qk_search_evidence --evidence-dir <本次本地会话目录> --obs-id <结果观测ID> --name "<独立读回的完整名称>"
 ```
 
-`row_observation=observed` 表示该次保存的搜索页中，输入框的实际文本和一个可完整读取的实体行标题与给定名称一致。已知同名行（包括已在树中但被裁剪的行）、其他形状的同名结果或采集不一致都会阻断。输出的 `row_texts` 仅含该行自身及后代的可见真实文本。当前树不能证明虚拟列表外没有同名对象。退出码 0 表示取到了这条观察，1 表示该行取证受阻，2 表示输入或文件错误。工具固定输出 `favorite_identity=undetermined`、`number_requirement=pending`、`product_verdict=not_evaluated`。
+`row_observation=observed` 表示该次保存的搜索页中，输入框的实际文本和一个可完整读取的实体行标题与给定名称一致。已知同名行（包括已在树中但被裁剪的行）、其他形状的同名结果或采集不一致都会阻断。输出的 `row_texts` 只含该行矩形内完整可见的真实文本。标题完整即可继续记录名称，裁剪的可选字段单独计入 `omitted_text_nodes`。当前树不能证明虚拟列表外没有同名对象。退出码 0 表示取到了这条观察，1 表示该行取证受阻，2 表示输入或文件错误。工具固定输出 `favorite_identity=undetermined`、`number_requirement=pending`、`product_verdict=not_evaluated`。
 
 ## 如何下结论
 

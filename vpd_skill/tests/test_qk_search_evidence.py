@@ -64,6 +64,29 @@ def test_uncertain_name_or_scope_blocks_evidence(ws, mutation):
     assert report["favorite_identity"] == "undetermined" and report["number_requirement"] == "pending"
 
 
+def test_neighbor_number_cannot_supply_the_waypoint_field(ws):
+    app, obs_id = ws.app("qiankun_hm"), "obs-0056"
+    tree = _tree(obs_id)
+    neighbor = tree.find_text("16.5公里")[-1]
+    _raw(tree, neighbor)["attributes"]["text"] = "C63"
+    tree = UiTree(tree.raw)
+    report = inspect_name(app, obs_id, observation(app, tree, obs_id), tree, "1号停车点")
+    assert report["row_observation"] == "observed" and tree.find_text("C63")
+    assert "C63" not in report["row_texts"] and report["number_requirement"] == "pending"
+
+
+def test_clipped_optional_field_is_omitted_without_blocking_the_name(ws):
+    app, obs_id = ws.app("qiankun_hm"), "obs-0046"
+    tree = _tree(obs_id)
+    number = tree.find_text("I1")[-1]
+    _raw(tree, number)["attributes"]["bounds"] = "[100,940][160,987]"
+    tree = UiTree(tree.raw)
+    report = inspect_name(app, obs_id, observation(app, tree, obs_id), tree, "1号车位")
+    assert report["row_observation"] == "observed", report
+    assert "I1" not in report["row_texts"] and report["omitted_text_nodes"] == 1
+    assert report["number_requirement"] == "pending"
+
+
 def test_cli_reads_the_collector_selected_tree_and_returns_no_product_verdict(ws, tmp_path, monkeypatch, capsys):
     app, obs_id = ws.app("qiankun_hm"), "obs-0056"
     tree = _tree(obs_id)

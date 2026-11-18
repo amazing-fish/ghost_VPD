@@ -8,6 +8,14 @@ from .verdict import _check
 from .workspace import Workspace
 
 
+def _fully_inside(tree, node, row):
+    if not node.bounds or not tree.visible_lineage(node) or tree.visible_rect(node) != node.bounds:
+        return False
+    x1, y1, x2, y2 = node.bounds
+    left, top, right, bottom = row.bounds
+    return left <= x1 < x2 <= right and top <= y1 < y2 <= bottom
+
+
 def inspect_name(app, obs_id, obs, tree, name):
     """The supplied name is a comparison value. Its origin is not authenticated here."""
     result = {"obs_id": obs_id, "source": obs.get("source"), "row_observation": "blocked",
@@ -30,9 +38,9 @@ def inspect_name(app, obs_id, obs, tree, name):
         return {**result, "reason": "search_page_not_established"}
 
     for role, target in (("query", "qk_search_input"), ("row", "qk_search_name_result_row")):
-        # This uses the runner's unique scoped target, exact geometry and real text checks.
+        # Keep the runner's unique, fully visible scope checks; fields can be clipped independently.
         holds, evidence = _check({"type": "text_present", "text": name, "exact": True,
-                                  "within": target, "strict_visible_text": True}, obs, tree, app)
+                                  "within": target, "strict_visible_text": role == "query"}, obs, tree, app)
         if holds is not True:
             return {**result, "reason": f"{role}_unresolved", "detail": evidence}
         node = tree.nodes[evidence["within"]["node"]["idx"]]
@@ -47,9 +55,15 @@ def inspect_name(app, obs_id, obs, tree, name):
     if any(name in (n.text, n.description) and tree.visible_lineage(n)
            and tree.is_within(n, lists[0]) and not tree.is_within(n, node) for n in tree.nodes):
         return {**result, "reason": "another_result_may_have_this_name"}
-    # The registered row selector binds the actual SearchField to the entity title.
-    # _check above verified full geometry of each nonempty real text within this row.
-    result["row_texts"] = [n.text for n in tree.nodes if n.text.strip() and tree.is_within(n, node)]
+    # The registered selector binds a real title to the actual query. Require its
+    # own exact geometry; a clipped optional field must not invalidate this title.
+    texts = [n for n in tree.nodes if n.text.strip() and tree.is_within(n, node)]
+    titles = [n for n in texts if n.type == "Text" and n.text == name and tree.visible_lineage(n)]
+    if len(titles) != 1 or not _fully_inside(tree, titles[0], node):
+        return {**result, "reason": "row_title_unresolved"}
+    visible = [n.text for n in texts if _fully_inside(tree, n, node)]
+    result["row_texts"] = visible
+    result["omitted_text_nodes"] = len(texts) - len(visible)
     result["row_observation"] = "observed"
     return result
 
