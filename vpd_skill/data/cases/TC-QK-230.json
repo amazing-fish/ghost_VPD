@@ -1,7 +1,7 @@
 {
   "id": "TC-QK-230",
   "version": 4,
-  "status": "draft",
+  "status": "candidate",
   "app": "qiankun_hm",
   "title": "乾崑 VPD 搜索已收藏车位与路点（原表「搜索收藏信息」L0）",
   "purpose": "OneBox 第 59 行按收藏名称搜索的候选子范围。收藏名称与独立编号由本轮参数设置，不与历史名称耦合。名称/编号搜索不是同一范围，本例不证明编号搜索。按同一观测的实际查询与唯一同行编号核对身份；不点路线、不改收藏。K-QK-TC-059 保持 unconfirmed；未校准真实折叠结果行，不称正式通过。",
@@ -276,6 +276,15 @@
       "ts": "2026-10-24T02:33:22+08:00",
       "to": "draft",
       "why": "PR81 Codex discussion_r4359186336：expect_state 是动作后检查，不能阻止第二次 Back。S9 改用既有 ensure_state；合成键盘展开/未展开两路径验证导航。另纠正原表完整映射与历史fixture声明，保留结果行身份/判据覆盖缺口。v1历史工作机重放不支撑v2；家庭机尚未检测到NEXT，无本版本1395实机证据"
+    },
+    {
+      "ts": "2026-11-18T16:38:08.435+09:00",
+      "from": "draft",
+      "to": "candidate",
+      "by": null,
+      "hash": "477d53752b4a",
+      "replays": [],
+      "product_status": null
     }
   ],
   "origin": {
