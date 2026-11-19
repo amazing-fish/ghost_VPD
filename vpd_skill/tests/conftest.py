@@ -1,4 +1,5 @@
 """ws 用于生产资产集成；verdict_ws 独立构造合成知识/用例，避免产品治理改变判定契约。"""
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -15,6 +16,14 @@ from vpdtest.util import read_json, write_json  # noqa: E402
 from vpdtest.workspace import Workspace  # noqa: E402
 
 WORLDS = SKILL / "fixtures" / "worlds"
+_READONLY_KNOWLEDGE_DIRS = frozenset({"auto-vpd", "project-memory", "sources", "text_cases", "vpd-kpi"})
+
+
+def _link_or_copy(src: str, dst: str) -> None:
+    try:
+        os.link(src, dst)
+    except OSError:
+        shutil.copyfile(src, dst)
 
 
 @pytest.fixture(autouse=True)
@@ -25,16 +34,47 @@ def isolate_console_scan_cache(monkeypatch):
     monkeypatch.setattr(progress, "_SCANS", {})
 
 
-@pytest.fixture
-def ws(tmp_path) -> Workspace:
-    shutil.copytree(SKILL / "data", tmp_path / "data")
-    shutil.copytree(SKILL / "fixtures", tmp_path / "fixtures")
+@pytest.fixture(scope="session")
+def _ws_seed(tmp_path_factory) -> Path:
+    """在 tmp_path 所在同一卷上建立一次只读种子，避免每个用例重复拷贝 1.4MB 静态资产。"""
+    seed = tmp_path_factory.mktemp("ws_seed")
+    shutil.copytree(SKILL / "data", seed / "data",
+                    ignore=shutil.ignore_patterns(".case-locks", ".store-locks"))
+    shutil.copytree(SKILL / "fixtures", seed / "fixtures")
     # 单元夹具隔离作者运行产生的XP候选；生产items/ledger不变，真实候选加载另有测试。
-    for exp_dir in (tmp_path / "data" / "experience").iterdir():
+    for exp_dir in (seed / "data" / "experience").iterdir():
         if exp_dir.is_dir():
             (exp_dir / "items.json").write_text('{"items": []}', encoding="utf-8")
             (exp_dir / "ledger.jsonl").write_text("", encoding="utf-8")
-    w = Workspace(str(tmp_path / "data"))
+    return seed
+
+
+@pytest.fixture
+def ws(tmp_path, _ws_seed) -> Workspace:
+    # 只读参考目录与仅走原子 os.replace 写盘的 cases/*.json 使用同卷硬链接，
+    # experience/apps/suites/items.json/policy.json 等仍保持独立文件拷贝。
+    shutil.copytree(_ws_seed / "fixtures", tmp_path / "fixtures", copy_function=_link_or_copy)
+    data_dst = tmp_path / "data"
+    data_dst.mkdir()
+    for child in (_ws_seed / "data").iterdir():
+        target = data_dst / child.name
+        if child.is_file():
+            shutil.copyfile(child, target)
+        elif child.name == "cases":
+            shutil.copytree(child, target, copy_function=_link_or_copy)
+        elif child.name == "knowledge":
+            target.mkdir()
+            for kchild in child.iterdir():
+                kt = target / kchild.name
+                if kchild.is_file():
+                    shutil.copyfile(kchild, kt)
+                elif kchild.name in _READONLY_KNOWLEDGE_DIRS:
+                    shutil.copytree(kchild, kt, copy_function=_link_or_copy)
+                else:
+                    shutil.copytree(kchild, kt, copy_function=shutil.copyfile)
+        else:
+            shutil.copytree(child, target, copy_function=shutil.copyfile)
+    w = Workspace(str(data_dst))
     w.config.pop("secrets", None)  # 测试不读本机 config.local.json 里的真实密钥
     w.config.pop("device", None)
     return w
