@@ -204,7 +204,7 @@ def dependency_hash(case: dict, app, knowledge) -> str:
                        "interrupts": app.states.interrupts, "oracles": facts, "conditions": conditions,
                        **({"templates": templates} if templates else {}), "result_contract": RESULT_CONTRACT,
                        **({"condition_evidence_contract": 1} if used_conditions else {}),
-                       **({"read_references_contract": 1} if has_read_ref(case) else {})})[:12]
+                       **({"read_references_contract": 2} if has_read_ref(case) else {})})[:12]
 
 
 # 审核覆盖审阅语义；成熟度/运行记录不使正常晋级或新重放自失效。
@@ -248,17 +248,45 @@ def review_context(ws, app) -> dict:
             "system_dialogs": read_json(ws.root / "system_dialogs.json", {}), "templates": templates}
 
 
-def _review_binding(ws, case: dict, app, knowledge, policy, context=None) -> dict:
-    """人审绑定的是用例、依赖、策略和配置；引擎源码不在其中。
+def _may_use_template(value):
+    """Conservatively detect known or dynamic template strategies in declarations."""
+    if isinstance(value, str):
+        return "${" in value
+    if isinstance(value, dict):
+        return value.get("kind") == "template" or any(_may_use_template(v) for v in value.values())
+    if isinstance(value, (list, tuple)):
+        return any(_may_use_template(v) for v in value)
+    return False
 
-    结果语义的变化通过 RESULT_CONTRACT 进入 dependency_hash，显式地让旧审核和旧重放失效；
-    纯重构、注释或无关模块的改动不再让全部人审过期。引擎文件差异仍由 engine_snapshot 诊断展示。
+
+def _can_ignore_unreferenced_templates(case, app, context):
+    declarations = ({k: v for k, v in case.items() if k not in REVIEW_METADATA},
+                    app.meta, app.targets, app.flows, app.states.states,
+                    app.states.interrupts, app.states.recipes, context.get("layout"),
+                    context.get("system_dialogs"))
+    return not _may_use_template(declarations)
+
+
+def _review_binding(ws, case: dict, app, knowledge, policy, context=None, *, context_schema=2) -> dict:
+    """Bind new reviews narrowly only when no template strategy can be declared.
+
+    Legacy bindings keep their original full-context algorithm: their digest alone
+    cannot prove which historical files were unused. Unknown schemas fail closed.
     """
     context = review_context(ws, app) if context is None else context
-    return {"case_id": case["id"], "content_hash": content_hash(case),
-            "dependency_hash": dependency_hash(case, app, knowledge),
-            "review_hash": sha256_obj({k: v for k, v in case.items() if k not in REVIEW_METADATA}),
-            "policy_hash": policy.hash, "context_hash": sha256_obj(context)}
+    if context_schema not in (1, 2) or type(context_schema) is not int:
+        raise ValueError("unsupported review context schema")
+    bound_context = context
+    if context_schema == 2:
+        if _can_ignore_unreferenced_templates(case, app, context):
+            bound_context = {**context, "templates": {}}
+    result = {"case_id": case["id"], "content_hash": content_hash(case),
+              "dependency_hash": dependency_hash(case, app, knowledge),
+              "review_hash": sha256_obj({k: v for k, v in case.items() if k not in REVIEW_METADATA}),
+              "policy_hash": policy.hash, "context_hash": sha256_obj(bound_context)}
+    if context_schema == 2:
+        result["context_schema"] = 2
+    return result
 
 
 def _complete_review(record) -> bool:
@@ -300,13 +328,29 @@ def review_status(ws, case: dict, knowledge=None, app=None, policy=None, context
     policy = policy or ws.policy()
     signals = exploration_signals(case)
     files = review_snapshot.engine_files(Path(__file__).parent)
-    binding = _review_binding(ws, case, app, knowledge, policy, context)
     record = case.get("asset_review")
+    recorded_binding = record.get("binding") if isinstance(record, dict) else None
+    schema = recorded_binding.get("context_schema", 1) if isinstance(recorded_binding, dict) else 2
+    # Unknown or malformed schema cannot confer an approval; compare against the
+    # current format without silently downgrading it to the legacy algorithm.
+    schema_valid = type(schema) is int and schema in (1, 2)
+    schema = schema if schema_valid else 2
+    context = review_context(ws, app) if context is None else context
+    binding = _review_binding(ws, case, app, knowledge, policy, context, context_schema=schema)
+    if (schema == 1 and schema_valid and isinstance(recorded_binding, dict)
+            and binding != recorded_binding and _can_ignore_unreferenced_templates(case, app, context)):
+        # A legacy digest can prove the original context had an empty template
+        # manifest only if the complete original binding matches this alternate.
+        # Do not infer or reconstruct any nonempty historical manifest.
+        empty_context = {**context, "templates": {}}
+        prior_empty = _review_binding(ws, case, app, knowledge, policy, empty_context, context_schema=1)
+        if prior_empty == recorded_binding:
+            binding = prior_empty
     complete = _complete_review(record)
     withdrawal_required, revoked, revocation = _withdrawal(case, record)
     lineage_issues = oracle_lineage_issues(case, knowledge)
     required = bool(signals) or withdrawal_required or bool(lineage_issues)
-    valid = bool(complete and not revoked and record.get("binding") == binding and not lineage_issues)
+    valid = bool(complete and schema_valid and not revoked and record.get("binding") == binding and not lineage_issues)
     evidence_verification = None
     if complete and record.get("review_kind") == "agent":
         from .review_routing import definition_blocker

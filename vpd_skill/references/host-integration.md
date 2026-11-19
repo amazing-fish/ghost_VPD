@@ -89,3 +89,10 @@ CI 或无人值守执行时不需要 Agent：`.\vpdtest.ps1 suite motor_hm_smoke
    记录渠道提交结果和可用回执。工作机仅通过既有 Issue 提交必要文字。
    WeLink 定向提醒须复用外部 bot，使用明确授权的收件对象与形式。发送接口接受请求也不能证明已送达。
    本命令不调用发送器，不用默认群，不授予通信或设备操作权限。
+## HDC 版本号解析
+
+`bm dump -n <目标包>` 的目标 BundleInfo 顶层 `versionName` 才是本次前置检查的应用版本；
+内嵌对象可能包含自己的同名字段，不按出现顺序选择。带包名前缀或顶层 name 时，必须与查询包一致。
+旧式片段只有一个不同的非空版本时保持兼容；多个不同版本、不匹配的包名或结构化输出缺顶层版本
+返回未知并给出 `app_version_ambiguous`、`app_version_bundle_mismatch` 或 `app_version_unavailable`。
+它们不是 APP 缺失的证据，也不自动扩大用例适用范围；现场格式仍须在工作机验证。

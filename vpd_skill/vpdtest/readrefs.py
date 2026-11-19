@@ -156,7 +156,10 @@ def qualify(tree, loc, step, obs, measurement):
             or loc.get("status") != "found" or not tree or tree.status != "ok"
             or obs.get("fresh") is False or (obs.get("tree") or {}).get("status") == "stale"):
         return out
-    hit = next((a.get("node") for a in loc.get("attempts", []) if a.get("status") == "found"), None)
+    attempt = next((a for a in loc.get("attempts", []) if a.get("status") == "found"), None) or {}
+    hit = attempt.get("node")
+    if attempt.get("known_tree_matches") != 1:
+        return {**out, "reason": "读取来源在当前树的范围内不唯一或唯一性未知"}
     if not hit or type(hit.get("idx")) is not int or not 0 <= hit["idx"] < len(tree.nodes):
         return out
     node = tree.nodes[hit["idx"]]

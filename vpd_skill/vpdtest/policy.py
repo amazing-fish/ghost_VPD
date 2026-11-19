@@ -155,7 +155,7 @@ class Policy:
     def check_tap(self, tree: Optional[UiTree], point: tuple, basis: str, target: Optional[dict] = None,
                   state_deny: Optional[list] = None, authorized: Optional[set] = None, node=None,
                   confirmation_sources: list | None = None, layout: dict | None = None,
-                  foreground: str | None = None) -> dict:
+                  foreground: str | None = None, scroll_scope=None) -> dict:
         """判定一次点击。返回 {allowed, reason, label, deny}；不会抛异常。
         task 类随测试任务许可；其他类使用 authorized。只放行"目标声明了同一副作用"的命中。
         confirmation_sources 保持旧参数名，承载 StateModel 当前页面/弹窗动作依据，
@@ -231,7 +231,15 @@ class Policy:
         if hit_type and not target.get("allow_node_type"):
             return {"allowed": False, "reason": f"控件类型 {sorted(hit_type)} 会直接改变设置，需目标显式声明 allow_node_type",
                     "label": None, "deny": {"class": "setting_change", "types": sorted(hit_type)}}
-        texts = tree.subtree_texts(container) + [node.text, node.description]
+        # A validated relative swipe passes its scroll scope, not a tap target.
+        # Only the non-clickable scope itself has non-actionable descendants:
+        # labels elsewhere in the list do not describe dragging its blank area.
+        # Crossed children/actual receivers still use the full tap semantics.
+        scope_only = (node is scroll_scope and container is scroll_scope
+                      and not node.clickable and node.scrollable
+                      and node.parent is not None and node.type in ("Scroll", "List", "Grid"))
+        texts = ([container.text, container.description] if scope_only
+                 else tree.subtree_texts(container)) + [node.text, node.description]
         texts = [t for t in texts if t]
         label = (texts[0] if texts else "")[:40]
         hits = self.match_all(texts, state_deny)

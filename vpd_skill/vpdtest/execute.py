@@ -1172,7 +1172,7 @@ class Executor:
                 checked.add(current.idx)
                 policy = ctx.policy.check_tap(tree, pt, "tree", target,
                                               ctx.app.states.deny_for_page(obs["page"]), ctx.authorized,
-                                              node=current)
+                                              node=current, scroll_scope=scope)
                 if not policy["allowed"]:
                     att["policy"] = policy
                     info["policy_node"] = current.brief()
