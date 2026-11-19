@@ -151,10 +151,6 @@ def session_lock(session_dir: Path, timeout_s: float = 30):
     """跨进程互斥完整会话操作；进程退出由 OS 释放，锁文件无需删除或猜测陈旧性。"""
     session_dir.mkdir(parents=True, exist_ok=True)
     with (session_dir / ".session.lock").open("a+b") as handle:
-        handle.seek(0, os.SEEK_END)
-        if handle.tell() == 0:
-            handle.write(b"\0")
-            handle.flush()
         deadline = time.monotonic() + timeout_s
         while True:
             try:
@@ -171,6 +167,13 @@ def session_lock(session_dir: Path, timeout_s: float = 30):
                     raise TimeoutError("同一会话正在执行另一个操作，等待会话锁超时")
                 time.sleep(0.05)
         try:
+            # Windows can lock byte 0 beyond EOF; POSIX flock does not need
+            # any file content. Initialize the legacy marker only under that
+            # lock, or a first-use contender may be denied while flushing it.
+            handle.seek(0, os.SEEK_END)
+            if handle.tell() == 0:
+                handle.write(b"\0")
+                handle.flush()
             yield
         finally:
             handle.seek(0)
