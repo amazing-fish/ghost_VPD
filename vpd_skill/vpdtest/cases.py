@@ -18,7 +18,7 @@ from . import review_snapshot
 from .knowledge import ACTIVE, item_status
 from .safety import TREE_KINDS, untreed_strategies
 from .session import relative_scope_target, session_lock, swipe_options_error, swipe_scope_definition_error
-from .util import now_iso, read_json, sha256_file, sha256_obj, write_json
+from .util import now_iso, read_json, sha256_file, sha256_obj, validate_stable_id, write_json
 
 REQUIRED = ("purpose", "preconditions", "test_data", "steps", "assertions", "cleanup", "sources")
 CONTENT_KEYS = ("app", "preconditions", "env_requirements", "test_data", "steps", "assertions", "cleanup")
@@ -399,8 +399,7 @@ def require_review(ws, case: dict, knowledge=None, app=None, policy=None, contex
 
 def validate_case_id(case_id: str) -> None:
     """The shared stable identity contract for general case creation and lifecycle."""
-    if not isinstance(case_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", case_id):
-        raise ValueError("用例 ID 不能是路径，须为字母/数字开头的稳定 ID")
+    validate_stable_id(case_id, error_message="用例 ID 不能是路径，须为字母/数字开头的稳定 ID")
 
 
 def _case_update(function):

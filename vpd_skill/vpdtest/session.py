@@ -14,16 +14,13 @@ from __future__ import annotations
 
 import json
 import math
-import os
 import re
-import time
-from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
 
 from .dispatch import auxiliary_dispatches, dispatch_effect_unknown
 from .tree import UiTree
-from .util import now_iso, read_json, read_jsonl, read_jsonl_recoverable
+from .util import now_iso, read_json, read_jsonl, read_jsonl_recoverable, session_lock
 
 SELECT_RE = re.compile(r"^(text~|text|id|xpath)=(.+)$", re.S)
 # 结构性导航容器：App 的"壳"，跨构建稳定且容易撞文案（页面标题、新页面控件与 TabBar 的 tab 同名是
@@ -144,43 +141,6 @@ def parse_select(spec: str, within: Optional[str] = None, side_effect: str = "na
     if allow_input:
         target["allow_input"] = True
     return target
-
-
-@contextmanager
-def session_lock(session_dir: Path, timeout_s: float = 30):
-    """跨进程互斥完整会话操作；进程退出由 OS 释放，锁文件无需删除或猜测陈旧性。"""
-    session_dir.mkdir(parents=True, exist_ok=True)
-    with (session_dir / ".session.lock").open("a+b") as handle:
-        deadline = time.monotonic() + timeout_s
-        while True:
-            try:
-                handle.seek(0)
-                if os.name == "nt":
-                    import msvcrt
-                    msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
-                else:
-                    import fcntl
-                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                break
-            except OSError:
-                if time.monotonic() >= deadline:
-                    raise TimeoutError("同一会话正在执行另一个操作，等待会话锁超时")
-                time.sleep(0.05)
-        try:
-            # Windows can lock byte 0 beyond EOF; POSIX flock does not need
-            # any file content. Initialize the legacy marker only under that
-            # lock, or a first-use contender may be denied while flushing it.
-            handle.seek(0, os.SEEK_END)
-            if handle.tell() == 0:
-                handle.write(b"\0")
-                handle.flush()
-            yield
-        finally:
-            handle.seek(0)
-            if os.name == "nt":
-                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
-            else:
-                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 def next_seq(store) -> int:

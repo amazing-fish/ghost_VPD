@@ -8,12 +8,65 @@ import re
 import tempfile
 import time
 import uuid
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 SKILL_ROOT = Path(__file__).resolve().parent.parent
 _MISSING = object()
+_STABLE_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
+_WINDOWS_RESERVED_NAMES = {
+    "CON", "PRN", "AUX", "NUL",
+    *(f"COM{i}" for i in range(1, 10)),
+    *(f"LPT{i}" for i in range(1, 10)),
+}
+
+
+def validate_stable_id(value: str, *, error_message: str = "ID 不能是路径，须为字母/数字开头的稳定 ID") -> None:
+    """跨平台稳定文件名 ID 契约：拒绝对路径/遍历、尾随点或空格、超长及 Windows 保留设备名。"""
+    if (not isinstance(value, str) or not value or len(value) > 128
+            or not _STABLE_ID_RE.fullmatch(value)
+            or value.endswith(".")
+            or value.split(".", 1)[0].upper() in _WINDOWS_RESERVED_NAMES):
+        raise ValueError(error_message)
+
+
+@contextmanager
+def session_lock(lock_dir: Path, timeout_s: float = 30):
+    """跨进程互斥目录操作；进程退出由 OS 释放，锁文件无需删除或猜测陈旧性。"""
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    with (lock_dir / ".session.lock").open("a+b") as handle:
+        deadline = time.monotonic() + timeout_s
+        while True:
+            try:
+                handle.seek(0)
+                if os.name == "nt":
+                    import msvcrt
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError("同一会话正在执行另一个操作，等待会话锁超时")
+                time.sleep(0.05)
+        try:
+            # Windows can lock byte 0 beyond EOF; POSIX flock does not need
+            # any file content. Initialize the legacy marker only under that
+            # lock, or a first-use contender may be denied while flushing it.
+            handle.seek(0, os.SEEK_END)
+            if handle.tell() == 0:
+                handle.write(b"\0")
+                handle.flush()
+            yield
+        finally:
+            handle.seek(0)
+            if os.name == "nt":
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 def now_iso() -> str:
@@ -44,10 +97,18 @@ def write_json(path, data: Any, exclusive: bool = False) -> Path:
             f.write(text)
         return p
     fd, tmp = tempfile.mkstemp(dir=str(p.parent), suffix=".tmp")
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        f.write(text)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(text)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
     # Windows can briefly deny replacement while another process holds the file.
-    # Retry the same atomic operation, never truncate/fallback; persistent denial still raises.
+    # Retry the same atomic operation, never truncate/fallback; persistent denial still raises
+    # and preserves the staged .tmp file as forensic evidence (see test_atomic_json.py).
     for attempt in range(5):
         try:
             os.replace(tmp, p)
