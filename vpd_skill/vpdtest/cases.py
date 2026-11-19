@@ -204,7 +204,7 @@ def dependency_hash(case: dict, app, knowledge) -> str:
                        "interrupts": app.states.interrupts, "oracles": facts, "conditions": conditions,
                        **({"templates": templates} if templates else {}), "result_contract": RESULT_CONTRACT,
                        **({"condition_evidence_contract": 1} if used_conditions else {}),
-                       **({"read_references_contract": 1} if has_read_ref(case) else {})})[:12]
+                       **({"read_references_contract": 2} if has_read_ref(case) else {})})[:12]
 
 
 # 审核覆盖审阅语义；成熟度/运行记录不使正常晋级或新重放自失效。

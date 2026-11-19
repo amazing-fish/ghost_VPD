@@ -31,14 +31,20 @@ def ordered_strategies(target: dict, overlay_pref: Optional[int] = None) -> list
     return strategies
 
 
-def _nodes_for(strategy: dict, tree: UiTree) -> list:
-    kind = strategy["kind"]
+def _nodes_for(strategy: dict, tree: UiTree, *, include_unpositioned: bool = False) -> list:
+    kind, value = strategy["kind"], strategy["value"]
     if kind == "xpath":
-        return tree.xpath(strategy["value"])
+        return tree.xpath(value)
     if kind == "text":
-        return tree.find_text(strategy["value"], exact=strategy.get("exact", True), include_clipped=True)
+        exact = strategy.get("exact", True)
+        if not include_unpositioned:
+            return tree.find_text(value, exact=exact, include_clipped=True)
+        return [n for n in tree.nodes if ((n.text == value or n.description == value) if exact
+                                         else (value in n.text or value in n.description))]
     if kind == "id":
-        return tree.find_id(strategy["value"], include_clipped=True)
+        if not include_unpositioned:
+            return tree.find_id(value, include_clipped=True)
+        return [n for n in tree.nodes if value in (n.id, n.attrs.get("key", ""))]
     raise ValueError(f"未知策略 {kind}")
 
 
@@ -57,7 +63,14 @@ def _tree_attempt(rec: dict, s: dict, tree: UiTree, layout: Optional[dict], min_
         rec.update(status="not_found", reason=f"限定范围 {s['within']} 在当前页面不存在")
         return
     box = tree.region_box(s["region"]) if s.get("region") else None
-    nodes = [n for n in _nodes_for(s, tree) if n.visible and tree.in_scope(n, scope)]
+    # Resolve once: ordinary navigation retains its visible-node behavior, but
+    # referenced reads also need to see known offscreen/unpositioned matches.
+    known = _nodes_for(s, tree, include_unpositioned=True)
+    nodes = [n for n in known if n.visible and tree.in_scope(n, scope)]
+    rec["known_tree_matches"] = sum(
+        1 for n in known if tree.in_scope(n, scope) and tree.visible_lineage(n)
+        and (n.center is None or in_box(n.center, box))
+    )
     shown = []
     for n in nodes:
         v = tree.visibility(n)

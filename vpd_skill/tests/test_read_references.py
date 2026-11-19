@@ -311,3 +311,99 @@ def test_referenced_source_locator_unknown_and_error_remain_distinct(condition_r
     assert run["steps"][1]["outcome"] == expected, run["steps"][1]
     assert run["steps"][2]["outcome"] == "not_run"
     assert _dispatch(run) == []
+
+@pytest.mark.parametrize('case', ['offscreen', 'clipped', 'same_value'])
+def test_known_duplicate_source_cannot_qualify_even_if_only_one_is_visible(case):
+    source1 = {'t': 'Text', 'id': 'read', 'text': 'first', 'b': [0, 0, 100, 40]}
+    source2 = {'t': 'Text', 'id': 'read', 'text': 'first' if case == 'same_value' else 'second',
+               'b': [0, 500, 100, 540]}
+    if case == 'clipped':
+        source2['b'] = [0, 80, 100, 120]
+        container = {'t': 'List', 'b': [0, 0, 100, 60], 'children': [source1, source2]}
+        children = [container]
+    else:
+        children = [source1, source2]
+    tree = UiTree(expand({'t': 'Column', 'b': [0, 0, 100, 100], 'children': children}, BUNDLE))
+    loc = resolve('read', {'strategies': [{'kind': 'id', 'value': 'read'}]}, tree, None, Path('.'))
+    step = {'id': 'R1', 'read_scope': 'self'}
+    assert loc['status'] == 'found'  # ordinary UI navigation keeps its existing contract
+    binding = qualify(tree, loc, step, {'obs_id': 'o', 'tree': {'status': 'ok'}}, _measure(tree, loc, step))
+    assert binding['status'] == 'unavailable', binding
+
+
+def test_hidden_ancestor_duplicate_does_not_block_eligible_source():
+    shown = {'t': 'Text', 'id': 'read', 'text': 'first', 'b': [0, 0, 100, 40]}
+    hidden = {'t': 'Column', 'b': [0, 500, 100, 590], 'attrs': {'visible': 'false'},
+              'children': [{'t': 'Text', 'id': 'read', 'text': 'hidden', 'b': [0, 500, 100, 590]}]}
+    tree = UiTree(expand({'t': 'Column', 'b': [0, 0, 100, 100], 'children': [shown, hidden]}, BUNDLE))
+    loc = resolve('read', {'strategies': [{'kind': 'id', 'value': 'read'}]}, tree, None, Path('.'))
+    step = {'id': 'R1', 'read_scope': 'self'}
+    assert loc['status'] == 'found'
+    assert qualify(tree, loc, step, {'obs_id': 'o'}, _measure(tree, loc, step))['status'] == 'available'
+
+
+def test_same_id_outside_explicit_scope_does_not_block_read():
+    in_scope = {'t': 'Text', 'id': 'read', 'text': 'first', 'b': [0, 0, 100, 40]}
+    out_scope = {'t': 'Text', 'id': 'read', 'text': 'second', 'b': [100, 500, 200, 540]}
+    container = {'t': 'Column', 'id': 'source_scope', 'b': [0, 0, 100, 100], 'children': [in_scope]}
+    tree = UiTree(expand({'t': 'Column', 'b': [0, 0, 200, 100], 'children': [container, out_scope]}, BUNDLE))
+    target = {'strategies': [{'kind': 'id', 'value': 'read', 'within': {'id': 'source_scope'}}]}
+    loc = resolve('read', target, tree, None, Path('.'))
+    step = {'id': 'R1', 'read_scope': 'self'}
+    assert loc['status'] == 'found'
+    assert qualify(tree, loc, step, {'obs_id': 'o'}, _measure(tree, loc, step))['status'] == 'available'
+
+
+def test_ambiguous_read_source_stops_dependent_input(condition_rig):
+    ws, case, spec = _rig(condition_rig)
+    path = Path(spec.split(':', 1)[1])
+    data = read_json(path)
+    data['screens']['dashboard']['root']['children'].append(
+        {'t': 'Text', 'id': 'source', 'text': 'different', 'b': [10, 1440, 360, 1480]})
+    write_json(path, data)
+    run = run_case(ws, case=case, device_spec=spec, propose=False)
+    assert run['steps'][1]['read_binding']['status'] == 'unavailable', run['steps'][1]
+    assert run['steps'][1]['outcome'] == 'pending'
+    assert run['steps'][2]['outcome'] == 'not_run'
+    assert _dispatch(run) == []
+    assert run['verdict']['product_verdict'] == 'pending'
+
+
+def test_source_uniqueness_honors_explicit_region():
+    left = {'t': 'Text', 'id': 'read', 'text': 'left', 'b': [0, 0, 40, 40]}
+    right = {'t': 'Text', 'id': 'read', 'text': 'right', 'b': [60, 0, 100, 40]}
+    tree = UiTree(expand({'t': 'Column', 'b': [0, 0, 100, 100], 'children': [left, right]}, BUNDLE))
+    target = {'strategies': [{'kind': 'id', 'value': 'read', 'region': [0.0, 0.0, 0.5, 1.0]}]}
+    loc = resolve('read', target, tree, None, Path('.'))
+    step = {'id': 'R1', 'read_scope': 'self'}
+    assert loc['status'] == 'found', loc
+    assert qualify(tree, loc, step, {'obs_id': 'o'}, _measure(tree, loc, step))['value'] == 'left'
+
+
+def test_read_source_contract_v2_is_only_bound_to_read_reference_cases(condition_rig, monkeypatch):
+    from vpdtest import cases
+    ws, case, _ = _rig(condition_rig)
+    app, knowledge = ws.app(APP), KnowledgeStore(ws.root)
+    calls = []
+    real_hash = cases.sha256_obj
+    def capture(value):
+        calls.append(value)
+        return real_hash(value)
+    monkeypatch.setattr(cases, 'sha256_obj', capture)
+    cases.dependency_hash(case, app, knowledge)
+    assert calls[-1]['read_references_contract'] == 2
+    plain = {**case, 'steps': [{**s, 'text': 'static'} if s['action'] == 'input' else s for s in case['steps']],
+             'assertions': [{**case['assertions'][0], 'text': 'static'}]}
+    cases.dependency_hash(plain, app, knowledge)
+    assert 'read_references_contract' not in calls[-1]
+
+
+def test_duplicate_with_missing_bounds_cannot_be_ignored():
+    tree = UiTree({'attributes': {'type': 'Column', 'bounds': '[0,0][100,100]'}, 'children': [
+        {'attributes': {'type': 'Text', 'id': 'read', 'text': 'first', 'bounds': '[0,0][100,40]'}, 'children': []},
+        {'attributes': {'type': 'Text', 'id': 'read', 'text': 'other'}, 'children': []},
+    ]})
+    loc = resolve('read', {'strategies': [{'kind': 'id', 'value': 'read'}]}, tree, None, Path('.'))
+    step = {'id': 'R1', 'read_scope': 'self'}
+    assert loc['status'] == 'found'
+    assert qualify(tree, loc, step, {'obs_id': 'o'}, _measure(tree, loc, step))['status'] == 'unavailable'
