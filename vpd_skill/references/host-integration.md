@@ -9,7 +9,7 @@
    |---|---|---|
    | 0 | 命令完成（不代表用例通过） | 读 `verdict` |
    | 1 | `--fail-on` 命中 | CI 判失败 |
-   | 2 | `action_required`：需要现场人工接管（未确认的安全停止、解锁失败等） | 立即转告用户，不重试 |
+   | 2 | `action_required`：需要现场人工接管（未确认的安全停止、解锁失败等） | 按下文人工接管协议领取后在原任务提示；缺少登记时直接提示 |
    | 3 | 参数或工具错误，`{"error", "message"}`；命令行用法错误为 `"error": "UsageError"` | 修正命令后重试 |
    | 130 | 被中断（KeyboardInterrupt），输出 `{"error": "KeyboardInterrupt", ...}` 与已分配运行的诊断位置 | 先核对现场与已下发动作，再决定是否重跑 |
 
@@ -70,6 +70,25 @@ CI 或无人值守执行时不需要 Agent：`.\vpdtest.ps1 suite motor_hm_smoke
 `--fail-on not_applicable` 可配置退出码1，人工接管仍优先2。缺独立条件证据是 pending，明确采集异常是 error，正常受阻是 blocked。
 业务 `--env` 只保留调度声明；不得据旧故障声明或开始可用反推当前健康。
 
+
+## 人工接管事件与宿主去重（#254）
+
+`run`、`suite`、`act` 等 CLI 返回 `action_required` 时，先处理这条现场指令。stdout 的
+`human_handoffs` 列出对应的本机事件与源记录；无需有资产偏差或 `host_followup`。
+普通 pending、blocked 或只读断言线索不会触发。用例集指向实际停止的子 run，同一来源和接管指令在同一
+工作区反复读取只产生一个编号。独立新 run/新会话步骤有自己的事件，不按相似文字猜测是否同一事故。
+
+1. 先核原命令的 `action_required` 以及源 run 的 `run.json` / report、会话步骤或能力事件。
+   事件记录保存在本机 `runs/.human-handoffs/<event_id>.json`，只含编号与源引用。
+   `registration=unbound/unavailable` 时原接管请求与退出码 2 仍有效，宿主直接在原任务中说明。
+2. 有获准处理此事的宿主后，用 `vpdtest handoff <event_id>` 查询，再用
+   `vpdtest handoff <event_id> --claim` 领取。仅 `claim=acquired` 表示本宿主首领；
+   `already_claimed` 时查先前处理记录，勿重复投递。领取后中断时先核原任务回执与接收方记录，
+   保留未明状态，不自动重发。该机制只协调使用同一 runs 目录的消费者。
+3. 领取只记录本机分工。宿主在原获准渠道说明设备、APP、步骤、需要人做的动作与本机证据引用，
+   记录渠道提交结果和可用回执。工作机仅通过既有 Issue 提交必要文字。
+   WeLink 定向提醒须复用外部 bot，使用明确授权的收件对象与形式。发送接口接受请求也不能证明已送达。
+   本命令不调用发送器，不用默认群，不授予通信或设备操作权限。
 ## HDC 版本号解析
 
 `bm dump -n <目标包>` 的目标 BundleInfo 顶层 `versionName` 才是本次前置检查的应用版本；

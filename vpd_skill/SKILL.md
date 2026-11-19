@@ -43,7 +43,7 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
    知识未明/高影响须人确认，缺证据由 Agent 补齐，不反复请求签字。不得自审自批；单条诊断可先作 informal 取证。
    审核、产品判据确认、成熟度与动作授权分别办理，完整门槛见[晋级条件](references/workflows.md#晋级条件)。
 6. **执行与判定**：`run <case> --device <spec> --authorize …`。结论只取执行器的 verdict；读 report 的
-   "尚未验证的检查""清理""用到的知识与适用性"。退出码 2 或 `action_required` 表示需要人工接管，立即转告用户；
+   "尚未验证的检查""清理""用到的知识与适用性"。执行命令退出码 2 或 `action_required` 表示需要人工接管。优先看 `human_handoffs`：已登记时先用 `handoff <event_id> --claim` 领取，只有 `acquired` 的宿主在原获准渠道处理；已领则核对先前回执，未登记或登记失败时直接在原任务提示。领取不等于发送；
    退出码 3 是命令或工具错误（含 `UsageError`），修正命令即可。`blocked` 时按 `findings[].detail` 逐项补齐条件
    （执行 error 需核对 execution.errors 的阶段与原错；退出码表见 [host-integration](references/host-integration.md)）。
 7. **交接**：汇报用到的知识及理由、每一步对应的命令、证据位置（obs/截图）、结论、未覆盖的范围，
@@ -86,7 +86,7 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
   截图保留 APP 白名单边界；空业务树采集独立整屏诊断，整屏树不能代替业务断言。
   前台变化后旧业务树失效，不能凭旧树下发动作或制造通过；真机 `input` 输入文字仍不能含空白。
 - 控车过程用 `monitor` 观察（状态序列、TOR/接管、车速、故障文字），主观感受用 advisory `visual_review`。
-  运动中出现首次失败、超时或用例结束仍未停 → 执行器自动安全停止并单独记录，首次失败保留；报告要求人工接管时立即转告用户。
+  运动中出现首次失败、超时或用例结束仍未停 → 执行器自动安全停止并单独记录，首次失败保留；报告要求人工接管时立即按上文领取并在原任务处理。
 - 点击前要确认控件可用的步骤写 `require_enabled`（例如「开始」置灰表示有故障）：不可用时判阻塞，不点。
 - 选择器来自原工程的目标标 `unverified`，原工程没有、按描述推测的标 `hypothesis`：真机校准前含假设目标的用例不能晋级。
   方法见 [exploration-method.md](references/exploration-method.md)。
