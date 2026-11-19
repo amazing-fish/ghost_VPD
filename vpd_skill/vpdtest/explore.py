@@ -18,9 +18,15 @@ from .workspace import RunContext, Workspace
 DISCLAIMER = "覆盖仅相对于 states.json 已声明的状态与本次实际观察，不代表 APP 的完整覆盖"
 
 
-def _candidates(ctx, tree, page: dict, layout: dict) -> list:
+def _candidates(ctx, tree, page: dict, layout: dict, foreground: Optional[str] = None) -> list:
     out, seen = [], set()
     min_vis = (layout or {}).get("min_visible_fraction", 0.5)
+    # 目标在整棵树上预解析一次，避免每个可点击节点重复全树扫描 O(M×T×N)。
+    resolved_targets = []
+    for tid, t in ctx.app.targets.items():
+        loc = resolve(tid, t, tree, None, ctx.app.dir, layout=layout)
+        if loc["status"] == "found":
+            resolved_targets.append((tid, loc["point"]))
     for n in tree.nodes:
         if not (n.visible and n.clickable):
             continue
@@ -32,17 +38,13 @@ def _candidates(ctx, tree, page: dict, layout: dict) -> list:
         if label in seen:
             continue
         seen.add(label)
-        ref = None
-        for tid, t in ctx.app.targets.items():
-            loc = resolve(tid, t, tree, None, ctx.app.dir, layout=layout)
-            if loc["status"] == "found" and n.bounds[0] <= loc["point"][0] <= n.bounds[2] and \
-                    n.bounds[1] <= loc["point"][1] <= n.bounds[3]:
-                ref = tid
-                break
+        ref = next((tid for tid, pt in resolved_targets
+                    if n.bounds[0] <= pt[0] <= n.bounds[2] and n.bounds[1] <= pt[1] <= n.bounds[3]), None)
         pol = ctx.policy.check_tap(tree, vis["center"], "tree", ctx.app.targets.get(ref),
                                    ctx.app.states.deny_for_page(page),
                                    confirmation_sources=ctx.app.states.confirmation_sources(
-                                       tree, ref, ctx.app.targets.get(ref), page, layout))
+                                       tree, ref, ctx.app.targets.get(ref), page, layout),
+                                   layout=layout, foreground=foreground)
         out.append({"label": label, "point": list(vis["center"]), "target": ref or {
             "label": label, "strategies": [{"kind": "text", "value": label}], "side_effect": "navigation"},
                     "policy": pol, "selected": any(tree.nodes[c].selected for c in n.children) or n.selected})
@@ -62,6 +64,7 @@ def explore(ws: Workspace, app_id: str, start: str, device_spec: Optional[str], 
            "states": {}, "transitions": [], "skipped": [], "anomalies": [], "exit": {}}
     store.event("explore_start", app=app_id, start=start, goal=goal, budget=budget, device=device.spec)
     pre = device.preflight(app.bundle)
+    ctx.observer.display = pre.get("display")
     ctx.facts = {"app": app.id, "app_version": pre.get("app_version"),
                  "device_form": (pre.get("display") or {}).get("device_form")}
     tried, frontier, n = set(), [start], 0
@@ -76,7 +79,7 @@ def explore(ws: Workspace, app_id: str, start: str, device_spec: Optional[str], 
             break
         obs, tree = ctx.observe(f"explore:{state}:enumerate")
         exp["states"].setdefault(state, {"declared": True, "obs": obs["obs_id"], "texts": obs["texts"][:20]})
-        cands = _candidates(ctx, tree, obs["page"], obs.get("layout"))
+        cands = _candidates(ctx, tree, obs["page"], obs.get("layout"), obs.get("foreground"))
         cands.sort(key=lambda c: (0 if prefer and any(p in c["label"] for p in prefer) else 1))
         for c in cands:
             key = (state, c["label"])

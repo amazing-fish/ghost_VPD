@@ -460,9 +460,9 @@ class Executor:
                 att["status"] = "policy_denied"
                 return att
             att["resolved"] = _resolved(loc, obs)
-            if not self._foreground_ok(att, step.get("revalidate")):
-                return att
             res = self._send_target("tap", loc, obs, tree, target, tid, step, att)
+            if "foreground_check" in att:
+                att["foreground_check"]["after_revalidate"] = bool(step.get("revalidate"))
             if att.get("status"):
                 return att
             if res.sent is not False and target.get("side_effect") == "vehicle_motion":
@@ -494,13 +494,12 @@ class Executor:
                     step["when"], obs, tree):
                 att.update(status="target_obscured", reason="当前接收者不是已声明的遮挡容器，未返回")
                 return att
-            if not self._foreground_ok(att):
-                return att
             res = ctx.dispatcher.send("key", kind, preconditions=ctx.dispatcher.app_conditions(kind), att=att)
             if att.get("status"):
                 return att
         elif kind == "swipe":
-            if not self._foreground_ok(att):
+            # 相对手势要先在新观测前解锁/核前台；无树时也先核锁屏与前台，避免误报 scroll_scope_unavailable。
+            if (step.get("start") is not None or tree is None or tree.status != "ok") and not self._foreground_ok(att):
                 return att
             if step.get("start") is not None:
                 res, att["swipe"] = self._relative_swipe(step, att)
@@ -508,6 +507,8 @@ class Executor:
                 res, att["swipe"] = self._random_swipe(tree, obs.get("layout"), step, att)
             else:
                 res, att["swipe"] = self._swipe(step.get("direction", "up"), tree, obs.get("layout"), step.get("within"), att)
+            if att.get("status"):
+                return att
         elif kind == "stop_app":
             res = ctx.dispatcher.send("stop_app", ctx.app.bundle, preconditions={}, att=att)
         elif kind == "input":
@@ -547,13 +548,16 @@ class Executor:
                 return att
             att["input"] = {"ref": raw, "secret": is_ref, "length": len(text)}  # 只记引用与长度，不记值
             att["resolved"] = _resolved(loc, obs)
-            if not self._foreground_ok(att, step.get("revalidate")):
-                return att
             if step.get("clear"):
                 # 真机输入是追加：先删掉框里已有的文字（按当前树里的长度 + 余量），再输入
                 node = _tree_node(tree, loc)
                 n_del = len((node.text if node is not None else "") or "") + 2
                 cr = self._send_target("clear_text", loc, obs, tree, target, tid, step, att, n_del)
+                if "foreground_check" in att:
+                    att["foreground_check"]["after_revalidate"] = bool(step.get("revalidate"))
+                if not cr.ok and cr.sent is False and att.get("status") in (
+                        "foreground_changed", "screen_locked", "state_indeterminate"):
+                    return att
                 att["clear"] = {"deleted": n_del, "sent": cr.sent, "ok": cr.ok, "error": cr.error}
                 ctx.store.event("clear_text", step=step["id"], n=n, deleted=n_del, ok=cr.ok, sent=cr.sent)
                 if not cr.ok:
@@ -577,6 +581,8 @@ class Executor:
                     return att
                 att["resolved"] = _resolved(loc, obs)
             res = self._send_target("input_text", loc, obs, tree, target, tid, step, att, text)
+            if "foreground_check" in att:
+                att["foreground_check"]["after_revalidate"] = bool(step.get("revalidate"))
             if att.get("status"):
                 if att["status"] in ("target_obscured", "clear_not_confirmed"):
                     att["dispatch"] = {"op": res.op, "sent": res.sent, "executor_ok": res.ok,
@@ -735,7 +741,7 @@ class Executor:
                     loc.update(status="blocked_state", gate={"status": "condition_" + condition["status"]},
                                execution_error=condition.get("execution_error"))
                     break
-            if not self._foreground_ok(gate):
+            if (tree is None or tree.status != "ok") and not self._foreground_ok(gate):
                 loc = {**loc, "status": "blocked_state", "gate": {k: gate.get(k) for k in (
                     "status", "error_class", "foreground_check", "state_check", "action_required") if k in gate},
                        "execution_error": gate.get("execution_error")}
@@ -744,6 +750,12 @@ class Executor:
             before = tree.fingerprint() if (tree is not None and tree.status == "ok") else None
             r, info = self._swipe(scroll.get("direction", "up"), tree, lay, scroll.get("within"), gate)
             info["sent"] = r.sent
+            if not r.ok and r.sent is False and gate.get("status") in (
+                    "foreground_changed", "screen_locked", "state_indeterminate"):
+                loc = {**loc, "status": "blocked_state", "gate": {k: gate.get(k) for k in (
+                    "status", "error_class", "foreground_check", "state_check", "action_required") if k in gate},
+                       "execution_error": gate.get("execution_error")}
+                break
             obs, tree = ctx.observe(f"{step['id']}:scroll{swipes}")
             lay = obs.get("layout")
             after = tree.fingerprint() if (tree is not None and tree.status == "ok") else None
@@ -777,8 +789,14 @@ class Executor:
         if note:
             loc["point_rejected"] = note
         loc["obs"] = obs["obs_id"]
-        if loc["status"] != "found" and collection_error(obs):
-            loc["execution_error"] = {**collection_error(obs), "stage": "locate"}
+        if loc["status"] != "found":
+            if collection_error(obs):
+                loc["execution_error"] = {**collection_error(obs), "stage": "locate"}
+            # 暴露未登记弹窗遮挡原文，避免静默落为孤立的 target_unresolved 而掩盖真实环境原因。
+            dialogs = [d.get("texts", [])[:6] for d in (obs.get("page") or {}).get("dialogs") or []
+                       if d.get("interrupt") is None and d.get("texts")]
+            if dialogs:
+                loc["blocking_dialogs"] = dialogs[:3]
         loc["layout_key"] = layout_key(lay)
         return loc, obs, tree
 
@@ -930,14 +948,6 @@ class Executor:
                                  "condition": condition})
                     break
                 dismiss_step.update(**self._child_condition_context(condition_step), _selected_condition=condition)
-            if not self._foreground_ok(gate):
-                failed = {**rec, "ok": False, "sent": False, "gate": gate.get("status")}
-                if condition_step is not None and gate.get("execution_error"):
-                    failed.update(gate="preparation_error", execution_error=gate["execution_error"])
-                if condition_step is not None:
-                    retain_unlock(failed, gate)
-                done.append(failed)
-                break
             r = self._send_target("tap", loc, obs, tree, target, tid, dismiss_step, gate)
             rec.update(ok=r.ok, sent=r.sent, point=list(loc["point"]), gate=gate.get("status"))
             if gate.get("condition"):
@@ -1122,11 +1132,18 @@ class Executor:
             return reject("invalid_step", "相对手势换算后为零位移，未下发")
         # A line crosses a finite set of axis-aligned visibility boundaries. Check
         # every interval, not a fixed sparse sampling that can miss a thin overlay.
+        # Pre-filter to nodes intersecting the segment's AABB and cache visible_rect once.
+        unverified_surfaces = ("XComponent", "SurfaceView", "TextureView", "Web", "WebView", "Canvas")
+        seg_x0, seg_x1 = (p1[0], p2[0]) if p1[0] <= p2[0] else (p2[0], p1[0])
+        seg_y0, seg_y1 = (p1[1], p2[1]) if p1[1] <= p2[1] else (p2[1], p1[1])
         ts = {0.0, 1.0}
+        special_candidates = []
         for node in tree.nodes:
             rect = tree.visible_rect(node)
-            if not rect:
+            if not rect or rect[2] <= seg_x0 or rect[0] > seg_x1 or rect[3] <= seg_y0 or rect[1] > seg_y1:
                 continue
+            if node.type in unverified_surfaces or node.type in ctx.policy.deny_node_types:
+                special_candidates.append((node, rect))
             for axis in (0, 1):
                 delta = p2[axis] - p1[axis]
                 if delta:
@@ -1157,11 +1174,10 @@ class Executor:
             # safe to drag. A text sibling can hide both from node_at(). Check
             # each crossed interval before deduping policy nodes, including a
             # thin control in the middle of an otherwise unchanged text node.
-            for candidate in tree.nodes:
-                rect = tree.visible_rect(candidate)
-                if not rect or not (rect[0] <= pt[0] < rect[2] and rect[1] <= pt[1] < rect[3]):
+            for candidate, rect in special_candidates:
+                if not (rect[0] <= pt[0] < rect[2] and rect[1] <= pt[1] < rect[3]):
                     continue
-                if candidate.type in ("XComponent", "SurfaceView", "TextureView", "Web", "WebView", "Canvas"):
+                if candidate.type in unverified_surfaces:
                     info["unverified_surface"] = candidate.brief()
                     return reject("target_unresolved", "手势路径包含未校准表面，不能按普通容器滚动下发")
                 if candidate.type in ctx.policy.deny_node_types:

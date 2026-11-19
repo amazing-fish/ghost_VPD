@@ -83,6 +83,7 @@ class Dispatcher:
         if not self._limits(att, checks):
             return self._reject(op, preconditions, checks, att)
         ok, state_checks = self._state(preconditions, att)
+        att["state_recheck"] = state_checks
         checks.update(state_checks)
         if not ok:
             return self._reject(op, preconditions, checks, att)
@@ -93,6 +94,7 @@ class Dispatcher:
                     att.setdefault("status", "target_unresolved")
                     return self._reject(op, preconditions, checks, att)
                 ok, state_checks = self._state(preconditions, att)
+                att["state_recheck"] = state_checks
                 checks.update(state_checks)
                 if not ok:
                     return self._reject(op, preconditions, checks, att)
@@ -111,6 +113,7 @@ class Dispatcher:
                     return self._reject(op, preconditions, checks, att)
                 # 新观测后再确认锁屏与前台，不能沿用重新定位前的状态。
                 ok, state_checks = self._state(preconditions, att)
+                att["state_recheck"] = state_checks
                 checks.update(state_checks)
                 if not ok:
                     return self._reject(op, preconditions, checks, att)

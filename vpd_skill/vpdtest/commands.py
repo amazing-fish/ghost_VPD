@@ -181,7 +181,13 @@ def _cmd_observe(ws: Workspace, a) -> dict:
             vis = tree.visibility(n) if (n.visible and n.clickable) else None
             if vis and vis["center"]:  # 中心取可见部分；被列表裁掉的条目不列出
                 texts = tree.subtree_texts(n)
-                pol = ctx.policy.check_tap(tree, vis["center"], "tree", None, app.states.deny_for_page(obs["page"]))
+                pol = ctx.policy.check_tap(
+                    tree, vis["center"], "tree", None, app.states.deny_for_page(obs["page"]),
+                    ctx.authorized,
+                    confirmation_sources=app.states.confirmation_sources(
+                        tree, None, None, obs["page"], obs.get("layout")),
+                    layout=obs.get("layout"), foreground=obs.get("foreground"),
+                )
                 clickable.append({"label": (texts[0] if texts else "")[:30], "type": n.type, "id": n.id or None,
                                   "center": list(vis["center"]),
                                   "visible_fraction": vis["fraction"], "allowed": pol["allowed"], "why": pol["reason"]})

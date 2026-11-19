@@ -215,6 +215,8 @@ def render_run(run: dict) -> str:
             for a in d["locate"].get("attempts", []):
                 out.append(f"  - 定位策略 #{a.get('index')} {a['kind']} `{_esc(a.get('value'))}` → {a.get('status')}"
                            + (f"（{a.get('matches')} 个匹配）" if a.get("matches") is not None else ""))
+            for dlg in d["locate"].get("blocking_dialogs") or []:
+                out.append(f"  - 未登记弹窗遮挡：{_esc(' / '.join(dlg))}")
         if d.get("dispatch") and not d["dispatch"].get("executor_ok"):
             out.append(f"  - 执行器错误 `{d['dispatch'].get('error_class')}`：{_esc(d['dispatch'].get('error'))}")
     else:
