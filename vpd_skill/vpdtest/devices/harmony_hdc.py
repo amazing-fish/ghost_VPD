@@ -24,6 +24,45 @@ _FAIL_MARKERS = ("[fail]", "error:", "error code:")
 _LOCKED_MARKERS = ("10106102", "screen is locked")
 # 2026-09-29 真机运行中出现：hdc 通道重建期间所有命令都返回该错误，几秒后自行恢复
 _TRANSPORT_MARKERS = ("e000004", "communication channel is being established")
+_INFO_PROPS = (
+    ("model", "const.product.model"),
+    ("name", "const.product.name"),
+    ("os", "const.ohos.fullname"),
+    ("software", "const.product.software.version"),
+)
+_SAFE_SHELL_TOKEN = re.compile(r"^[A-Za-z0-9_.:/-]+$")
+_OFFLINE_CLASSES = ("device_offline", "tool_missing")
+_PREFLIGHT_OFFLINE_CLASSES = ("device_offline", "transport_unavailable", "tool_missing",
+                              "tool_execution_error", "timeout")
+
+
+def _uses_native_shell(device) -> bool:
+    """仅当未 monkeypatch _shell/_run 且为真实 HdcDevice 时启用单 shell 合并采集，保持所有单元测试桩语义不变。"""
+    return (isinstance(device, HdcDevice)
+            and type(device)._shell is HdcDevice._shell and "_shell" not in device.__dict__
+            and type(device)._run is HdcDevice._run and "_run" not in device.__dict__)
+
+
+def _parse_batch_sections(raw: str, sep: str, labels: tuple[str, ...]) -> Optional[dict[str, tuple[str, int]]]:
+    out = {}
+    for label in labels:
+        m = re.search(rf"{re.escape(sep)}:BEGIN:{re.escape(label)}\r*\n(.*?)\r*\n{re.escape(sep)}:END:{re.escape(label)}:(-?\d+)",
+                      raw or "", re.S)
+        if not m:
+            return None
+        out[label] = (m.group(1), int(m.group(2)))
+    return out
+
+
+def _parse_param_result(errors: dict, prop: str, raw: str, ok: bool,
+                        error_class: Optional[str], error: Optional[str]) -> Optional[str]:
+    errors.pop(prop, None)
+    # 参数不存在是该查询的有效结果，不能与命令执行失败合并为同一个 None。
+    absent = bool(re.fullmatch(r"Get parameter\s+.+?\s+fail!", (raw or "").strip(), re.IGNORECASE))
+    if not ok and not (error_class == "command_failed" and absent):
+        errors[prop] = {"error_class": error_class, "error": error, "raw": raw, "query": prop}
+    v = (raw or "").strip() if ok else ""
+    return None if (not v or "fail" in v.lower()) else v  # 不存在的参数输出 "Get parameter ... fail!"
 
 
 def classify_output(text: str) -> Optional[str]:
@@ -286,7 +325,8 @@ class HdcDevice:
         self.last_query_error = None
 
     # ---- 基础执行 ----
-    def _run(self, args: list, op: str, timeout: Optional[float] = None, with_target: bool = True) -> DeviceResult:
+    def _run(self, args: list, op: str, timeout: Optional[float] = None, with_target: bool = True,
+             *, raw_payload_marker: Optional[str] = None) -> DeviceResult:
         cmd = [self.hdc] + (["-t", self.serial] if with_target and self.serial else []) + args
         t0 = time.monotonic()
         try:
@@ -308,8 +348,10 @@ class HdcDevice:
                                 duration_ms=int((time.monotonic() - t0) * 1000))
         out = (r.stdout or b"").decode("utf-8", "replace") + (r.stderr or b"").decode("utf-8", "replace")
         ms = int((time.monotonic() - t0) * 1000)
-        err = classify_output(out) or ("command_failed" if r.returncode != 0 else None)
-        return DeviceResult(op, True, err is None, err, out.strip()[:300] if err else None, out, ms)
+        # 含数据载荷（例如 UI 树 JSON）的命令只按哨兵之前的控制头判错，避免页面文案里的 "error:" 触发误判。
+        header = out.split(raw_payload_marker, 1)[0] if (raw_payload_marker and raw_payload_marker in out) else out
+        err = classify_output(header) or ("command_failed" if r.returncode != 0 else None)
+        return DeviceResult(op, True, err is None, err, header.strip()[:300] if err else None, out, ms)
 
     def _shell(self, *args, op: str, timeout: Optional[float] = None) -> DeviceResult:
         return self._run(["shell", *[str(a) for a in args]], op, timeout)
@@ -327,39 +369,90 @@ class HdcDevice:
     def _param(self, prop: str) -> Optional[str]:
         r = self._shell("param", "get", prop, op="param_get")
         errors = getattr(self, "param_query_errors", {})
-        errors.pop(prop, None)
-        # 参数不存在是该查询的有效结果，不能与命令执行失败合并为同一个 None。
-        absent = bool(re.fullmatch(r"Get parameter\s+.+?\s+fail!", r.raw.strip(), re.IGNORECASE))
-        if not r.ok and not (r.error_class == "command_failed" and absent):
-            errors[prop] = {"error_class": r.error_class, "error": r.error, "raw": r.raw,
-                            "query": prop}
+        val = _parse_param_result(errors, prop, r.raw, r.ok, r.error_class, r.error)
         self.param_query_errors = errors
-        v = r.raw.strip() if r.ok else ""
-        return None if (not v or "fail" in v.lower()) else v  # 不存在的参数输出 "Get parameter ... fail!"
+        return val
 
     def info(self) -> dict:
         out = {"serial": self.serial, "kind": self.kind}
         errors = {}
-        for key, prop in (("model", "const.product.model"), ("name", "const.product.name"),
-                          ("os", "const.ohos.fullname"), ("software", "const.product.software.version")):
-            out[key] = self._param(prop)
-            error = getattr(self, "param_query_errors", {}).get(prop)
-            if error:
-                errors[prop] = error
+        if _uses_native_shell(self):
+            sep = f"__VPD_INFO_{uuid.uuid4().hex[:10]}__"
+            parts = [f"echo {sep}:BEGIN:{key}; param get {prop}; _rc=$?; echo ''; echo {sep}:END:{key}:$_rc"
+                     for key, prop in _INFO_PROPS]
+            r = self._run(["shell", "; ".join(parts) + "; true"], "param_get_batch",
+                          raw_payload_marker=f"{sep}:BEGIN:")
+            parsed = _parse_batch_sections(r.raw, sep, tuple(k for k, _ in _INFO_PROPS)) if r.ok else None
+            param_errors = getattr(self, "param_query_errors", {})
+            if parsed is not None:
+                for key, prop in _INFO_PROPS:
+                    sec_raw, sec_rc = parsed[key]
+                    sec_err = classify_output(sec_raw) or ("command_failed" if sec_rc != 0 else None)
+                    out[key] = _parse_param_result(
+                        param_errors, prop, sec_raw, sec_err is None, sec_err,
+                        sec_raw.strip()[:300] if sec_err else None)
+                    if prop in param_errors:
+                        errors[prop] = param_errors[prop]
+            else:
+                err_cls = r.error_class or classify_output(r.raw) or "command_failed"
+                err_msg = r.error or r.raw.strip()[:300]
+                for key, prop in _INFO_PROPS:
+                    out[key] = None
+                    param_errors[prop] = errors[prop] = {
+                        "error_class": err_cls, "error": err_msg, "raw": r.raw, "query": prop}
+            self.param_query_errors = param_errors
+        else:
+            for key, prop in _INFO_PROPS:
+                out[key] = self._param(prop)
+                error = getattr(self, "param_query_errors", {}).get(prop)
+                if error:
+                    errors[prop] = error
         if errors:
             out["query_errors"] = errors  # 身份补充元数据失败留证，不改变独立的产品/动作判定。
         return out
 
     def display_info(self) -> dict:
-        r = self._shell("hidumper", "-s", "DisplayManagerService", "-a", "-a", op="display_dump")
-        if not r.ok:
-            return {"source": "hidumper DisplayManagerService", "error_class": r.error_class, "error": r.error,
-                    "raw": r.raw, "density": None,
-                    "execution_error": {"error_class": r.error_class, "error": r.error, "raw": r.raw,
-                                        "query": "display_dump"}}
-        d = parse_display(r.raw)
-        fold_param = self._param("const.window.foldscreen.type")
-        error = getattr(self, "param_query_errors", {}).get("const.window.foldscreen.type")
+        fold_prop = "const.window.foldscreen.type"
+        if _uses_native_shell(self):
+            sep = f"__VPD_DISP_{uuid.uuid4().hex[:10]}__"
+            script = (f"echo {sep}:BEGIN:DISP; hidumper -s DisplayManagerService -a -a; _rc=$?; echo ''; echo {sep}:END:DISP:$_rc; "
+                      f"echo {sep}:BEGIN:FOLD; param get {fold_prop}; _rc=$?; echo ''; echo {sep}:END:FOLD:$_rc; true")
+            r = self._run(["shell", script], "display_dump_batch", raw_payload_marker=f"{sep}:BEGIN:")
+            parsed = _parse_batch_sections(r.raw, sep, ("DISP", "FOLD")) if r.ok else None
+            if parsed is None:
+                err_cls = r.error_class or classify_output(r.raw) or "command_failed"
+                err_msg = r.error or r.raw.strip()[:300]
+                return {"source": "hidumper DisplayManagerService", "error_class": err_cls, "error": err_msg,
+                        "raw": r.raw, "density": None,
+                        "execution_error": {"error_class": err_cls, "error": err_msg, "raw": r.raw,
+                                            "query": "display_dump"}}
+            disp_raw, disp_rc = parsed["DISP"]
+            disp_err = classify_output(disp_raw) or ("command_failed" if disp_rc != 0 else None)
+            if disp_err:
+                err_msg = disp_raw.strip()[:300]
+                return {"source": "hidumper DisplayManagerService", "error_class": disp_err, "error": err_msg,
+                        "raw": disp_raw, "density": None,
+                        "execution_error": {"error_class": disp_err, "error": err_msg, "raw": disp_raw,
+                                            "query": "display_dump"}}
+            d = parse_display(disp_raw)
+            fold_raw, fold_rc = parsed["FOLD"]
+            fold_err = classify_output(fold_raw) or ("command_failed" if fold_rc != 0 else None)
+            param_errors = getattr(self, "param_query_errors", {})
+            fold_param = _parse_param_result(
+                param_errors, fold_prop, fold_raw, fold_err is None, fold_err,
+                fold_raw.strip()[:300] if fold_err else None)
+            self.param_query_errors = param_errors
+            error = param_errors.get(fold_prop)
+        else:
+            r = self._shell("hidumper", "-s", "DisplayManagerService", "-a", "-a", op="display_dump")
+            if not r.ok:
+                return {"source": "hidumper DisplayManagerService", "error_class": r.error_class, "error": r.error,
+                        "raw": r.raw, "density": None,
+                        "execution_error": {"error_class": r.error_class, "error": r.error, "raw": r.raw,
+                                            "query": "display_dump"}}
+            d = parse_display(r.raw)
+            fold_param = self._param(fold_prop)
+            error = getattr(self, "param_query_errors", {}).get(fold_prop)
         d["device_form"], d["device_form_basis"] = infer_device_form(fold_param, d.get("fold_status"))
         if error:
             d["execution_error"] = error
@@ -392,14 +485,30 @@ class HdcDevice:
                            **({"execution_error": error} if error else {})})
             return {"ok": False, "checks": checks, "device": {"serial": None}}
         power = self._shell("hidumper", "-s", "3301", "-a", "-a", op="power_state")
-        checks.append({"check": "device_online", "ok": power.error_class != "device_offline",
-                       "error_class": power.error_class if power.error_class == "device_offline" else None,
+        online_ok = power.error_class not in _PREFLIGHT_OFFLINE_CLASSES
+        checks.append({"check": "device_online", "ok": online_ok,
+                       "error_class": None if online_ok else power.error_class,
                        "detail": (power.error or "")[:120]})
         state = parse_kv(power.raw, "Current State")
+        power_err = {"error_class": power.error_class, "error": power.error, "raw": power.raw} if not power.ok else None
         checks.append({"check": "screen_awake", "ok": power.ok and state == "AWAKE", "value": state,
                        "error_class": None if state == "AWAKE" else "screen_off",
-                       **({"execution_error": {"error_class": power.error_class, "error": power.error, "raw": power.raw}}
-                          if not power.ok else {})})
+                       **({"execution_error": dict(power_err)} if power_err else {})})
+        if power.error_class in _OFFLINE_CLASSES:
+            # 设备离线或缺少 hdc 工具时立即短路，避免连续 8 次无效拉起/超时等待。
+            checks.append({"check": "screen_unlocked", "ok": False, "value": None,
+                           "error_class": "screen_locked", "execution_error": dict(power_err)})
+            checks.append({"check": "app_installed", "ok": False, "value": None,
+                           "error_class": "app_missing", "execution_error": dict(power_err)})
+            disp_err = {**power_err, "query": "display_dump"}
+            checks.append({"check": "display_info", "ok": False,
+                           "error_class": power.error_class, "execution_error": disp_err})
+            info = {"serial": self.serial, "kind": self.kind,
+                    **{key: None for key, _ in _INFO_PROPS},
+                    "query_errors": {prop: {**power_err, "query": prop} for _, prop in _INFO_PROPS}}
+            display = {"source": "hidumper DisplayManagerService", "error_class": power.error_class,
+                       "error": power.error, "raw": power.raw, "density": None, "execution_error": disp_err}
+            return {"ok": False, "checks": checks, "device": info, "app_version": None, "display": display}
         lock = self._shell("hidumper", "-s", "ScreenlockService", "-a", "-all", op="lock_state")
         locked = parse_kv(lock.raw, "screenLocked")
         checks.append({"check": "screen_unlocked", "ok": lock.ok and locked == "false", "value": locked,
@@ -445,6 +554,53 @@ class HdcDevice:
                                     {"error_class": r.error_class, "error": r.error, "raw": r.raw})
         return bool(r.raw.strip()) if queried else None
 
+    def foreground_and_alive(self, bundle: str) -> tuple[Optional[str], Optional[bool]]:
+        """合并观测首步的 aa dump -l 与 pidof <bundle> 为单次 shell 调用；被测试桩替换时回退原双调路径。"""
+        if not (_uses_native_shell(self)
+                and type(self).foreground is HdcDevice.foreground and "foreground" not in self.__dict__
+                and type(self).process_alive is HdcDevice.process_alive and "process_alive" not in self.__dict__
+                and _SAFE_SHELL_TOKEN.fullmatch(bundle or "")):
+            return self.foreground(), self.process_alive(bundle)
+        sep = f"__VPD_FA_{uuid.uuid4().hex[:10]}__"
+        script = (f"echo {sep}:BEGIN:AA; aa dump -l; _rc=$?; echo ''; echo {sep}:END:AA:$_rc; "
+                  f"echo {sep}:BEGIN:PID; pidof {bundle}; _rc=$?; echo ''; echo {sep}:END:PID:$_rc; true")
+        r = self._run(["shell", script], "foreground_and_alive", raw_payload_marker=f"{sep}:BEGIN:")
+        if not r.ok:
+            err = r.error_class or "command_failed"
+            self.last_query_error = err
+            self.last_query_error_detail = {"error": r.error, "raw": r.raw}
+            self.process_query_error = {"error_class": r.error_class, "error": r.error, "raw": r.raw}
+            return None, None
+        parsed = _parse_batch_sections(r.raw, sep, ("AA", "PID"))
+        if parsed is None:
+            err = classify_output(r.raw) or "command_failed"
+            msg = r.raw.strip()[:300]
+            self.last_query_error = err
+            self.last_query_error_detail = {"error": msg, "raw": r.raw}
+            self.process_query_error = {"error_class": err, "error": msg, "raw": r.raw}
+            return None, None
+        aa_raw, aa_rc = parsed["AA"]
+        pid_raw, pid_rc = parsed["PID"]
+        aa_err = classify_output(aa_raw) or ("command_failed" if aa_rc != 0 else None)
+        self.last_query_error = aa_err
+        self.last_query_error_detail = ({"error": aa_raw.strip()[:300], "raw": aa_raw} if aa_err else None)
+        if aa_err:
+            fg = None
+        else:
+            fg = parse_foreground(aa_raw)
+            if fg is None:
+                windows = self.shown_windows()
+                error = getattr(self, "window_query_error", None)
+                if windows is None and error:
+                    self.last_query_error = error["error_class"]
+                    self.last_query_error_detail = error
+                fg = foreground_from_evidence(aa_raw, windows)
+        pid_err = classify_output(pid_raw) or ("command_failed" if pid_rc != 0 else None)
+        queried = pid_err is None or (pid_err == "command_failed" and not pid_raw.strip())
+        self.process_query_error = (None if queried else
+                                    {"error_class": pid_err, "error": pid_raw.strip()[:300], "raw": pid_raw})
+        return fg, (bool(pid_raw.strip()) if queried else None)
+
     def _pull(self, remote: str, local: Path, op: str) -> DeviceResult:
         r = self._run(["file", "recv", remote, str(local)], op)
         self._shell("rm", "-f", remote, op="cleanup")
@@ -453,11 +609,25 @@ class HdcDevice:
         return r
 
     def dump_tree(self, bundle: str, local_path) -> DeviceResult:
-        """拉取布局树并解析。原树先落到系统临时目录（运行目录之外），解析成功也只把结果放在
-        DeviceResult.data 里返回，不写 local_path：最终路径由调用方按原文落盘。
-        解析失败时返回真实错误；临时目录在 finally 里清理。"""
+        """拉取布局树并解析。原生 HDC 路径在单次 shell 内完成 dump+cat+rm 减少往返，解析结果只放
+        DeviceResult.data["tree"]，不写 local_path：最终路径由调用方按原文落盘。"""
         remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.json"
-        local = Path(local_path)
+        if _uses_native_shell(self) and _SAFE_SHELL_TOKEN.fullmatch(bundle or ""):
+            marker = f"__VPD_TREE_{uuid.uuid4().hex[:10]}__"
+            script = (f"uitest dumpLayout -b {bundle} -p {remote}"
+                      f" && echo {marker} && cat {remote}; _rc=$?; rm -f {remote}; exit $_rc")
+            r = self._run(["shell", script], "dump_tree", timeout=30, raw_payload_marker=marker)
+            if not r.ok:
+                return r
+            if marker not in r.raw:
+                r.ok, r.error_class, r.error = False, "command_failed", r.raw.strip()[:300] or "dumpLayout 未返回树内容"
+                return r
+            payload = r.raw.split(marker, 1)[1].lstrip("\r\n")
+            try:
+                r.data["tree"] = json.loads(payload)
+            except (ValueError, OSError) as e:
+                r.ok, r.error_class, r.error = False, "tree_parse_error", str(e)
+            return r
         r = self._shell("uitest", "dumpLayout", "-b", bundle, "-p", remote, op="dump_tree", timeout=30)
         if not r.ok:
             return r
@@ -560,7 +730,7 @@ class HdcDevice:
         """三态：锁屏/熄屏 → True；亮屏且已解锁 → False；查询失败或输出认不出 → None。
         锁屏时 aa dump 里没有 FOREGROUND mission，不能据此当成桌面。
         查询是只读的：hidumper 偶发空输出（2026-10-01 真机运行中出现，单独连查 20 次复现不了），
-        间隔 0.5s 重查，连续 tries 次都认不出才返回 None。"""
+        间隔 0.5s 重查，连续 tries 次都认不出才返回 None；设备离线/缺少 hdc 时立即停止重试。"""
         error = None
         self.screen_query_error = None
         for i in range(max(1, tries)):
@@ -569,12 +739,46 @@ class HdcDevice:
                 self.screen_query_error = None
                 return v
             error = self.screen_query_error or error
+            if (error or {}).get("error_class") in _OFFLINE_CLASSES:
+                break
             if i + 1 < tries:
                 time.sleep(0.5)
         self.screen_query_error = error
         return None
 
     def _screen_locked_once(self) -> Optional[bool]:
+        if _uses_native_shell(self):
+            sep = f"__VPD_LK_{uuid.uuid4().hex[:10]}__"
+            script = (f"echo {sep}:BEGIN:POWER; hidumper -s 3301 -a -a; _rc=$?; echo ''; echo {sep}:END:POWER:$_rc; "
+                      f"echo {sep}:BEGIN:LOCK; hidumper -s ScreenlockService -a -all; _rc=$?; echo ''; echo {sep}:END:LOCK:$_rc; true")
+            r = self._run(["shell", script], "screen_locked_batch", raw_payload_marker=f"{sep}:BEGIN:")
+            if not r.ok:
+                self.screen_query_error = {"error_class": r.error_class, "error": r.error, "raw": r.raw}
+                return None
+            parsed = _parse_batch_sections(r.raw, sep, ("POWER", "LOCK"))
+            if parsed is None:
+                err = classify_output(r.raw) or "command_failed"
+                self.screen_query_error = {"error_class": err, "error": r.raw.strip()[:300], "raw": r.raw}
+                return None
+            power_raw, power_rc = parsed["POWER"]
+            power_err = classify_output(power_raw) or ("command_failed" if power_rc != 0 else None)
+            if power_err:
+                self.screen_query_error = {"error_class": power_err, "error": power_raw.strip()[:300], "raw": power_raw}
+                return None
+            state = parse_kv(power_raw, "Current State")
+            if state is None:
+                self.screen_query_error = None
+                return None
+            if state != "AWAKE":
+                self.screen_query_error = None
+                return True
+            lock_raw, lock_rc = parsed["LOCK"]
+            lock_err = classify_output(lock_raw) or ("command_failed" if lock_rc != 0 else None)
+            if lock_err:
+                self.screen_query_error = {"error_class": lock_err, "error": lock_raw.strip()[:300], "raw": lock_raw}
+                return None
+            self.screen_query_error = None
+            return {"true": True, "false": False}.get(parse_kv(lock_raw, "screenLocked"))
         power = self._shell("hidumper", "-s", "3301", "-a", "-a", op="power_state")
         self.screen_query_error = None if power.ok else {"error_class": power.error_class, "error": power.error, "raw": power.raw}
         state = parse_kv(power.raw, "Current State") if power.ok else None
@@ -606,19 +810,29 @@ class HdcDevice:
         remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.json"
         self.pin_pad_query_error = None
         self.pin_pad_source = None
-        r = self._shell("uitest", "dumpLayout", "-p", remote, op="lock_dump", timeout=30)
-        if r.ok:
-            r = self._shell("cat", remote, op="lock_dump_read")
-        self._shell("rm", "-f", remote, op="cleanup")
+        if _uses_native_shell(self):
+            marker = f"__VPD_LOCK_{uuid.uuid4().hex[:10]}__"
+            script = (f"uitest dumpLayout -p {remote}"
+                      f" && echo {marker} && cat {remote}; _rc=$?; rm -f {remote}; exit $_rc")
+            r = self._run(["shell", script], "lock_dump", timeout=30, raw_payload_marker=marker)
+            raw_json = r.raw.split(marker, 1)[1].lstrip("\r\n") if (r.ok and marker in r.raw) else ""
+            if r.ok and marker not in r.raw:
+                r.ok, r.error_class, r.error = False, "command_failed", r.raw.strip()[:300] or "lock dump 未返回树内容"
+        else:
+            r = self._shell("uitest", "dumpLayout", "-p", remote, op="lock_dump", timeout=30)
+            if r.ok:
+                r = self._shell("cat", remote, op="lock_dump_read")
+            self._shell("rm", "-f", remote, op="cleanup")
+            raw_json = r.raw
         if not r.ok:
             self.pin_pad_query_error = {"op": r.op, "error_class": r.error_class or "command_failed",
                                         "error": r.error, "raw": r.raw}
             return None
         try:
-            tree = json.loads(r.raw)
+            tree = json.loads(raw_json)
         except ValueError as error:
             self.pin_pad_query_error = {"op": r.op, "error_class": "tree_parse_error",
-                                        "error": str(error), "raw": r.raw}
+                                        "error": str(error), "raw": raw_json}
             return None
         pad = find_pin_pad(tree)
         if pad is not None:
