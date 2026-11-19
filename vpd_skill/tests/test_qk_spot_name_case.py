@@ -6,7 +6,7 @@ import pytest
 from conftest import WORLDS, world
 from test_condition_runner import COMMON_RULE
 from test_search_name_row import _locate, _oracle, _raw, _tree
-from vpdtest.cases import content_hash, lint, replay_basis
+from vpdtest.cases import content_hash, lint, promote, replay_basis, review_status
 from vpdtest.devices.replay import load_world
 from vpdtest.knowledge import KnowledgeStore
 from vpdtest.runner import run_case
@@ -18,13 +18,29 @@ from vpdtest.verdict import case_verdict, evaluate_assertion
 CASE = "TC-QK-230-SPOT-NAME"
 
 
-def test_independent_draft_uses_one_dynamic_name_and_an_explicit_manual_identity(ws):
+@pytest.mark.parametrize("as_candidate", [False, True], ids=["as-published", "candidate"])
+def test_spot_scope_keeps_dynamic_input_and_manual_identity(ws, as_candidate):
     case, parent = ws.load_case(CASE), ws.load_case("TC-QK-230")
-    assert case["status"] == "draft" and case["version"] == 1 and not case.get("replays")
+    knowledge = KnowledgeStore(ws.root)
+    if as_candidate:
+        # The ws fixture is a private copy. Exercise the real gate before testing the same definition.
+        before = review_status(ws, case, knowledge)["current"]
+        if case["status"] == "draft":
+            published = case
+            case = promote(ws, CASE, "candidate", knowledge)
+            assert case["history"][-1]["by"] is None
+            for key in ("asset_review", "replays", "product_status"):
+                assert case.get(key) == published.get(key)
+        assert case["status"] == "candidate"
+        assert review_status(ws, case, knowledge)["current"] == before
+        with pytest.raises(PermissionError, match="重放不足"):
+            promote(ws, CASE, "replay_verified", knowledge, dry_run=True)
+    assert case["version"] == 1 and case["history"][0]["to"] == "draft"
+    assert case["status"] in {"draft", "candidate"}
     assert parent["test_data"].keys() == {"fav_spot", "fav_waypoint", "fav_spot_number", "fav_waypoint_number"}
     assert case["test_data"] == {"fav_spot": {"runtime": True}}
     app = ws.app(case["app"])
-    assert lint(case, app, KnowledgeStore(ws.root), ws.policy()) == []
+    assert lint(case, app, knowledge, ws.policy()) == []
     inputs = [s for s in case["steps"] if s["action"] == "input"]
     assert len(inputs) == 1
     assert inputs[0]["text"] == "${var:fav_spot}" and inputs[0]["target"] == "qk_search_input"
@@ -66,6 +82,7 @@ def _world_with_named_result(ws, tmp_path, name):
 def test_normal_runner_keeps_separate_result_observations_and_records_only_a_declaration(ws, tmp_path, has_row):
     name = "可替换的本轮合成车位"
     spec = _world_with_named_result(ws, tmp_path, name) if has_row else world("qiankun_hm_ready.json")
+    prior_replays = deepcopy(ws.load_case(CASE).get("replays"))
     run = run_case(ws, CASE, device_spec=spec, propose=False, runtime_values={"fav_spot": name})
     assert all(s["outcome"] == "passed" for s in run["steps"]), run["steps"]
     assert all(s["outcome"] == "passed" for s in run["cleanup"]), run["cleanup"]
@@ -85,7 +102,7 @@ def test_normal_runner_keeps_separate_result_observations_and_records_only_a_dec
     assert evidence["favorite-identity"]["evidence"]["obs"] == steps["S5"]["final_obs"]
     assert evidence["favorite-identity"]["result"] == "pending"
     assert run["verdict"]["product_verdict"] == "pending"
-    assert not ws.load_case(CASE).get("replays")
+    assert ws.load_case(CASE).get("replays") == prior_replays
 
 
 @pytest.mark.parametrize("mode", ["matching", "wrong-query", "duplicate", "viewport-swap",
