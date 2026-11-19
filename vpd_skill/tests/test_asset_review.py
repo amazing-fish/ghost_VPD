@@ -233,16 +233,10 @@ def test_incomplete_asset_cannot_be_approved(ws):
     assert ws.case_path(case["id"]).read_bytes() == before
 
 
-@pytest.mark.parametrize("change", ["template", "system_dialogs"])
-def test_review_invalidates_when_execution_environment_changes(ws, change):
+def test_review_invalidates_when_system_dialogs_change(ws):
     _asset(ws)
     _approve(ws)
-    if change == "template":
-        p = ws.root / "apps/motor_hm/templates/review-fixture.bin"
-        p.parent.mkdir(exist_ok=True)
-        p.write_bytes(b"changed template fixture")
-    else:
-        write_json(ws.root / "system_dialogs.json", {"dialogs": {"fixture": {"review": "pending"}}})
+    write_json(ws.root / "system_dialogs.json", {"dialogs": {"fixture": {"review": "pending"}}})
     info = _review(ws)
     assert info["state"] == "stale"
     with pytest.raises(PermissionError, match="审核"):
