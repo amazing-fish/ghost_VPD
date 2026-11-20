@@ -154,8 +154,10 @@ def dependency_hash(case: dict, app, knowledge) -> str:
     oracles, used_conditions, conditions = _condition_references(case, app, knowledge)
     # Never load secrets or evaluate run-generated data just to fingerprint files.
     data = {k: v for k, v in (case.get("test_data") or {}).items()
-            if not (isinstance(v, dict) and ("secret" in v or "template" in v))}
+            if not (isinstance(v, dict) and ("secret" in v or "template" in v or "runtime" in v))}
     params = Params(data, {}, "dependency")
+    runtime_contract = ({"runtime_data_contract": 1} if any(
+        isinstance(v, dict) and "runtime" in v for v in (case.get("test_data") or {}).values()) else {})
 
     def want(t, local=None, substitute=False):
         if isinstance(t, str) and t in app.targets:
@@ -200,7 +202,7 @@ def dependency_hash(case: dict, app, knowledge) -> str:
     for interrupt in app.states.interrupts.values():
         want(interrupt.get("dismiss_target"))
         want(interrupt.get("dismiss_target"), substitute=True)  # recovery uses _attempt → _target
-    return sha256_obj({"steps": steps, "targets": targets, "states": app.states.states,
+    return sha256_obj({**runtime_contract, "steps": steps, "targets": targets, "states": app.states.states,
                        "interrupts": app.states.interrupts, "oracles": facts, "conditions": conditions,
                        **({"templates": templates} if templates else {}), "result_contract": RESULT_CONTRACT,
                        **({"condition_evidence_contract": 1} if used_conditions else {}),
@@ -530,7 +532,8 @@ def iter_case_steps(case: dict, app, *, strict=False):
 def execution_structure_issues(case: dict, app, *, read_sources=True) -> list:
     """lint、Runner 与选中的复合步骤共用；只核执行结构，不代替资产审核。"""
     from .readrefs import structure_issues as read_reference_issues
-    issues = assertion_scope_issues(case, app) + read_reference_issues(case, app, sources=read_sources)
+    from .runtime_data import structure_issues as runtime_data_issues
+    issues = assertion_scope_issues(case, app) + read_reference_issues(case, app, sources=read_sources) + runtime_data_issues(case, app)
     seen, runtime_ids, child_counts, root_counts = {}, {}, {}, {}
     main = {s.get("id"): s for s in case.get("steps", []) if isinstance(s.get("id"), str)}
     for i, cleanup in enumerate(case.get("cleanup", [])):
@@ -982,6 +985,15 @@ def record_replay(ws, case_id: str, run: dict) -> dict:
         "assertions": [{k: a[k] for k in ("id", "result", "advisory", "oracle_refs", "oracle", "facts", "guard", "verified")
                         if k in a} for a in run.get("assertions", [])],
         **{k: v[k] for k in ("execution", "product_verdict", "product_failed", "coverage") if k in v}}
+    from .runtime_data import declarations as runtime_declarations, prepare as prepare_runtime_data
+    runtime = run.get("runtime_data")
+    if runtime_declarations(case) and run["case"]["hash"] == content_hash(case):
+        if (not isinstance(runtime, dict) or set(runtime) != {"values", "source", "measured"}
+                or runtime.get("source") != "run_arguments" or runtime.get("measured") is not False):
+            raise ValueError("运行参数摘要缺失或无效，不能登记本版本重放")
+        prepare_runtime_data(case, runtime["values"])
+    if isinstance(runtime, dict) and runtime.get("values"):
+        summary["runtime_data"] = deepcopy(runtime)
     proof = run.get("preflight_evidence")
     if (_empty_preflight_proof(proof)
             and type(run.get("actions")) is int and run["actions"] == 0

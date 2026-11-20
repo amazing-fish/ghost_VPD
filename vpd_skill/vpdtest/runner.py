@@ -23,6 +23,7 @@ from .knowledge import KnowledgeStore
 from .observe import RunStore
 from .outcomes import load_observation
 from .params import Params
+from . import runtime_data
 from .report import render_run
 from .util import now_iso, read_json, read_jsonl, write_json
 from .verdict import (
@@ -69,13 +70,14 @@ def cleanup_dispatch_owned(steps: list, owner: str) -> bool:
 
 def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] = None, device_spec: Optional[str] = None,
              overlay=None, env: Optional[dict] = None, run_id: Optional[str] = None, propose: bool = True,
-             authorize: Optional[list] = None, supervisor: Optional[str] = None, require_asset_review: bool = False) -> dict:
+             authorize: Optional[list] = None, supervisor: Optional[str] = None, require_asset_review: bool = False, runtime_values: Optional[dict] = None) -> dict:
     case = case or ws.load_case(case_id)
     app = ws.app(case["app"])
     # 定义错误先拒绝，不能先解锁或关闭系统弹窗，再发现步骤无法唯一解释。
     structure_issues = execution_structure_issues(case, app)
     if structure_issues:
         raise ValueError(f"执行结构无效：{structure_issues}")
+    runtime_values = runtime_data.prepare(case, runtime_values)
     problems = condition_issues(case, app)
     if problems:
         raise ValueError(f"条件定义无效：{problems}")
@@ -162,6 +164,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
         # 参数与密钥：密钥只从环境变量/本地配置读取；缺失时判环境阻塞，不向输入框写空值
         diagnostic.phase = "authorization"
         params = Params(case.get("test_data"), ws.config.get("secrets"), store.run_id)
+        params.vars.update(runtime_values)
         ctx.params = params
         unmet = [{"key": f"secret.{n}", "required": f"环境变量 VPD_SECRET_{n}", "actual": "未设置"}
                  for n in params.preflight_missing(case, app)]
@@ -280,7 +283,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                 bind_step_scenes(result.get("sub_steps") or [], result.get("oracle_refs") or inherited)
         bind_step_scenes(steps)
 
-        assertions = [evaluate_assertion(a, by_id, load, knowledge, app, condition_defs) for a in case.get("assertions", [])]
+        assertions = [evaluate_assertion(runtime_data.bind_assertion(a, runtime_values), by_id, load, knowledge, app, condition_defs) for a in case.get("assertions", [])]
         for assertion in assertions:
             if assertion.get("guard"):
                 store.event("assertion_selected", assertion=assertion["id"], guard=assertion["guard"],
@@ -319,6 +322,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                "declarations": {"source": "cli_env", "values": env or {}, "measured": False},
                "condition_definitions": condition_defs, "knowledge_used": case.get("knowledge_used", []), "goal": case.get("goal"),
                "verdict": verdict, "actions": ctx.actions, "seed": ctx.seed,
+               "runtime_data": {"values": runtime_values, "source": "run_arguments", "measured": False},
                "test_data": params.public(), "authorized": sorted(ctx.authorized), "authorization_sources": grant_sources,
                "supervision": {"supervisor": supervisor,
                                "supervised_granted": sorted(ctx.authorized & ctx.policy.supervised_side_effects),

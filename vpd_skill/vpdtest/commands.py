@@ -468,8 +468,11 @@ def diagnose(res: dict) -> Optional[dict]:
 def cmd_run(ws: Workspace, a) -> dict:
     overlay = ExperienceStore(ws.root, ws.load_case(a.case)["app"]).overlay(trial=a.trial) if a.trial else None
     env = dict(kv.split("=", 1) for kv in a.env or [])
+    pairs = [kv.split("=", 1) for kv in getattr(a, "data", None) or []]
+    if len({key for key, _ in pairs}) != len(pairs):
+        raise ValueError("--data 不允许重复字段")
     run = run_case(ws, a.case, device_spec=a.device, overlay=overlay, env=env, authorize=a.authorize,
-                   supervisor=a.supervisor)
+                   supervisor=a.supervisor, runtime_values=dict(pairs))
     if a.record_replay:
         case_mod.record_replay(ws, a.case, run)
     return _run_brief(run)

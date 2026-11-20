@@ -19,9 +19,13 @@ MIN_FRAGMENT = 6  # 可复用输入分类的密钥片段最短长度
 class Params:
     def __init__(self, test_data: Optional[dict], secrets_cfg: Optional[dict], run_id: str):
         self.vars, self.secret_vars, self.missing = {}, set(), []
+        self.runtime_vars = set()
         self._secret_values = set()
         short = run_id.rsplit("-", 1)[-1]
         for k, v in (test_data or {}).items():
+            if isinstance(v, dict) and "runtime" in v:
+                self.runtime_vars.add(k)
+                continue
             if isinstance(v, dict) and "secret" in v:
                 name = v["secret"]
                 self.secret_vars.add(k)  # 声明身份不因本次缺值而消失。
@@ -50,6 +54,8 @@ class Params:
         if isinstance(obj, str):
             def rep(m):
                 kind, name = m.group(1), m.group(2)
+                if kind == "var" and name in self.runtime_vars and name not in self.vars:
+                    raise ValueError(f"运行参数 {name} 尚未设置，不能输入声明或占位符")
                 value = local.get(name) if kind == "param" else self.vars.get(name)
                 return m.group(0) if value is None else str(value)
             return _REF.sub(rep, obj)
