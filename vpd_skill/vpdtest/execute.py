@@ -509,6 +509,12 @@ class Executor:
             else:
                 res, att["swipe"] = self._swipe(step.get("direction", "up"), tree, obs.get("layout"), step.get("within"), att)
             if att.get("status"):
+                if res is not None and att["status"] not in ("foreground_changed", "screen_locked", "state_indeterminate"):
+                    att["dispatch"] = {"op": res.op, "sent": res.sent, "executor_ok": res.ok,
+                                       "error_class": res.error_class, "error": res.error,
+                                       "duration_ms": res.duration_ms}
+                    if not res.ok:
+                        att["dispatch"]["raw"] = res.raw
                 return att
         elif kind == "stop_app":
             res = ctx.dispatcher.send("stop_app", ctx.app.bundle, preconditions={}, att=att)
