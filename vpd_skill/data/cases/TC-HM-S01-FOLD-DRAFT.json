@@ -1,0 +1,160 @@
+{
+  "app": "motor_hm",
+  "purpose": "从「我的」页上滑进入设置，确认设置页有「退出登录」入口（不点击），返回后回到「我的」页",
+  "preconditions": [
+    "鸿蒙智行已登录（设置页才有「退出登录」）",
+    "手机解锁，APP 可切到前台"
+  ],
+  "test_data": {},
+  "test_data_none": true,
+  "authorizations": [],
+  "assertions": [
+    {
+      "id": "A1",
+      "at": "S4",
+      "type": "target_present",
+      "target": "logout_entry",
+      "desc": "设置页可见「退出登录」（不点击）",
+      "oracle_refs": [
+        "K-MOT-002"
+      ]
+    },
+    {
+      "id": "A2",
+      "at": "S5",
+      "type": "state_is",
+      "state": "my_tab",
+      "desc": "返回后回到我的页",
+      "oracle_refs": [
+        "K-MOT-001"
+      ]
+    }
+  ],
+  "cleanup": [],
+  "cleanup_none": true,
+  "cleanup_note": "仅页面导航，没有写入账号或车辆数据；S5 已返回我的页，无需额外 back，以免在失败路径退出 APP。",
+  "knowledge_used": [
+    {
+      "id": "K-MOT-002",
+      "use": "判据：设置页应有「退出登录」",
+      "applicability": "applies",
+      "rationale": "独立知识库已记录确认；历史与本次 APP 均为 3.0.3.200，实际执行仍核对适用性与断言。",
+      "steps": [
+        "S4"
+      ]
+    },
+    {
+      "id": "K-MOT-001",
+      "use": "判据：返回后回到「我的」页",
+      "applicability": "applies",
+      "rationale": "同上",
+      "steps": [
+        "S5"
+      ]
+    },
+    {
+      "id": "target:tab_my / state:my_tab",
+      "use": "操作经验：已有 tab_my 导航目标与 my_tab 落点验证",
+      "rationale": "states.json 中 my_tab 签名已在 3.0.3.200 真机校准",
+      "steps": [
+        "S1b"
+      ],
+      "reported_applicability": "calibrated"
+    }
+  ],
+  "id": "TC-HM-S01-FOLD-DRAFT",
+  "version": 1,
+  "status": "draft",
+  "title": "[待实机复核] 折叠形态我的页 List 内滚动至设置并返回",
+  "env_requirements": {
+    "account_state": "logged_in",
+    "app_version": "3.0.3.200"
+  },
+  "layout_requirements": {
+    "device_form": "foldable"
+  },
+  "origin": {
+    "type": "session"
+  },
+  "sources": [
+    {
+      "type": "issue",
+      "ref": "https://github.com/amazing-fish/ghost_VPD/issues/65#issuecomment-6873946959",
+      "note": "仅工作机文字摘要；未取得原始树截图日志，不是本候选执行证据。"
+    },
+    {
+      "type": "issue",
+      "ref": "https://github.com/amazing-fish/ghost_VPD/issues/247#issuecomment-6873943007",
+      "note": "手工 List 内上滑两次后设置/back 可用；未证明自动候选整例通过。"
+    }
+  ],
+  "steps": [
+    {
+      "id": "S1",
+      "action": "launch",
+      "timeout_s": 8,
+      "retry": 0,
+      "critical": true
+    },
+    {
+      "id": "S1b",
+      "action": "tap",
+      "target": "tab_my",
+      "expect_state": "my_tab",
+      "revalidate": true,
+      "critical": true
+    },
+    {
+      "id": "S3",
+      "action": "swipe",
+      "within": {
+        "type": "List"
+      },
+      "retry": 0,
+      "critical": true,
+      "start": [
+        0.5,
+        0.75
+      ],
+      "end": [
+        0.5,
+        0.25
+      ],
+      "speed": 2000
+    },
+    {
+      "id": "S3b",
+      "action": "swipe",
+      "within": {
+        "type": "List"
+      },
+      "retry": 0,
+      "critical": true,
+      "start": [
+        0.5,
+        0.75
+      ],
+      "end": [
+        0.5,
+        0.25
+      ],
+      "speed": 2000
+    },
+    {
+      "id": "S4",
+      "action": "tap",
+      "target": "settings_entry",
+      "expect_state": "settings",
+      "revalidate": true,
+      "retry": 0,
+      "critical": true
+    },
+    {
+      "id": "S5",
+      "action": "back",
+      "expect_state": "my_tab",
+      "retry": 0,
+      "critical": true
+    }
+  ]
+}
