@@ -178,6 +178,7 @@ def test_hdc_foreground_and_alive_batches_into_one_shell_call(monkeypatch):
 
     def fake_run(cmd, **kwargs):
         calls.append(cmd)
+        assert "pidof com.example.app 2>&1" in cmd[-1]
         sep = _extract_sep(cmd[-1], "__VPD_FA_")
         aa = "Mission ID #1\n  bundle name [com.example.app]\n  state #FOREGROUND\n"
         return subprocess.CompletedProcess(cmd, 0, _batch_out(sep, [("AA", aa, 0), ("PID", "4242", 0)]), b"")
@@ -187,6 +188,46 @@ def test_hdc_foreground_and_alive_batches_into_one_shell_call(monkeypatch):
     fg, alive = dev.foreground_and_alive("com.example.app")
     assert len(calls) == 1 and fg == "com.example.app" and alive is True
     assert dev.last_query_error is None and dev.process_query_error is None
+
+
+@pytest.mark.parametrize("pid_raw,pid_rc,expected_alive", [
+    ("", 1, False),
+    ("/system/bin/sh: pidof: not found", 127, None),
+    ("", 127, None),
+])
+def test_hdc_foreground_and_alive_distinguishes_no_process_from_pidof_failure(monkeypatch, pid_raw, pid_rc, expected_alive):
+    def fake_run(cmd, **kwargs):
+        sep = _extract_sep(cmd[-1], "__VPD_FA_")
+        aa = "Mission ID #1\n  bundle name [com.example.app]\n  state #FOREGROUND\n"
+        return subprocess.CompletedProcess(cmd, 0, _batch_out(sep, [("AA", aa, 0), ("PID", pid_raw, pid_rc)]), b"")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    dev = HdcDevice("synthetic-hdc")
+    fg, alive = dev.foreground_and_alive("com.example.app")
+    assert fg == "com.example.app"
+    assert alive is expected_alive
+    if expected_alive is None:
+        assert dev.process_query_error is not None
+        assert dev.process_query_error["error_class"] == "command_failed"
+    else:
+        assert dev.process_query_error is None
+
+
+def test_hdc_batch_rejects_trailing_host_stderr_transport_failure(monkeypatch):
+    def fake_run(cmd, **kwargs):
+        sep = _extract_sep(cmd[-1], "__VPD_FA_")
+        aa = "Mission ID #1\n  bundle name [com.example.app]\n  state #FOREGROUND\n"
+        return subprocess.CompletedProcess(
+            cmd, 0, _batch_out(sep, [("AA", aa, 0), ("PID", "", 1)]),
+            b"[Fail][E000004] Communication channel is being established\n",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    dev = HdcDevice("synthetic-hdc")
+    fg, alive = dev.foreground_and_alive("com.example.app")
+    assert fg is None and alive is None
+    assert dev.last_query_error == "transport_unavailable"
+    assert dev.process_query_error["error_class"] == "transport_unavailable"
 
 
 @pytest.mark.parametrize("mode", ["device_offline", "tool_missing"])

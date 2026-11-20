@@ -45,12 +45,17 @@ def _uses_native_shell(device) -> bool:
 
 def _parse_batch_sections(raw: str, sep: str, labels: tuple[str, ...]) -> Optional[dict[str, tuple[str, int]]]:
     out = {}
+    last_end = 0
     for label in labels:
         m = re.search(rf"{re.escape(sep)}:BEGIN:{re.escape(label)}\r*\n(.*?)\r*\n{re.escape(sep)}:END:{re.escape(label)}:(-?\d+)",
                       raw or "", re.S)
         if not m:
             return None
         out[label] = (m.group(1), int(m.group(2)))
+        last_end = max(last_end, m.end())
+    # 若 hdc 自身在末尾 stderr 报告传输/离线/执行错误，拒绝按正常段结果消费。
+    if classify_output((raw or "")[last_end:]):
+        return None
     return out
 
 
@@ -378,7 +383,7 @@ class HdcDevice:
         errors = {}
         if _uses_native_shell(self):
             sep = f"__VPD_INFO_{uuid.uuid4().hex[:10]}__"
-            parts = [f"echo {sep}:BEGIN:{key}; param get {prop}; _rc=$?; echo ''; echo {sep}:END:{key}:$_rc"
+            parts = [f"echo {sep}:BEGIN:{key}; param get {prop} 2>&1; _rc=$?; echo ''; echo {sep}:END:{key}:$_rc"
                      for key, prop in _INFO_PROPS]
             r = self._run(["shell", "; ".join(parts) + "; true"], "param_get_batch",
                           raw_payload_marker=f"{sep}:BEGIN:")
@@ -415,8 +420,8 @@ class HdcDevice:
         fold_prop = "const.window.foldscreen.type"
         if _uses_native_shell(self):
             sep = f"__VPD_DISP_{uuid.uuid4().hex[:10]}__"
-            script = (f"echo {sep}:BEGIN:DISP; hidumper -s DisplayManagerService -a -a; _rc=$?; echo ''; echo {sep}:END:DISP:$_rc; "
-                      f"echo {sep}:BEGIN:FOLD; param get {fold_prop}; _rc=$?; echo ''; echo {sep}:END:FOLD:$_rc; true")
+            script = (f"echo {sep}:BEGIN:DISP; hidumper -s DisplayManagerService -a -a 2>&1; _rc=$?; echo ''; echo {sep}:END:DISP:$_rc; "
+                      f"echo {sep}:BEGIN:FOLD; param get {fold_prop} 2>&1; _rc=$?; echo ''; echo {sep}:END:FOLD:$_rc; true")
             r = self._run(["shell", script], "display_dump_batch", raw_payload_marker=f"{sep}:BEGIN:")
             parsed = _parse_batch_sections(r.raw, sep, ("DISP", "FOLD")) if r.ok else None
             if parsed is None:
@@ -564,8 +569,8 @@ class HdcDevice:
                 and _SAFE_SHELL_TOKEN.fullmatch(bundle or "")):
             return self.foreground(), self.process_alive(bundle)
         sep = f"__VPD_FA_{uuid.uuid4().hex[:10]}__"
-        script = (f"echo {sep}:BEGIN:AA; aa dump -l; _rc=$?; echo ''; echo {sep}:END:AA:$_rc; "
-                  f"echo {sep}:BEGIN:PID; pidof {bundle}; _rc=$?; echo ''; echo {sep}:END:PID:$_rc; true")
+        script = (f"echo {sep}:BEGIN:AA; aa dump -l 2>&1; _rc=$?; echo ''; echo {sep}:END:AA:$_rc; "
+                  f"echo {sep}:BEGIN:PID; pidof {bundle} 2>&1; _rc=$?; echo ''; echo {sep}:END:PID:$_rc; true")
         r = self._run(["shell", script], "foreground_and_alive", raw_payload_marker=f"{sep}:BEGIN:")
         if not r.ok:
             err = r.error_class or "command_failed"
@@ -598,9 +603,11 @@ class HdcDevice:
                     self.last_query_error_detail = error
                 fg = foreground_from_evidence(aa_raw, windows)
         pid_err = classify_output(pid_raw) or ("command_failed" if pid_rc != 0 else None)
-        queried = pid_err is None or (pid_err == "command_failed" and not pid_raw.strip())
+        # pidof 未命中时退出码为 1 且无输出；其他非零退出码（如 127 命令不存在）或非空 stderr 不能当作进程已退出。
+        queried = pid_err is None or (pid_err == "command_failed" and pid_rc == 1 and not pid_raw.strip())
         self.process_query_error = (None if queried else
-                                    {"error_class": pid_err, "error": pid_raw.strip()[:300], "raw": pid_raw})
+                                    {"error_class": pid_err, "error": pid_raw.strip()[:300] or f"pidof exited {pid_rc}",
+                                     "raw": pid_raw})
         return fg, (bool(pid_raw.strip()) if queried else None)
 
     def _pull(self, remote: str, local: Path, op: str) -> DeviceResult:
@@ -616,8 +623,8 @@ class HdcDevice:
         remote = f"/data/local/tmp/vpd_{uuid.uuid4().hex[:8]}.json"
         if _uses_native_shell(self) and _SAFE_SHELL_TOKEN.fullmatch(bundle or ""):
             marker = f"__VPD_TREE_{uuid.uuid4().hex[:10]}__"
-            script = (f"uitest dumpLayout -b {bundle} -p {remote}"
-                      f" && echo {marker} && cat {remote}; _rc=$?; rm -f {remote}; exit $_rc")
+            script = (f"uitest dumpLayout -b {bundle} -p {remote} 2>&1"
+                      f" && echo {marker} && cat {remote} 2>&1; _rc=$?; rm -f {remote}; exit $_rc")
             r = self._run(["shell", script], "dump_tree", timeout=30, raw_payload_marker=marker)
             if not r.ok:
                 return r
@@ -751,8 +758,8 @@ class HdcDevice:
     def _screen_locked_once(self) -> Optional[bool]:
         if _uses_native_shell(self):
             sep = f"__VPD_LK_{uuid.uuid4().hex[:10]}__"
-            script = (f"echo {sep}:BEGIN:POWER; hidumper -s 3301 -a -a; _rc=$?; echo ''; echo {sep}:END:POWER:$_rc; "
-                      f"echo {sep}:BEGIN:LOCK; hidumper -s ScreenlockService -a -all; _rc=$?; echo ''; echo {sep}:END:LOCK:$_rc; true")
+            script = (f"echo {sep}:BEGIN:POWER; hidumper -s 3301 -a -a 2>&1; _rc=$?; echo ''; echo {sep}:END:POWER:$_rc; "
+                      f"echo {sep}:BEGIN:LOCK; hidumper -s ScreenlockService -a -all 2>&1; _rc=$?; echo ''; echo {sep}:END:LOCK:$_rc; true")
             r = self._run(["shell", script], "screen_locked_batch", raw_payload_marker=f"{sep}:BEGIN:")
             if not r.ok:
                 self.screen_query_error = {"error_class": r.error_class, "error": r.error, "raw": r.raw}
@@ -814,8 +821,8 @@ class HdcDevice:
         self.pin_pad_source = None
         if _uses_native_shell(self):
             marker = f"__VPD_LOCK_{uuid.uuid4().hex[:10]}__"
-            script = (f"uitest dumpLayout -p {remote}"
-                      f" && echo {marker} && cat {remote}; _rc=$?; rm -f {remote}; exit $_rc")
+            script = (f"uitest dumpLayout -p {remote} 2>&1"
+                      f" && echo {marker} && cat {remote} 2>&1; _rc=$?; rm -f {remote}; exit $_rc")
             r = self._run(["shell", script], "lock_dump", timeout=30, raw_payload_marker=marker)
             raw_json = r.raw.split(marker, 1)[1].lstrip("\r\n") if (r.ok and marker in r.raw) else ""
             if r.ok and marker not in r.raw:
