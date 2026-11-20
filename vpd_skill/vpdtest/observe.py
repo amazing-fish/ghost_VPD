@@ -122,19 +122,27 @@ class Observer:
         oid, d = self.store.next_obs_dir()
         foreground_errors = []
 
-        def foreground(stage):
-            value = self.device.foreground()
+        def record_foreground_error(stage):
             error = getattr(self.device, "last_query_error", None)
             if error not in (None, "foreground_unknown", "foreground_changed"):
                 detail = dict(getattr(self.device, "last_query_error_detail", None) or {})
                 foreground_errors.append({"stage": stage, "error_class": error,
                                           "error": detail.get("error"), "raw": detail.get("raw"),
                                           "detail": detail})
+
+        def foreground(stage):
+            value = self.device.foreground()
+            record_foreground_error(stage)
             return value
 
-        fg = foreground("initial")
-        fg_err = getattr(self.device, "last_query_error", None)
-        alive = self.device.process_alive(self.bundle)
+        if hasattr(self.device, "foreground_and_alive"):
+            fg, alive = self.device.foreground_and_alive(self.bundle)
+            record_foreground_error("initial")
+            fg_err = getattr(self.device, "last_query_error", None)
+        else:
+            fg = foreground("initial")
+            fg_err = getattr(self.device, "last_query_error", None)
+            alive = self.device.process_alive(self.bundle)
         obs = {"obs_id": oid, "ts": now_iso(), "label": label, "device": self.device.serial,
                "source": self.device.kind, "foreground": fg, "process_alive": alive}
         if getattr(self.device, "process_query_error", None):

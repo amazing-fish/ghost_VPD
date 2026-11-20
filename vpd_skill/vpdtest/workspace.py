@@ -9,7 +9,7 @@ from .devices import create_device
 from .observe import Observer
 from .policy import Policy
 from .states import StateModel
-from .util import SKILL_ROOT, read_json
+from .util import SKILL_ROOT, read_json, validate_stable_id
 
 
 def load_config() -> dict:
@@ -56,12 +56,14 @@ class Workspace:
         return App(self.root, app_id)
 
     def case_path(self, case_id: str) -> Path:
+        validate_stable_id(case_id, error_message="用例 ID 不能是路径，须为字母/数字开头的稳定 ID")
         return self.root / "cases" / f"{case_id}.json"
 
     def load_case(self, case_id: str) -> dict:
         return read_json(self.case_path(case_id))
 
     def load_suite(self, suite_id: str) -> dict:
+        validate_stable_id(suite_id, error_message="套件 ID 不能是路径，须为字母/数字开头的稳定 ID")
         return read_json(self.root / "suites" / f"{suite_id}.json")
 
     def resolve_world(self, arg: str) -> Path:

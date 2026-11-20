@@ -18,7 +18,7 @@ from . import review_snapshot
 from .knowledge import ACTIVE, item_status
 from .safety import TREE_KINDS, untreed_strategies
 from .session import relative_scope_target, session_lock, swipe_options_error, swipe_scope_definition_error
-from .util import now_iso, read_json, sha256_file, sha256_obj, write_json
+from .util import now_iso, read_json, sha256_file, sha256_obj, validate_stable_id, write_json
 
 REQUIRED = ("purpose", "preconditions", "test_data", "steps", "assertions", "cleanup", "sources")
 CONTENT_KEYS = ("app", "preconditions", "env_requirements", "test_data", "steps", "assertions", "cleanup")
@@ -321,13 +321,13 @@ def _withdrawal(case: dict, record) -> tuple:
     return True, revoked, ({k: event.get(k) for k in ("reviewer", "basis", "ts")} if revoked else None)
 
 
-def review_status(ws, case: dict, knowledge=None, app=None, policy=None, context=None) -> dict:
+def review_status(ws, case: dict, knowledge=None, app=None, policy=None, context=None, *, engine_files=None) -> dict:
     from .knowledge import KnowledgeStore
     app = app or ws.app(case["app"])
     knowledge = knowledge or KnowledgeStore(ws.root)
     policy = policy or ws.policy()
     signals = exploration_signals(case)
-    files = review_snapshot.engine_files(Path(__file__).parent)
+    files = review_snapshot.engine_files(Path(__file__).parent) if engine_files is None else engine_files
     record = case.get("asset_review")
     recorded_binding = record.get("binding") if isinstance(record, dict) else None
     schema = recorded_binding.get("context_schema", 1) if isinstance(recorded_binding, dict) else 2
@@ -377,10 +377,11 @@ def review_status(ws, case: dict, knowledge=None, app=None, policy=None, context
             **({"revocation": revocation} if revoked else {})}
 
 
-def require_review(ws, case: dict, knowledge=None, app=None, policy=None, context=None) -> dict:
+def require_review(ws, case: dict, knowledge=None, app=None, policy=None, context=None, *, engine_files=None) -> dict:
     if case.get("status", "draft") not in {*NEXT, "regression"}:
         raise PermissionError(f"用例 {case.get('id')} 状态无效，不能晋级或批量执行")
-    info = review_status(ws, case, knowledge, app, policy, context)
+    info = review_status(ws, case, knowledge, app, policy, context,
+                         **({"engine_files": engine_files} if engine_files is not None else {}))
     # Provenance metadata is not a replay/review hash input. Recheck current known
     # self-origin even when a previous approval still has a matching binding.
     issues = info.get("lineage_issues")
@@ -399,8 +400,7 @@ def require_review(ws, case: dict, knowledge=None, app=None, policy=None, contex
 
 def validate_case_id(case_id: str) -> None:
     """The shared stable identity contract for general case creation and lifecycle."""
-    if not isinstance(case_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", case_id):
-        raise ValueError("用例 ID 不能是路径，须为字母/数字开头的稳定 ID")
+    validate_stable_id(case_id, error_message="用例 ID 不能是路径，须为字母/数字开头的稳定 ID")
 
 
 def _case_update(function):
@@ -1227,12 +1227,14 @@ def replay_basis(case: dict, deps: Optional[str] = None) -> dict:
 
 @_case_update
 def promote(ws, case_id: str, to: str, knowledge, reviewer: Optional[str] = None, allow_offline: bool = False,
-            known_issue: Optional[str] = None, *, dry_run: bool = False) -> dict:
+            known_issue: Optional[str] = None, *, dry_run: bool = False, app=None, policy=None, context=None,
+            engine_files=None) -> dict:
     case = ws.load_case(case_id)
     if dry_run:
         case = deepcopy(case)  # A cached/custom workspace must remain read-only too.
-    app, policy = ws.app(case["app"]), ws.policy()
-    require_review(ws, case, knowledge, app=app, policy=policy)
+    app = app or ws.app(case["app"])
+    policy = policy or ws.policy()
+    require_review(ws, case, knowledge, app=app, policy=policy, context=context, engine_files=engine_files)
     cur = case.get("status", "draft")
     if NEXT.get(cur) != to:
         raise PermissionError(f"不能从 {cur} 晋级到 {to}（允许：{cur} → {NEXT.get(cur)}）")

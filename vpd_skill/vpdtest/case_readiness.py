@@ -1,9 +1,11 @@
 """Read-only inventory and the existing promotion gates; no new maturity or coverage rules."""
 from collections import Counter
 import json
+from pathlib import Path
 import traceback
 
 from . import cases as C
+from . import review_snapshot
 from .knowledge import KnowledgeStore, item_status
 
 
@@ -77,7 +79,8 @@ def _current_review(info):
             "execution_eligibility": "not_evaluated", "message": message}
 
 
-def _one(ws, cid, knowledge, policy, to, reviewer, allow_offline, known_issue):
+def _one(ws, cid, knowledge, policy, to, reviewer, allow_offline, known_issue,
+         *, apps=None, contexts=None, engine_files=None):
     path = ws.case_path(cid)
     row = {"case": cid, "source": "present" if path.is_file() else "missing", "status": None}
     if row["source"] == "missing":
@@ -92,9 +95,20 @@ def _one(ws, cid, knowledge, policy, to, reviewer, allow_offline, known_issue):
         row.update(app=case["app"], status=status if isinstance(status, str) else None,
                    scope=dict(SCOPE), recorded_maturity=status if isinstance(status, str) else None)
         stage = "app"
-        app = ws.app(case["app"])
+        app_id = case["app"]
+        app = apps.get(app_id) if apps is not None else None
+        if app is None:
+            app = ws.app(app_id)
+            if apps is not None:
+                apps[app_id] = app
+        context = contexts.get(app_id) if contexts is not None else None
+        if context is None:
+            context = C.review_context(ws, app)
+            if contexts is not None:
+                contexts[app_id] = context
         stage = "review"
-        review = C.review_status(ws, case, knowledge, app=app, policy=policy)
+        review = C.review_status(ws, case, knowledge, app=app, policy=policy, context=context,
+                                 **({"engine_files": engine_files} if engine_files is not None else {}))
         row["review"] = _review(review)
         row["current_review_validity"] = _current_review(review)
         stage = "definition"
@@ -127,7 +141,8 @@ def _one(ws, cid, knowledge, policy, to, reviewer, allow_offline, known_issue):
         else:
             try:
                 preview = C.promote(ws, cid, target, knowledge, reviewer, allow_offline,
-                                    known_issue, dry_run=True)
+                                    known_issue, dry_run=True, app=app, policy=policy,
+                                    context=context, engine_files=engine_files)
                 row["promotion"] = {"to": target, "status": "eligible", "preview": preview}
             except PermissionError as exc:
                 row["promotion"] = {"to": target, "status": "blocked", "reason": str(exc)}
@@ -151,8 +166,16 @@ def readiness(ws, case_ids=None, *, to=None, reviewer=None, allow_offline=False,
     ids = list(dict.fromkeys(case_ids)) if explicit else sorted(p.stem for p in directory.glob("*.json"))
     for cid in ids:
         C.validate_case_id(cid)
-    knowledge, policy = KnowledgeStore(ws.root), ws.policy()
-    rows = [_one(ws, cid, knowledge, policy, to, reviewer, allow_offline, known_issue) for cid in ids]
+    live_knowledge = KnowledgeStore(ws.root)
+    try:
+        knowledge = live_knowledge.snapshot()
+    except Exception:
+        knowledge = live_knowledge
+    policy = ws.policy()
+    files = review_snapshot.engine_files(Path(C.__file__).parent)
+    apps, contexts = {}, {}
+    rows = [_one(ws, cid, knowledge, policy, to, reviewer, allow_offline, known_issue,
+                 apps=apps, contexts=contexts, engine_files=files) for cid in ids]
     source = Counter(r["source"] for r in rows)
     errors = sum("error" in r for r in rows)
     summary = {"requested": len(ids), "source": dict(sorted(source.items())), "analysis_errors": errors,

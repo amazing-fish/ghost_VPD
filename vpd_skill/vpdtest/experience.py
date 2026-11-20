@@ -14,7 +14,7 @@ from typing import Callable, Optional
 
 from .cases import has_execution_error, iter_case_steps
 from .locate import locator_fingerprint
-from .util import append_jsonl, new_id, now_iso, read_json, read_jsonl, write_json
+from .util import append_jsonl, new_id, now_iso, read_json, read_jsonl, session_lock, write_json
 
 AUTO_ADOPTABLE = {"locator_preference", "wait_timeout"}  # 其余类型（interrupt_rule、state_signature…）adopt 须 --reviewer
 FORBIDDEN = {"assertion_change", "step_removal", "policy_change"}
@@ -59,6 +59,7 @@ class ExperienceStore:
     def __init__(self, root: Path, app_id: str):
         self.root, self.app_id = root, app_id
         self.dir = root / "experience" / app_id
+        self._lock_dir = root / ".store-locks" / f"experience-{app_id}"
         self.targets_path = root / "apps" / app_id / "targets.json"
         self.items_path, self.active_path = self.dir / "items.json", self.dir / "active.json"
         self.ledger_path = self.dir / "ledger.jsonl"
@@ -72,9 +73,13 @@ class ExperienceStore:
                 return it
         raise ValueError(f"没有经验 {xid}")
 
-    def save_item(self, item: dict) -> None:
+    def _save_item_unlocked(self, item: dict) -> None:
         items = [it for it in self.items() if it["id"] != item["id"]] + [item]
         write_json(self.items_path, {"items": sorted(items, key=lambda i: i["id"])})
+
+    def save_item(self, item: dict) -> None:
+        with session_lock(self._lock_dir):
+            self._save_item_unlocked(item)
 
     def active(self) -> dict:
         return read_json(self.active_path, {"version": 0, "items": []})
@@ -116,17 +121,30 @@ class ExperienceStore:
     def _upsert(self, kind: str, change: dict, desc: str, run: dict, step: dict, att: dict) -> Optional[dict]:
         ev = {"run_id": run["run_id"], "case": run["case"]["id"], "step": step["step_id"],
               "attempt": att["n"], "obs": att.get("obs_before") or att.get("obs_after"), "device": run.get("device_spec")}
-        for it in self.items():
-            if it["kind"] == kind and it["change"] == change and it["status"] in ("candidate", "validated", "adopted"):
-                it["evidence"].append(ev)
-                self.save_item(it)
-                return None
-        item = {"id": new_id("XP"), "kind": kind, "change": change, "description": desc, "status": "candidate",
-                "requires_review": kind not in AUTO_ADOPTABLE, "created": now_iso(), "created_by": "auto:run",
-                "origin_case": run["case"]["id"], "evidence": [ev], "validations": [], "history": []}
-        self.save_item(item)
-        self.log("candidate_created", id=item["id"], kind=kind, change=change, evidence=ev)
-        return item
+        with session_lock(self._lock_dir):
+            for it in self.items():
+                if it["kind"] != kind or it["status"] not in ("candidate", "validated", "adopted"):
+                    continue
+                if it["change"] == change:
+                    it["evidence"].append(ev)
+                    self._save_item_unlocked(it)
+                    return None
+                if (kind == "wait_timeout"
+                        and it["change"].get("key") == change.get("key")
+                        and (it["status"] == "candidate"
+                             or float(change["timeout_s"]) <= float(it["change"]["timeout_s"]))):
+                    if it["status"] == "candidate":
+                        it["change"] = {**it["change"],
+                                        "timeout_s": max(float(it["change"]["timeout_s"]), float(change["timeout_s"]))}
+                    it["evidence"].append(ev)
+                    self._save_item_unlocked(it)
+                    return None
+            item = {"id": new_id("XP"), "kind": kind, "change": change, "description": desc, "status": "candidate",
+                    "requires_review": kind not in AUTO_ADOPTABLE, "created": now_iso(), "created_by": "auto:run",
+                    "origin_case": run["case"]["id"], "evidence": [ev], "validations": [], "history": []}
+            self._save_item_unlocked(item)
+            self.log("candidate_created", id=item["id"], kind=kind, change=change, evidence=ev)
+            return item
 
     def _require_locator_binding(self, item: dict, case_ids=None, *, require_exercised=False) -> None:
         if item["kind"] != "locator_preference":
@@ -289,43 +307,45 @@ class ExperienceStore:
         return finish()
 
     def adopt(self, xid: str, reviewer: Optional[str] = None) -> dict:
-        item = self.get(xid)
-        self._require_locator_binding(item, (item.get("validations") or [{}])[-1].get("exercised_cases"),
-                                      require_exercised=True)
-        if item["kind"] in FORBIDDEN:
-            raise PermissionError(f"{item['kind']} 不能通过经验通道变更，请走用例评审")
-        if item["status"] != "validated":
-            raise PermissionError(f"经验 {xid} 状态为 {item['status']}，只有 validated 才能采纳")
-        if item["requires_review"] and not reviewer:
-            raise PermissionError(f"{item['kind']} 需要人工评审：请提供 --reviewer")
-        act = self.active()
-        write_json(self.dir / "snapshots" / f"active_v{act['version']}.json", act)
-        act = {"version": act["version"] + 1, "items": act["items"] + [xid], "updated": now_iso()}
-        write_json(self.active_path, act)
-        item["history"].append({"ts": now_iso(), "from": item["status"], "to": "adopted",
-                                "why": f"reviewer={reviewer or 'auto'}", "overlay_version": act["version"]})
-        item["status"] = "adopted"
-        self.save_item(item)
-        self.log("adopted", id=xid, overlay_version=act["version"], reviewer=reviewer or "auto")
-        return act
+        with session_lock(self._lock_dir):
+            item = self.get(xid)
+            self._require_locator_binding(item, (item.get("validations") or [{}])[-1].get("exercised_cases"),
+                                          require_exercised=True)
+            if item["kind"] in FORBIDDEN:
+                raise PermissionError(f"{item['kind']} 不能通过经验通道变更，请走用例评审")
+            if item["status"] != "validated":
+                raise PermissionError(f"经验 {xid} 状态为 {item['status']}，只有 validated 才能采纳")
+            if item["requires_review"] and not reviewer:
+                raise PermissionError(f"{item['kind']} 需要人工评审：请提供 --reviewer")
+            act = self.active()
+            write_json(self.dir / "snapshots" / f"active_v{act['version']}.json", act)
+            act = {"version": act["version"] + 1, "items": act["items"] + [xid], "updated": now_iso()}
+            write_json(self.active_path, act)
+            item["history"].append({"ts": now_iso(), "from": item["status"], "to": "adopted",
+                                    "why": f"reviewer={reviewer or 'auto'}", "overlay_version": act["version"]})
+            item["status"] = "adopted"
+            self._save_item_unlocked(item)
+            self.log("adopted", id=xid, overlay_version=act["version"], reviewer=reviewer or "auto")
+            return act
 
     def rollback(self, to_version: int, reason: str) -> dict:
-        snap = self.dir / "snapshots" / f"active_v{to_version}.json"
-        if not snap.exists():
-            raise ValueError(f"没有 overlay v{to_version} 的快照")
-        cur = self.active()
-        old = read_json(snap)
-        write_json(self.dir / "snapshots" / f"active_v{cur['version']}.json", cur)
-        new = {"version": cur["version"] + 1, "items": old["items"], "updated": now_iso(),
-               "rolled_back_to": to_version}
-        write_json(self.active_path, new)
-        for xid in set(cur["items"]) - set(old["items"]):
-            it = self.get(xid)
-            it["history"].append({"ts": now_iso(), "from": it["status"], "to": "rolled_back", "why": reason})
-            it["status"] = "rolled_back"
-            self.save_item(it)
-        self.log("rolled_back", to_version=to_version, new_version=new["version"], reason=reason)
-        return new
+        with session_lock(self._lock_dir):
+            snap = self.dir / "snapshots" / f"active_v{to_version}.json"
+            if not snap.exists():
+                raise ValueError(f"没有 overlay v{to_version} 的快照")
+            cur = self.active()
+            old = read_json(snap)
+            write_json(self.dir / "snapshots" / f"active_v{cur['version']}.json", cur)
+            new = {"version": cur["version"] + 1, "items": old["items"], "updated": now_iso(),
+                   "rolled_back_to": to_version}
+            write_json(self.active_path, new)
+            for xid in set(cur["items"]) - set(old["items"]):
+                it = self.get(xid)
+                it["history"].append({"ts": now_iso(), "from": it["status"], "to": "rolled_back", "why": reason})
+                it["status"] = "rolled_back"
+                self._save_item_unlocked(it)
+            self.log("rolled_back", to_version=to_version, new_version=new["version"], reason=reason)
+            return new
 
 
 def _adaptations(run: dict) -> int:
