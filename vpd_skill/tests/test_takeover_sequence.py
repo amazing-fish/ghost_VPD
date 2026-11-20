@@ -1,4 +1,6 @@
 """Unresolved physical uncertainty stops business sequences, not compensation."""
+from types import SimpleNamespace
+
 import pytest
 
 from conftest import world
@@ -114,7 +116,7 @@ def test_recovered_history_is_not_a_new_handoff():
 @pytest.mark.parametrize("safety", [False, True])
 def test_safety_child_sequence_preserves_best_effort(monkeypatch, safety):
     from vpdtest.execute import Executor
-    executor = object.__new__(Executor)
+    executor = Executor(SimpleNamespace(mode="regression"))
     calls = []
 
     def execute(step, _case):

@@ -295,8 +295,10 @@ def render_exploration(exp: dict) -> str:
     cov = exp["coverage"]
     out = [f"# 探索记录：{exp['run_id']}", "", f"- 目标：{exp.get('goal') or '（未填写）'}",
            f"- 起点：`{exp['start']}`，退出原因：`{exp['exit']['reason']}`，动作数 {exp['actions']}/{exp['budget']}",
-           f"- 验证级别：{'离线回放' if exp['validation_level'] == 'offline_replay' else '真机'}", "",
-           "## 覆盖（仅基于本次实际观察与已声明状态模型）", "",
+           f"- 验证级别：{'离线回放' if exp['validation_level'] == 'offline_replay' else '真机'}"]
+    if exp.get("action_required"):
+        out.append(f"- 人工接管（{_esc(exp['exit']['source_step'])}）：{_esc(exp['action_required'])}")
+    out += ["", "## 覆盖（仅基于本次实际观察与已声明状态模型）", "",
            f"- 已声明状态 {len(cov['declared'])} 个，本次到达 {len(cov['visited_declared'])} 个：{cov['visited_declared']}",
            f"- 未到达的已声明状态：{cov['unvisited_declared']}",
            f"- 观察到的未声明页面签名：{cov['unknown_states']}", f"- {cov['disclaimer']}", "",

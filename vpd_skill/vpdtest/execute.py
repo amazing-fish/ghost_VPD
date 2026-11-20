@@ -1236,10 +1236,13 @@ class Executor:
                                **(child_fields or {}),
                                "_safety": bool(step.get("_safety")), **self._child_condition_context(step)}, case_id)
             subs.append(s)
-            if s["outcome"] == "skipped" and s.get("critical", True):
+            # An explore reset can contain optional recipe/flow steps. An explicit
+            # handoff must stop before the next child even when no effect is unknown.
+            explore_handoff = self.ctx.mode == "explore" and not step.get("_safety") and s.get("action_required")
+            if s["outcome"] == "skipped" and s.get("critical", True) and not explore_handoff:
                 return self._required_skip(base, s, subs)
             takeover = unresolved_takeover(s) and not step.get("_safety")
-            if s["outcome"] != "skipped" and halts_sequence(s, safety=bool(step.get("_safety"))):
+            if explore_handoff or (s["outcome"] != "skipped" and halts_sequence(s, safety=bool(step.get("_safety")))):
                 return {**base, "outcome": s["outcome"], "attribution": s.get("attribution"),
                         "reason": (f"流程 {step['flow']} 第 {i + 1} 步（{sub.get('desc', sub['action'])}）未通过：{s.get('reason')}" if flow
                                    else f"前置状态 {step['state']} 未到达：{s.get('reason')}"),
@@ -1247,7 +1250,8 @@ class Executor:
                         "failure_source": s.get("failure_source") or s["step_id"],
                         "first_failure": s.get("first_failure"), "final_obs": s.get("final_obs"),
                         "final_status": s.get("final_status"),
-                        **({"effect_unknown": True, "action_required": s["action_required"]} if takeover else {}),
+                        **({k: s[k] for k in ("action_required", "effect_unknown") if k in s}
+                           if explore_handoff or takeover else {}),
                         **({"measurement": s.get("measurement")} if flow else {})}
         order = ["passed", "passed_after_adaptation", "passed_after_recovery"]
         outcome = ("skipped" if subs and all(s["outcome"] == "skipped" for s in subs) else
