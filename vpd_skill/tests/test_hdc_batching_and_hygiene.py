@@ -208,7 +208,13 @@ def test_hdc_preflight_short_circuits_after_one_call_when_offline(monkeypatch, m
     assert "execution_error" not in checks["device_online"]
     for key in ("screen_awake", "screen_unlocked", "app_installed", "display_info"):
         assert checks[key]["ok"] is False
+        assert checks[key]["error_class"] == mode  # 保留离线/缺工具根因，不误报 screen_off/screen_locked/app_missing
         assert checks[key]["execution_error"]["error_class"] == mode
+    from vpdtest.verdict import case_verdict
+    verdict = case_verdict(pre, {"ok": True}, [], [], None)
+    reason = verdict["findings"][0]["reason"]
+    assert mode in reason
+    assert not any(misleading in reason for misleading in ("screen_off", "screen_locked", "app_missing"))
     assert pre["device"]["model"] is None and pre["app_version"] is None
 
 

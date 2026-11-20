@@ -491,15 +491,14 @@ class HdcDevice:
                        "detail": (power.error or "")[:120]})
         state = parse_kv(power.raw, "Current State")
         power_err = {"error_class": power.error_class, "error": power.error, "raw": power.raw} if not power.ok else None
-        checks.append({"check": "screen_awake", "ok": power.ok and state == "AWAKE", "value": state,
-                       "error_class": None if state == "AWAKE" else "screen_off",
-                       **({"execution_error": dict(power_err)} if power_err else {})})
         if power.error_class in _OFFLINE_CLASSES:
-            # 设备离线或缺少 hdc 工具时立即短路，避免连续 8 次无效拉起/超时等待。
+            # 设备离线或缺少 hdc 工具时立即短路，保留根因 error_class，不将未执行项误报为熄屏/锁屏/缺应用。
+            checks.append({"check": "screen_awake", "ok": False, "value": None,
+                           "error_class": power.error_class, "execution_error": dict(power_err)})
             checks.append({"check": "screen_unlocked", "ok": False, "value": None,
-                           "error_class": "screen_locked", "execution_error": dict(power_err)})
+                           "error_class": power.error_class, "execution_error": dict(power_err)})
             checks.append({"check": "app_installed", "ok": False, "value": None,
-                           "error_class": "app_missing", "execution_error": dict(power_err)})
+                           "error_class": power.error_class, "execution_error": dict(power_err)})
             disp_err = {**power_err, "query": "display_dump"}
             checks.append({"check": "display_info", "ok": False,
                            "error_class": power.error_class, "execution_error": disp_err})
@@ -509,6 +508,9 @@ class HdcDevice:
             display = {"source": "hidumper DisplayManagerService", "error_class": power.error_class,
                        "error": power.error, "raw": power.raw, "density": None, "execution_error": disp_err}
             return {"ok": False, "checks": checks, "device": info, "app_version": None, "display": display}
+        checks.append({"check": "screen_awake", "ok": power.ok and state == "AWAKE", "value": state,
+                       "error_class": None if state == "AWAKE" else "screen_off",
+                       **({"execution_error": dict(power_err)} if power_err else {})})
         lock = self._shell("hidumper", "-s", "ScreenlockService", "-a", "-all", op="lock_state")
         locked = parse_kv(lock.raw, "screenLocked")
         checks.append({"check": "screen_unlocked", "ok": lock.ok and locked == "false", "value": locked,
