@@ -1,0 +1,196 @@
+{
+  "id": "TC-QK-230-SPOT-NAME",
+  "version": 1,
+  "status": "draft",
+  "app": "qiankun_hm",
+  "title": "乾崑 VPD 按名称搜索一个已收藏车位",
+  "purpose": "OneBox 第 59 行的车位名称子范围。执行一次查询，保存名称结果行的两次观测，并由核验人对照本轮搜索前的独立收藏面板辨认对象。路点、按编号搜索和编号必显规则另行验证。",
+  "preconditions": [
+    "已登录乾崑，车辆与园区可进入 VPD 首页，无正在执行的 VPD 任务。",
+    "在同轮、同账号、同车和同园区的独立收藏面板先记录卡片归属、车位类型、完整名称、楼层及可区分标识，再回到 VPD 首页。仅有搜索前名称线索时也可采集结果，身份保持待判。"
+  ],
+  "env_requirements": {},
+  "test_data": {
+    "fav_spot": {
+      "runtime": true
+    }
+  },
+  "authorizations": [
+    "vpd_entry"
+  ],
+  "steps": [
+    {
+      "id": "S1",
+      "action": "ensure_state",
+      "state": "qk_vpd_home",
+      "desc": "使用既有 VPD 首页准备流程；从收藏面板返回首页后可直接接续。"
+    },
+    {
+      "id": "S2",
+      "action": "tap",
+      "target": "qk_search_entry",
+      "expect_state": "qk_spot_search",
+      "critical": true,
+      "timeout_s": 10,
+      "desc": "进入目的地搜索页。"
+    },
+    {
+      "id": "S3",
+      "action": "input",
+      "target": "qk_search_input",
+      "text": "${var:fav_spot}",
+      "clear": true,
+      "require_empty_after_clear": true,
+      "critical": true,
+      "retry": 0,
+      "timeout_s": 10,
+      "desc": "在当前 SearchField 清理并观察到显式空串后，仅输入本轮车位名称。"
+    },
+    {
+      "id": "S4",
+      "action": "wait",
+      "duration_s": 3,
+      "desc": "保存第一次搜索结果观测。"
+    },
+    {
+      "id": "S5",
+      "action": "wait",
+      "duration_s": 1,
+      "desc": "保存第二次搜索结果观测。两次取样可核对刷新，经过固定时长本身不能证明结果稳定。"
+    }
+  ],
+  "assertions": [
+    {
+      "id": "first-page",
+      "type": "state_is",
+      "state": "qk_spot_search",
+      "desc": "核对取样时的搜索页。",
+      "at": "S4",
+      "advisory": true,
+      "oracle_refs": [
+        "K-QK-TC-059"
+      ]
+    },
+    {
+      "id": "first-query",
+      "type": "target_text_equals",
+      "target": "qk_search_input",
+      "expected": "${var:fav_spot}",
+      "desc": "核对实际 SearchField 的 text 与本轮名称。",
+      "at": "S4",
+      "advisory": true,
+      "oracle_refs": [
+        "K-QK-TC-059"
+      ]
+    },
+    {
+      "id": "first-row",
+      "type": "text_present",
+      "within": "qk_search_name_result_row",
+      "text": "${var:fav_spot}",
+      "exact": true,
+      "desc": "检查本帧已挂载且符合定位结构的同名行恰有一条，并核对可见标题。裁剪可使这条线索待判；需另核同行身份字段。",
+      "at": "S4",
+      "advisory": true,
+      "oracle_refs": [
+        "K-QK-TC-059"
+      ],
+      "strict_visible_text": true
+    },
+    {
+      "id": "second-page",
+      "type": "state_is",
+      "state": "qk_spot_search",
+      "desc": "核对取样时的搜索页。",
+      "at": "S5",
+      "advisory": true,
+      "oracle_refs": [
+        "K-QK-TC-059"
+      ]
+    },
+    {
+      "id": "second-query",
+      "type": "target_text_equals",
+      "target": "qk_search_input",
+      "expected": "${var:fav_spot}",
+      "desc": "核对实际 SearchField 的 text 与本轮名称。",
+      "at": "S5",
+      "advisory": true,
+      "oracle_refs": [
+        "K-QK-TC-059"
+      ]
+    },
+    {
+      "id": "second-row",
+      "type": "text_present",
+      "within": "qk_search_name_result_row",
+      "text": "${var:fav_spot}",
+      "exact": true,
+      "desc": "检查本帧已挂载且符合定位结构的同名行恰有一条，并核对可见标题。裁剪可使这条线索待判；需另核同行身份字段。",
+      "at": "S5",
+      "advisory": true,
+      "oracle_refs": [
+        "K-QK-TC-059"
+      ],
+      "strict_visible_text": true
+    },
+    {
+      "id": "favorite-identity",
+      "at": "S5",
+      "type": "visual_review",
+      "advisory": false,
+      "oracle_refs": [
+        "K-QK-TC-059"
+      ],
+      "desc": "人工核对本轮独立来源与两份搜索结果的同一收藏车位身份。",
+      "prompt": "请把“指定收藏是否命中”和“检查过的列表范围”分开记录。核对搜索前收藏卡片/面板和 S4、S5 原件：实际查询与完整标题吻合，两帧各自的同行身份字段都能绑定到同一个独立来源吗？每帧各见一条同名行只说明该帧的局部观察。只有名称、楼层或计数，实体标识冲突、同名候选未排除、键盘遮挡候选、邻行存疑、刷新中或上下文变化时，身份待判。文字回执列出源会话/帧、run/两帧、核验人及身份依据；另列键盘状态、可见范围和滚动边界是否已核实。"
+    }
+  ],
+  "cleanup": [
+    {
+      "id": "C1",
+      "action": "stop_app",
+      "desc": "结束目标 APP，并由执行器核验终态。"
+    }
+  ],
+  "knowledge_used": [
+    {
+      "id": "K-QK-TC-059",
+      "use": "引用原表的搜索结果预期，限已收藏车位的名称侧。",
+      "applicability": "applies",
+      "rationale": "原表要求搜索成功并显示结果。知识条目尚未确认，其中列举的结果字段来自历史观察。车位号仅在独立源和同行中均可辨认时作为本轮身份对照。",
+      "steps": [
+        "S2",
+        "S3",
+        "S4",
+        "S5"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "type": "text_case",
+      "ref": "OneBox 全量用例测试结果 第 59 行；https://github.com/amazing-fish/ghost_VPD/issues/106#issuecomment-6431475672"
+    },
+    {
+      "type": "reviewer",
+      "ref": "名称搜索的用户裁决 https://github.com/amazing-fish/ghost_VPD/issues/80#issuecomment-6381962059"
+    },
+    {
+      "type": "device_observation",
+      "ref": "折叠屏上的收藏面板与结果行取证 https://github.com/amazing-fish/ghost_VPD/issues/118#issuecomment-6976988165 ；作为设计来源，未登记本用例重放。"
+    }
+  ],
+  "origin": {
+    "type": "text_case",
+    "ref": "OneBox 第 59 行 · 已收藏车位的名称搜索",
+    "review_reason": "本轮独立面板与搜索行的身份比对需要核验人查看两侧原件。 现场记录模板见 references/qk-spot-name-run.md。"
+  },
+  "history": [
+    {
+      "ts": "2026-11-18T11:31:06Z",
+      "to": "draft",
+      "why": "新建独立车位名称子范围，运行数据由现场提供，人工核验单独记录。"
+    }
+  ]
+}
