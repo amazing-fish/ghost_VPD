@@ -1,6 +1,6 @@
 {
   "id": "TC-QK-230",
-  "version": 4,
+  "version": 5,
   "status": "draft",
   "app": "qiankun_hm",
   "title": "乾崑 VPD 搜索已收藏车位与路点（原表「搜索收藏信息」L0）",
@@ -75,9 +75,11 @@
       "action": "input",
       "target": "qk_search_input",
       "text": "${var:fav_spot}",
+      "clear": true,
+      "require_empty_after_clear": true,
       "timeout_s": 10,
       "critical": true,
-      "desc": "原步骤 2 之一：搜索已收藏车位名（tap+输入在同一 action 内完成；新页面字段为空，不清空）"
+      "desc": "原步骤 2 之一：清理搜索框，观测到当前框为空后输入收藏车位名"
     },
     {
       "id": "S7",
@@ -103,16 +105,18 @@
       "timeout_s": 10,
       "critical": true,
       "expect_state": "qk_spot_search",
-      "desc": "再次进入搜索页（新页面输入框为空；实测 SearchField 的 clear 只删掉部分字符，不能复用同一页改词）"
+      "desc": "再次进入搜索页，由下一步重新清理并检查搜索框"
     },
     {
       "id": "S11",
       "action": "input",
       "target": "qk_search_input",
       "text": "${var:fav_waypoint}",
+      "clear": true,
+      "require_empty_after_clear": true,
       "timeout_s": 10,
       "critical": true,
-      "desc": "原步骤 2 之二：搜索已收藏停车点（路点）名"
+      "desc": "原步骤 2 之二：清理搜索框，观测到当前框为空后输入收藏路点名"
     },
     {
       "id": "S12",
@@ -276,6 +280,11 @@
       "ts": "2026-10-24T02:33:22+08:00",
       "to": "draft",
       "why": "PR81 Codex discussion_r4359186336：expect_state 是动作后检查，不能阻止第二次 Back。S9 改用既有 ensure_state；合成键盘展开/未展开两路径验证导航。另纠正原表完整映射与历史fixture声明，保留结果行身份/判据覆盖缺口。v1历史工作机重放不支撑v2；家庭机尚未检测到NEXT，无本版本1395实机证据"
+    },
+    {
+      "ts": "2026-11-18T09:26:52Z",
+      "to": "draft",
+      "why": "v5 两次查询均先清理并检查本次输入框的可观察空值。原断言、独立期望及待实机验证状态保留。"
     }
   ],
   "origin": {

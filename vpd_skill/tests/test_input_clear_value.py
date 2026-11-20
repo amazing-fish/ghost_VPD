@@ -209,3 +209,124 @@ def test_partial_or_unknown_clear_never_appends_or_repeats(clear_rig, op, sent):
     result = run_input(ctx, retry=2, idempotent=True)
     assert _counts(ctx.device)["input_text"] == 0 and _counts(ctx.device)["tap"] == 1
     assert len(result["attempts"]) == 1 and result["effect_unknown"] and result["action_required"]
+
+
+@pytest.mark.parametrize("hint", [True, False])
+def test_required_empty_accepts_fresh_direct_empty_only_once(clear_rig, hint):
+    ctx, box = clear_rig
+    ctx.device.partial_clear = False
+    if not hint:
+        box["attrs"].pop("hint")
+    result = run_input(ctx, require_empty_after_clear=True)
+    assert result["outcome"] == "passed"
+    assert _counts(ctx.device)["input_text"] == 1 and ctx.device.bound["name"] == "A13"
+    check = result["attempts"][0]["clear"]["value_checks"][0]
+    assert check["status"] == "observed_empty" and check["verified"] is None
+
+
+@pytest.mark.parametrize("mode", ["residue", "hint_only", "missing_original", "whitespace", "stale", "changed_field"])
+def test_required_empty_stops_after_clear_without_append_or_retry(clear_rig, mode, monkeypatch):
+    ctx, box = clear_rig
+    ctx.device.partial_clear = mode in ("residue", "hint_only")
+    if mode == "hint_only":
+        box["attrs"]["hint"] = "B"
+    elif mode == "missing_original":
+        ctx.device.attr_transform = lambda attrs: attrs.pop("originalText", None)
+    elif mode == "whitespace":
+        ctx.device.attr_transform = lambda attrs: attrs.update(text=" ", originalText=" ")
+    elif mode in ("stale", "changed_field"):
+        observe = ctx.observe
+        def after_clear(label, *args, **kwargs):
+            if label.endswith(":after-clear") and mode == "changed_field":
+                box["t"] = "TextArea"
+            obs, tree = observe(label, *args, **kwargs)
+            if label.endswith(":after-clear") and mode == "stale":
+                obs.pop("fresh", None)
+            return obs, tree
+        monkeypatch.setattr(ctx, "observe", after_clear)
+    result = run_input(ctx, require_empty_after_clear=True, idempotent=True)
+    assert result["final_status"] == ("clear_not_confirmed" if mode == "residue" else "clear_value_unobservable")
+    assert _counts(ctx.device)["input_text"] == 0 and _counts(ctx.device)["tap"] == 1
+    assert len(result["attempts"]) == 1 and result["effect_unknown"] and result["action_required"]
+    att = result["attempts"][0]
+    assert att["clear"]["sent"] is True and att["dispatch"]["sent"] is False
+
+
+def test_required_empty_rechecks_during_dispatch_relocation(clear_rig, monkeypatch):
+    ctx, _ = clear_rig
+    ctx.device.partial_clear = False
+    ctx.device.cover_after_clear = True
+    observe = ctx.observe
+    def refreshed(label, *args, **kwargs):
+        if label.endswith(":dispatch-relocate"):
+            children = ctx.device.world["screens"]["fixture"]["root"]["children"]
+            children[:] = [node for node in children if node["t"] != "SyntheticCover"]
+            ctx.device.attr_transform = lambda attrs: attrs.pop("originalText", None)
+        return observe(label, *args, **kwargs)
+    monkeypatch.setattr(ctx, "observe", refreshed)
+    result = run_input(ctx, require_empty_after_clear=True)
+    assert result["final_status"] == "clear_value_unobservable"
+    assert _counts(ctx.device)["input_text"] == 0
+    checks = result["attempts"][0]["clear"]["value_checks"]
+    assert [(c["phase"], c["status"]) for c in checks] == [
+        ("after_clear", "observed_empty"), ("dispatch_refresh", "unknown")]
+    assert checks[0]["obs"] != checks[1]["obs"]
+
+
+@pytest.mark.parametrize("action,clear,strict", [("tap", True, True), ("input", False, True), ("input", True, "yes")])
+def test_required_empty_validates_step_before_dispatch(clear_rig, action, clear, strict):
+    ctx, _ = clear_rig
+    result = Executor(ctx).run_step(_step(action, clear=clear, require_empty_after_clear=strict), "invalid-clear")
+    assert result["final_status"] == "invalid_step"
+    assert _counts(ctx.device)["tap"] == 0 and _counts(ctx.device)["input_text"] == 0
+
+
+def test_unlock_action_after_relocation_invalidates_empty_observation(clear_rig, monkeypatch):
+    ctx, _ = clear_rig
+    ctx.device.partial_clear = False
+    ctx.device.cover_after_clear = True
+    observe, state = ctx.observe, ctx.dispatcher._state
+    relocate_finished = False
+
+    def refreshed(label, *args, **kwargs):
+        nonlocal relocate_finished
+        if label.endswith(":dispatch-relocate"):
+            children = ctx.device.world["screens"]["fixture"]["root"]["children"]
+            children[:] = [n for n in children if n["t"] != "SyntheticCover"]
+            observed = observe(label, *args, **kwargs)
+            relocate_finished = True
+            return observed
+        return observe(label, *args, **kwargs)
+
+    def unlock_after_observation(conditions, att):
+        nonlocal relocate_finished
+        if relocate_finished:
+            # Model an action performed by the post-relocation lock/foreground check.
+            relocate_finished = False
+            ctx.actions += 1
+            ctx.device.bound["name"] = "restored"
+        return state(conditions, att)
+
+    monkeypatch.setattr(ctx, "observe", refreshed)
+    monkeypatch.setattr(ctx.dispatcher, "_state", unlock_after_observation)
+    result = run_input(ctx, require_empty_after_clear=True)
+    assert result["final_status"] == "target_stale"
+    assert _counts(ctx.device)["input_text"] == 0 and ctx.device.bound["name"] == "restored"
+    att = result["attempts"][0]
+    assert att["dispatch"]["sent"] is False and len(result["attempts"]) == 1
+    epochs = att["dispatch_recheck"]["checks"]["target_observation"]
+    assert epochs["dispatch_epoch"] > epochs["observed_epoch"]
+
+
+def test_lock_during_required_clear_stops_remaining_keys_and_append(clear_rig, monkeypatch):
+    ctx, _ = clear_rig
+    ctx.device.partial_clear = False
+    screen_locked = ctx.device.screen_locked
+    monkeypatch.setattr(ctx.device, "screen_locked",
+                        lambda: True if _counts(ctx.device)["key:delete"] else screen_locked())
+    result = run_input(ctx, require_empty_after_clear=True)
+    assert result["final_status"] == "screen_locked"
+    assert _counts(ctx.device)["key:delete"] == 1 and _counts(ctx.device)["input_text"] == 0
+    assert len(result["attempts"]) == 1
+    att = result["attempts"][0]
+    assert att["clear"]["sent"] is True and att["clear"]["ok"] is False

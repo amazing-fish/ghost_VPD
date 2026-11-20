@@ -140,6 +140,11 @@ class Dispatcher:
             att.update(status="condition_unknown", reason=att["condition"]["reason"])
             checks["condition"] = att["condition"]
             return self._reject(op, preconditions, checks, att)
+        if tap is not None and "observed_action_epoch" in tap and tap["observed_action_epoch"] != self.ctx.actions:
+            # 重新定位后锁屏复核可能又执行了解锁；此前目标观测已过期。
+            checks["target_observation"] = {"observed_epoch": tap["observed_action_epoch"], "dispatch_epoch": self.ctx.actions}
+            att.update(status="target_stale", action_required=True)
+            return self._reject(op, preconditions, checks, att)
         dev = self.device
         if tap is not None and op in ("tap", "input_text"):
             # Capture the final coordinates after any Dispatcher relocation; a failed/unknown
@@ -159,7 +164,11 @@ class Dispatcher:
             result = dev.input_text(*args)
         elif op == "clear_text":
             # 聚合动作只汇总结果；内部物理动作各自计数、检查、记录，外层不重复计数。
-            result = dev.clear_text(*args, dispatcher=self, preconditions=preconditions, att=att)
+            key_conditions = preconditions
+            if tap is not None and "observed_action_epoch" in tap:
+                # 单个按键没有重新定位能力；中途锁屏时保留已发动作，避免解锁后向新的焦点继续删除。
+                key_conditions = {**preconditions, "recover_unlock": False}
+            result = dev.clear_text(*args, dispatcher=self, preconditions=key_conditions, att=att)
         elif op == "wake":
             result = dev.wake()
         elif op == "launch":

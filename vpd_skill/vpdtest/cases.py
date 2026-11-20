@@ -557,6 +557,10 @@ def execution_structure_issues(case: dict, app, *, read_sources=True) -> list:
             seen[step_id] = where
 
     for step, parent, where in iter_case_steps(case, app):
+        if "require_empty_after_clear" in step and (not isinstance(step["require_empty_after_clear"], bool)
+                or step.get("action") != "input" or step.get("clear") is not True):
+            issues.append({"field": where + ".require_empty_after_clear",
+                           "problem": "须为布尔值，且只允许在显式 clear=true 的 input 上声明"})
         if "after_dispatch" in step and (parent is not None or not where.startswith("cleanup.")):
             issues.append({"field": where + ".after_dispatch", "problem": "只允许在顶层cleanup声明清理归属"})
         if parent is None:
