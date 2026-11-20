@@ -123,6 +123,7 @@ class KnowledgeStore:
         self.path = root / "knowledge" / "items.json"
         self._lock_dir = root / ".store-locks" / "knowledge"
         self._snapshot_items = None
+        self._snapshot_by_id = None
         self.facts = facts  # 本次运行的事实，由 runner 在前置检查后绑定；None 表示没有运行上下文
 
     def snapshot(self) -> "KnowledgeStore":
@@ -132,6 +133,11 @@ class KnowledgeStore:
             raise ValueError("知识 items 须为列表，无法创建只读快照")
         snapshot = KnowledgeStore(self.path.parent.parent, deepcopy(self.facts))
         snapshot._snapshot_items = deepcopy(items)
+        by_id = {}
+        for item in snapshot._snapshot_items:
+            if isinstance(item, dict) and "id" in item:
+                by_id.setdefault(item["id"], item)
+        snapshot._snapshot_by_id = by_id
         return snapshot
 
     def bind(self, facts: dict) -> "KnowledgeStore":
@@ -149,6 +155,9 @@ class KnowledgeStore:
         write_json(self.path, {"items": sorted(items, key=lambda i: i["id"])})
 
     def get(self, kid: str) -> Optional[dict]:
+        if self._snapshot_by_id is not None:
+            it = self._snapshot_by_id.get(kid)
+            return deepcopy(it) if it is not None else None
         return next((i for i in self.items() if i["id"] == kid), None)
 
     def dependency_items(self, refs: list) -> dict:
@@ -166,11 +175,9 @@ class KnowledgeStore:
                 selected[kid] = item
         return selected
 
-    def conflicts(self, facts: Optional[dict] = None) -> dict:
-        """同一主题、期望不同、且适用范围有交集的条目才算冲突：按版本/形态分别规定的期望不是冲突。
-        给出 facts 时只比较不排除本次运行的条目（out_of_scope 的那条对本次运行不存在）。"""
+    def _conflicts_for(self, all_items: list, facts: Optional[dict] = None) -> dict:
         groups = {}
-        for it in self.items():
+        for it in all_items:
             if item_status(it) in ACTIVE and it.get("subject") and \
                     (facts is None or applicability(it, facts)["status"] != "out_of_scope"):
                 groups.setdefault(it["subject"], []).append(it)
@@ -182,15 +189,22 @@ class KnowledgeStore:
                 out[s] = [i["id"] for i in g if i["id"] in ids]
         return out
 
+    def conflicts(self, facts: Optional[dict] = None) -> dict:
+        """同一主题、期望不同、且适用范围有交集的条目才算冲突：按版本/形态分别规定的期望不是冲突。
+        给出 facts 时只比较不排除本次运行的条目（out_of_scope 的那条对本次运行不存在）。"""
+        return self._conflicts_for(self.items(), facts)
+
     def oracle_status(self, refs: list, facts: Optional[dict] = None) -> dict:
         """判据状态。facts 默认取 bind() 绑定的本次运行事实；没有事实时，带范围限制的条目一律 applicability_unknown。"""
         if not refs:
             return {"status": "missing", "reason": "未关联需求/已确认用例/产品规则", "items": []}
         facts = self.facts if facts is None else facts
-        conflicted = {k for ids in self.conflicts(facts).values() for k in ids}
+        all_items = self._snapshot_items if self._snapshot_items is not None else self.items()
+        by_id = self._snapshot_by_id if self._snapshot_by_id is not None else {i["id"]: i for i in all_items}
+        conflicted = {k for ids in self._conflicts_for(all_items, facts).values() for k in ids}
         snap, statuses = [], set()
         for r in refs:
-            it = self.get(r)
+            it = by_id.get(r)
             if it is None or item_status(it) == "deprecated":
                 snap.append({"id": r, "status": "missing" if it is None else "deprecated"})
                 statuses.add("missing")
@@ -211,8 +225,8 @@ class KnowledgeStore:
             else:
                 st = it["status"]
             snap.append({"id": r, "status": st, "statement": it["statement"], "source": it.get("source", {}).get("ref"),
-                         "applies_to": it.get("applies_to"), "applicability": app,
-                         "condition_requirements": it.get("condition_requirements", {})})
+                         "applies_to": deepcopy(it.get("applies_to")), "applicability": app,
+                         "condition_requirements": deepcopy(it.get("condition_requirements", {}))})
             statuses.add(st)
         for st in ORACLE_ORDER:
             if st in statuses:

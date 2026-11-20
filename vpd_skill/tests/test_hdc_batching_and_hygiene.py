@@ -398,3 +398,29 @@ def test_experience_upsert_deduplicates_wait_timeout_by_key(ws):
     higher = xs._upsert("wait_timeout", {"key": "TC-QK-214:S3", "timeout_s": 16.0}, "d5", run3, step, att)
     assert higher is not None and len(xs.items()) == 2
     assert xs.get(first["id"])["change"]["timeout_s"] == 13.5
+
+
+def test_case_readiness_reuses_single_engine_snapshot_and_knowledge_snapshot(ws, monkeypatch):
+    from vpdtest import case_readiness, review_snapshot
+    orig_engine = review_snapshot.engine_files
+    calls = []
+
+    def counting_engine(engine_dir):
+        calls.append(engine_dir)
+        return orig_engine(engine_dir)
+
+    monkeypatch.setattr(review_snapshot, "engine_files", counting_engine)
+    out = case_readiness.readiness(ws, ["TC-HM-S01", "TC-MOTOR-HM-002", "TC-MOTOR-HM-003"])
+    assert out["summary"]["requested"] == 3 and out["summary"]["analysis_errors"] == 0
+    assert len(calls) == 1  # 单次批量盘点只哈希引擎源码一次，而非每例重复读取
+
+
+def test_knowledge_snapshot_indexed_get_and_oracle_status_remain_immutable(ws):
+    snap = KnowledgeStore(ws.root).snapshot()
+    item = snap.get("K-MOT-001")
+    assert item is not None
+    orig_app = dict(item["applies_to"])
+    item["applies_to"]["app"] = "mutated"
+    report = snap.oracle_status(["K-MOT-001"], facts={"app": "motor_hm", "app_version": "3.0.3.200"})
+    report["items"][0]["applies_to"]["app"] = "mutated-2"
+    assert snap.get("K-MOT-001")["applies_to"] == orig_app
