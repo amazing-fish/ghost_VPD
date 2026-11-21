@@ -93,6 +93,7 @@ def test_search_and_loading_pages_do_not_silently_count_as_home(ws):
     assert app.states.identify(_tree("输入目的地或车位号"), app.bundle, True)["state"] == "unknown"
     page = app.states.identify(_tree(HOME_LABELS[1], "正在加载..."), app.bundle, True)
     assert not app.states.is_state(page, "qk_vpd_home")
+    assert page["state"] == "qk_vpd_loading"
 
 
 def test_legacy_input_label_remains_supported_only_by_legacy_entry(ws):
@@ -164,6 +165,7 @@ def test_204106_home_signature_and_search_entry_locate_and_reject_ambiguity(ws):
         assert resolve(target_id, app.targets[target_id], _tree("搜索", HOME_LABELS[0]), None, app.dir)["status"] == "ambiguous"
         assert resolve(target_id, app.targets[target_id], _tree("搜索", "搜索"), None, app.dir)["status"] == "ambiguous"
 
+    assert app.states.identify(_tree("泊车代驾", "正在加载..."), app.bundle, True)["state"] == "qk_vpd_loading"
     for blocker in ("正在加载...", "停车场信息加载失败，请重试", "路线规划中，请稍后", "开始", "暂停", "继续"):
         blocked_page = app.states.identify(_tree("泊车代驾", blocker), app.bundle, True)
         assert not app.states.is_state(blocked_page, "qk_vpd_home")
