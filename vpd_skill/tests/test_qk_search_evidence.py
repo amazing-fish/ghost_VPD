@@ -4,7 +4,7 @@ import sys
 from copy import deepcopy
 
 import pytest
-from test_search_name_row import _raw, _tree
+from test_search_name_row import _node, _raw, _tree, _v2_item, _v2_page
 from vpdtest.qk_search_evidence import inspect_name, main
 from vpdtest.tree import UiTree
 from vpdtest.util import write_json
@@ -141,3 +141,32 @@ def test_cli_reads_the_collector_selected_tree_and_returns_no_product_verdict(ws
     assert main() == 0
     report = json.loads(capsys.readouterr().out)
     assert report["row_observation"] == "observed" and report["product_verdict"] == "not_evaluated"
+
+
+def test_v2_double_column_row_passes_inspect_name_and_blocks_nested_row(ws):
+    """#288: V2 double-Column entity row passes inspect_name, while nested unrelated rows still block."""
+    app = ws.app("qiankun_hm")
+    name = "南汇路-道路停车位"
+    tree = UiTree(_v2_page(name, [
+        _v2_item(name, "17.8公里", "奉贤路223号", 300),
+        _v2_item("道路停车位", "11.7公里", "东方路", 520),
+    ]))
+    report = inspect_name(app, "obs-v2", observation(app, tree, "obs-v2"), tree, name)
+    assert report["row_observation"] == "observed", report
+    assert report["row_texts"] == [name, "17.8公里", "奉贤路223号", "路线"]
+    assert report["favorite_identity"] == "undetermined" and report["product_verdict"] == "not_evaluated"
+
+    # Unrelated nested Row inside selected row containing another title must still be blocked.
+    nested = _node("Row", "[120,320][760,460]", visible="true", children=[
+        _node("Column", "[120,320][760,460]", visible="true", children=[
+            _node("__Common__", "[120,320][760,360]", visible="true", children=[
+                _node("Text", "[120,320][760,360]", visible="true", text="无关嵌套标题"),
+            ]),
+        ]),
+    ])
+    selected = tree.nodes[report["row_node"]["idx"]]
+    _raw(tree, selected)["children"].append(nested)
+    blocked = inspect_name(app, "obs-v2", observation(app, tree, "obs-v2"), UiTree(tree.raw), name)
+    assert blocked["row_observation"] == "blocked"
+    assert blocked["reason"] == "row_title_unresolved"
+
