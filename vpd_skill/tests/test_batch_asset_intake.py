@@ -142,7 +142,7 @@ def test_scope_changes_do_not_expand_old_confirmed_motor_oracles(ws):
 
 def test_initial_home_loading_failure_stays_a_failure_without_unconditional_restart(ws, tmp_path):
     data = read_json(SKILL / "fixtures/worlds/qiankun_hm_base.json")
-    data["app_version"] = ws.load_case("TC-QK-228")["env_requirements"]["app_version"]
+    data["app_version"] = "2.0.4.106"
     data["initial_flags"].update(logged_in=True, vehicle="F03")
     data["screens"]["qk_vpd_home"] = {"root": {"t": "Column", "b": [0, 0, 1320, 2848], "children": [
         {"t": "Text", "text": "正在加载（合成占位）", "b": [40, 500, 900, 600]}]}}
@@ -231,7 +231,7 @@ def test_failed_parking_placeholder_does_not_satisfy_home_entry(ws):
 
 def test_first_failed_parking_placeholder_stops_before_along_route_action(ws, tmp_path):
     data = read_json(SKILL / "fixtures/worlds/qiankun_hm_base.json")
-    data["app_version"] = ws.load_case("TC-QK-228")["env_requirements"]["app_version"]
+    data["app_version"] = "2.0.4.106"
     data["initial_flags"].update(logged_in=True, vehicle="F03")
     data["screens"]["qk_vpd_home"] = {"root": {"t": "Column", "b": [0, 0, 1320, 2848], "children": [
         {"t": "Text", "text": text, "b": [40, 300 + n * 70, 1100, 350 + n * 70]}
@@ -271,3 +271,16 @@ def test_qk_batch_assets_do_not_hardcode_bar_device_form_in_env_requirements(ws)
     for cid in qk_ids:
         er = ws.load_case(cid).get("env_requirements") or {}
         assert "device_form" not in er, f"{cid} still pins device_form={er.get('device_form')!r}"
+
+
+def test_qk_cases_do_not_pin_app_version_in_env_requirements(ws):
+    """#257: app version drift must not block TC-QK execution via env_requirements or preconditions."""
+    qk_cases = sorted(p.stem for p in (ws.root / "cases").glob("TC-QK-*.json"))
+    assert len(qk_cases) >= 26
+    stale_phrases = ("本候选限原作者声明的 APP 1.0.26.100", "设备已登录乾崑1.0.26.100", "（本机 1.0.26.100）")
+    for cid in qk_cases:
+        case = ws.load_case(cid)
+        er = case.get("env_requirements") or {}
+        assert "app_version" not in er, f"{cid} still pins app_version={er.get('app_version')!r}"
+        for line in case.get("preconditions") or []:
+            assert not any(p in line for p in stale_phrases), f"{cid} has restrictive precondition: {line!r}"

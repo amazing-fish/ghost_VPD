@@ -6,15 +6,14 @@
   "title": "[历史登录来源] 乾崑测试账号密码登录至短信验证码页（VPD 链路前置 Phase1）",
   "purpose": "用测试账号（151****3183）通过密码登录乾崑 APP，走完：密码表单填写→登录→新设备身份验证同意→到达短信验证码页。验证码输入与登录完成在 TC-QK-212（Phase2）。本用例结束时不停止 APP（保持验证码页供 Phase2 续走）。",
   "preconditions": [
-    "乾崑 APP 已安装（本机 1.0.26.100）",
+    "乾崑 APP 已安装（历史取证版本 1.0.26.100，不限制新版本执行）",
     "APP 当前未登录（--env account_state=logged_out）",
     "VPD_SECRET_QIANKUN_PHONE / VPD_SECRET_QIANKUN_PASSWORD 已在 config.local.json secrets 落盘（QIANKUN_PHONE/QIANKUN_PASSWORD）",
     "设备已解锁、亮屏，无系统弹窗遮挡",
-    "本候选限原作者声明的 APP 1.0.26.100 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准"
+    "历史取证基线为 APP 1.0.26.100 / bar（按 #257 裁定不限制后续版本与形态执行，UI 差异按用例适配推进）；env 为人工前置声明，产品判据适用性仍以实测facts为准"
   ],
   "env_requirements": {
-    "account_state": "logged_out",
-    "app_version": "1.0.26.100"
+    "account_state": "logged_out"
   },
   "test_data": {
     "account": {
