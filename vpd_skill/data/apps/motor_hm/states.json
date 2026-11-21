@@ -95,16 +95,37 @@
     }
   },
   "interrupts": {
+    "motor_vehicle_resource_dialog": {
+      "desc": "车辆资源包下载提示（「请下载车辆资源包」/「请下载更新后的车辆资源包」+「下次再说」/「现在下载」/「立即下载」/「立即更新」）",
+      "class": "benign",
+      "require_text": [
+        "下次再说"
+      ],
+      "require_text_pattern": [
+        "^请下载(更新后的)?车辆资源包$"
+      ],
+      "dismiss_text": "下次再说",
+      "settle_s": 1.0,
+      "source": "真机 2026-11-21 SGT-AL10 / OpenHarmony-7.0.0.111 / motor_hm 3.0.3.200 run-20261121-014353-6eaf obs-0008（Issue #282）；对齐 qiankun_hm qk_vehicle_resource_dialog",
+      "review": "reviewed",
+      "review_note": "2026-11-21 维护者（amazing-fish）批准：车辆 3D 资源包非 APP 升级，点击「下次再说」不改变被测环境且不触碰「现在下载」；冷启出现时由执行层自动关闭并留证"
+    },
     "update_dialog": {
       "desc": "版本更新弹窗",
       "class": "benign",
       "require_text": [
         "下次再说"
       ],
+      "require_text_pattern": [
+        "发现新版本|版本更新|新版本|立即更新|^更新$"
+      ],
+      "forbid_text_pattern": [
+        "^请下载(更新后的)?车辆资源包$"
+      ],
       "dismiss_target": "update_later",
       "source": "app/config/motor_config.py:546 next_btn「下次再说」；知识 K-MOT-004",
       "review": "pending",
-      "review_note": "真机未见过该弹窗；评审确认其为良性后改为 reviewed，恢复流程才会自动关闭它"
+      "review_note": "真机未见过该弹窗；已收紧签名避免误命中车辆资源包弹窗与背景「更新于」时间文案；评审确认其为良性后改为 reviewed，恢复流程才会自动关闭它"
     },
     "app_error_dialog": {
       "desc": "应用异常/无响应提示",
@@ -237,5 +258,19 @@
         "timeout_s": 8
       }
     ]
+  },
+  "dialog_policy": {
+    "desc": "没登记的 Dialog：只要弹窗里有下面任一按钮文字（完全相等），执行层就点它关闭并记事件、留截图，事后把这类弹窗补登记为 interrupt。只收'拒绝/推迟'语义的按钮，不收「确认」「取消」「立即…」",
+    "safe_dismiss_text": [
+      "下次再说",
+      "以后再说",
+      "暂不更新",
+      "暂不下载",
+      "我知道了",
+      "知道了",
+      "稍后再说"
+    ],
+    "review": "reviewed",
+    "review_note": "2026-11-21 维护者（amazing-fish）批准 Issue #282 并要求简化非 VPD 弹窗阻塞；对齐 qiankun_hm 按 Dialog 结构 + 安全推迟按钮兜底关闭，不触碰确认/下载/更新按钮"
   }
 }
