@@ -126,3 +126,94 @@ def test_home_postcondition_then_search_navigation_uses_real_executor(ws, tmp_pa
     run = run_case(ws, case=case, device_spec=f"replay:{path}", propose=False)
     assert [(step["step_id"], step["outcome"]) for step in run["steps"]] == [("S1", "passed"), ("S2", "passed")]
 
+
+def test_204106_home_signature_and_search_entry_locate_and_reject_ambiguity(ws):
+    """#287: 2.0.4.106 home uses 泊车代驾 + exact 搜索 while preserving negative and ambiguity bounds."""
+    app = ws.app("qiankun_hm")
+    home_tree = UiTree({
+        "attributes": {"type": "Column", "bounds": "[0,0][1320,2848]"},
+        "children": [
+            {"attributes": {"type": "Text", "text": "虹桥璀璨公馆", "bounds": "[40,120][600,180]"}},
+            {"attributes": {"type": "Text", "text": "泊车代驾", "bounds": "[40,200][300,260]"}},
+            {"attributes": {"type": "Text", "text": "共 1917 个", "bounds": "[320,200][600,260]"}},
+            {"attributes": {"type": "Row", "clickable": "true", "bounds": "[44,455][946,609]"}, "children": [
+                {"attributes": {"type": "Text", "text": "搜索", "bounds": "[176,503][275,561]"}}
+            ]},
+            {"attributes": {"type": "Text", "text": "收藏及常去", "bounds": "[40,700][360,760]"}},
+            {"attributes": {"type": "Text", "text": "停泊位置", "bounds": "[40,820][360,880]"}},
+        ],
+    })
+    assert app.states.identify(home_tree, app.bundle, True)["state"] == "qk_vpd_home"
+    for target_id in ENTRY_TARGETS:
+        found = resolve(target_id, app.targets[target_id], home_tree, None, app.dir)
+        assert found["status"] == "found"
+        assert found["attempts"][-1]["node"]["text"] == "搜索"
+
+    desc_tree = UiTree({"attributes": {"type": "Column", "bounds": "[0,0][1320,2848]"}, "children": [
+        {"attributes": {"type": "Button", "description": "搜索", "clickable": "true", "bounds": "[44,455][946,609]"}}
+    ]})
+    for target_id in ENTRY_TARGETS:
+        assert resolve(target_id, app.targets[target_id], desc_tree, None, app.dir)["status"] == "found"
+
+    for bad_label in ("搜索车位", "点击搜索"):
+        sub_tree = _tree(bad_label)
+        for target_id in ENTRY_TARGETS:
+            assert resolve(target_id, app.targets[target_id], sub_tree, None, app.dir)["status"] == "not_found"
+
+    for target_id in ENTRY_TARGETS:
+        assert resolve(target_id, app.targets[target_id], _tree("搜索", HOME_LABELS[0]), None, app.dir)["status"] == "ambiguous"
+        assert resolve(target_id, app.targets[target_id], _tree("搜索", "搜索"), None, app.dir)["status"] == "ambiguous"
+
+    for blocker in ("正在加载...", "停车场信息加载失败，请重试", "路线规划中，请稍后", "开始", "暂停", "继续"):
+        blocked_page = app.states.identify(_tree("泊车代驾", blocker), app.bundle, True)
+        assert not app.states.is_state(blocked_page, "qk_vpd_home")
+    assert not app.states.is_state(app.states.identify(_tree("泊车代驾", hidden=True), app.bundle, True), "qk_vpd_home")
+    assert not app.states.is_state(app.states.identify(_tree("泊车代驾", offscreen=True), app.bundle, True), "qk_vpd_home")
+
+
+def test_204106_home_postcondition_then_search_navigation_uses_real_executor(ws, tmp_path):
+    """#287: Replay executor transitions 2.0.4.106 qk_vpd_home -> qk_spot_search via exact 搜索."""
+    app = ws.app("qiankun_hm")
+    world = {
+        "bundle": app.bundle,
+        "app_version": "2.0.4.106",
+        "screen": [1320, 2848],
+        "initial": {"foreground": app.bundle, "installed": True},
+        "launch_screen": "home",
+        "display": {"density": 2.75, "device_form": "foldable"},
+        "screens": {
+            "home": {"root": {"t": "Column", "b": [0, 0, 1320, 2848], "children": [
+                {"t": "Text", "text": "泊车代驾", "b": [40, 200, 300, 260]},
+                {"t": "Row", "click": True, "b": [44, 455, 946, 609], "go": "search", "children": [
+                    {"t": "Text", "text": "搜索", "b": [176, 503, 275, 561]}
+                ]},
+            ]}},
+            "search": {"root": {"t": "RelativeContainer", "id": "SearchPoiPage", "b": [0, 0, 1320, 2848], "children": [
+                {"t": "Search", "id": "search_input", "b": [20, 100, 1300, 180], "children": [
+                    {"t": "SearchField", "id": "__SearchField__search_input", "text": "输入目的地或车位号",
+                     "b": [20, 100, 1300, 180]}
+                ]}
+            ]}},
+        },
+    }
+    path = tmp_path / "home-204106.json"
+    write_json(path, world)
+    case = {
+        "id": "TC-TEST-HOME-204106",
+        "version": 1,
+        "status": "draft",
+        "app": app.id,
+        "title": "Synthetic 2.0.4.106 home label navigation",
+        "env_requirements": {},
+        "steps": [
+            {"id": "S1", "action": "launch", "expect_state": "qk_vpd_home", "timeout_s": 0},
+            {"id": "S2", "action": "tap", "target": "qk_search_entry", "expect_state": "qk_spot_search",
+             "timeout_s": 0, "retry": 0},
+        ],
+        "assertions": [],
+        "cleanup": [{"id": "C1", "action": "stop_app"}],
+    }
+    run = run_case(ws, case=case, device_spec=f"replay:{path}", propose=False)
+    assert [(step["step_id"], step["outcome"]) for step in run["steps"]] == [("S1", "passed"), ("S2", "passed")]
+
+
