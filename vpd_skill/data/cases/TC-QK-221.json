@@ -80,9 +80,9 @@
     {
       "id": "A3",
       "at": "S5",
-      "type": "text_absent",
-      "text": "搜索车位号设为目的地",
-      "desc": "离线不加载 VPD 地图首页（首页搜索入口不出现）",
+      "type": "target_absent",
+      "target": "qk_search_entry",
+      "desc": "离线不加载 VPD 地图首页（首页搜索入口不出现，兼容 1.0.26.100 与 2.0.4.106）",
       "oracle_refs": [
         "K-QK-018"
       ]

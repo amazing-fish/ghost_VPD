@@ -144,10 +144,9 @@
     {
       "id": "A_HOME",
       "at": "S5",
-      "type": "text_present",
-      "text": "搜索车位号设为目的地",
-      "exact": false,
-      "desc": "首次搜索入口展示；完整地图就绪另待验",
+      "type": "target_present",
+      "target": "qk_search_entry",
+      "desc": "首次搜索入口展示（兼容 1.0.26.100 与 2.0.4.106）；完整地图就绪另待验",
       "oracle_refs": [
         "K-QK-013"
       ]

@@ -284,3 +284,35 @@ def test_qk_cases_do_not_pin_app_version_in_env_requirements(ws):
         assert "app_version" not in er, f"{cid} still pins app_version={er.get('app_version')!r}"
         for line in case.get("preconditions") or []:
             assert not any(p in line for p in stale_phrases), f"{cid} has restrictive precondition: {line!r}"
+
+
+def test_qk_home_search_entry_assertions_cover_1026100_and_204106(ws):
+    """#257/#287: qk_search_entry assertions pass on 1.0.26.100 & 2.0.4.106 and reject partials/duplicates."""
+    for cid, aid in [("TC-QK-215", "A1"), ("TC-QK-214", "A1"), ("TC-QK-223", "A1"), ("TC-QK-228", "A_HOME")]:
+        assert _holds(ws, cid, aid, ["虹桥璀璨公馆", "泊车代驾", "共 1917 个", "搜索"]) is True
+        assert _holds(ws, cid, aid, ["搜索车位号设为目的地"]) is True
+        assert _holds(ws, cid, aid, ["搜索车位号设为起点"]) is True
+        assert _holds(ws, cid, aid, ["搜索历史"]) is False
+        assert _holds(ws, cid, aid, ["搜索失败"]) is False
+        assert _holds(ws, cid, aid, ["搜索", "搜索"]) is None
+
+    assert _holds(ws, "TC-QK-221", "A3", ["泊车代驾辅助", "网络异常，请稍候重试"]) is True
+    assert _holds(ws, "TC-QK-221", "A3", ["搜索车位号设为目的地"]) is False
+    assert _holds(ws, "TC-QK-221", "A3", ["搜索"]) is False
+
+
+def test_unconfirmed_qk_oracle_rules_do_not_pin_version_or_device_form(ws):
+    """#257: unconfirmed K-QK-011..019 stay unconfirmed (not out_of_scope) on 2.0.4.106/foldable."""
+    kn = KnowledgeStore(ws.root)
+    facts_new = {"app": "qiankun_hm", "app_version": "2.0.4.106", "device_form": "foldable"}
+    for n in range(11, 20):
+        kid = f"K-QK-{n:03}"
+        item = kn.get(kid)
+        assert item["status"] == "unconfirmed"
+        assert "app_version" not in item["applies_to"]
+        assert "device_form" not in item["applies_to"]
+        if n in (11, 12, 13, 14):
+            assert kn.oracle_status([kid], facts=facts_new)["status"] == "unconfirmed"
+    assert kn.oracle_status(["K-QK-015"], facts={**facts_new, "vpd_task_state": "active", "task_type": "along_parking"})["status"] == "unconfirmed"
+    assert kn.oracle_status(["K-QK-015"], facts={**facts_new, "vpd_task_state": "none", "task_type": "along_parking"})["status"] == "out_of_scope"
+
