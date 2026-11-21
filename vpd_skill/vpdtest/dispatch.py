@@ -4,6 +4,21 @@ from __future__ import annotations
 from .devices import LAUNCHER, DeviceResult
 from .outcomes import error_attribution
 
+_SESSION_SAFE_EFFECTS = frozenset({"navigation", "read_only", "dismiss_dialog"})
+
+
+def _preserves_account_session(op, args, tap, att, result) -> bool:
+    """Only verified read-only/navigation/dialog-dismiss sends within the active session keep account_epoch."""
+    if result.sent is not True or result.ok is not True or att.get("unlock"):
+        return False
+    if op == "swipe":
+        return True
+    if op == "key" and args == ("back",) and att.get("action") == "back":
+        return True
+    if op == "tap" and tap is not None:
+        return (tap.get("target") or {}).get("side_effect") in _SESSION_SAFE_EFFECTS
+    return False
+
 
 class Dispatcher:
     def __init__(self, device, store=None, ctx=None):
@@ -130,7 +145,12 @@ class Dispatcher:
             for record in records:
                 age = self.ctx.clock() - record["clock_s"] if isinstance(record.get("clock_s"), (int, float)) else None
                 expired = age is not None and record.get("max_age_s") is not None and age > record["max_age_s"]
-                if record.get("action_epoch") != self.ctx.actions or expired:
+                if record.get("carry") == "same_session":
+                    stale_epoch = (type(record.get("account_epoch")) is not int
+                                   or record.get("account_epoch") != self.ctx.account_epoch)
+                else:
+                    stale_epoch = record.get("action_epoch") != self.ctx.actions
+                if stale_epoch or expired:
                     invalid.append({**record, "dispatch_age_s": age, "expired": expired})
         if invalid:
             # 恢复、滚动及事实有效期在最末关口复核每个父/子条件。
@@ -183,8 +203,18 @@ class Dispatcher:
             self.ctx.actions += 1
         if not result.ok and result.error_class in ("budget_exhausted", "motion_timeout", "safety_hold"):
             att["status"] = result.error_class
+        self._update_account_epoch(op, args, tap, att, result)
         self._record(op, preconditions, checks, result, att)
         return result
+
+    def _update_account_epoch(self, op, args, tap, att, result):
+        if self.ctx is None:
+            return
+        disrupted = bool(att.get("unlock")) or att.get("status") in (
+            "foreground_changed", "screen_locked", "state_indeterminate"
+        )
+        if disrupted or (result.sent is not False and not _preserves_account_session(op, args, tap, att, result)):
+            self.ctx.account_epoch += 1
 
     def _limits(self, att, checks):
         if not self._hold_check(att, checks):
@@ -249,6 +279,7 @@ class Dispatcher:
 
     def _reject(self, op, preconditions, checks, att):
         result = DeviceResult(op, False, False, att["status"], "前置状态复核未通过，未下发")
+        self._update_account_epoch(op, (), None, att, result)
         self._record(op, preconditions, checks, result, att)
         return result
 

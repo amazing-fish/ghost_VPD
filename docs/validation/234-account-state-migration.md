@@ -69,3 +69,12 @@
 机型/形态差异限制的是“购车取代爱车仅由登录状态造成”的因果推断，而非当前页面登录入口的可见事实。仍需独立已登录正证、明确观测生命周期，不能把旧跨页观察、声明或logout入口自身当作当前登录事实。
 
 HM002仅需判断当前导航呈现何种场景，优先在#245使用已有page condition/when/guard验证，不扩建账号状态框架；正式资产定义改动仍须真实复验与新审核一同交付。
+
+## 2026-11-22 同会话账号条件延续与只读登录特征能力（未改现有 S01 批准绑定）
+
+基于工作机 `3.0.3.200` 已登录/未登录同版正反样本（`session-laprob-20261112` / `session-logout-probe-20261113` / `run-20261121-142708-0443`）：
+
+- **引擎能力（`workspace.py` / `dispatch.py` / `conditions.py`）**：新增 `account_epoch` 会话计数与 `kind=account` 的 `carry="same_session"` / `presence_only=true` 选项。允许同一 APP 同会话内的只读导航（`navigation` / `read_only` / `dismiss_dialog` / `swipe` / `back`）延续 `guard.at` 所取的登录态判断；遇到 `stop_app` / `launch` / `account_state` / `user_data` / 锁屏解锁 / 前台切换 / 进程异常 / 超时或目标页矛盾即自动失效为 `unknown`，永不跨冷启或登出沿用。
+- **独立只读目标（`motor_hm/targets.json`）**：登记 `motor_my_logged_in`（我的页存在 `我的车辆` 且不含 `注册/登录`）与 `motor_my_logged_out`（存在 `注册/登录`），均带 `forbid_tap: true`、`status: "unverified"`，与设置页 `logout_entry` 完全解耦。
+- **保护边界**：本步只交付条件能力与回归验证，暂不修改 `TC-HM-S01.json`、`motor_hm/app.json` 或 `motor_hm/states.json`，确保当前已批准资产 `TC-HM-S01`（`6cf27ede90b4`）与 `TC-MOTOR-HM-002`（`25f15f39c405`）保持 `approved`，待人类授权重审迁移后再改写 `TC-HM-S01` 定义并重跑真机。
+

@@ -169,6 +169,34 @@
           "source": "app/config/motor_config.py:511-513 MOTOR_HARMONY_CONFIG.update_btn"
         }
       ]
+    },
+    "motor_my_logged_in": {
+      "desc": "我的页已登录结构特征（可见「我的车辆」且整页不存在「注册/登录」，只读）",
+      "side_effect": "read_only",
+      "forbid_tap": true,
+      "forbid_reason": "只读",
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"我的车辆\"][not(ancestor-or-self::*[translate(normalize-space(@visible),\"FALSE\",\"false\")=\"false\" or normalize-space(@visible)=\"0\"])][not(//*[@text=\"注册/登录\"][not(ancestor-or-self::*[translate(normalize-space(@visible),\"FALSE\",\"false\")=\"false\" or normalize-space(@visible)=\"0\"])])]",
+          "source": "#234 真机 3.0.3.200 实测：session-laprob-20261112 obs-0006、session-blocker-shot-20261113 obs-0007（已登录）对照 session-logout-probe-20261113 obs-0023、run-20261121-142708-0443 obs-0012（未登录）"
+        }
+      ]
+    },
+    "motor_my_logged_out": {
+      "desc": "我的页未登录结构特征（可见「注册/登录」入口，只读）",
+      "side_effect": "read_only",
+      "forbid_tap": true,
+      "forbid_reason": "只读",
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//*[@text=\"注册/登录\"][not(ancestor-or-self::*[translate(normalize-space(@visible),\"FALSE\",\"false\")=\"false\" or normalize-space(@visible)=\"0\"])]",
+          "source": "#234 真机 3.0.3.200 实测：session-logout-probe-20261113 obs-0023、run-20261121-142708-0443 obs-0012（未登录）"
+        }
+      ]
     }
   }
 }
