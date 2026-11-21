@@ -12,6 +12,45 @@ from .util import sha256_obj
 
 VALID_BASIS = ("tree", "template", "point")
 EDITABLE_TYPES = frozenset(("TextInput", "TextArea", "EditText", "SearchField"))
+SCROLL_SCOPE_TYPES = frozenset(("Scroll", "List", "Grid"))
+PASSIVE_LAYOUT_TYPES = frozenset((
+    "Row", "Column", "ListItem", "ListItemGroup", "GridItem", "Flex", "Stack", "RelativeContainer", "__Common__",
+))
+
+
+def _is_long_clickable(node) -> bool:
+    return any(str(node.attrs.get(k, "")).strip().lower() in ("true", "1")
+               for k in ("longClickable", "long-clickable"))
+
+
+def _passive_scroll_chain(tree: UiTree, node, container, scroll_scope, basis: str, effect: str):
+    """Return passive layout chain from node up to scroll_scope when dragging it cannot invoke an off-path control."""
+    if (basis != "tree" or effect != "navigation" or scroll_scope is None
+            or scroll_scope.parent is None or scroll_scope.type not in SCROLL_SCOPE_TYPES
+            or not scroll_scope.scrollable or scroll_scope.clickable
+            or container is not node or node.clickable):
+        return None
+    ancestors = tree.ancestors(node)
+    if any(_is_long_clickable(a) for a in (node, *ancestors)):
+        return None
+    if node is scroll_scope:
+        return [scroll_scope]
+    chain = [node]
+    for anc in ancestors:
+        if anc is scroll_scope:
+            chain.append(scroll_scope)
+            return chain
+        chain.append(anc)
+    return None
+
+
+def _passive_scroll_texts(tree: UiTree, node, container, scroll_scope, basis: str, effect: str):
+    chain = _passive_scroll_chain(tree, node, container, scroll_scope, basis, effect)
+    if chain is None:
+        return None
+    if any(item.type not in PASSIVE_LAYOUT_TYPES or item.scrollable for item in chain[:-1]):
+        return None
+    return [t for item in chain for t in (item.text, item.description) if t]
 
 
 class Policy:
@@ -232,14 +271,13 @@ class Policy:
             return {"allowed": False, "reason": f"控件类型 {sorted(hit_type)} 会直接改变设置，需目标显式声明 allow_node_type",
                     "label": None, "deny": {"class": "setting_change", "types": sorted(hit_type)}}
         # A validated relative swipe passes its scroll scope, not a tap target.
-        # Only the non-clickable scope itself has non-actionable descendants:
-        # labels elsewhere in the list do not describe dragging its blank area.
-        # Crossed children/actual receivers still use the full tap semantics.
-        scope_only = (node is scroll_scope and container is scroll_scope
-                      and not node.clickable and node.scrollable
-                      and node.parent is not None and node.type in ("Scroll", "List", "Grid"))
-        texts = ([container.text, container.description] if scope_only
-                 else tree.subtree_texts(container)) + [node.text, node.description]
+        # Dragging the blank area of the scroll scope or a passive layout wrapper
+        # inside it (Row/ListItemGroup/Column/...) checks only own labels along
+        # the passive chain to scroll_scope; clickable/long-clickable controls,
+        # crossed text/widgets, and non-passive ancestors still use full tap semantics.
+        passive_texts = _passive_scroll_texts(tree, node, container, scroll_scope, basis, effect)
+        texts = (passive_texts if passive_texts is not None
+                 else tree.subtree_texts(container) + [node.text, node.description])
         texts = [t for t in texts if t]
         label = (texts[0] if texts else "")[:40]
         hits = self.match_all(texts, state_deny)
