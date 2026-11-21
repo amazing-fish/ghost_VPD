@@ -14,8 +14,7 @@
   ],
   "env_requirements": {
     "account_state": "logged_out",
-    "app_version": "1.0.26.100",
-    "device_form": "bar"
+    "app_version": "1.0.26.100"
   },
   "test_data": {
     "account": {

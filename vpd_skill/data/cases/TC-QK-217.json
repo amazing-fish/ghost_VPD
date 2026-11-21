@@ -14,7 +14,6 @@
   "env_requirements": {
     "account_state": "logged_in",
     "app_version": "1.0.26.100",
-    "device_form": "bar",
     "vehicle_name": "F03",
     "vehicle_state": "parked"
   },

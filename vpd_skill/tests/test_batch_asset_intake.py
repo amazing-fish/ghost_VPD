@@ -262,3 +262,12 @@ def test_scenario_specific_claims_cannot_generalize_to_other_task_vehicle_or_map
 def test_cold_start_vehicle_data_cannot_pass_from_position_label_alone(ws):
     assert _holds(ws, "TC-QK-229", "A2", ["车辆位置"]) is False
     assert _holds(ws, "TC-QK-229", "A2", ["更新于"]) is True
+
+
+def test_qk_batch_assets_do_not_hardcode_bar_device_form_in_env_requirements(ws):
+    """#257: capture device provenance must not block foldable execution in env_requirements."""
+    qk_ids = [cid for cid in IDS if cid.startswith("TC-QK-")]
+    assert len(qk_ids) == 16
+    for cid in qk_ids:
+        er = ws.load_case(cid).get("env_requirements") or {}
+        assert "device_form" not in er, f"{cid} still pins device_form={er.get('device_form')!r}"
