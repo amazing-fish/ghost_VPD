@@ -204,6 +204,52 @@ def test_account_carry_invalidates_across_restart_or_out_of_app_or_expiry_or_con
                                 lambda _: (obs_in, t_my), app, obs_contra, t_out)
     assert res_contra["status"] == "unknown"
 
+    # Anomaly interrupt on target must invalidate even if epoch numerically matched
+    obs_anom = {**obs_in, "obs_id": "obs-0005", "clock_s": 15.0,
+                "page": {"state": "settings", "interrupts": [{"id": "app_error_dialog", "class": "anomaly"}]}}
+    res_anom = evaluate_guard(guard, defs, {"S1b": {"outcome": "passed", "final_obs": "obs-0001"}},
+                              lambda _: (obs_in, t_my), app, obs_anom, t_set)
+    assert res_anom["status"] == "unknown"
+
+
+def test_anomaly_observation_records_incremented_account_epoch_and_blocks_carry(ws, tmp_path):
+    from vpdtest.observe import RunStore
+    from vpdtest.workspace import RunContext
+
+    data = load_world(world("motor_hm_base.json").split(":", 1)[1])
+    def _walk(node):
+        yield node
+        for child in node.get("children", []):
+            yield from _walk(child)
+    for node in _walk(data["screens"]["my_tab"]["root"]):
+        if node.get("text") == "注册/登录":
+            node["text"] = "我的车辆"
+    for ch in data["screens"]["settings"]["root"]["children"]:
+        for sub in ch.get("children", []):
+            if sub.get("text") == "退出登录":
+                sub["text"] = "应用无响应"
+    wpath = tmp_path / "anomaly.json"
+    write_json(wpath, data)
+    dev = ReplayDevice(wpath)
+    store = RunStore(tmp_path / "runs")
+    ctx = RunContext(ws, ws.app("motor_hm"), dev, store, {})
+
+    dev.state.update(foreground=ctx.app.bundle, alive=True, stack=["my_tab"])
+    obs1, t1 = ctx.observe("clean_my")
+    assert obs1["account_epoch"] == 0
+
+    dev.state["stack"] = ["settings"]
+    obs2, t2 = ctx.observe("anomaly_settings")
+    assert any(i.get("class") == "anomaly" for i in (obs2.get("page") or {}).get("interrupts") or [])
+    assert obs2["account_epoch"] == 1
+    assert read_json(store.dir / "obs" / obs2["obs_id"] / "observation.json")["account_epoch"] == 1
+
+    defs = _s01_like_case()["conditions"]
+    guard = {"condition": "motor_logged_in", "equals": True, "at": "S1b"}
+    res = evaluate_guard(guard, defs, {"S1b": {"outcome": "passed", "final_obs": obs1["obs_id"]}},
+                         lambda _: (obs1, t1), ctx.app, obs2, t2)
+    assert res["status"] == "unknown"
+
 
 def test_approved_motor_hm_assets_stay_valid_after_234_capability(ws):
     for cid, c_hash, d_hash in [

@@ -9,6 +9,7 @@ from typing import Optional
 
 from . import layout as layout_mod
 from .tree import UiTree
+import inspect
 import re
 import time
 
@@ -273,7 +274,12 @@ class Observer:
                                              "再决定是否重试；首次异常保留在报告里"}
             self.store.event("ui_alert", obs_id=oid, texts=hits[:10])
         if self.evidence_context is not None:
-            obs.update(self.evidence_context())
+            params = inspect.signature(self.evidence_context).parameters.values()
+            accepts_obs = any(p.kind in (inspect.Parameter.POSITIONAL_ONLY,
+                                         inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                                         inspect.Parameter.VAR_POSITIONAL)
+                              for p in params)
+            obs.update(self.evidence_context(obs) if accepts_obs else self.evidence_context())
         write_json(d / "observation.json", obs, exclusive=True)
         self.store.event("observe", obs_id=oid, label=label, state=obs["page"]["state"],
                          tree=obs["tree"]["status"], screenshot=obs["screenshot"]["status"], layout=lk,

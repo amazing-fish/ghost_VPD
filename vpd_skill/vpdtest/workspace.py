@@ -84,6 +84,14 @@ class Workspace:
         return create_device(spec, state_path=state_path, pin_pad_layout=layout)
 
 
+def _observation_breaks_account_session(obs: dict, bundle: str) -> bool:
+    page = obs.get("page") or {}
+    has_anomaly = any(isinstance(i, dict) and i.get("class") == "anomaly"
+                      for i in (page.get("interrupts") or []))
+    return (obs.get("foreground") != bundle or obs.get("process_alive") is not True
+            or obs.get("fresh") is not True or page.get("state") == "out_of_app" or has_anomaly)
+
+
 class RunContext:
     """一次运行共享的上下文：设备、APP、policy、观测器、经验 overlay 与动作预算。"""
 
@@ -105,21 +113,34 @@ class RunContext:
         self.observer = Observer(device, app.bundle, self.policy, app.states, store,
                                  ws.layout_config() if layout_cfg is None else layout_cfg, display,
                                  dialogs=load_dialogs(ws.root) if dialogs is None else dialogs,
-                                 evidence_context=lambda: {"action_epoch": self.actions,
-                                                           "account_epoch": self.account_epoch,
-                                                           "clock_s": self.clock(),
-                                                           "scope": {"app": app.id, "app_version": self.facts.get("app_version")}})
+                                 evidence_context=self._evidence_context)
         self.params = None        # 用例参数（含密钥引用），由 runner 设置
         self.authorized = self.policy.effective_grants(set())  # 任务许可；gated/supervised 仍需显式授予
         self.supervisor = None    # 在场监护人（supervised 类授权的前提），记入证据
         self.seed = store.run_id  # 随机动作的默认种子，记入证据以便复现
         self.actions = 0
         self.account_epoch = 0
+        self._account_epoch_obs_id = None
         self.safety_hold = None  # 本运行停止未确认后的暂停记录；不自动解除
         self.last_obs, self.last_tree = None, None
         self._virtual_s = 0.0     # 回放设备不真等待：等待/监视时长累加到虚拟时钟，保证离线可复现
         from .safety import MotionGuard
         self.motion = MotionGuard(None, self.clock, store)
+
+    def _advance_account_epoch(self, obs: dict) -> None:
+        obs_id = obs.get("obs_id")
+        if obs_id is not None and obs_id == self._account_epoch_obs_id:
+            return
+        if obs_id is not None:
+            self._account_epoch_obs_id = obs_id
+        if _observation_breaks_account_session(obs, self.app.bundle):
+            self.account_epoch += 1
+
+    def _evidence_context(self, obs: Optional[dict] = None) -> dict:
+        if obs is not None:
+            self._advance_account_epoch(obs)
+        return {"action_epoch": self.actions, "account_epoch": self.account_epoch,
+                "clock_s": self.clock(), "scope": {"app": self.app.id, "app_version": self.facts.get("app_version")}}
 
     def clock(self) -> float:
         import time
@@ -137,11 +158,7 @@ class RunContext:
     def observe(self, label: str = "", screenshot: bool = True, *, deadline=None) -> tuple:
         obs, tree = self.observer.observe(label, screenshot, **({"deadline": deadline} if deadline is not None else {}))
         self.last_obs, self.last_tree = obs, tree
-        page = obs.get("page") or {}
-        has_anomaly = any(isinstance(i, dict) and i.get("class") == "anomaly" for i in page.get("interrupts") or [])
-        if (obs.get("foreground") != self.app.bundle or obs.get("process_alive") is not True
-                or obs.get("fresh") is not True or page.get("state") == "out_of_app" or has_anomaly):
-            self.account_epoch += 1
+        self._advance_account_epoch(obs)
         self.motion.on_observation(obs)
         capture = getattr(self, "transient_capture", None)
         if capture is not None:

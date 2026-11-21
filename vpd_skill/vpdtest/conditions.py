@@ -320,9 +320,15 @@ def evaluate_guard(guard: dict, defs: dict, steps: dict, load, app, obs: dict, t
     same_session = spec.get("kind") == "account" and spec.get("carry") == "same_session"
     if same_session:
         record.update(carry="same_session", account_epoch=source.get("account_epoch"))
-        if type(source.get("account_epoch")) is not int or source["account_epoch"] != obs.get("account_epoch"):
+        has_anomaly = any(
+            isinstance(intr, dict) and intr.get("class") == "anomaly"
+            for item in (source, obs)
+            for intr in ((item.get("page") or {}).get("interrupts") or [])
+        )
+        if type(source.get("account_epoch")) is not int or source["account_epoch"] != obs.get("account_epoch") or has_anomaly:
             return {**record, "reason": "账号条件证据已被可能改变会话或账号状态的操作失效，须重新取证"}
         if (source.get("foreground") != app.bundle or obs.get("foreground") != app.bundle
+                or source.get("process_alive") is not True or obs.get("process_alive") is not True
                 or (source.get("page") or {}).get("state") == "out_of_app"
                 or (obs.get("page") or {}).get("state") == "out_of_app"):
             return {**record, "reason": "账号条件必须在目标 APP 同会话前台证据下核验，离线/后台不跨会话沿用"}
