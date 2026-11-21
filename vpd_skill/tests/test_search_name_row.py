@@ -340,3 +340,192 @@ def test_actual_runner_cannot_pass_with_a_known_but_unshown_same_name_row(condit
     assert len([n for n in rows if tree.shown(n)]) == 1
     shadow = next(n for n in rows if not tree.shown(n))
     assert (intersect(shadow.bounds, tree.window_rect()) is None) == (geometry == "offscreen")
+
+
+def _v2_item(title, subtitle, meta="I1", y=300):
+    """Build one 2.0.4.106 (V2) search result entity Row: Row[Image=1, Column=1] > Column > Stack/Column/Row."""
+    return _node("__Common__", f"[0,{y}][1000,{y + 180}]", visible="true", children=[
+        _node("Row", f"[0,{y}][1000,{y + 180}]", visible="true", children=[
+            _node("Image", f"[20,{y + 40}][80,{y + 100}]", visible="true"),
+            _node("Column", f"[100,{y}][980,{y + 180}]", visible="true", children=[
+                _node("Stack", f"[100,{y}][980,{y + 170}]", visible="true", children=[
+                    _node("Column", f"[100,{y}][980,{y + 170}]", visible="true", children=[
+                        _node("Row", f"[100,{y}][980,{y + 170}]", clickable="true", visible="true", children=[
+                            _node("Column", f"[100,{y}][800,{y + 170}]", visible="true", children=[
+                                _node("__Common__", f"[100,{y + 10}][800,{y + 70}]", visible="true", children=[
+                                    _node("Text", f"[100,{y + 10}][800,{y + 70}]", visible="true", text=title)
+                                ]),
+                                _node("Row", f"[100,{y + 80}][800,{y + 150}]", visible="true", children=[
+                                    _node("Text", f"[100,{y + 80}][300,{y + 150}]", visible="true", text=subtitle),
+                                    _node("Text", f"[320,{y + 80}][500,{y + 150}]", visible="true", text=meta),
+                                ]),
+                            ]),
+                            _node("Stack", f"[820,{y + 20}][960,{y + 150}]", visible="true", children=[
+                                _node("Column", f"[820,{y + 20}][960,{y + 150}]", clickable="true", visible="true",
+                                      children=[_node("Text", f"[820,{y + 80}][960,{y + 140}]", visible="true", text="路线")])
+                            ]),
+                        ])
+                    ])
+                ]),
+                _node("Divider", f"[100,{y + 175}][980,{y + 178}]", visible="true"),
+            ]),
+        ])
+    ])
+
+
+def _v2_page(query, items):
+    return _node("Column", "[0,0][1000,2000]", visible="true", children=[
+        _node("RelativeContainer", "[0,0][1000,2000]", id="SearchPoiPage", visible="true", children=[
+            _node("Search", "[20,20][980,120]", id="search_input", visible="true", children=[
+                _node("SearchField", "[40,30][960,110]", id="__SearchField__search_input", visible="true", text=query)
+            ]),
+            _node("Column", "[0,200][1000,1900]", id="search_list", visible="true", children=[
+                _node("List", "[0,200][1000,1900]", visible="true", children=items)
+            ]),
+        ])
+    ])
+
+
+def test_v2_204106_name_result_resolves_unique_row_and_rejects_non_match(ws, tmp_path):
+    """#288: 2.0.4.106 Row[Image=1, Column=1] schema resolves unique title match and rejects non-matches."""
+    app = ws.app("qiankun_hm")
+    tree = UiTree(_v2_page("南汇路-道路停车位", [
+        _v2_item("南汇路-道路停车位", "17.8公里", "I1", 300),
+        _v2_item("道路停车位", "11.7公里", "东方路", 500),
+    ]))
+    loc = _locate(app, tree)
+    assert loc["status"] == "found", loc
+    node = tree.nodes[loc["attempts"][-1]["node"]["idx"]]
+    assert node.type == "Row" and tree.subtree_texts(node)[0] == "南汇路-道路停车位"
+    assert tree.subtree_texts(node)[-1] == "路线"
+    result = _evaluate(app, tree, _oracle(tmp_path), "南汇路-道路停车位")
+    assert [r["result"] for r in result] == ["pass", "pass", "pass"], result
+
+    non_match = UiTree(_v2_page("1号车位", [
+        _v2_item("南汇路-道路停车位", "17.8公里", "奉贤路223号", 300),
+        _v2_item("道路停车位", "11.7公里", "东方路", 500),
+    ]))
+    assert _locate(app, non_match)["status"] == "not_found"
+
+
+@pytest.mark.parametrize("change", [
+    "duplicate-name", "nested-entity", "hidden-row", "hidden-title", "hidden-intermediate-stack",
+    "hidden-query", "duplicate-query", "duplicate-page", "empty-query", "duplicate-title",
+    "borrow-parent-title", "duplicate-inner-title-row",
+])
+def test_v2_204106_uncertain_structure_never_supplies_a_positive_row_scope(ws, tmp_path, change):
+    app = ws.app("qiankun_hm")
+    tree = UiTree(_v2_page("南汇路-道路停车位", [_v2_item("南汇路-道路停车位", "17.8公里", "奉贤路223号", 300)]))
+    row = tree.nodes[_locate(app, tree)["attempts"][-1]["node"]["idx"]]
+    title = tree.find_text("南汇路-道路停车位")[-1]
+    query = tree.find_id("__SearchField__search_input")[0]
+    stack = next(n for n in tree.nodes if n.type == "Stack" and tree.is_within(title, n))
+    inner_col = next(n for n in tree.nodes if n.type == "Column" and tree.nodes[stack.idx].children == [n.idx])
+    if change == "duplicate-name":
+        _raw(tree, tree.nodes[row.parent])["children"].append(deepcopy(_raw(tree, row)))
+    elif change == "nested-entity":
+        _raw(tree, row)["children"].append(deepcopy(_raw(tree, row)))
+    elif change in ("hidden-row", "hidden-title", "hidden-intermediate-stack", "hidden-query"):
+        node = {"hidden-row": row, "hidden-title": title, "hidden-intermediate-stack": stack,
+                "hidden-query": query}[change]
+        _raw(tree, node)["attributes"]["visible"] = " FALSE "
+    elif change == "duplicate-query":
+        _raw(tree, tree.nodes[query.parent])["children"].append(deepcopy(_raw(tree, query)))
+    elif change == "duplicate-page":
+        page = tree.find_id("SearchPoiPage")[0]
+        _raw(tree, tree.nodes[page.parent])["children"].append(deepcopy(_raw(tree, page)))
+    elif change == "empty-query":
+        _raw(tree, query)["attributes"]["text"] = " \t "
+    elif change == "duplicate-title":
+        _raw(tree, tree.nodes[title.parent])["children"].append(deepcopy(_raw(tree, title)))
+    elif change == "duplicate-inner-title-row":
+        _raw(tree, inner_col)["children"].append(deepcopy(_raw(tree, inner_col)["children"][0]))
+    else:
+        _raw(tree, title)["attributes"]["text"] = "other"
+        _raw(tree, tree.nodes[row.parent])["children"].append(
+            _node("Text", "[170,790][400,810]", text="南汇路-道路停车位"))
+    tree = UiTree(tree.raw)
+    assert _locate(app, tree)["status"] in ("not_found", "ambiguous")
+    assert _evaluate(app, tree, _oracle(tmp_path), "南汇路-道路停车位")[-1]["result"] == "undeterminable"
+
+
+@pytest.mark.parametrize("geometry,dy", [("offscreen", 3000), ("fully-clipped", 1900)])
+def test_v2_204106_offscreen_and_clipped_duplicates_are_not_discarded(ws, tmp_path, geometry, dy):
+    app = ws.app("qiankun_hm")
+    item1 = _v2_item("南汇路-道路停车位", "17.8公里", "I1", 300)
+    item2 = deepcopy(item1)
+    _shift_row(item2, dy)
+    tree = UiTree(_v2_page("南汇路-道路停车位", [item1, item2]))
+    assert _locate(app, tree)["status"] == "not_found"
+    result = _evaluate(app, tree, _oracle(tmp_path), "南汇路-道路停车位")
+    assert [r["result"] for r in result] == ["pass", "pass", "undeterminable"], result
+
+
+@pytest.mark.parametrize("hidden", ["row", "title", "ancestor", "stack"])
+def test_v2_204106_explicitly_hidden_shadow_is_not_an_eligible_duplicate(ws, tmp_path, hidden):
+    app = ws.app("qiankun_hm")
+    item1 = _v2_item("南汇路-道路停车位", "17.8公里", "I1", 300)
+    item2 = _v2_item("南汇路-道路停车位", "18.0公里", "其他", 500)
+    if hidden == "row":
+        item2["children"][0]["attributes"]["visible"] = " FALSE "
+    elif hidden == "title":
+        st = UiTree(item2)
+        t_node = next(n for n in st.nodes if n.text == "南汇路-道路停车位")
+        _raw(st, t_node)["attributes"]["visible"] = "0"
+    elif hidden == "stack":
+        st = UiTree(item2)
+        s_node = next(n for n in st.nodes if n.type == "Stack")
+        _raw(st, s_node)["attributes"]["visible"] = "false"
+    else:
+        item2 = _node("__Common__", children=[item2], visible="false")
+    tree = UiTree(_v2_page("南汇路-道路停车位", [item1, item2]))
+    assert _locate(app, tree)["status"] == "found"
+    assert [r["result"] for r in _evaluate(app, tree, _oracle(tmp_path), "南汇路-道路停车位")] == ["pass"] * 3
+
+
+def test_v2_204106_multiple_panes_and_cross_row_metadata_are_rejected(ws, tmp_path):
+    app = ws.app("qiankun_hm")
+    item_target = _v2_item("南汇路-道路停车位", "17.8公里", "wrong-id", 300)
+    item_other = _v2_item("道路停车位", "11.7公里", "I1", 500)
+    tree = UiTree(_v2_page("南汇路-道路停车位", [item_target, item_other]))
+    for layout in ({"pane_count": 2}, {}, {"pane_count": None}):
+        assert _locate(app, tree, layout)["status"] == "not_found"
+        assert _evaluate(app, tree, _oracle(tmp_path), "南汇路-道路停车位", layout=layout)[-1]["result"] == "undeterminable"
+
+    oracle = _oracle(tmp_path)
+    assertion = {"id": "A", "at": "S3", "type": "text_present", "text": "I1", "oracle_refs": [COMMON_RULE]}
+    legacy = _evaluate(app, tree, oracle, "南汇路-道路停车位", assertions=[assertion])[0]
+    scoped = _evaluate(app, tree, oracle, "南汇路-道路停车位", assertions=[{**assertion, "within": ROW}])[0]
+    assert legacy["result"] == "pass"
+    assert scoped["result"] == "fail", scoped
+
+
+def test_v2_park_group_wrapping_v1_spot_row_preserves_leaf_isolation(ws):
+    app = ws.app("qiankun_hm")
+
+    def _wrapped_page(query, spot_name="1号车位", park_name="虹桥璀璨公馆"):
+        park = _v2_item(park_name, "5m", "当前园区", 300)
+        spot = _node("__Common__", "[100,480][980,620]", id="searchPoiSpot_999", visible="true", children=[
+            _node("Row", "[100,480][980,620]", visible="true", children=[
+                _node("Image", "[110,500][150,540]", visible="true"),
+                _node("Column", "[160,480][800,620]", visible="true", children=[
+                    _node("__Common__", "[160,485][800,540]", visible="true", children=[
+                        _node("Text", "[160,485][800,540]", visible="true", text=spot_name)
+                    ]),
+                    _node("Row", "[160,550][800,610]", visible="true", children=[
+                        _node("Text", "[160,550][300,610]", visible="true", text="B1层"),
+                        _node("Text", "[320,550][450,610]", visible="true", text="B242"),
+                    ]),
+                ]),
+                _node("Column", "[820,480][960,620]", visible="true", children=[
+                    _node("Text", "[820,530][960,580]", visible="true", text="路线")
+                ]),
+            ])
+        ])
+        park["children"][0]["children"][1]["children"][0]["children"][0]["children"].append(spot)
+        return UiTree(_v2_page(query, [park]))
+
+    assert _locate(app, _wrapped_page("1号车位"))["status"] == "found"
+    assert _locate(app, _wrapped_page("虹桥璀璨公馆"))["status"] == "not_found"
+    assert _locate(app, _wrapped_page("1号车位", spot_name="1号车位", park_name="1号车位"))["status"] == "not_found"
+

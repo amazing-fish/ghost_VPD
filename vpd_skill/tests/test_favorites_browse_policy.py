@@ -89,7 +89,10 @@ def _dispatch(ws, tree, foreground=BUNDLE, layout=None, op="tap"):
 def test_historical_export_entry_passes_actual_dispatcher_with_fake_foreground(ws):
     tree = UiTree(deepcopy(FIXTURE["observations"]["obs-0035"]["root"]))
     app = ws.app("qiankun_hm")
-    assert app.states.identify(tree, app.bundle, True)["state"] == "unknown"
+    # obs-0035 is a real Jinqiao VPD home tree carrying 泊车代驾 (#287/#288);
+    # browse-navigation non-promotion is independently guarded by
+    # test_current_structure_proves_browse_without_promoting_page_state (_raw() -> unknown).
+    assert app.states.identify(tree, app.bundle, True)["state"] == "qk_vpd_home"
     assert app.targets["qk_favorites_entry"]["status"] == "unverified"
     result, att, bridge = _dispatch(ws, tree)
     assert result.sent is True and result.ok is True, att
