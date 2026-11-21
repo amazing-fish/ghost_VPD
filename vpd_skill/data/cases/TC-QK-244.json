@@ -15,9 +15,7 @@
     "当前园区测试数据为由度金闽园地下停车场；只核显示子范围，不以首页锚点证明车辆图内、健康或地图完整性",
     "以受控stop_app/launch重建起点；只在无进行中VPD任务的本轮只读现场执行，其他场景需重新取证"
   ],
-  "env_requirements": {
-    "app_version": "1.0.26.100"
-  },
+  "env_requirements": {},
   "test_data": {
     "parking_area": "由度金闽园地下停车场",
     "other_parking_area": "华为练秋湖研发中心"

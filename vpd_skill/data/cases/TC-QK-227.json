@@ -15,7 +15,6 @@
   "env_requirements": {
     "account_state": "logged_in",
     "network": "on",
-    "app_version": "1.0.26.100",
     "vehicle_fault_state": "vpd_fault",
     "vpd_task_state": "none",
     "parking_area": "金桥出口加工区",

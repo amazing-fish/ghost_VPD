@@ -11,8 +11,7 @@
     "本候选限原作者声明的 APP 1.0.26.100 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准"
   ],
   "env_requirements": {
-    "account_state": "logged_in",
-    "app_version": "1.0.26.100"
+    "account_state": "logged_in"
   },
   "test_data": {},
   "test_data_none": true,

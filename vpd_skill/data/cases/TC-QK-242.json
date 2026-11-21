@@ -16,9 +16,7 @@
     "以受控stop_app/launch重建起点；只在无进行中VPD任务的本轮只读现场执行，其他场景需重新取证",
     "本次专用A207原未选楼梯口，搜索初始也无该标签入口；两个肯定型读取均由本例验证，不满足时不清理既有数据。"
   ],
-  "env_requirements": {
-    "app_version": "1.0.26.100"
-  },
+  "env_requirements": {},
   "test_data": {
     "parking_area": "由度金闽园地下停车场",
     "other_parking_area": "华为练秋湖研发中心",

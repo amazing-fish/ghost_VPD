@@ -14,7 +14,6 @@
   ],
   "env_requirements": {
     "account_state": "logged_in",
-    "app_version": "1.0.26.100",
     "vpd_task_state": "active",
     "task_type": "along_parking"
   },
