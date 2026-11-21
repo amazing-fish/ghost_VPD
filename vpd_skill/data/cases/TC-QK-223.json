@@ -15,7 +15,6 @@
   "env_requirements": {
     "network": "on",
     "app_version": "1.0.26.100",
-    "device_form": "bar",
     "vpd_task_state": "none",
     "parking_area": "华为练秋湖研发中心"
   },

@@ -12,8 +12,7 @@
   ],
   "env_requirements": {
     "account_state": "logged_in",
-    "app_version": "1.0.26.100",
-    "device_form": "bar"
+    "app_version": "1.0.26.100"
   },
   "test_data": {},
   "test_data_none": true,

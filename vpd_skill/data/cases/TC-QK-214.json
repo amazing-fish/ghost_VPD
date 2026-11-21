@@ -14,7 +14,6 @@
   "env_requirements": {
     "account_state": "logged_in",
     "app_version": "1.0.26.100",
-    "device_form": "bar",
     "vehicle_fault_state": "vpd_fault",
     "vpd_task_state": "none"
   },
