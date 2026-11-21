@@ -10,7 +10,7 @@
     "VPD_SECRET_QIANKUN_SMS_CODE 已在 config.local.json secrets 落盘（QIANKUN_SMS_CODE：Phase1 运行后收到的最新一条验证码，有效期约 5-10 分钟）",
     "验证码未过期、未被消费",
     "设备已解锁、亮屏",
-    "本候选限原作者声明的 APP 1.0.26.100 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准"
+    "历史取证基线为 APP 1.0.26.100 / bar（按 #257 裁定不限制后续版本与形态执行，UI 差异按用例适配推进）；env 为人工前置声明，产品判据适用性仍以实测facts为准"
   ],
   "env_requirements": {
     "account_state": "logged_out"

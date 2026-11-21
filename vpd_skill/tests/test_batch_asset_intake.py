@@ -274,9 +274,13 @@ def test_qk_batch_assets_do_not_hardcode_bar_device_form_in_env_requirements(ws)
 
 
 def test_qk_cases_do_not_pin_app_version_in_env_requirements(ws):
-    """#257: app version drift must not block TC-QK execution via env_requirements."""
+    """#257: app version drift must not block TC-QK execution via env_requirements or preconditions."""
     qk_cases = sorted(p.stem for p in (ws.root / "cases").glob("TC-QK-*.json"))
     assert len(qk_cases) >= 26
+    stale_phrases = ("本候选限原作者声明的 APP 1.0.26.100", "设备已登录乾崑1.0.26.100", "（本机 1.0.26.100）")
     for cid in qk_cases:
-        er = ws.load_case(cid).get("env_requirements") or {}
+        case = ws.load_case(cid)
+        er = case.get("env_requirements") or {}
         assert "app_version" not in er, f"{cid} still pins app_version={er.get('app_version')!r}"
+        for line in case.get("preconditions") or []:
+            assert not any(p in line for p in stale_phrases), f"{cid} has restrictive precondition: {line!r}"

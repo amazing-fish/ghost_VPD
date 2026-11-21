@@ -9,7 +9,7 @@
     "乾崑 APP 已登录（测试账号 151****3183）",
     "设备网络已断：执行者在 run 前经系统控制中心关闭 WLAN（uinput 控制中心 WLAN 磁贴，操作方法与验证留档 session-wk-qk5：ifconfig wlan0 无 inet addr + ping Network unreachable）",
     "设备已解锁、亮屏",
-    "本候选限原作者声明的 APP 1.0.26.100 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准"
+    "历史取证基线为 APP 1.0.26.100 / bar（按 #257 裁定不限制后续版本与形态执行，UI 差异按用例适配推进）；env 为人工前置声明，产品判据适用性仍以实测facts为准"
   ],
   "env_requirements": {
     "account_state": "logged_in",
