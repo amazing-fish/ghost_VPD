@@ -3,7 +3,8 @@
   "purpose": "从「我的」页上滑进入设置，确认设置页有「退出登录」入口（不点击），返回后回到「我的」页",
   "preconditions": [
     "鸿蒙智行已登录（设置页才有「退出登录」）",
-    "手机解锁，APP 可切到前台"
+    "手机解锁，APP 可切到前台",
+    "历史取证基线为 APP 3.0.3.200 / foldable（按 #257 裁定不限制后续版本执行）"
   ],
   "test_data": {},
   "test_data_none": true,
@@ -67,8 +68,7 @@
   "status": "draft",
   "title": "[待实机复核] 折叠形态我的页 List 内滚动至设置并返回",
   "env_requirements": {
-    "account_state": "logged_in",
-    "app_version": "3.0.3.200"
+    "account_state": "logged_in"
   },
   "layout_requirements": {
     "device_form": "foldable"
