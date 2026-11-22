@@ -74,18 +74,26 @@ def validate_definitions(defs: dict, app) -> list:
         if not isinstance(name, str) or not name.strip() or not isinstance(spec, dict):
             issues.append({"field": prefix, "problem": "条件须有非空名称与对象定义"})
             continue
-        if set(spec) - {"kind", "true", "false", "scope", "max_age_s"}:
-            issues.append({"field": prefix, "problem": f"条件定义不支持字段 {sorted(set(spec) - {'kind', 'true', 'false', 'scope', 'max_age_s'})}"})
+        extra = set(spec) - {"kind", "true", "false", "scope", "max_age_s", "carry", "presence_only"}
+        if extra:
+            issues.append({"field": prefix, "problem": f"条件定义不支持字段 {sorted(extra)}"})
         kind = spec.get("kind")
         if not isinstance(kind, str) or kind not in KINDS:
             issues.append({"field": prefix + ".kind", "problem": "kind 须为 page/account/vehicle/task"})
+        if "carry" in spec and (spec.get("carry") != "same_session" or kind != "account"):
+            issues.append({"field": prefix + ".carry", "problem": "carry 仅在 account 条件中支持 same_session"})
+        if "presence_only" in spec:
+            po = spec["presence_only"]
+            if type(po) is not bool or (po is True and kind != "account"):
+                issues.append({"field": prefix + ".presence_only", "problem": "presence_only 须为布尔值且仅适用于 account 条件"})
         for side in ("true", "false"):
             issues += _check_problems(spec.get(side), app, prefix + "." + side)
         scope = spec.get("scope", {})
         if not isinstance(scope, dict):
             issues.append({"field": prefix + ".scope", "problem": "scope 须为身份目标引用对象"})
         else:
-            for key in REQUIRED_SCOPE.get(kind if isinstance(kind, str) else "", set()) - set(scope):
+            required = set() if (kind == "account" and spec.get("presence_only") is True) else REQUIRED_SCOPE.get(kind if isinstance(kind, str) else "", set())
+            for key in required - set(scope):
                 issues.append({"field": prefix + ".scope", "problem": f"{spec.get('kind')} 条件须绑定当前 {key} 身份目标"})
             for key, target in scope.items():
                 if key not in {"vehicle", "task", "account"} or not isinstance(target, str) or target not in app.targets:
@@ -309,7 +317,22 @@ def evaluate_guard(guard: dict, defs: dict, steps: dict, load, app, obs: dict, t
             return {**record, **error, "status": "error", "reason": "条件所需观测采集失败", "execution_error": error}
     if _stale(source) or _stale(obs):
         return {**record, "reason": "条件观测缺失或已过时"}
-    if type(source.get("action_epoch")) is not int or source["action_epoch"] != obs.get("action_epoch"):
+    same_session = spec.get("kind") == "account" and spec.get("carry") == "same_session"
+    if same_session:
+        record.update(carry="same_session", account_epoch=source.get("account_epoch"))
+        has_anomaly = any(
+            isinstance(intr, dict) and intr.get("class") == "anomaly"
+            for item in (source, obs)
+            for intr in ((item.get("page") or {}).get("interrupts") or [])
+        )
+        if type(source.get("account_epoch")) is not int or source["account_epoch"] != obs.get("account_epoch") or has_anomaly:
+            return {**record, "reason": "账号条件证据已被可能改变会话或账号状态的操作失效，须重新取证"}
+        if (source.get("foreground") != app.bundle or obs.get("foreground") != app.bundle
+                or source.get("process_alive") is not True or obs.get("process_alive") is not True
+                or (source.get("page") or {}).get("state") == "out_of_app"
+                or (obs.get("page") or {}).get("state") == "out_of_app"):
+            return {**record, "reason": "账号条件必须在目标 APP 同会话前台证据下核验，离线/后台不跨会话沿用"}
+    elif type(source.get("action_epoch")) is not int or source["action_epoch"] != obs.get("action_epoch"):
         return {**record, "reason": "条件证据已被可能下发的动作失效，须重新取证"}
     clock, current = source.get("clock_s"), obs.get("clock_s")
     if (type(clock) not in (int, float) or type(current) not in (int, float)
