@@ -116,3 +116,29 @@ def test_candidate_does_not_pass_without_required_scope_or_settings(ws,tmp_path,
     if variant in ('missing','multiple'):
         step=next(s for s in r['steps'] if s['step_id']=='S3')
         assert step['attempts'][0]['dispatch']['sent'] is False
+
+
+def test_motor_hm_draft_cases_do_not_pin_app_version_or_bar_form(ws, tmp_path):
+    """#257: motor_hm draft assets must not block on app_version or hardcoded bar device_form."""
+    for cid in ('TC-HM-S01-FOLD-DRAFT', 'TC-MOTOR-HM-006', 'TC-MOTOR-HM-007', 'TC-MOTOR-HM-008'):
+        case = ws.load_case(cid)
+        er = case.get('env_requirements') or {}
+        assert 'app_version' not in er, f'{cid} still pins app_version={er.get("app_version")!r}'
+        if cid != 'TC-HM-S01-FOLD-DRAFT':
+            assert 'device_form' not in er, f'{cid} still pins device_form={er.get("device_form")!r}'
+        for line in case.get('preconditions') or []:
+            assert '本候选限原作者声明的 APP 3.0.1.281' not in line
+            assert '（本机 3.0.1.281）' not in line
+
+    from vpdtest.runner import run_case
+    spec_path = Path(synthetic_world(tmp_path, 'normal').split(':', 1)[1])
+    wdata = json.loads(spec_path.read_text(encoding='utf-8'))
+    wdata['app_version'] = '3.0.4.100'
+    spec_path.write_text(json.dumps(wdata, ensure_ascii=False), encoding='utf-8')
+    run = run_case(ws, 'TC-HM-S01-FOLD-DRAFT', device_spec='replay:' + str(spec_path),
+                   env={'account_state': 'logged_in'}, propose=False)
+    assert run['env']['ok'] is True
+    assert run['actions'] >= 5
+    assert all(s['outcome'] == 'passed' for s in run['steps'])
+    assert run['verdict']['verdict'] == 'pending'  # K-MOT-001/002 remain scoped to 3.0.3.200; execution is unblocked.
+

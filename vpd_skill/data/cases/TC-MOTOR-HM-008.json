@@ -8,11 +8,9 @@
   "purpose": "盘点未登录态「我的」页的只读/低风险功能入口可见性（浏览记录/邀请好友/我的积分/我的家充桩/我的活动/设置等），只验证入口存在与可发现性，不进入二级页、不修改数据。",
   "preconditions": [
     "APP 处于 my_tab（会话首次观察）",
-    "本候选限原作者声明的 APP 3.0.1.281 / bar；env 为人工前置声明，产品判据适用性仍以实测facts为准"
+    "历史取证基线为 APP 3.0.1.281 / bar（按 #257 裁定不限制后续版本与形态执行，UI 差异按用例适配推进）；env 为人工前置声明，产品判据适用性仍以实测facts为准"
   ],
   "env_requirements": {
-    "app_version": "3.0.1.281",
-    "device_form": "bar",
     "account_state": "logged_out"
   },
   "test_data": {},
