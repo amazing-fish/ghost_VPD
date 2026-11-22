@@ -261,3 +261,47 @@ def test_approved_motor_hm_assets_stay_valid_after_234_capability(ws):
         assert info["valid"] is True and info["state"] == "approved"
         assert info["current"]["content_hash"] == c_hash
         assert info["current"]["dependency_hash"] == d_hash
+
+
+def test_dispatcher_tolerates_stub_ctx_without_account_epoch(ws):
+    from types import SimpleNamespace
+    from vpdtest.devices import DeviceResult
+    from vpdtest.dispatch import Dispatcher
+
+    class _FakeBridge:
+        def __init__(self, fg):
+            self.fg = fg
+            self.calls = 0
+
+        def screen_locked(self):
+            return False
+
+        def foreground(self):
+            return self.fg
+
+        def tap(self, *args):
+            self.calls += 1
+            return DeviceResult("tap", True, True)
+
+    app, policy = ws.app("motor_hm"), ws.policy()
+    motion = SimpleNamespace(over=lambda: False, locked=lambda: False)
+    ctx_disrupted = SimpleNamespace(app=app, policy=policy, authorized=set(), actions=0, safety_hold=None, motion=motion)
+    att1 = {"action": "tap"}
+    res1 = Dispatcher(_FakeBridge("other.app"), ctx=ctx_disrupted).send(
+        "tap", 10, 20, preconditions={"screen_locked": False, "foreground": app.bundle}, att=att1
+    )
+    assert res1.sent is False and res1.error_class == "foreground_changed"
+    assert ctx_disrupted.account_epoch == 1
+
+    ctx_same = SimpleNamespace(app=app, policy=policy, authorized=set(), actions=0, safety_hold=None,
+                               motion=motion, clock=lambda: 10.0)
+    att2 = {
+        "action": "tap",
+        "condition": {"status": "matched", "records": [{"carry": "same_session", "account_epoch": 0, "clock_s": 5.0}]},
+    }
+    bridge2 = _FakeBridge(app.bundle)
+    res2 = Dispatcher(bridge2, ctx=ctx_same).send(
+        "tap", 10, 20, preconditions={"screen_locked": False, "foreground": app.bundle}, att=att2
+    )
+    assert res2.sent is False and bridge2.calls == 0
+    assert att2["status"] == "condition_unknown"
