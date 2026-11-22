@@ -342,30 +342,30 @@ def test_actual_runner_cannot_pass_with_a_known_but_unshown_same_name_row(condit
     assert (intersect(shadow.bounds, tree.window_rect()) is None) == (geometry == "offscreen")
 
 
-def _v2_item(title, subtitle, meta="I1", y=300):
-    """Build one 2.0.4.106 (V2) search result entity Row: Row[Image=1, Column=1] > Column > Stack/Column/Row."""
+def _v2_item(title, subtitle, meta="I1", y=300, *, single_column=False):
+    """Build one 2.0.4.106 (V2) search result entity Row: Row[Image=1, Column=1] > Column > Stack/Column/Column/Row."""
+    inner_row = _node("Row", f"[100,{y}][980,{y + 170}]", clickable="true", visible="true", children=[
+        _node("Column", f"[100,{y}][800,{y + 170}]", visible="true", children=[
+            _node("__Common__", f"[100,{y + 10}][800,{y + 70}]", visible="true", children=[
+                _node("Text", f"[100,{y + 10}][800,{y + 70}]", visible="true", text=title)
+            ]),
+            _node("Row", f"[100,{y + 80}][800,{y + 150}]", visible="true", children=[
+                _node("Text", f"[100,{y + 80}][300,{y + 150}]", visible="true", text=subtitle),
+                _node("Text", f"[320,{y + 80}][500,{y + 150}]", visible="true", text=meta),
+            ]),
+        ]),
+        _node("Stack", f"[820,{y + 20}][960,{y + 150}]", visible="true", children=[
+            _node("Column", f"[820,{y + 20}][960,{y + 150}]", clickable="true", visible="true",
+                  children=[_node("Text", f"[820,{y + 80}][960,{y + 140}]", visible="true", text="路线")])
+        ]),
+    ])
+    row_container = inner_row if single_column else _node("Column", f"[100,{y}][980,{y + 170}]", visible="true", children=[inner_row])
     return _node("__Common__", f"[0,{y}][1000,{y + 180}]", visible="true", children=[
         _node("Row", f"[0,{y}][1000,{y + 180}]", visible="true", children=[
             _node("Image", f"[20,{y + 40}][80,{y + 100}]", visible="true"),
             _node("Column", f"[100,{y}][980,{y + 180}]", visible="true", children=[
                 _node("Stack", f"[100,{y}][980,{y + 170}]", visible="true", children=[
-                    _node("Column", f"[100,{y}][980,{y + 170}]", visible="true", children=[
-                        _node("Row", f"[100,{y}][980,{y + 170}]", clickable="true", visible="true", children=[
-                            _node("Column", f"[100,{y}][800,{y + 170}]", visible="true", children=[
-                                _node("__Common__", f"[100,{y + 10}][800,{y + 70}]", visible="true", children=[
-                                    _node("Text", f"[100,{y + 10}][800,{y + 70}]", visible="true", text=title)
-                                ]),
-                                _node("Row", f"[100,{y + 80}][800,{y + 150}]", visible="true", children=[
-                                    _node("Text", f"[100,{y + 80}][300,{y + 150}]", visible="true", text=subtitle),
-                                    _node("Text", f"[320,{y + 80}][500,{y + 150}]", visible="true", text=meta),
-                                ]),
-                            ]),
-                            _node("Stack", f"[820,{y + 20}][960,{y + 150}]", visible="true", children=[
-                                _node("Column", f"[820,{y + 20}][960,{y + 150}]", clickable="true", visible="true",
-                                      children=[_node("Text", f"[820,{y + 80}][960,{y + 140}]", visible="true", text="路线")])
-                            ]),
-                        ])
-                    ])
+                    _node("Column", f"[100,{y}][980,{y + 170}]", visible="true", children=[row_container])
                 ]),
                 _node("Divider", f"[100,{y + 175}][980,{y + 178}]", visible="true"),
             ]),
@@ -420,7 +420,8 @@ def test_v2_204106_uncertain_structure_never_supplies_a_positive_row_scope(ws, t
     title = tree.find_text("南汇路-道路停车位")[-1]
     query = tree.find_id("__SearchField__search_input")[0]
     stack = next(n for n in tree.nodes if n.type == "Stack" and tree.is_within(title, n))
-    inner_col = next(n for n in tree.nodes if n.type == "Column" and tree.nodes[stack.idx].children == [n.idx])
+    mid_col = next(n for n in tree.nodes if n.type == "Column" and tree.nodes[stack.idx].children == [n.idx])
+    inner_col = next(n for n in tree.nodes if n.type == "Column" and tree.nodes[mid_col.idx].children == [n.idx])
     if change == "duplicate-name":
         _raw(tree, tree.nodes[row.parent])["children"].append(deepcopy(_raw(tree, row)))
     elif change == "nested-entity":
@@ -522,10 +523,31 @@ def test_v2_park_group_wrapping_v1_spot_row_preserves_leaf_isolation(ws):
                 ]),
             ])
         ])
-        park["children"][0]["children"][1]["children"][0]["children"][0]["children"].append(spot)
+        park["children"][0]["children"][1]["children"][0]["children"][0]["children"][0]["children"].append(spot)
         return UiTree(_v2_page(query, [park]))
 
     assert _locate(app, _wrapped_page("1号车位"))["status"] == "found"
     assert _locate(app, _wrapped_page("虹桥璀璨公馆"))["status"] == "not_found"
     assert _locate(app, _wrapped_page("1号车位", spot_name="1号车位", park_name="1号车位"))["status"] == "not_found"
+
+
+def test_v2_204106_single_column_layout_does_not_match_double_column_schema(ws):
+    """#288: stale single-Column Stack>Column>Row layout must not match real 2.0.4.106 double-Column schema."""
+    app = ws.app("qiankun_hm")
+    tree = UiTree(_v2_page("南汇路-道路停车位", [
+        _v2_item("南汇路-道路停车位", "17.8公里", "奉贤路223号", 300, single_column=True),
+    ]))
+    assert _locate(app, tree)["status"] == "not_found"
+
+
+def test_v2_204106_distinct_subtitle_same_title_rows_rejected_as_ambiguous(ws, tmp_path):
+    """#288 obs-0021: two V2 rows sharing exact title with different subtitles remain non-unique (not_found)."""
+    app = ws.app("qiankun_hm")
+    tree = UiTree(_v2_page("南汇路-道路停车位", [
+        _v2_item("南汇路-道路停车位", "17.8公里", "南京西路地铁站1号口步行230米", 300),
+        _v2_item("南汇路-道路停车位", "17.8公里", "奉贤路223号(南京西路地铁站1号口步行240米)", 500),
+    ]))
+    assert _locate(app, tree)["status"] == "not_found"
+    assert _evaluate(app, tree, _oracle(tmp_path), "南汇路-道路停车位")[-1]["result"] == "undeterminable"
+
 

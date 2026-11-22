@@ -33,6 +33,18 @@ def _other_possible_title(tree, results, title, name):
     return any(n.idx not in known or n.text != name for n in others)
 
 
+def _selected_row_owns_title(tree, title, row) -> bool:
+    """Accept V1 direct-row titles or V2 double-Column inner-row titles owned by ``row``."""
+    ancestors = tree.ancestors(title)
+    v1 = len(ancestors) >= 3 and [a.type for a in ancestors[:3]] == ["__Common__", "Column", "Row"] and ancestors[2].idx == row.idx
+    v2 = (
+        len(ancestors) >= 8
+        and [a.type for a in ancestors[:8]] == ["__Common__", "Column", "Row", "Column", "Column", "Stack", "Column", "Row"]
+        and ancestors[7].idx == row.idx
+    )
+    return v1 or v2
+
+
 def inspect_name(app, obs_id, obs, tree, name):
     """The supplied name is a comparison value. Its origin is not authenticated here."""
     result = {"obs_id": obs_id, "source": obs.get("source"), "row_observation": "blocked",
@@ -74,7 +86,7 @@ def inspect_name(app, obs_id, obs, tree, name):
     texts = [n for n in tree.nodes if n.text.strip() and tree.is_within(n, node)]
     titles = [n for n in tree.xpath("//Row/Column[1]/__Common__[1]/Text")
               if tree.is_within(n, node) and tree.visible_lineage(n)]
-    if (len(titles) != 1 or tree.ancestors(titles[0])[2].idx != node.idx
+    if (len(titles) != 1 or not _selected_row_owns_title(tree, titles[0], node)
             or titles[0].text != name or not _fully_inside(tree, titles[0], node)):
         return {**result, "reason": "row_title_unresolved"}
     if _other_possible_title(tree, lists[0], titles[0], name):
