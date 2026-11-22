@@ -146,8 +146,10 @@ class Dispatcher:
                 age = self.ctx.clock() - record["clock_s"] if isinstance(record.get("clock_s"), (int, float)) else None
                 expired = age is not None and record.get("max_age_s") is not None and age > record["max_age_s"]
                 if record.get("carry") == "same_session":
+                    current_epoch = getattr(self.ctx, "account_epoch", None)
                     stale_epoch = (type(record.get("account_epoch")) is not int
-                                   or record.get("account_epoch") != self.ctx.account_epoch)
+                                   or type(current_epoch) is not int
+                                   or record.get("account_epoch") != current_epoch)
                 else:
                     stale_epoch = record.get("action_epoch") != self.ctx.actions
                 if stale_epoch or expired:
@@ -214,7 +216,8 @@ class Dispatcher:
             "foreground_changed", "screen_locked", "state_indeterminate"
         )
         if disrupted or (result.sent is not False and not _preserves_account_session(op, args, tap, att, result)):
-            self.ctx.account_epoch += 1
+            cur = getattr(self.ctx, "account_epoch", 0)
+            self.ctx.account_epoch = (cur if type(cur) is int else 0) + 1
 
     def _limits(self, att, checks):
         if not self._hold_check(att, checks):
