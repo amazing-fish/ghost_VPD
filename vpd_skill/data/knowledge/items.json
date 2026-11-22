@@ -2448,9 +2448,7 @@
         ]
       },
       "applies_to": {
-        "app": "qiankun_hm",
-        "app_version": "1.0.26.100",
-        "device_form": "bar"
+        "app": "qiankun_hm"
       },
       "source": {
         "type": "model_inference",
@@ -2484,9 +2482,7 @@
         "vault_save_prompt": "if_triggered"
       },
       "applies_to": {
-        "app": "qiankun_hm",
-        "app_version": "1.0.26.100",
-        "device_form": "bar"
+        "app": "qiankun_hm"
       },
       "source": {
         "type": "model_inference",
@@ -2526,18 +2522,19 @@
       "id": "K-QK-013",
       "kind": "product_rule",
       "subject": "qiankun_hm.vpd.home_elements",
-      "statement": "无活动任务的登录场景中，从爱车页进入VPD后检查搜索车位号设为目的地入口，且不接受已显示停车场信息加载失败的占位作为正常首页进入。默认车位不是所有健康首页的必需文字；搜索入口与已知失败排除也不证明完整地图、车位数据或推荐布局已就绪。独立产品依据待确认。",
+      "statement": "无活动任务的登录场景中，从爱车页进入VPD后检查搜索入口（qk_search_entry，兼容1.0.26.100目的/起点文案与2.0.4.106精确「搜索」），且不接受已显示停车场信息加载失败的占位作为正常首页进入。默认车位不是所有健康首页的必需文字；搜索入口与已知失败排除也不证明完整地图、车位数据或推荐布局已就绪。独立产品依据待确认。",
       "expected": {
         "home_texts": [
-          "搜索车位号设为目的地"
+          "搜索车位号设为目的地",
+          "搜索车位号设为起点",
+          "搜索"
         ],
         "known_load_error_absent": "停车场信息加载失败",
-        "complete_map_ready": "not_verified"
+        "complete_map_ready": "not_verified",
+        "home_target": "qk_search_entry"
       },
       "applies_to": {
-        "app": "qiankun_hm",
-        "app_version": "1.0.26.100",
-        "device_form": "bar"
+        "app": "qiankun_hm"
       },
       "source": {
         "type": "model_inference",
@@ -2583,9 +2580,7 @@
         "may_wake_vehicle": true
       },
       "applies_to": {
-        "app": "qiankun_hm",
-        "app_version": "1.0.26.100",
-        "device_form": "bar"
+        "app": "qiankun_hm"
       },
       "source": {
         "type": "model_inference",
@@ -2631,8 +2626,6 @@
       },
       "applies_to": {
         "app": "qiankun_hm",
-        "app_version": "1.0.26.100",
-        "device_form": "bar",
         "vpd_task_state": "active",
         "task_type": "along_parking"
       },
@@ -2681,8 +2674,6 @@
       },
       "applies_to": {
         "app": "qiankun_hm",
-        "app_version": "1.0.26.100",
-        "device_form": "bar",
         "parking_area": "金桥出口加工区",
         "destination_spot": "L1-A43"
       },
@@ -2731,8 +2722,6 @@
       },
       "applies_to": {
         "app": "qiankun_hm",
-        "app_version": "1.0.26.100",
-        "device_form": "bar",
         "vehicle_name": "F03",
         "vehicle_state": "parked"
       },
@@ -2787,8 +2776,6 @@
       },
       "applies_to": {
         "app": "qiankun_hm",
-        "app_version": "1.0.26.100",
-        "device_form": "bar",
         "network": "off"
       },
       "source": {
@@ -2851,8 +2838,6 @@
       },
       "applies_to": {
         "app": "qiankun_hm",
-        "app_version": "1.0.26.100",
-        "device_form": "bar",
         "parking_area": "金桥出口加工区"
       },
       "source": {
