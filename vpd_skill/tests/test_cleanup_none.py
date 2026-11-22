@@ -72,8 +72,13 @@ def test_nested_user_data_without_declared_authorization_is_still_rejected(ws):
 
 def test_s01_offline_navigation_avoids_restart_and_extra_back(ws, tmp_path, stale_cleanup_case):
     world = json.loads((SKILL / "fixtures/worlds/motor_hm_base.json").read_text(encoding="utf8"))
-    world["env_facts"]["account_state"] = "logged_in"
     world["app_version"] = "3.0.3.200"
+    def _mark_logged_in(node):
+        if node.get("text") == "注册/登录":
+            node["text"] = "我的车辆"
+        for ch in node.get("children", []):
+            _mark_logged_in(ch)
+    _mark_logged_in(world["screens"]["my_tab"]["root"])
     path = tmp_path / "synthetic-logged-in.json"
     write_json(path, world)
     run = run_case(ws, "TC-HM-S01", device_spec="replay:" + str(path), propose=False)
