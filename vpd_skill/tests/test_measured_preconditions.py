@@ -185,7 +185,7 @@ def _s01_world(tmp_path, name, *, my_marker, with_logout=True):
     return f"replay:{path}"
 
 
-def test_s01_bare_run_passes_when_logged_in_and_fails_when_logout_missing(ws, tmp_path):
+def test_s01_bare_run_passes_when_logged_in_and_stays_pending_when_logout_missing(ws, tmp_path):
     spec_ok = _s01_world(tmp_path, "s01-in.json", my_marker="我的车辆", with_logout=True)
     run_ok = run_case(ws, "TC-HM-S01", device_spec=spec_ok, propose=False)
     assert run_ok["env"]["ok"] and run_ok["actions"] == 5
@@ -193,15 +193,17 @@ def test_s01_bare_run_passes_when_logged_in_and_fails_when_logout_missing(ws, tm
     assert [a["result"] for a in run_ok["assertions"]] == ["pass", "pass"]
     assert run_ok["assertions"][0]["guard"]["status"] == "true"
 
-    from copy import deepcopy
-    fail_case = deepcopy(ws.load_case("TC-HM-S01"))
-    s4 = next(s for s in fail_case["steps"] if s["id"] == "S4")
-    s4.pop("expect_state", None)
-    s4["expect_text"] = "设置"
+    # Shipped TC-HM-S01 S4 uses expect_state="settings" (which requires "退出登录" in motor_hm/states.json)
+    # and intentionally has no oracle_refs (so an unguarded tap miss or logged-out Settings screen cannot false-fail).
+    # Engine-level carried-guard product_failed when S4 lands cleanly is covered by test_account_condition_carry.py.
     spec_bad = _s01_world(tmp_path, "s01-in-no-logout.json", my_marker="我的车辆", with_logout=False)
-    run_bad = run_case(ws, case=fail_case, device_spec=spec_bad, propose=False)
-    assert run_bad["verdict"]["verdict"] == "failed" and run_bad["verdict"]["product_failed"] is True
-    assert [a["result"] for a in run_bad["assertions"]] == ["fail", "pass"]
+    run_bad = run_case(ws, "TC-HM-S01", device_spec=spec_bad, propose=False)
+    assert run_bad["env"]["ok"] and run_bad["actions"] == 4
+    assert run_bad["verdict"]["verdict"] == "pending" and run_bad["verdict"]["product_failed"] is False
+    assert run_bad["verdict"]["first_anomaly"]["step"] == "S4"
+    assert run_bad["verdict"]["first_anomaly"]["status"] == "postcondition_not_met"
+    assert [a["result"] for a in run_bad["assertions"]] == ["not_run", "not_run"]
+    assert run_bad["verdict"]["coverage"]["unverified"] == ["A1", "A2"]
 
 
 def test_s01_bare_run_logged_out_and_env_declaration_cannot_override_real_tree(ws, tmp_path):
