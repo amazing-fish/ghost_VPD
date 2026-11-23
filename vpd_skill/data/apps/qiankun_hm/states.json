@@ -204,6 +204,19 @@
       "review": "reviewed",
       "review_note": "车辆 3D 资源包，不是 APP 升级；点「下次再说」不改变被测环境。冷启动后经常出现，执行层在动作前与后置轮询里自动关闭"
     },
+    "qk_digital_key_invite": {
+      "desc": "数字车钥匙开通邀请弹窗（「数字车钥匙开通邀请」+「取消」/「开通」）",
+      "class": "benign",
+      "require_text": [
+        "数字车钥匙开通邀请",
+        "取消"
+      ],
+      "dismiss_text": "取消",
+      "settle_s": 1.0,
+      "source": "工作机 2026-11-23 HOP-AL00 折叠屏 / 乾崑 2.0.4.106 run-20261123-181159-f107 obs-0006~0008（Issue #298）：冷启弹出 APP 内嵌 Dialog，外框整屏拦截点击、中部内容卡片含「取消」/「开通」",
+      "review": "reviewed",
+      "review_note": "2026-11-23 维护者裁定「影响正常业务的就要关」（Issue #298 comment 7100130646）：仅点「取消」关闭弹窗，严禁触碰「开通」；登记在 qiankun_hm/states.json interrupts 中，不改动全局 system_dialogs.json 以免影响 motor_hm 已批准资产 context_hash"
+    },
     "qk_safe_code": {
       "desc": "安全码输入",
       "class": "blocking",
