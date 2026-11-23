@@ -253,7 +253,7 @@ def test_anomaly_observation_records_incremented_account_epoch_and_blocks_carry(
 
 def test_approved_motor_hm_assets_stay_valid_after_234_capability(ws):
     for cid, c_hash, d_hash in [
-        ("TC-HM-S01", "515054e86da9", "6cf27ede90b4"),
+        ("TC-HM-S01", "220e6c5e32a4", "12d98ffe6920"),
         ("TC-MOTOR-HM-002", "b4de659323c5", "25f15f39c405"),
     ]:
         case = ws.load_case(cid)

@@ -78,3 +78,15 @@ HM002仅需判断当前导航呈现何种场景，优先在#245使用已有page 
 - **独立只读目标（`motor_hm/targets.json`）**：登记 `motor_my_logged_in`（我的页存在 `我的车辆` 且不含 `注册/登录`）与 `motor_my_logged_out`（存在 `注册/登录`），均带 `forbid_tap: true`、`status: "unverified"`，与设置页 `logout_entry` 完全解耦。
 - **保护边界**：本步只交付条件能力与回归验证，暂不修改 `TC-HM-S01.json`、`motor_hm/app.json` 或 `motor_hm/states.json`，确保当前已批准资产 `TC-HM-S01`（`6cf27ede90b4`）与 `TC-MOTOR-HM-002`（`25f15f39c405`）保持 `approved`，待人类授权重审迁移后再改写 `TC-HM-S01` 定义并重跑真机。
 
+## 2026-11-22 TC-HM-S01 正式迁移与家庭机无 --env 实机裸跑验收
+
+按维护者明确指示（`234直接收口`）完成 `TC-HM-S01` 正式迁移：
+
+- **定义迁移**：移除 `env_requirements.account_state="logged_in"`（改为 `{}`）；新增 `conditions.motor_logged_in`（`kind="account"`、`presence_only=true`、`carry="same_session"`、`max_age_s=120`，正证 `motor_my_logged_in` / 反证 `motor_my_logged_out`）；在 `A1`（`logout_entry`）挂载 `guard: {condition: "motor_logged_in", equals: true, at: "S1b"}`，`A2`（`state_is: my_tab`）保持无门禁独立导航断言。
+- **家庭机真机无 `--env` 裸跑实测**（`SGT-AL10 / OpenHarmony-7.0.0.111 / bar (sm)`，`motor_hm 3.0.3.200` 已登录）：
+  - 冷启起跑裸跑 1：`run-20261122-145559-6708` → `verdict=passed`（`A1` 在 `S1b` `obs-0006` 命中 `motor_my_logged_in` 并延续至 `S4` 设置页通过，`A2` 通过）。
+  - 冷启起跑裸跑 2：`run-20261122-145715-2097` → `verdict=passed`（`A1` 在 `S1b` `obs-0006` 命中 `motor_my_logged_in` 并延续至 `S4` 通过，`A2` 通过）。
+  - 残态对照（接续上滑后未冷启的 `my_tab` 裸跑）：`run-20261122-145135-e537` → `verdict=pending`（`A1` 因顶部「我的车辆」滑出可视区保守判 `guard.status="unknown"`，`A2` 通过），验证门禁 fail-closed 行为。
+- **审核绑定与回归护栏**：`TC-HM-S01` 已重审为 `approved`（`content=220e6c5e32a4`、`deps=12d98ffe6920`），保留历史 `#236` 三次真机重放；`TC-MOTOR-HM-002`（`b4de659323c5` / `25f15f39c405`）未受影响。同步更新 `test_published_regression_assets.py`、`test_account_condition_carry.py`、`test_cleanup_none.py` 与 `test_measured_preconditions.py` 守护无 `--env` 裸跑契约。
+
+

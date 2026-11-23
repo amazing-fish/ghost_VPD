@@ -7,15 +7,29 @@
   "goal": "从爱车页进入我的页的设置并返回",
   "purpose": "从「我的」页上滑进入设置，确认设置页有「退出登录」入口（不点击），返回后回到「我的」页",
   "preconditions": [
-    "鸿蒙智行已登录（设置页才有「退出登录」）",
-    "手机解锁，APP 可切到前台"
+    "手机解锁，APP 可切到前台；从冷启（爱车页）或「我的」页顶部起跑（若「我的」页已被上滑遮挡顶部账号区，A1 门禁会保守判 unknown/pending）；整例导航无需 --env",
+    "A1（「退出登录」入口检查）由同会话 S1b「我的」页只读锚点 motor_my_logged_in/out 实测门禁守护"
   ],
-  "env_requirements": {
-    "account_state": "logged_in"
-  },
+  "env_requirements": {},
   "test_data": {},
   "test_data_none": true,
   "authorizations": [],
+  "conditions": {
+    "motor_logged_in": {
+      "kind": "account",
+      "presence_only": true,
+      "carry": "same_session",
+      "max_age_s": 120,
+      "true": {
+        "type": "target_present",
+        "target": "motor_my_logged_in"
+      },
+      "false": {
+        "type": "target_present",
+        "target": "motor_my_logged_out"
+      }
+    }
+  },
   "steps": [
     {
       "id": "S1",
@@ -144,7 +158,12 @@
       "desc": "设置页可见「退出登录」（不点击）",
       "oracle_refs": [
         "K-MOT-002"
-      ]
+      ],
+      "guard": {
+        "condition": "motor_logged_in",
+        "equals": true,
+        "at": "S1b"
+      }
     },
     {
       "id": "A2",
@@ -545,6 +564,76 @@
           "util.py": "a20fbb55e028fbd58ed450f5cdb7fc5ddba41f40c9552f71ca8790f12fe5a9c9",
           "verdict.py": "e49c118c5563f2d8f3069dae193be291bce0f66e064d46721a74c9a6e69baa4d",
           "workspace.py": "a20b5f03297050437e0eeb3fb968307c2d71c94c3380a1f1bd3d10792ecc11af"
+        }
+      }
+    },
+    {
+      "event": "asset_review",
+      "schema": 1,
+      "reviewer": "用户（本对话 / amazing-fish）",
+      "basis": "2026-11-22 维护者在本对话明确指示「234直接收口」，批准将 TC-HM-S01 移除整例 env_requirements.account_state=logged_in，迁移至同会话 account_epoch 延续条件 motor_logged_in（carry=same_session, presence_only=true, motor_my_logged_in/out）并在 A1 挂载 guard.at=S1b（A2 保持无门禁导航断言）。已在家庭机 SGT-AL10 / motor_hm 3.0.3.200 冷启起跑无 --env 实机裸跑两次全绿（run-20261122-145559-6708、run-20261122-145715-2097），并同步实测上滑残态下门禁保守判 pending（run-20261122-145135-e537）；保留历史 #236 重放记录，不伪造未执行重放。",
+      "ts": "2026-11-22T14:58:17.271+08:00",
+      "binding": {
+        "case_id": "TC-HM-S01",
+        "content_hash": "220e6c5e32a4",
+        "dependency_hash": "12d98ffe6920",
+        "review_hash": "3ee281779185bac6823537733e8e6c91ea323c11392f942bc26cf2699de8d3b2",
+        "policy_hash": "df49729c2e37",
+        "context_hash": "d5886b1ba609598d159f6d52ff40d782b5ba06a1b276cfea48b88c0adce95102",
+        "context_schema": 2
+      },
+      "engine_snapshot": {
+        "schema": 1,
+        "files": {
+          "__init__.py": "d07745ada0c3f26dc86d1296159d8182750a55476e07a5869a7236e820e25b5c",
+          "__main__.py": "13a1a5b340cdcfc1902b62be90e508c7c71886000d5bf087e7854aadf09fb35e",
+          "case_readiness.py": "49fc6c4d8ce511fec4274e88d90a098a89c41cff0b355b5dd3f6e34b03583f4c",
+          "case_templates.py": "5cc6b0e09d9b0e3b8c5a19b73bc935ef436c28cdc03b304eda20b04396f0c2f6",
+          "cases.py": "32b38930d513ca762cbfd2cfa9101937d1fbaa085c16d7e5e41b6585bdb19836",
+          "cli.py": "9796dcc43353ec6575c62288ce1ff3df28822d9316856bf8eec54ff04a9aaebb",
+          "commands.py": "d3be974fbe7188ac2d33ae0f7b43568090fe2ea3fa14499e2215a31e1d98a2f5",
+          "conditions.py": "b536b15e3545ab354ddc82bb12aa049eaceeeda2e2d63eb62cbf2ae5614b18b5",
+          "console/__init__.py": "70c7e584504ba8934cede9eb4f0b1b8563e49129c6959095363ec746e5c474e3",
+          "console/control.py": "bec67dd10cd879d0714b9d42df9cc24ec1f4f2f250877a0e5511dbe9a83a232d",
+          "console/frames.py": "9aaa4e113ad121873e52b8a7c96ba44cd86cbdf2c51264f8b0c8468f0cfe363c",
+          "console/progress.py": "2de810ca1e7eca334e9f3478dd929e52ceb405b717e98d2cba431806bfc2f449",
+          "console/server.py": "90b8b9fbfe32014dbc9582d93056ac845025c1227712f87c3133b5e04eda4d7c",
+          "devices/__init__.py": "5e10f49500466437b161f42b682d04852e0c3c19b0c5e23f6e9ff6bf08f7d314",
+          "devices/harmony_hdc.py": "8a3a563a478e94ef310e2f1f0eaafacfcb77a2236b14fa4c2ec566ed9363e1ff",
+          "devices/replay.py": "96b80e42c9a1b4af6eb31cebc91f5c842eec3775a407ee9a2d930ffe5b31c434",
+          "dispatch.py": "b8d6680503f1231d061bbb0975a7bac2e401e3d0789519c230d294f8c83ea0ae",
+          "execute.py": "3fe233079a4b4bdaec9f968c2905a36f1c195b8ffd0c11262f383970e6eda029",
+          "experience.py": "dc40dd84af7d0577e3cc8fb4f07e848f0d87c14d68ae517d097d8ce5a66b17a3",
+          "explore.py": "e4b4a698cfc1f75abb8b6c8a44de9eaa4f5454b93978d9cbe281d6916ccf195a",
+          "human_handoff.py": "77abd1cc57dd62c847252a150617e9734aa1c6e41c1e1d76cf3bda58d08151cf",
+          "knowledge.py": "e1f92da1c89453f59e071222f2b8ee7b23fc7b36beeeafbd6ef0dae31699b12a",
+          "layout.py": "aea31e631e06a7478e8d0c2a27976f422dcc49406e35ddbbca58e8abca4f75db",
+          "locate.py": "d90b0e2c3e5e28a9f1eff82c98b001207c34c371e6fa8072c3beb493e16ed4bc",
+          "observe.py": "26742aa93d64b10e1e1d21fd872689cb9f301f5661b4af25b13d74c632e8b0a5",
+          "outcomes.py": "88d03d14ed001ae6120dfde42bb811725821191e19a1e302bbe744da684bfc00",
+          "params.py": "951cda27308cbdf8e8d720653055656e1acb001758f97f318103c9c2ec5d542d",
+          "policy.py": "3c023db93db1e26e88739975c0555957b09b42c1fb299f4aad3e0724055db312",
+          "qk_search_evidence.py": "911331306935240850935c3394412dc5a6772ed4d83b9823caf9360973cada4e",
+          "readrefs.py": "4154c13db018c8cfc535f63fba93618e3554bf2821005c8499355372f6ab3b77",
+          "report.py": "c1e33339f8f6d0248262726995e74cb5fac469f0be4d1ce9c016b4eb13d4c2e8",
+          "review_routing.py": "ab54df0e6d128f5a78ed7d5ffc68191ac50ac1f35e029b5c74e55d1f7e9ce915",
+          "review_snapshot.py": "5b1dd1818efb903583c6ef239cb67b1f78cce67245a914fb7209aaeb03180428",
+          "run_diagnostic.py": "a9b63604100aebe593a8904fc4eeccfaf864c2870659c3c43cb370e2e494dd46",
+          "runner.py": "6c3f5ce13d9bec4f9cbc78e886c623fc7c28639a5b6218d506f631482c3715cc",
+          "runtime_data.py": "79f674f5c0f8dcd1eb874ca2abb027897a677b008a2409a3b9ee41e8ed15890f",
+          "safety.py": "700b9d3478b5a095e1d87cdbe02d749f8d1965cde96b90120767b8f2bb0da453",
+          "scope_inspection.py": "7c9ff56a91a5c306ef47b46020576ba1331fad3839b47888ebb16d99614e81dc",
+          "search.py": "f29e58529774280e3b77ac38189c59091830e2b791cfd0d2add161a3ac7769dd",
+          "session.py": "09842eb1404e281ebf462731e0c7d8251fadadcf5a74b249097ffbec1a727e48",
+          "states.py": "5c62d7df24080b4761e5f5060636cbc1fc73c3aa99a7e58ae72a119f90cfa829",
+          "sysdialog.py": "45922c2fa16cf712dfd4149b864d2b5a0d366809986799e9c3020e55d0452340",
+          "templates.py": "5e8ab174f1bb2795c484445ceed4125c5ed637057b668b78b0b7a484beb7b6f3",
+          "transient.py": "d745aaf57eb8faf7ea891dc869e4d22eaef0c640904a1bf17819f49b9128722e",
+          "tree.py": "6da15264986892f2cb680bafeb035b8c27f2278a9c52e56a455a8f195f093078",
+          "unlock.py": "17a76d905adda818e696bd8f50d3afbe98b1f2a2c817086845e6d79187fd1e70",
+          "util.py": "a20fbb55e028fbd58ed450f5cdb7fc5ddba41f40c9552f71ca8790f12fe5a9c9",
+          "verdict.py": "e49c118c5563f2d8f3069dae193be291bce0f66e064d46721a74c9a6e69baa4d",
+          "workspace.py": "dbc0d8f07158a178ec776fac5df7f829384475aea3b8a6d64a45b4fb7d6c2724"
         }
       }
     }
@@ -1475,13 +1564,13 @@
   "asset_review": {
     "schema": 1,
     "reviewer": "用户（本对话 / amazing-fish）",
-    "basis": "2026-11-21 本对话维护者针对 Issue #282 批准 motor_hm/states.json 登记良性中断 motor_vehicle_resource_dialog、收紧 update_dialog 并补充 dialog_policy（简化非 VPD 弹窗阻塞），同意更新当前审核绑定（content=515054e86da9 / deps=6cf27ede90b4）。用例定义与历史 #236 三次真机重放原样保留，不伪造新真机运行，后续真机实跑若出现异常如实上报。",
-    "ts": "2026-11-21T11:37:51.943+08:00",
+    "basis": "2026-11-22 维护者在本对话明确指示「234直接收口」，批准将 TC-HM-S01 移除整例 env_requirements.account_state=logged_in，迁移至同会话 account_epoch 延续条件 motor_logged_in（carry=same_session, presence_only=true, motor_my_logged_in/out）并在 A1 挂载 guard.at=S1b（A2 保持无门禁导航断言）。已在家庭机 SGT-AL10 / motor_hm 3.0.3.200 冷启起跑无 --env 实机裸跑两次全绿（run-20261122-145559-6708、run-20261122-145715-2097），并同步实测上滑残态下门禁保守判 pending（run-20261122-145135-e537）；保留历史 #236 重放记录，不伪造未执行重放。",
+    "ts": "2026-11-22T14:58:17.271+08:00",
     "binding": {
       "case_id": "TC-HM-S01",
-      "content_hash": "515054e86da9",
-      "dependency_hash": "6cf27ede90b4",
-      "review_hash": "61d354464b8e4b24c568224e60ba9db5be020a29eb251f18ea035d8610480e51",
+      "content_hash": "220e6c5e32a4",
+      "dependency_hash": "12d98ffe6920",
+      "review_hash": "3ee281779185bac6823537733e8e6c91ea323c11392f942bc26cf2699de8d3b2",
       "policy_hash": "df49729c2e37",
       "context_hash": "d5886b1ba609598d159f6d52ff40d782b5ba06a1b276cfea48b88c0adce95102",
       "context_schema": 2
@@ -1496,7 +1585,7 @@
         "cases.py": "32b38930d513ca762cbfd2cfa9101937d1fbaa085c16d7e5e41b6585bdb19836",
         "cli.py": "9796dcc43353ec6575c62288ce1ff3df28822d9316856bf8eec54ff04a9aaebb",
         "commands.py": "d3be974fbe7188ac2d33ae0f7b43568090fe2ea3fa14499e2215a31e1d98a2f5",
-        "conditions.py": "55079ababf3fccf8bb8d14fa277da87c502d86637c51adc9523c95eef7126645",
+        "conditions.py": "b536b15e3545ab354ddc82bb12aa049eaceeeda2e2d63eb62cbf2ae5614b18b5",
         "console/__init__.py": "70c7e584504ba8934cede9eb4f0b1b8563e49129c6959095363ec746e5c474e3",
         "console/control.py": "bec67dd10cd879d0714b9d42df9cc24ec1f4f2f250877a0e5511dbe9a83a232d",
         "console/frames.py": "9aaa4e113ad121873e52b8a7c96ba44cd86cbdf2c51264f8b0c8468f0cfe363c",
@@ -1505,7 +1594,7 @@
         "devices/__init__.py": "5e10f49500466437b161f42b682d04852e0c3c19b0c5e23f6e9ff6bf08f7d314",
         "devices/harmony_hdc.py": "8a3a563a478e94ef310e2f1f0eaafacfcb77a2236b14fa4c2ec566ed9363e1ff",
         "devices/replay.py": "96b80e42c9a1b4af6eb31cebc91f5c842eec3775a407ee9a2d930ffe5b31c434",
-        "dispatch.py": "0b07f75af70787660db9b43ecb9c8cdf7fb6287687ee32a0cf04f35cdeb66bc4",
+        "dispatch.py": "b8d6680503f1231d061bbb0975a7bac2e401e3d0789519c230d294f8c83ea0ae",
         "execute.py": "3fe233079a4b4bdaec9f968c2905a36f1c195b8ffd0c11262f383970e6eda029",
         "experience.py": "dc40dd84af7d0577e3cc8fb4f07e848f0d87c14d68ae517d097d8ce5a66b17a3",
         "explore.py": "e4b4a698cfc1f75abb8b6c8a44de9eaa4f5454b93978d9cbe281d6916ccf195a",
@@ -1513,11 +1602,11 @@
         "knowledge.py": "e1f92da1c89453f59e071222f2b8ee7b23fc7b36beeeafbd6ef0dae31699b12a",
         "layout.py": "aea31e631e06a7478e8d0c2a27976f422dcc49406e35ddbbca58e8abca4f75db",
         "locate.py": "d90b0e2c3e5e28a9f1eff82c98b001207c34c371e6fa8072c3beb493e16ed4bc",
-        "observe.py": "ceb319ecc4dd6eed5cfc0e0b17f18a748b1d51b5d8e2289d6893452de4868214",
+        "observe.py": "26742aa93d64b10e1e1d21fd872689cb9f301f5661b4af25b13d74c632e8b0a5",
         "outcomes.py": "88d03d14ed001ae6120dfde42bb811725821191e19a1e302bbe744da684bfc00",
         "params.py": "951cda27308cbdf8e8d720653055656e1acb001758f97f318103c9c2ec5d542d",
-        "policy.py": "ed1bb0db7e1f6494ce6b73ed6476e2326a93af6327afa4a8bc0fd219010f4ffb",
-        "qk_search_evidence.py": "fb2c84e604b78aa6840350fdf3d52f317da0fb7d466eda5e310899bb304dc0dc",
+        "policy.py": "3c023db93db1e26e88739975c0555957b09b42c1fb299f4aad3e0724055db312",
+        "qk_search_evidence.py": "911331306935240850935c3394412dc5a6772ed4d83b9823caf9360973cada4e",
         "readrefs.py": "4154c13db018c8cfc535f63fba93618e3554bf2821005c8499355372f6ab3b77",
         "report.py": "c1e33339f8f6d0248262726995e74cb5fac469f0be4d1ce9c016b4eb13d4c2e8",
         "review_routing.py": "ab54df0e6d128f5a78ed7d5ffc68191ac50ac1f35e029b5c74e55d1f7e9ce915",
@@ -1537,7 +1626,7 @@
         "unlock.py": "17a76d905adda818e696bd8f50d3afbe98b1f2a2c817086845e6d79187fd1e70",
         "util.py": "a20fbb55e028fbd58ed450f5cdb7fc5ddba41f40c9552f71ca8790f12fe5a9c9",
         "verdict.py": "e49c118c5563f2d8f3069dae193be291bce0f66e064d46721a74c9a6e69baa4d",
-        "workspace.py": "a20b5f03297050437e0eeb3fb968307c2d71c94c3380a1f1bd3d10792ecc11af"
+        "workspace.py": "dbc0d8f07158a178ec776fac5df7f829384475aea3b8a6d64a45b4fb7d6c2724"
       }
     }
   },

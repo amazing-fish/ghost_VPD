@@ -164,24 +164,64 @@ def test_matching_layout_allows_preflight_recovery_and_keeps_business_env(ws, tm
     assert any(e.get("op") == "launch" for e in _sent(run))
 
 
-# #234: mirror HDC's unavailable business-fact provider without touching a device.
-def test_s01_without_business_measurements_reproduces_environment_block(ws, monkeypatch):
-    monkeypatch.setattr(ReplayDevice, "env_facts", lambda self: {})
-    run = run_case(ws, "TC-HM-S01", device_spec=world("motor_hm_base.json"), propose=False)
-    assert run["env"]["unmet"] == [
-        {"key": "account_state", "required": "logged_in", "actual": None}]
-    assert run["verdict"]["verdict"] == "blocked"
-    assert run["actions"] == 0 and not _sent(run)
-    assert all(step["outcome"] == "not_run" for step in run["steps"])
-    assert not run["verdict"]["product_failed"]
+# #234: TC-HM-S01 runs bare (without --env) under empty HDC env_facts, guarding A1 via S1b account proof.
+def _s01_world(tmp_path, name, *, my_marker, with_logout=True):
+    data = read_json(world("motor_hm_base.json").split(":", 1)[1])
+    data["app_version"] = "3.0.3.200"
+    data["env_facts"] = {}
+    def _walk(node):
+        yield node
+        for child in node.get("children", []):
+            yield from _walk(child)
+    for node in _walk(data["screens"]["my_tab"]["root"]):
+        if node.get("text") == "注册/登录":
+            node["text"] = my_marker
+    if not with_logout:
+        for node in _walk(data["screens"]["settings"]["root"]):
+            if node.get("text") == "退出登录":
+                node["text"] = "其他设置项"
+    path = tmp_path / name
+    write_json(path, data)
+    return f"replay:{path}"
 
 
-def test_s01_declared_login_is_not_a_measured_account_fact(ws, monkeypatch):
-    monkeypatch.setattr(ReplayDevice, "env_facts", lambda self: {})
-    run = run_case(ws, "TC-HM-S01", device_spec=world("motor_hm_base.json"),
-                   env={"account_state": "logged_in"}, propose=False)
-    assert run["env"]["ok"] and run["actions"] > 0
-    assert run["declarations"] == {"source": "cli_env", "values": {"account_state": "logged_in"},
-                                   "measured": False}
+def test_s01_bare_run_passes_when_logged_in_and_stays_pending_when_logout_missing(ws, tmp_path):
+    spec_ok = _s01_world(tmp_path, "s01-in.json", my_marker="我的车辆", with_logout=True)
+    run_ok = run_case(ws, "TC-HM-S01", device_spec=spec_ok, propose=False)
+    assert run_ok["env"]["ok"] and run_ok["actions"] == 5
+    assert run_ok["verdict"]["verdict"] == "passed"
+    assert [a["result"] for a in run_ok["assertions"]] == ["pass", "pass"]
+    assert run_ok["assertions"][0]["guard"]["status"] == "true"
+
+    # Shipped TC-HM-S01 S4 uses expect_state="settings" (which requires "退出登录" in motor_hm/states.json)
+    # and intentionally has no oracle_refs (so an unguarded tap miss or logged-out Settings screen cannot false-fail).
+    # Engine-level carried-guard product_failed when S4 lands cleanly is covered by test_account_condition_carry.py.
+    spec_bad = _s01_world(tmp_path, "s01-in-no-logout.json", my_marker="我的车辆", with_logout=False)
+    run_bad = run_case(ws, "TC-HM-S01", device_spec=spec_bad, propose=False)
+    assert run_bad["env"]["ok"] and run_bad["actions"] == 4
+    assert run_bad["verdict"]["verdict"] == "pending" and run_bad["verdict"]["product_failed"] is False
+    assert run_bad["verdict"]["first_anomaly"]["step"] == "S4"
+    assert run_bad["verdict"]["first_anomaly"]["status"] == "postcondition_not_met"
+    assert [a["result"] for a in run_bad["assertions"]] == ["not_run", "not_run"]
+    assert run_bad["verdict"]["coverage"]["unverified"] == ["A1", "A2"]
+
+
+def test_s01_bare_run_logged_out_and_env_declaration_cannot_override_real_tree(ws, tmp_path):
+    spec = _s01_world(tmp_path, "s01-out.json", my_marker="注册/登录", with_logout=True)
+    run = run_case(ws, "TC-HM-S01", device_spec=spec, env={"account_state": "logged_in"}, propose=False)
+    assert run["env"]["ok"] and run["actions"] == 5
     assert "account_state" not in run["oracle_facts"]
-    assert run["validation_level"] == "offline_replay"
+    assert run["verdict"]["product_failed"] is False
+    a1, a2 = run["assertions"]
+    assert a1["result"] == "not_applicable" and a1["guard"]["status"] == "false"
+    assert a2["result"] == "pass"
+
+
+def test_s01_bare_run_unknown_my_tab_keeps_a1_pending_without_product_fail(ws, tmp_path):
+    spec = _s01_world(tmp_path, "s01-unknown.json", my_marker="无关文本", with_logout=True)
+    run = run_case(ws, "TC-HM-S01", device_spec=spec, propose=False)
+    assert run["env"]["ok"] and run["actions"] == 5
+    assert run["verdict"]["verdict"] == "pending" and run["verdict"]["product_failed"] is False
+    a1, a2 = run["assertions"]
+    assert a1["result"] == "pending" and a1["guard"]["status"] == "unknown"
+    assert a2["result"] == "pass"
