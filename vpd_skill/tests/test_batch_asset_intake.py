@@ -1,6 +1,6 @@
 """#34 候选定义与治理边界；只在隔离工作区/合成树/回放世界验证。"""
 import pytest
-from conftest import SKILL
+from conftest import SKILL, unconfirm
 
 from vpdtest import cases as C
 from vpdtest.experience import ExperienceStore
@@ -80,6 +80,8 @@ def test_fault_page_does_not_claim_pass_from_fault_text_with_enabled_start(ws):
 @pytest.mark.parametrize("kid", NEW_KNOWLEDGE)
 def test_imported_claims_cannot_confirm_without_independent_basis(ws, kid):
     kn = KnowledgeStore(ws.root)
+    if kn.get(kid)["status"] == "confirmed":
+        unconfirm(ws, kid)
     before = (ws.root / "knowledge/items.json").read_bytes()
     assert kn.get(kid)["status"] == "unconfirmed"
     with pytest.raises(PermissionError, match="依据"):
@@ -217,8 +219,10 @@ def test_home_checks_accept_loaded_display_without_default_parking_placeholder(w
     texts = ["搜索车位号设为目的地"] + other_texts
     assert all(_holds(ws, case["id"], a["id"], texts) is True
                for a in case["assertions"] if not a.get("advisory"))
-    assert KnowledgeStore(ws.root).oracle_status(["K-QK-013"], facts={
-        "app": "qiankun_hm", "app_version": "1.0.26.100", "device_form": "bar"})["status"] == "unconfirmed"
+    facts = {"app": "qiankun_hm", "app_version": "1.0.26.100", "device_form": "bar"}
+    assert KnowledgeStore(ws.root).oracle_status(["K-QK-013"], facts=facts)["status"] == "confirmed"
+    unconfirm(ws, "K-QK-013")
+    assert KnowledgeStore(ws.root).oracle_status(["K-QK-013"], facts=facts)["status"] == "unconfirmed"
 
 
 def test_failed_parking_placeholder_does_not_satisfy_home_entry(ws):
@@ -301,18 +305,34 @@ def test_qk_home_search_entry_assertions_cover_1026100_and_204106(ws):
     assert _holds(ws, "TC-QK-221", "A3", ["搜索"]) is False
 
 
-def test_unconfirmed_qk_oracle_rules_do_not_pin_version_or_device_form(ws):
-    """#257: unconfirmed K-QK-011..019 stay unconfirmed (not out_of_scope) on 2.0.4.106/foldable."""
+def test_qk_oracle_rules_do_not_pin_version_or_device_form(ws):
+    """#257/#135: K-QK-011..019 do not pin app_version/device_form on 2.0.4.106/foldable."""
     kn = KnowledgeStore(ws.root)
     facts_new = {"app": "qiankun_hm", "app_version": "2.0.4.106", "device_form": "foldable"}
+    confirmed_nums = {13, 15, 16, 18, 19}
     for n in range(11, 20):
         kid = f"K-QK-{n:03}"
+        expected_status = "confirmed" if n in confirmed_nums else "unconfirmed"
         item = kn.get(kid)
-        assert item["status"] == "unconfirmed"
+        assert item["status"] == expected_status
         assert "app_version" not in item["applies_to"]
         assert "device_form" not in item["applies_to"]
         if n in (11, 12, 13, 14):
-            assert kn.oracle_status([kid], facts=facts_new)["status"] == "unconfirmed"
-    assert kn.oracle_status(["K-QK-015"], facts={**facts_new, "vpd_task_state": "active", "task_type": "along_parking"})["status"] == "unconfirmed"
+            assert kn.oracle_status([kid], facts=facts_new)["status"] == expected_status
+    assert kn.oracle_status(["K-QK-015"], facts={**facts_new, "vpd_task_state": "active", "task_type": "along_parking"})["status"] == "confirmed"
     assert kn.oracle_status(["K-QK-015"], facts={**facts_new, "vpd_task_state": "none", "task_type": "along_parking"})["status"] == "out_of_scope"
+
+
+def test_signed_off_qk_oracles_20261123_are_confirmed_without_conflicts(ws):
+    """#135/#136: all 7 maintainer-signed-off K-QK-* rules are confirmed with basis and zero conflicts."""
+    kn = KnowledgeStore(ws.root)
+    assert kn.conflicts() == {}
+    signed = ("K-QK-013", "K-QK-TC-004", "K-QK-015", "K-QK-016", "K-QK-018", "K-QK-019", "K-QK-TC-059")
+    for kid in signed:
+        item = kn.get(kid)
+        assert item is not None and item["status"] == "confirmed"
+        assert item.get("confirmed_by") and item.get("confirm_basis")
+        assert "unconfirmed" not in (item.get("note") or "").lower()
+    assert "独立产品依据待确认" not in (kn.get("K-QK-013").get("statement") or "")
+    assert "仅在独立来源和同行中均存在时对照" in (kn.get("K-QK-TC-059").get("statement") or "")
 
