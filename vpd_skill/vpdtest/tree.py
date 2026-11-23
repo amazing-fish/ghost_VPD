@@ -18,6 +18,21 @@ CLIP_TYPES = {"List", "Scroll", "Grid", "WaterFlow", "Swiper", "Refresh"}
 HORIZONTAL_SCROLL_TYPES = {"Swiper", "Tabs", "TabBar"}
 # 模态层：ArkUI 的 Dialog 节点带全窗口蒙层，先序在它之前、被它盖住的页面节点用户看得到轮廓，但点击会被蒙层吞掉
 MODAL_TYPES = {"Dialog"}
+# 系统输入法窗口常将 root bounds 上报为整屏（含上方 APP 可见区），需裁剪到真实键盘区域
+_KNOWN_IME_BUNDLES = frozenset({
+    "com.huawei.hmos.inputmethod",
+    "com.ohos.inputmethod",
+    "com.baidu.input_huawei",
+})
+_SYSTEM_CHROME_BUNDLES = frozenset({
+    "com.ohos.sceneboard",
+    "com.huawei.hmos.sceneboard",
+})
+
+
+def _is_ime_bundle(bundle: str) -> bool:
+    b = (bundle or "").strip().lower()
+    return bool(b) and (".inputmethod" in b or b in _KNOWN_IME_BUNDLES)
 
 
 def intersect(a: Optional[tuple], b: Optional[tuple]) -> Optional[tuple]:
@@ -179,6 +194,58 @@ class UiTree:
         best = max((n for n in self.nodes if n.bounds), key=lambda n: n.area, default=None)
         return best.bounds if best and best.area else None
 
+    def _ime_keyboard_box(self, ime_root: Node, vis: list) -> tuple:
+        """输入法窗口真实键盘矩形：避免整屏透明 root bounds 误遮挡上方 APP 表单与按钮。
+
+        1) 优先取输入法子树内面积小于外框一半的真实内容/按键可见节点并集；
+        2) 若输入法子树不含独立按键节点（仅整屏根框），且同级存在上方非系统 APP 窗口
+           (app.y1 <= outer.y1 + 20 且 outer.y1 < app.y2 < outer.y2)，按 APP 下边界裁剪；
+        3) 否则保守退回外框（fail-closed）。
+        """
+        outer = vis[ime_root.idx]
+        outer_area = max(1, outer[2] - outer[0]) * max(1, outer[3] - outer[1])
+        key_rects = []
+        stack = list(ime_root.children)
+        while stack:
+            idx = stack.pop()
+            d = self.nodes[idx]
+            r = vis[idx]
+            if r:
+                d_area = max(0, r[2] - r[0]) * max(0, r[3] - r[1])
+                is_content = (not d.children) or bool(d.text.strip() or d.description.strip()) or (
+                    d.clickable and d_area * 4 < outer_area
+                )
+                if d_area > 0 and d_area * 2 < outer_area and is_content:
+                    key_rects.append(r)
+            stack.extend(d.children)
+        if key_rects:
+            union = (
+                min(r[0] for r in key_rects),
+                min(r[1] for r in key_rects),
+                max(r[2] for r in key_rects),
+                max(r[3] for r in key_rects),
+            )
+            clipped = intersect(union, outer)
+            if clipped:
+                return clipped
+        # 无细粒度按键子节点时，若存在位于上方的被测 APP 同级窗口，取其下边界以下作为键盘区
+        peer_bottoms = []
+        for p in self.nodes:
+            if p.parent != ime_root.parent or p.idx == ime_root.idx or not vis[p.idx]:
+                continue
+            pb = (p.attrs.get("bundleName") or "").strip().lower()
+            if not pb or _is_ime_bundle(pb) or pb in _SYSTEM_CHROME_BUNDLES:
+                continue
+            pr = vis[p.idx]
+            if pr[1] <= outer[1] + 20 and outer[1] < pr[3] < outer[3]:
+                peer_bottoms.append(pr[3])
+        if peer_bottoms:
+            kb_top = min(peer_bottoms)
+            clipped = intersect((outer[0], kb_top, outer[2], outer[3]), outer)
+            if clipped:
+                return clipped
+        return outer
+
     def _content_box(self, modal: Node, vis: list) -> tuple:
         """模态层真正遮挡的矩形：外框可能只是整屏事件拦截层，真正内容卡片在内层。
 
@@ -210,6 +277,18 @@ class UiTree:
                 inherited = win if n.parent is None else clip[n.parent]
                 vis[n.idx] = intersect(n.bounds, inherited) if n.visible else None
                 clip[n.idx] = (vis[n.idx] if n.type in CLIP_TYPES or n.scrollable else inherited)
+            for w in self.nodes:
+                if not vis[w.idx] or not _is_ime_bundle(w.attrs.get("bundleName", "")):
+                    continue
+                if w.parent is not None and _is_ime_bundle(self.nodes[w.parent].attrs.get("bundleName", "")):
+                    continue
+                kb = self._ime_keyboard_box(w, vis)
+                if kb != vis[w.idx]:
+                    stack = [w.idx]
+                    while stack:
+                        idx = stack.pop()
+                        vis[idx] = intersect(vis[idx], kb)
+                        stack.extend(self.nodes[idx].children)
             for m in (n for n in self.nodes if n.type in MODAL_TYPES and vis[n.idx]):
                 anc = set(self._ancestor_idx(m))
                 box = self._content_box(m, vis)
