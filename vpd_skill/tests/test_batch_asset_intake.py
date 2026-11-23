@@ -332,4 +332,7 @@ def test_signed_off_qk_oracles_20261123_are_confirmed_without_conflicts(ws):
         item = kn.get(kid)
         assert item is not None and item["status"] == "confirmed"
         assert item.get("confirmed_by") and item.get("confirm_basis")
+        assert "unconfirmed" not in (item.get("note") or "").lower()
+    assert "独立产品依据待确认" not in (kn.get("K-QK-013").get("statement") or "")
+    assert "仅在独立来源和同行中均存在时对照" in (kn.get("K-QK-TC-059").get("statement") or "")
 
