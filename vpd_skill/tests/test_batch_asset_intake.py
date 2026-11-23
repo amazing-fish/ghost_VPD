@@ -336,3 +336,25 @@ def test_signed_off_qk_oracles_20261123_are_confirmed_without_conflicts(ws):
     assert "独立产品依据待确认" not in (kn.get("K-QK-013").get("statement") or "")
     assert "仅在独立来源和同行中均存在时对照" in (kn.get("K-QK-TC-059").get("statement") or "")
 
+
+def test_tc_qk_215_runs_without_vpd_task_state_env_requirement(ws, tmp_path):
+    """#300 Option 2: TC-QK-215 must not block when vpd_task_state is absent from env_facts/--env."""
+    case = ws.load_case("TC-QK-215")
+    assert "vpd_task_state" not in (case.get("env_requirements") or {})
+    data = read_json(SKILL / "fixtures/worlds/qiankun_hm_base.json")
+    data["env_facts"] = {}
+    data["initial_flags"].update(logged_in=True)
+    stack = [data["screens"]["qk_car_tab"]["root"]]
+    while stack:
+        node = stack.pop()
+        if node.get("go") == "qk_vpd_loading":
+            node["go"] = "qk_vpd_home"
+        stack.extend(node.get("children", []))
+    path = tmp_path / "qk-215-no-task-state.json"
+    write_json(path, data)
+    run = run_case(ws, "TC-QK-215", device_spec=f"replay:{path}",
+                   env={"account_state": "logged_in"}, propose=False)
+    assert run["env"]["ok"] is True
+    assert run["verdict"]["verdict"] != "blocked"
+    assert [a["result"] for a in run["assertions"] if not a.get("advisory")] == ["pass", "pass"]
+
