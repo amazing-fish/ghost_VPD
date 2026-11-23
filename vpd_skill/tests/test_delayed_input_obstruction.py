@@ -57,7 +57,7 @@ def test_delayed_menu_is_recovered_once_before_each_secret_input(login_rig):
         assert step["attempts"][0]["recovery_dispatches"][0]["verified"]
     assert len(_sent(run, "input_text")) == 2
     assert len([e for e in _sent(run, "key") if ".dismiss_obstruction" in e.get("step", "")]) == 2
-    assert run["verdict"]["verdict"] == "pending" and run["informal"]
+    assert run["verdict"]["verdict"] == "passed" and run["informal"]
 
 
 def test_same_delayed_trace_without_explicit_opt_in_still_blocks(login_rig):

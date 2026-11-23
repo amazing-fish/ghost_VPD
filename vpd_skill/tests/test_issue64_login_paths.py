@@ -73,7 +73,7 @@ def test_known_selection_menu_is_dismissed_before_both_secret_inputs(login_rig):
     assert len(inputs) == 2 and all(s["outcome"] == "passed_after_recovery" for s in inputs)
     assert all(len(s["recoveries"]) == 1 and s["recoveries"][0]["status"] == "dismissed" for s in inputs)
     assert len(_sent(run, "input_text")) == 2
-    assert run["verdict"]["verdict"] == "pending"  # No production Oracle confirmation.
+    assert run["verdict"]["verdict"] == "passed"  # K-QK-013 confirmed in PR #297; run stays informal.
     assert run["informal"] and not run["asset_review"]["valid"]
 
 
@@ -149,4 +149,4 @@ def test_proven_my_root_reentry_still_confirms_account_without_credentials(login
     run = execute(login_rig, "my")
     assert all(s["outcome"].startswith("passed") for s in run["steps"])
     assert not _sent(run, "input_text")
-    assert run["verdict"]["verdict"] == "pending"
+    assert run["verdict"]["verdict"] == "passed"
