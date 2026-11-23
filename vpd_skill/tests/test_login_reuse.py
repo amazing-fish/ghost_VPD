@@ -91,7 +91,7 @@ def test_logged_in_without_credentials_reuses_and_runs_independent_consumer(logi
     run = execute(login_rig)
     assert all(s["outcome"].startswith("passed") for s in run["steps"]), run["steps"]
     assert not [e for e in events(run) if e["event"] == "dispatch" and e.get("op") in ("input_text", "clear_text")]
-    assert run["verdict"]["verdict"] == "pending"  # Production Oracle still unconfirmed.
+    assert run["verdict"]["verdict"] == "passed"  # K-QK-013 confirmed in PR #297; asset review still pending.
     assert run["asset_review"]["required"] and not run["asset_review"]["valid"]
     assert all(s["outcome"].startswith("passed") for s in run["cleanup"])
 
