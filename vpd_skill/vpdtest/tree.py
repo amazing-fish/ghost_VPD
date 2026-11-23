@@ -197,26 +197,40 @@ class UiTree:
     def _ime_keyboard_box(self, ime_root: Node, vis: list) -> tuple:
         """输入法窗口真实键盘矩形：避免整屏透明 root bounds 误遮挡上方 APP 表单与按钮。
 
-        1) 优先取输入法子树内面积小于外框一半的真实内容/按键可见节点并集；
-        2) 若输入法子树不含独立按键节点（仅整屏根框），且同级存在上方非系统 APP 窗口
+        1) 跳过显式隐藏子树（visible=false/0），收集输入法内非整屏背景（可见面积 < 90% 外框）
+           的真实内容/可点击节点及其在输入法内的非整屏祖先面板的并集（既不丢弃大块键盘面板，
+           也不把键盘上方空白透明占位计入键盘区）；
+        2) 若输入法子树不含此类节点（仅整屏根框），且同级存在上方非系统 APP 窗口
            (app.y1 <= outer.y1 + 20 且 outer.y1 < app.y2 < outer.y2)，按 APP 下边界裁剪；
         3) 否则保守退回外框（fail-closed）。
         """
         outer = vis[ime_root.idx]
         outer_area = max(1, outer[2] - outer[0]) * max(1, outer[3] - outer[1])
+
+        def _non_frame(rect) -> bool:
+            if not rect:
+                return False
+            area = max(0, rect[2] - rect[0]) * max(0, rect[3] - rect[1])
+            return 0 < area and area * 10 < outer_area * 9
+
+        def _explicitly_hidden(node: Node) -> bool:
+            return str(node.attrs.get("visible", "")).strip().lower() in ("false", "0")
+
         key_rects = []
         stack = list(ime_root.children)
         while stack:
             idx = stack.pop()
             d = self.nodes[idx]
+            if _explicitly_hidden(d):
+                continue
             r = vis[idx]
-            if r:
-                d_area = max(0, r[2] - r[0]) * max(0, r[3] - r[1])
-                is_content = (not d.children) or bool(d.text.strip() or d.description.strip()) or (
-                    d.clickable and d_area * 4 < outer_area
-                )
-                if d_area > 0 and d_area * 2 < outer_area and is_content:
-                    key_rects.append(r)
+            if _non_frame(r) and (d.clickable or bool(d.text.strip() or d.description.strip())):
+                key_rects.append(r)
+                cur = d.parent
+                while cur is not None and cur != ime_root.idx:
+                    if _non_frame(vis[cur]):
+                        key_rects.append(vis[cur])
+                    cur = self.nodes[cur].parent
             stack.extend(d.children)
         if key_rects:
             union = (

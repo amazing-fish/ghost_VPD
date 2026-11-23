@@ -1,8 +1,10 @@
 """#299: clip full-screen HarmonyOS IME window bounds to the actual keyboard region."""
+import pytest
+
 from vpdtest.tree import UiTree
 
 
-def _win_node(t, bounds, *, bundle="", text="", clickable=False, children=None):
+def _win_node(t, bounds, *, bundle="", text="", clickable=False, visible=True, children=None):
     attrs = {"type": t, "bounds": f"[{bounds[0]},{bounds[1]}][{bounds[2]},{bounds[3]}]"}
     if bundle:
         attrs["bundleName"] = bundle
@@ -10,6 +12,8 @@ def _win_node(t, bounds, *, bundle="", text="", clickable=False, children=None):
         attrs["text"] = text
     if clickable:
         attrs["clickable"] = "true"
+    if not visible:
+        attrs["visible"] = "false"
     return {"attributes": attrs, "children": children or []}
 
 
@@ -119,3 +123,78 @@ def test_299_non_ime_system_overlay_is_never_clipped():
     input_node = tree.nodes[2]
     chk = tree.touch_check(900, 630, input_node)
     assert chk["allowed"] is False and chk["basis"] == "unrelated_receiver"
+
+
+def test_299_hidden_ime_subtree_above_keyboard_does_not_expand_occlusion():
+    ime_children = [
+        _win_node("Column", (0, 107, 1828, 2584), children=[
+            _win_node("Column", (0, 500, 400, 700), visible=False, children=[
+                _win_node("Text", (80, 580, 300, 660), text="隐藏候选"),
+            ]),
+            _win_node("Button", (80, 1760, 260, 1900), clickable=True, text="1"),
+            _win_node("Button", (1560, 2400, 1760, 2560), clickable=True, text="完成"),
+        ])
+    ]
+    tree = _multi_window_tree(app_bounds=(0, 107, 1828, 2584), ime_children=ime_children)
+    input_node = tree.nodes[2]
+    assert tree.touch_check(900, 630, input_node)["allowed"] is True
+    hit_kb = tree.touch_target(200, 1820)
+    assert hit_kb is not None and hit_kb.text == "1"
+
+
+@pytest.mark.parametrize("panel_clickable", [True, False])
+def test_299_enclosing_keyboard_panel_over_half_frame_stays_fully_occluded(panel_clickable):
+    tree = UiTree(
+        _win_node(
+            "root",
+            (0, 0, 1000, 1000),
+            children=[
+                _win_node("root", (0, 0, 1000, 1000), bundle="com.yinwang.qiankunapp.hm", children=[
+                    _win_node("Button", (400, 150, 600, 250), clickable=True, text="上方按钮"),
+                    _win_node("Button", (400, 650, 600, 750), clickable=True, text="键盘区下方按钮"),
+                ]),
+                _win_node(
+                    "root",
+                    (0, 0, 1000, 1000),
+                    bundle="com.huawei.hmos.inputmethod",
+                    clickable=True,
+                    children=[
+                        _win_node(
+                            "Column",
+                            (0, 400, 1000, 1000),  # 60% enclosing keyboard panel (> 50% of frame)
+                            clickable=panel_clickable,
+                            children=[
+                                _win_node("Text", (80, 420, 200, 470), text="完成"),
+                            ],
+                        )
+                    ],
+                ),
+            ],
+        )
+    )
+    upper_btn = tree.nodes[2]
+    lower_btn = tree.nodes[3]
+    assert upper_btn.text == "上方按钮" and lower_btn.text == "键盘区下方按钮"
+
+    assert tree.touch_check(500, 200, upper_btn)["allowed"] is True
+    chk_lower = tree.touch_check(500, 700, lower_btn)
+    assert chk_lower["allowed"] is False and chk_lower["basis"] == "unrelated_receiver"
+
+
+def test_299_transparent_blank_spacer_above_keyboard_panel_is_not_counted():
+    ime_children = [
+        _win_node("Column", (0, 107, 1828, 2584), children=[
+            _win_node("Blank", (0, 107, 1828, 1745)),
+            _win_node("Column", (0, 1745, 1828, 2584), children=[
+                _win_node("Button", (80, 1760, 260, 1900), clickable=True, text="1"),
+            ]),
+        ])
+    ]
+    behind_kb = _win_node("Button", (600, 1950, 1000, 2080), clickable=True, text="键盘后按钮")
+    tree = _multi_window_tree(app_bounds=(0, 107, 1828, 2584), ime_children=ime_children, app_extra=[behind_kb])
+    input_node = tree.nodes[2]
+    blocked_btn = tree.nodes[4]
+
+    assert tree.touch_check(900, 630, input_node)["allowed"] is True
+    chk_blocked = tree.touch_check(800, 2015, blocked_btn)
+    assert chk_blocked["allowed"] is False and chk_blocked["basis"] == "unrelated_receiver"
