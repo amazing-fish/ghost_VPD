@@ -198,3 +198,78 @@ def test_299_transparent_blank_spacer_above_keyboard_panel_is_not_counted():
     assert tree.touch_check(900, 630, input_node)["allowed"] is True
     chk_blocked = tree.touch_check(800, 2015, blocked_btn)
     assert chk_blocked["allowed"] is False and chk_blocked["basis"] == "unrelated_receiver"
+
+
+def test_299_transparent_enclosing_wrapper_above_keyboard_does_not_expand_upward():
+    tree = UiTree(
+        _win_node(
+            "root",
+            (0, 0, 1000, 1000),
+            children=[
+                _win_node("root", (0, 0, 1000, 1000), bundle="com.yinwang.qiankunapp.hm", children=[
+                    _win_node("Button", (400, 150, 600, 250), clickable=True, text="上方按钮"),
+                    _win_node("Button", (400, 650, 600, 750), clickable=True, text="键盘区下方按钮"),
+                ]),
+                _win_node(
+                    "root",
+                    (0, 0, 1000, 1000),
+                    bundle="com.huawei.hmos.inputmethod",
+                    clickable=True,
+                    children=[
+                        _win_node(
+                            "Column",
+                            (0, 0, 1000, 850),  # transparent wrapper (< 90% of frame) starting at y=0
+                            children=[
+                                _win_node("Column", (0, 600, 1000, 850), children=[
+                                    _win_node("Button", (80, 640, 220, 740), clickable=True, text="1"),
+                                ]),
+                            ],
+                        )
+                    ],
+                ),
+            ],
+        )
+    )
+    upper_btn = tree.nodes[2]
+    lower_btn = tree.nodes[3]
+    assert tree.touch_check(500, 200, upper_btn)["allowed"] is True
+    chk_lower = tree.touch_check(500, 700, lower_btn)
+    assert chk_lower["allowed"] is False and chk_lower["basis"] == "unrelated_receiver"
+
+
+def test_299_mid_frame_spacer_wrapper_above_panel_does_not_expand_upward():
+    tree = UiTree(
+        _win_node(
+            "root",
+            (0, 0, 1000, 1000),
+            children=[
+                _win_node("root", (0, 0, 1000, 1000), bundle="com.yinwang.qiankunapp.hm", children=[
+                    _win_node("Button", (400, 400, 600, 500), clickable=True, text="中部按钮"),
+                    _win_node("Button", (400, 650, 600, 750), clickable=True, text="键盘区下方按钮"),
+                ]),
+                _win_node(
+                    "root",
+                    (0, 0, 1000, 1000),
+                    bundle="com.huawei.hmos.inputmethod",
+                    clickable=True,
+                    children=[
+                        _win_node(
+                            "Column",
+                            (0, 350, 1000, 850),  # mid-frame wrapper containing spacer + panel
+                            children=[
+                                _win_node("Blank", (0, 350, 1000, 600)),
+                                _win_node("Column", (0, 600, 1000, 850), children=[
+                                    _win_node("Button", (80, 640, 220, 740), clickable=True, text="1"),
+                                ]),
+                            ],
+                        )
+                    ],
+                ),
+            ],
+        )
+    )
+    mid_btn = tree.nodes[2]
+    lower_btn = tree.nodes[3]
+    assert tree.touch_check(500, 450, mid_btn)["allowed"] is True
+    chk_lower = tree.touch_check(500, 700, lower_btn)
+    assert chk_lower["allowed"] is False and chk_lower["basis"] == "unrelated_receiver"

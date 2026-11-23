@@ -198,14 +198,16 @@ class UiTree:
         """输入法窗口真实键盘矩形：避免整屏透明 root bounds 误遮挡上方 APP 表单与按钮。
 
         1) 跳过显式隐藏子树（visible=false/0），收集输入法内非整屏背景（可见面积 < 90% 外框）
-           的真实内容/可点击节点及其在输入法内的非整屏祖先面板的并集（既不丢弃大块键盘面板，
-           也不把键盘上方空白透明占位计入键盘区）；
+           的真实内容/可点击节点；仅当祖先容器自身也有键盘区域证据（clickable 面板，
+           或位于下半屏且不含顶部空白占位子节点的布局面板）时才一并纳入，防止把键盘上方
+           的透明外包容器误当键盘区；
         2) 若输入法子树不含此类节点（仅整屏根框），且同级存在上方非系统 APP 窗口
            (app.y1 <= outer.y1 + 20 且 outer.y1 < app.y2 < outer.y2)，按 APP 下边界裁剪；
         3) 否则保守退回外框（fail-closed）。
         """
         outer = vis[ime_root.idx]
-        outer_area = max(1, outer[2] - outer[0]) * max(1, outer[3] - outer[1])
+        outer_h = max(1, outer[3] - outer[1])
+        outer_area = max(1, outer[2] - outer[0]) * outer_h
 
         def _non_frame(rect) -> bool:
             if not rect:
@@ -213,25 +215,55 @@ class UiTree:
             area = max(0, rect[2] - rect[0]) * max(0, rect[3] - rect[1])
             return 0 < area and area * 10 < outer_area * 9
 
-        def _explicitly_hidden(node: Node) -> bool:
-            return str(node.attrs.get("visible", "")).strip().lower() in ("false", "0")
-
-        key_rects = []
+        hidden = [False] * len(self.nodes)
+        active_leaf = [False] * len(self.nodes)
+        ime_nodes = []
         stack = list(ime_root.children)
         while stack:
             idx = stack.pop()
             d = self.nodes[idx]
-            if _explicitly_hidden(d):
+            if str(d.attrs.get("visible", "")).strip().lower() in ("false", "0"):
+                hidden[idx] = True
                 continue
+            ime_nodes.append(idx)
             r = vis[idx]
             if _non_frame(r) and (d.clickable or bool(d.text.strip() or d.description.strip())):
-                key_rects.append(r)
-                cur = d.parent
-                while cur is not None and cur != ime_root.idx:
-                    if _non_frame(vis[cur]):
-                        key_rects.append(vis[cur])
-                    cur = self.nodes[cur].parent
+                active_leaf[idx] = True
             stack.extend(d.children)
+
+        has_active = list(active_leaf)
+        for idx in sorted(ime_nodes, reverse=True):
+            p = self.nodes[idx].parent
+            if p is not None and has_active[idx] and not hidden[p]:
+                has_active[p] = True
+
+        def _is_keyboard_panel(p_idx: int) -> bool:
+            pr = vis[p_idx]
+            if not _non_frame(pr):
+                return False
+            pnode = self.nodes[p_idx]
+            if pnode.clickable:
+                return pr[1] > outer[1] + 20 or (pr[3] - pr[1]) * 4 < outer_h * 3
+            if pr[1] < outer[1] + outer_h // 3:
+                return False
+            for c_idx in pnode.children:
+                if hidden[c_idx] or not vis[c_idx]:
+                    continue
+                cr = vis[c_idx]
+                if not has_active[c_idx] and cr[1] <= pr[1] + 20 and cr[3] < pr[3] - 40:
+                    return False
+            return True
+
+        key_rects = []
+        for idx in ime_nodes:
+            if not active_leaf[idx]:
+                continue
+            key_rects.append(vis[idx])
+            cur = self.nodes[idx].parent
+            while cur is not None and cur != ime_root.idx:
+                if _is_keyboard_panel(cur):
+                    key_rects.append(vis[cur])
+                cur = self.nodes[cur].parent
         if key_rects:
             union = (
                 min(r[0] for r in key_rects),
