@@ -179,6 +179,28 @@ class UiTree:
         best = max((n for n in self.nodes if n.bounds), key=lambda n: n.area, default=None)
         return best.bounds if best and best.area else None
 
+    def _content_box(self, modal: Node, vis: list) -> tuple:
+        """模态层真正遮挡的矩形：外框可能只是整屏事件拦截层，真正内容卡片在内层。
+
+        仅当模态层恰好有 1 个可见直接子节点且该子节点可见面积严格小于外框 1/4 时，
+        采用该内容卡片矩形做视觉遮挡裁剪；空框、多子节点或大面积弹窗一律退回外框。
+        注意：Dialog 自身仍保留 outer 可见矩形，因此 touch_target 仍能拦截未关闭弹窗下的点击。
+        """
+        outer = vis[modal.idx]
+        kids = [n for n in self.nodes if n.parent == modal.idx and vis[n.idx]]
+        if len(kids) != 1:
+            return outer
+        card_rect = vis[kids[0].idx]
+        if not card_rect:
+            return outer
+        card_area = max(0, card_rect[2] - card_rect[0]) * max(0, card_rect[3] - card_rect[1])
+        if card_area == 0:
+            return outer
+        outer_area = max(1, outer[2] - outer[0]) * max(1, outer[3] - outer[1])
+        if card_area * 4 < outer_area:
+            return card_rect
+        return outer
+
     def _visibility(self) -> list:
         """每个节点的可见矩形 = 自身 bounds ∩ 窗口 ∩ 祖先中裁剪型容器（List/Scroll 等）的可见区域。"""
         if self._vis is None:
@@ -190,7 +212,7 @@ class UiTree:
                 clip[n.idx] = (vis[n.idx] if n.type in CLIP_TYPES or n.scrollable else inherited)
             for m in (n for n in self.nodes if n.type in MODAL_TYPES and vis[n.idx]):
                 anc = set(self._ancestor_idx(m))
-                box = vis[m.idx]
+                box = self._content_box(m, vis)
                 for n in self.nodes[:m.idx]:
                     r = vis[n.idx]
                     if r and n.idx not in anc and box[0] <= (r[0] + r[2]) // 2 < box[2] \
