@@ -2,7 +2,7 @@
 
 供 Agent 使用的工程化测试 Skill：Agent 读 [SKILL.md](SKILL.md) 做理解、计划、判断与沉淀；
 确定性执行器 `vpdtest`（Python，零服务依赖）负责设备操作、观测、超时、证据、判定与安全边界。
-当前工程能力、业务缺口和工作机分工见[项目方向](../docs/PROJECT_DIRECTION.md)；下述阶段与验证记录保留各自历史范围。
+当前工程能力、业务缺口和工作机分工见[项目方向](../docs/PROJECT_DIRECTION.md)；可控范围初版 Skill v0.1 交付清单与边界见[v0.1 交付清单](../docs/V01_SKILL_DELIVERY.md)；下述阶段与验证记录保留各自历史范围。
 
 - 首版范围：**HarmonyOS + 鸿蒙智行（`app.huawei.hmos.motor`）+ 底部导航 / 我的 / 设置 切片**，已在真机上运行。
 - 阶段 3 增加乾崑（`com.yinwang.qiankunapp.hm`）样例：登录→切车→进入 VPD→算路（TC-QK-101）、地图收藏→按名搜索算路→读距离（TC-QK-102）、有人监护的激活→运动→暂停→后台→继续→完成（TC-QK-103）。**目前只在离线回放上验证，未在真机运行**。
