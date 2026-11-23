@@ -3,7 +3,7 @@
 - **锚定 `main HEAD`**：[`ee9b8818`](https://github.com/amazing-fish/ghost_VPD/commit/ee9b88186ec8b7e456c1b1d5200174a92afe290e)（`ee9b88186ec8b7e456c1b1d5200174a92afe290e`）
 - **决策依据**：维护者 2026-11-23 `DEC-V01-SHIP` / `GATE-V01-PACKAGE` / `DEC-299-CLOSE`
 - **主干基线巡检**：
-  - `python -m vpdtest case readiness --all`：**43 / 43**（`analysis_errors=0`，`inspection_errors=0`，`approved=2`：`TC-HM-S01` 与 `TC-MOTOR-HM-002`）
+  - `python -m vpdtest case readiness`：**43 / 43**（`analysis_errors=0`，`inspection_errors=0`，`approved=2`：`TC-HM-S01` 与 `TC-MOTOR-HM-002`）
   - `python -m pytest -q tests`：**4905 passed, 28 skipped in 1330.42s**（0 failures）
 
 ---
@@ -42,7 +42,7 @@ cd <仓库根目录>\vpd_skill
 .\vpdtest.ps1 doctor --device hdc:<serial>
 
 # 2) 全量资产就绪度核验
-python -m vpdtest case readiness --all
+.\vpdtest.ps1 case readiness
 
 # 3) 运行已批准回归用例 / TC-QK-215（不传 --env vpd_task_state=none）
 .\vpdtest.ps1 run TC-MOTOR-HM-002 --device hdc:<serial>
@@ -50,7 +50,7 @@ python -m vpdtest case readiness --all
 .\vpdtest.ps1 run TC-QK-215 --device hdc:<serial> --env account_state=logged_in
 
 # 4) 无真机离线回放演示
-python scripts\demo_offline.py
+.\.venv\Scripts\python.exe scripts\demo_offline.py
 ```
 
 ---
