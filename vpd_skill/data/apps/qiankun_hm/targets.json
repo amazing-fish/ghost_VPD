@@ -888,28 +888,28 @@
       ]
     },
     "qk_login_password_here": {
-      "desc": "登录选路只读证据：password/here",
+      "desc": "登录选路只读证据：password/here（兼容输入法在场时「验证码登录」被遮挡的场景）",
       "side_effect": "read_only",
       "forbid_tap": true,
       "status": "unverified",
       "strategies": [
         {
           "kind": "xpath",
-          "value": "//root[.//*[@hint='请输入密码'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='验证码登录'][not(ancestor-or-self::*[@visible='false'])]]",
-          "source": "#31 量产页面经验；session-issue31-calibration，受APP/build与消费者审核约束"
+          "value": "//root[.//*[@hint='请输入密码'][not(ancestor-or-self::*[@visible='false'])] and (.//*[@text='验证码登录'][not(ancestor-or-self::*[@visible='false'])] or .//*[@hint='请输入手机号'][not(ancestor-or-self::*[@visible='false'])])]",
+          "source": "#31 量产页面经验；兼容 2.0.4.106 输入法在场时请输入手机号锚点"
         }
       ]
     },
     "qk_login_password_else": {
-      "desc": "登录选路只读证据：password/else",
+      "desc": "登录选路只读证据：password/else（兼容输入法在场时「验证码登录」被遮挡的场景）",
       "side_effect": "read_only",
       "forbid_tap": true,
       "status": "unverified",
       "strategies": [
         {
           "kind": "xpath",
-          "value": "//root[(.//*[@text='我的车辆' or @text='社区' or @text='欢迎登录华为乾崑' or @text='本机号码一键登录' or @text='身份验证' or @text='设置' or @text='乾崑账号' or @text='输入验证码'][not(ancestor-or-self::*[@visible='false'])]) and not(.//*[@hint='请输入密码'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='验证码登录'][not(ancestor-or-self::*[@visible='false'])])]",
-          "source": "#31 量产页面经验；session-issue31-calibration，受APP/build与消费者审核约束"
+          "value": "//root[(.//*[@text='我的车辆' or @text='社区' or @text='欢迎登录华为乾崑' or @text='本机号码一键登录' or @text='身份验证' or @text='设置' or @text='乾崑账号' or @text='输入验证码'][not(ancestor-or-self::*[@visible='false'])]) and not(.//*[@hint='请输入密码'][not(ancestor-or-self::*[@visible='false'])] and (.//*[@text='验证码登录'][not(ancestor-or-self::*[@visible='false'])] or .//*[@hint='请输入手机号'][not(ancestor-or-self::*[@visible='false'])]))]",
+          "source": "#31 量产页面经验；兼容 2.0.4.106 输入法在场时请输入手机号锚点"
         }
       ]
     },
@@ -1057,15 +1057,20 @@
       ]
     },
     "qk_login_system_selection_here": {
-      "desc": "当前密码表单上的系统文本选择菜单；只识别已报告的SelectOverlay/SelectMenu及两项文案",
+      "desc": "当前密码表单上的系统文本选择菜单；兼容单层 SelectOverlay 与 2.0.4.106 双层 SelectOverlay（可点空拦截层 + 兄弟 SelectMenu 菜单层）及输入法在场时「验证码登录」被遮挡的场景",
       "side_effect": "read_only",
       "forbid_tap": true,
       "status": "unverified",
       "strategies": [
         {
           "kind": "xpath",
-          "value": "//root[count(.//SelectOverlay[not(ancestor-or-self::*[@visible='false'])])=1][.//*[@hint='请输入密码'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='验证码登录'][not(ancestor-or-self::*[@visible='false'])]]//SelectOverlay[not(ancestor-or-self::*[@visible='false'])][.//SelectMenu[.//*[@text='自动填充'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='拍摄输入'][not(ancestor-or-self::*[@visible='false'])]]]",
-          "source": "#64 run-20261019-114221-43e0及run-20261019-120308-b425报告；完整原始树未随仓库提供，独立真机核验pending"
+          "value": "//root[count(.//SelectOverlay[not(ancestor-or-self::*[@visible='false'])])=1][.//*[@hint='请输入密码'][not(ancestor-or-self::*[@visible='false'])] and (.//*[@text='验证码登录'][not(ancestor-or-self::*[@visible='false'])] or .//*[@hint='请输入手机号'][not(ancestor-or-self::*[@visible='false'])])]//SelectOverlay[not(ancestor-or-self::*[@visible='false'])][.//SelectMenu[.//*[@text='自动填充'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='拍摄输入'][not(ancestor-or-self::*[@visible='false'])]]]",
+          "source": "#64 run-20261019-114221-43e0及run-20261019-120308-b425报告；兼容输入法在场时请输入手机号锚点"
+        },
+        {
+          "kind": "xpath",
+          "value": "//root[count(.//SelectOverlay[not(ancestor-or-self::*[@visible='false'])])=2][count(.//SelectOverlay[not(ancestor-or-self::*[@visible='false'])][@clickable='true' and count(*)=0 and normalize-space(@text)=''])=1][count(.//SelectOverlay[not(ancestor-or-self::*[@visible='false'])][not(@clickable='true') and count(*)=1 and SelectMenu[.//*[@text='自动填充'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='拍摄输入'][not(ancestor-or-self::*[@visible='false'])]]])=1][.//*[@hint='请输入密码'][not(ancestor-or-self::*[@visible='false'])] and (.//*[@text='验证码登录'][not(ancestor-or-self::*[@visible='false'])] or .//*[@hint='请输入手机号'][not(ancestor-or-self::*[@visible='false'])])]//SelectOverlay[not(ancestor-or-self::*[@visible='false'])][@clickable='true' and count(*)=0 and normalize-space(@text)='']",
+          "source": "GATE-WAVE7-SELECT-OVERLAY：HOP-AL00 / 2.0.4.106 真机 session-smoke-299-full-login-20261124 obs-0018 实测双层 SelectOverlay（空可点拦截层 + 非可点 SelectMenu 兄弟层）"
         }
       ]
     },
@@ -1077,8 +1082,8 @@
       "strategies": [
         {
           "kind": "xpath",
-          "value": "//root[.//*[@hint='请输入密码'][not(ancestor-or-self::*[@visible='false'])] and .//*[@text='验证码登录'][not(ancestor-or-self::*[@visible='false'])] and not(.//SelectOverlay[not(ancestor-or-self::*[@visible='false'])])]",
-          "source": "#64密码表单正证与当前SelectOverlay互斥；缺表单或未登记SelectOverlay保持unknown"
+          "value": "//root[.//*[@hint='请输入密码'][not(ancestor-or-self::*[@visible='false'])] and (.//*[@text='验证码登录'][not(ancestor-or-self::*[@visible='false'])] or .//*[@hint='请输入手机号'][not(ancestor-or-self::*[@visible='false'])]) and not(.//SelectOverlay[not(ancestor-or-self::*[@visible='false'])])]",
+          "source": "#64密码表单正证与当前SelectOverlay互斥（兼容输入法在场时请输入手机号锚点）；缺表单或未登记SelectOverlay保持unknown"
         }
       ]
     },

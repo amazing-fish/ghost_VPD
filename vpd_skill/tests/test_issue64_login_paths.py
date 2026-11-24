@@ -150,3 +150,63 @@ def test_proven_my_root_reentry_still_confirms_account_without_credentials(login
     assert all(s["outcome"].startswith("passed") for s in run["steps"])
     assert not _sent(run, "input_text")
     assert run["verdict"]["verdict"] == "passed"
+
+
+def _dual_select_overlay_world(rig, *, known_menu=True, non_empty_scrim=False, offscreen_sms_tab=True):
+    ws, build = rig
+    ws.config["secrets"] = {"QIANKUN_PHONE": "synthetic-phone", "QIANKUN_PASSWORD": "synthetic-password"}
+    spec = build("password")
+    path = Path(spec.split(":", 1)[1])
+    data = read_json(path)
+    data["popup_back"] = "dismiss"
+    form = data["screens"]["password"]["root"]["children"]
+    if offscreen_sms_tab:
+        sms_tab = next(n for n in form if n.get("text") == "验证码登录")
+        sms_tab["hide_if_flag"] = "phone_manual"
+    for name, hint in (("phone", "请输入手机号"), ("password", "请输入密码")):
+        field = next(n for n in form if n.get("attrs", {}).get("hint") == hint)
+        field["hide_if_flag"] = name + "_manual"
+        field["go"] = "autofill_" + name
+        ready = deepcopy(field)
+        ready.pop("hide_if_flag")
+        ready.pop("go")
+        ready["show_if_flag"] = name + "_manual"
+        form.append(ready)
+        data["screens"]["autofill_" + name] = {
+            "kind": "popup", "root": {"t": "Column", "b": [0, 700, 400, 900], "children": [
+                {"t": "Button", "text": "手动输入", "id": "AutoFillDialog_auto_fill_self_input",
+                 "b": [30, 760, 330, 810], "go": "selection_" + name,
+                 "set_flag": {name + "_manual": True}}]}}
+        scrim = {"t": "SelectOverlay", "click": True, "b": [0, 0, 400, 700],
+                 "children": ([{"t": "Text", "text": "意外文本", "b": [10, 10, 80, 40]}] if non_empty_scrim else [])}
+        menu_layer = {"t": "SelectOverlay", "click": False, "b": [0, 0, 400, 700], "children": [
+            {"t": "SelectMenu", "b": [30, 400, 330, 490], "children": [
+                {"t": "SelectMenuInner", "b": [30, 400, 330, 490], "children": [
+                    {"t": "SelectMenuButton", "b": [30, 400, 160, 440], "click": True, "children": [
+                        {"t": "SelectMenuButtonText", "text": "自动填充" if known_menu else "未知系统操作",
+                         "b": [35, 405, 155, 435]}]},
+                    {"t": "SelectMenuButton", "b": [170, 400, 330, 440], "click": True, "children": [
+                        {"t": "SelectMenuButtonText", "text": "拍摄输入" if known_menu else "未登记操作",
+                         "b": [175, 405, 325, 435]}]}]}]}]}
+        data["screens"]["selection_" + name] = {
+            "kind": "popup", "root": {"t": "Column", "b": [0, 0, 400, 700], "children": [scrim, menu_layer]}}
+    write_json(path, data)
+    return spec
+
+
+def test_dual_select_overlay_204106_is_dismissed_even_when_sms_tab_scrolled_offscreen(login_rig):
+    run = _run_world(login_rig, _dual_select_overlay_world(login_rig))
+    assert all(s["outcome"].startswith("passed") for s in run["steps"]), run["steps"]
+    flow = _password_flow(run)
+    inputs = [s for s in flow["sub_steps"] if s["action"] == "input"]
+    assert len(inputs) == 2 and all(s["outcome"] == "passed_after_recovery" for s in inputs)
+    assert len(_sent(run, "input_text")) == 2
+
+
+@pytest.mark.parametrize("kwargs", [{"known_menu": False}, {"non_empty_scrim": True}])
+def test_unregistered_or_non_empty_dual_select_overlay_never_backs_through(login_rig, kwargs):
+    run = _run_world(login_rig, _dual_select_overlay_world(login_rig, **kwargs))
+    assert run["steps"][1]["outcome"] == "pending"
+    assert not _sent(run, "input_text") and not _sent(run, "key")
+    assert _password_flow(run)["sub_steps"][-1]["final_status"] == "condition_unknown"
+
