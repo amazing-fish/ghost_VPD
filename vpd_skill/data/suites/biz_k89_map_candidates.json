@@ -1,0 +1,18 @@
+{
+  "id": "biz_k89_map_candidates",
+  "track": "business",
+  "role": "business_k89_map",
+  "desc": "K89 0228 专项地图与车位数据候选集（停车场元数据/标签/楼层/支持区域/城市列表）。",
+  "cases": [
+    "TC-QK-240",
+    "TC-QK-241",
+    "TC-QK-242",
+    "TC-QK-243",
+    "TC-QK-244",
+    "TC-QK-245",
+    "TC-QK-246",
+    "TC-QK-247",
+    "TC-QK-248",
+    "TC-QK-249"
+  ]
+}

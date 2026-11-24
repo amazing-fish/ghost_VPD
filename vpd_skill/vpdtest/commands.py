@@ -667,7 +667,8 @@ def cmd_case(ws: Workspace, a) -> dict:
     if a.case_cmd == "readiness":
         from .case_readiness import readiness
         return readiness(ws, a.cases, to=a.to, reviewer=a.reviewer,
-                         allow_offline=a.allow_offline, known_issue=a.known_issue)
+                         allow_offline=a.allow_offline, known_issue=a.known_issue,
+                         role=a.role)
     kn = KnowledgeStore(ws.root)
     if a.case_cmd == "review":
         case = ws.load_case(a.case)

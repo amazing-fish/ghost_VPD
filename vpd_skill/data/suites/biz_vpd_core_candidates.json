@@ -1,0 +1,21 @@
+{
+  "id": "biz_vpd_core_candidates",
+  "track": "business",
+  "role": "business_vpd_core",
+  "desc": "乾崑 VPD 核心业务用例候选集（搜收藏/重命名/算路/任务周期/泊入），用于追踪真实业务资产从 0 到 regression 的突破。",
+  "cases": [
+    "TC-QK-101",
+    "TC-QK-102",
+    "TC-QK-103",
+    "TC-QK-201",
+    "TC-QK-202",
+    "TC-QK-214",
+    "TC-QK-216",
+    "TC-QK-219",
+    "TC-QK-226",
+    "TC-QK-227",
+    "TC-QK-228",
+    "TC-QK-230",
+    "TC-QK-230-SPOT-NAME"
+  ]
+}

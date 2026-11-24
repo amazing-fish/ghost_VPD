@@ -1,0 +1,18 @@
+{
+  "id": "cap_qk_preconditions",
+  "track": "capability",
+  "role": "capability_precondition",
+  "desc": "乾崑纯能力与前置状态自检集（登录、账号/车辆探测、VPD 首页入口与断网恢复），用于向 L3 任意态能力收编，不计为 VPD 业务覆盖。",
+  "cases": [
+    "TC-QK-211",
+    "TC-QK-212",
+    "TC-QK-213",
+    "TC-QK-215",
+    "TC-QK-217",
+    "TC-QK-218",
+    "TC-QK-221",
+    "TC-QK-222",
+    "TC-QK-223",
+    "TC-QK-229"
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "description": "P0 资产分账目录：严格区分框架冒烟、纯能力/前置验证、核心 VPD 业务用例与专项地图用例；只读分类不修改用例自身指纹或审核状态。",
+  "roles": {
+    "framework_smoke": {
+      "track": "capability",
+      "business_coverage": false,
+      "title": "框架与引擎冒烟",
+      "description": "仅验证导航定位、双帧观测、状态签名与回归晋级机制（motor_hm），不证明乾崑 VPD 业务功能正常。"
+    },
+    "capability_precondition": {
+      "track": "capability",
+      "business_coverage": false,
+      "title": "纯能力与前置状态校验",
+      "description": "验证登录、账号/车辆信息读取、VPD 首页可达、断网/复网或弹窗清理等 L2/L3 能力与前态探测，不计入正式业务通过率。"
+    },
+    "business_vpd_core": {
+      "track": "business",
+      "business_coverage": true,
+      "title": "核心 VPD 业务用例",
+      "description": "面向搜收藏/重命名/算路/任务生命周期/泊入等真实乾崑 VPD 业务场景的 L4 用例资产。"
+    },
+    "business_k89_map": {
+      "track": "business",
+      "business_coverage": true,
+      "title": "专项地图与车位数据用例",
+      "description": "K89 0228 批次 VPD 地图元数据、车位标签与城市列表专项业务候选。"
+    }
+  },
+  "cases": {
+    "TC-HM-S01": {"role": "framework_smoke"},
+    "TC-HM-S01-FOLD-DRAFT": {"role": "framework_smoke"},
+    "TC-MOTOR-HM-001": {"role": "framework_smoke"},
+    "TC-MOTOR-HM-002": {"role": "framework_smoke"},
+    "TC-MOTOR-HM-003": {"role": "framework_smoke"},
+    "TC-MOTOR-HM-004": {"role": "framework_smoke"},
+    "TC-MOTOR-HM-005": {"role": "framework_smoke"},
+    "TC-MOTOR-HM-006": {"role": "framework_smoke"},
+    "TC-MOTOR-HM-007": {"role": "framework_smoke"},
+    "TC-MOTOR-HM-008": {"role": "framework_smoke"},
+
+    "TC-QK-211": {"role": "capability_precondition"},
+    "TC-QK-212": {"role": "capability_precondition"},
+    "TC-QK-213": {"role": "capability_precondition"},
+    "TC-QK-215": {"role": "capability_precondition"},
+    "TC-QK-217": {"role": "capability_precondition"},
+    "TC-QK-218": {"role": "capability_precondition"},
+    "TC-QK-221": {"role": "capability_precondition"},
+    "TC-QK-222": {"role": "capability_precondition"},
+    "TC-QK-223": {"role": "capability_precondition"},
+    "TC-QK-229": {"role": "capability_precondition"},
+
+    "TC-QK-101": {"role": "business_vpd_core"},
+    "TC-QK-102": {"role": "business_vpd_core"},
+    "TC-QK-103": {"role": "business_vpd_core"},
+    "TC-QK-201": {"role": "business_vpd_core"},
+    "TC-QK-202": {"role": "business_vpd_core"},
+    "TC-QK-214": {"role": "business_vpd_core"},
+    "TC-QK-216": {"role": "business_vpd_core"},
+    "TC-QK-219": {"role": "business_vpd_core"},
+    "TC-QK-226": {"role": "business_vpd_core"},
+    "TC-QK-227": {"role": "business_vpd_core"},
+    "TC-QK-228": {"role": "business_vpd_core"},
+    "TC-QK-230": {"role": "business_vpd_core", "baseline_refs": ["OCT-RT-02"]},
+    "TC-QK-230-SPOT-NAME": {"role": "business_vpd_core", "baseline_refs": ["OCT-RT-02"]},
+
+    "TC-QK-240": {"role": "business_k89_map", "baseline_refs": ["OCT-UI-31"]},
+    "TC-QK-241": {"role": "business_k89_map", "baseline_refs": ["OCT-UI-32"]},
+    "TC-QK-242": {"role": "business_k89_map", "baseline_refs": ["OCT-RT-04"]},
+    "TC-QK-243": {"role": "business_k89_map", "baseline_refs": ["OCT-UI-19"]},
+    "TC-QK-244": {"role": "business_k89_map", "baseline_refs": ["OCT-UI-30"]},
+    "TC-QK-245": {"role": "business_k89_map", "baseline_refs": ["OCT-OP-03", "OCT-OP-04"]},
+    "TC-QK-246": {"role": "business_k89_map", "baseline_refs": ["OCT-OP-04"]},
+    "TC-QK-247": {"role": "business_k89_map", "baseline_refs": ["OCT-OP-05"]},
+    "TC-QK-248": {"role": "business_k89_map", "baseline_refs": ["OCT-OP-06"]},
+    "TC-QK-249": {"role": "business_k89_map", "baseline_refs": ["OCT-OP-07"]}
+  }
+}
