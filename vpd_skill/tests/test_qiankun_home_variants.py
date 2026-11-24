@@ -271,5 +271,17 @@ def test_204106_non_banner_home_three_anchor_group_and_guards(ws):
     })
     assert app.states.identify(offscreen_one, app.bundle, True)["state"] == "unknown"
 
+    hidden_ancestor_one = UiTree({
+        "attributes": {"type": "Column", "bounds": "[0,0][2584,1828]"},
+        "children": [
+            {"attributes": {"type": "Text", "text": "搜索", "bounds": "[40,100][200,160]"}},
+            {"attributes": {"type": "Text", "text": "收藏及常去", "bounds": "[40,200][300,260]"}},
+            {"attributes": {"type": "Column", "visible": "false", "bounds": "[0,0][2584,1828]"}, "children": [
+                {"attributes": {"type": "Text", "text": "停泊位置", "visible": "true", "bounds": "[40,300][300,360]"}},
+            ]},
+        ],
+    })
+    assert app.states.identify(hidden_ancestor_one, app.bundle, True)["state"] == "unknown"
+
 
 

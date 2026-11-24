@@ -32,7 +32,16 @@ def _texts_match(spec: dict, tree: UiTree, scope: Optional[list] = None, owner_m
             return False
     if spec.get("require_any_text") or spec.get("require_any_text_groups"):
         ok_single = any(t in texts for t in (spec.get("require_any_text") or ()))
-        ok_group = any(bool(g) and all(t in texts for t in g) for g in (spec.get("require_any_text_groups") or ()))
+        groups = spec.get("require_any_text_groups") or ()
+        if not ok_single and groups:
+            group_texts = [
+                t for n in tree.nodes
+                if visible(n) and tree.visible_lineage(n) and tree.in_scope(n, scope) and owned(n)
+                for t in (n.text.strip(), n.description.strip()) if t
+            ]
+            ok_group = any(bool(g) and all(t in group_texts for t in g) for g in groups)
+        else:
+            ok_group = False
         if not (ok_single or ok_group):
             return False
     for pat in spec.get("require_text_pattern", []):  # 文案带变量时用正则，例如「车架号 xxxxxx(后6位)」
