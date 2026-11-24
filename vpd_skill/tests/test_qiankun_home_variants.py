@@ -219,3 +219,57 @@ def test_204106_home_postcondition_then_search_navigation_uses_real_executor(ws,
     assert [(step["step_id"], step["outcome"]) for step in run["steps"]] == [("S1", "passed"), ("S2", "passed")]
 
 
+def test_204106_non_banner_home_three_anchor_group_and_guards(ws):
+    """DEC-VPD-HOME-204: 2.0.4.106 non-banner home uses (搜索 + 收藏及常去 + 停泊位置) group."""
+    app = ws.app("qiankun_hm")
+    non_banner_tree = UiTree({
+        "attributes": {"type": "Column", "bounds": "[0,0][2584,1828]"},
+        "children": [
+            {"attributes": {"type": "Text", "text": "伟业金锦苑", "bounds": "[40,420][400,480]"}},
+            {"attributes": {"type": "Row", "clickable": "true", "bounds": "[44,490][946,610]"}, "children": [
+                {"attributes": {"type": "Text", "text": "搜索", "bounds": "[176,518][275,576]"}}
+            ]},
+            {"attributes": {"type": "Text", "text": "收藏及常去", "bounds": "[40,700][360,760]"}},
+            {"attributes": {"type": "Text", "text": "收藏夹", "bounds": "[400,700][560,760]"}},
+            {"attributes": {"type": "Text", "text": "停泊位置", "bounds": "[40,820][360,880]"}},
+        ],
+    })
+    assert app.states.identify(non_banner_tree, app.bundle, True)["state"] == "qk_vpd_home"
+    found = resolve("qk_search_entry", app.targets["qk_search_entry"], non_banner_tree, None, app.dir)
+    assert found["status"] == "found" and found["attempts"][-1]["node"]["text"] == "搜索"
+
+    for partial in (
+        ("搜索",),
+        ("收藏及常去", "收藏夹"),
+        ("搜索", "收藏及常去"),
+        ("搜索", "停泊位置"),
+        ("收藏及常去", "停泊位置"),
+    ):
+        assert app.states.identify(_tree(*partial), app.bundle, True)["state"] == "unknown"
+
+    for blocker in ("正在加载...", "停车场信息加载失败，请重试", "路线规划中，请稍后", "开始", "暂停", "继续"):
+        blocked = app.states.identify(_tree("搜索", "收藏及常去", "停泊位置", blocker), app.bundle, True)
+        assert not app.states.is_state(blocked, "qk_vpd_home")
+
+    hidden_one = UiTree({
+        "attributes": {"type": "Column", "bounds": "[0,0][2584,1828]"},
+        "children": [
+            {"attributes": {"type": "Text", "text": "搜索", "bounds": "[40,100][200,160]"}},
+            {"attributes": {"type": "Text", "text": "收藏及常去", "bounds": "[40,200][300,260]"}},
+            {"attributes": {"type": "Text", "text": "停泊位置", "visible": "false", "bounds": "[40,300][300,360]"}},
+        ],
+    })
+    assert app.states.identify(hidden_one, app.bundle, True)["state"] == "unknown"
+
+    offscreen_one = UiTree({
+        "attributes": {"type": "Column", "bounds": "[0,0][2584,1828]"},
+        "children": [
+            {"attributes": {"type": "Text", "text": "搜索", "bounds": "[40,100][200,160]"}},
+            {"attributes": {"type": "Text", "text": "收藏及常去", "bounds": "[40,200][300,260]"}},
+            {"attributes": {"type": "Text", "text": "停泊位置", "bounds": "[40,2000][300,2100]"}},
+        ],
+    })
+    assert app.states.identify(offscreen_one, app.bundle, True)["state"] == "unknown"
+
+
+

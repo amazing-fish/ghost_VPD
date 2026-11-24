@@ -30,8 +30,11 @@ def _texts_match(spec: dict, tree: UiTree, scope: Optional[list] = None, owner_m
     for t in spec.get("require_text", []):
         if t not in texts:
             return False
-    if spec.get("require_any_text") and not any(t in texts for t in spec["require_any_text"]):
-        return False
+    if spec.get("require_any_text") or spec.get("require_any_text_groups"):
+        ok_single = any(t in texts for t in (spec.get("require_any_text") or ()))
+        ok_group = any(bool(g) and all(t in texts for t in g) for g in (spec.get("require_any_text_groups") or ()))
+        if not (ok_single or ok_group):
+            return False
     for pat in spec.get("require_text_pattern", []):  # 文案带变量时用正则，例如「车架号 xxxxxx(后6位)」
         if not any(re.search(pat, x) for x in texts):
             return False
