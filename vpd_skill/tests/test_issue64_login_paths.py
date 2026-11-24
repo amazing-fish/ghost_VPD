@@ -152,7 +152,8 @@ def test_proven_my_root_reentry_still_confirms_account_without_credentials(login
     assert run["verdict"]["verdict"] == "passed"
 
 
-def _dual_select_overlay_world(rig, *, known_menu=True, non_empty_scrim=False, offscreen_sms_tab=True):
+def _dual_select_overlay_world(rig, *, known_menu=True, non_empty_scrim=False, offscreen_sms_tab=True,
+                               sibling_overlays=True):
     ws, build = rig
     ws.config["secrets"] = {"QIANKUN_PHONE": "synthetic-phone", "QIANKUN_PASSWORD": "synthetic-password"}
     spec = build("password")
@@ -188,8 +189,12 @@ def _dual_select_overlay_world(rig, *, known_menu=True, non_empty_scrim=False, o
                     {"t": "SelectMenuButton", "b": [170, 400, 330, 440], "click": True, "children": [
                         {"t": "SelectMenuButtonText", "text": "拍摄输入" if known_menu else "未登记操作",
                          "b": [175, 405, 325, 435]}]}]}]}]}
+        children = [scrim, menu_layer] if sibling_overlays else [
+            {"t": "Column", "b": [0, 0, 400, 700], "children": [scrim]},
+            {"t": "Column", "b": [0, 0, 400, 700], "children": [menu_layer]},
+        ]
         data["screens"]["selection_" + name] = {
-            "kind": "popup", "root": {"t": "Column", "b": [0, 0, 400, 700], "children": [scrim, menu_layer]}}
+            "kind": "popup", "root": {"t": "Column", "b": [0, 0, 400, 700], "children": children}}
     write_json(path, data)
     return spec
 
@@ -203,7 +208,7 @@ def test_dual_select_overlay_204106_is_dismissed_even_when_sms_tab_scrolled_offs
     assert len(_sent(run, "input_text")) == 2
 
 
-@pytest.mark.parametrize("kwargs", [{"known_menu": False}, {"non_empty_scrim": True}])
+@pytest.mark.parametrize("kwargs", [{"known_menu": False}, {"non_empty_scrim": True}, {"sibling_overlays": False}])
 def test_unregistered_or_non_empty_dual_select_overlay_never_backs_through(login_rig, kwargs):
     run = _run_world(login_rig, _dual_select_overlay_world(login_rig, **kwargs))
     assert run["steps"][1]["outcome"] == "pending"
