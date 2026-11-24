@@ -1346,8 +1346,8 @@ class Executor:
         spec = self.ctx.app.states.states.get(expect) if isinstance(expect, str) else None
         if not isinstance(spec, dict):
             return None  # Builtins and undeclared states have no registered signature to explain.
-        keys = ("require_text", "require_any_text", "require_text_pattern", "require_selected_text",
-                "forbid_text", "forbid_text_pattern")
+        keys = ("require_text", "require_any_text", "require_any_text_groups", "require_text_pattern",
+                "require_selected_text", "forbid_text", "forbid_text_pattern")
         signature = {key: list(spec[key]) for key in keys if key in spec}
         page, meta = obs.get("page") or {}, obs.get("tree") or {}
         available = bool(tree is not None and tree.status == "ok" and meta.get("status") == "ok"

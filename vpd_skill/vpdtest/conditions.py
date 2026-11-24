@@ -189,8 +189,8 @@ def _state_evidence(check, obs, tree, app):
         return False, evidence
     model = app.states
     spec = model.states[sid]
-    if not any(spec.get(key) for key in ("require_text", "require_any_text", "require_text_pattern",
-                                        "require_selected_text", "require_target")):
+    if not any(spec.get(key) for key in ("require_text", "require_any_text", "require_any_text_groups",
+                                        "require_text_pattern", "require_selected_text", "require_target")):
         return None, {**evidence, "reason": "条件状态缺少独立肯定签名"}
     if tree is None or tree.status != "ok":
         return None, {**evidence, "reason": "条件状态所需UI树不可用"}
