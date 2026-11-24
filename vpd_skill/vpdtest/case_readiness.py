@@ -90,8 +90,10 @@ def _load_case_roles(ws):
 
 
 def _is_approved_regression(row: dict) -> bool:
-    review = row.get("review") or {}
-    return row.get("status") == "regression" and (not review.get("required") or bool(review.get("valid")))
+    review = row.get("review")
+    if not isinstance(review, dict) or "required" not in review:
+        return False
+    return row.get("status") == "regression" and (review["required"] is False or bool(review.get("valid")))
 
 
 def _one(ws, cid, knowledge, policy, to, reviewer, allow_offline, known_issue,

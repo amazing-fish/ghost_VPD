@@ -98,3 +98,29 @@ def test_synthetic_business_regression_counts_only_valid_business_role(verdict_w
         "total_business_cases": 1,
         "approved_regression": 1,
     }
+
+
+def test_inspection_error_without_review_is_not_counted_as_approved_regression(verdict_ws, monkeypatch):
+    ws = verdict_ws
+    case = ws.load_case(NAV_CASE)
+    case["status"] = "regression"
+    write_json(ws.case_path(NAV_CASE), case)
+    write_json(ws.root / "case_roles.json", {
+        "schema": 1,
+        "roles": {"business_vpd_core": {"track": "business", "business_coverage": True}},
+        "cases": {NAV_CASE: {"role": "business_vpd_core"}},
+    })
+    orig_review_status = C.review_status
+
+    def fail_nav(workspace, asset, *args, **kwargs):
+        if asset["id"] == NAV_CASE:
+            raise RuntimeError("synthetic failure before review populated")
+        return orig_review_status(workspace, asset, *args, **kwargs)
+
+    monkeypatch.setattr(C, "review_status", fail_nav)
+    out = readiness(ws)
+    nav_row = next(r for r in out["results"] if r["case"] == NAV_CASE)
+    assert "review" not in nav_row
+    assert out["summary"]["inspection_errors"] == 1
+    assert out["summary"]["by_role"]["business_vpd_core"]["approved_regression"] == 0
+    assert out["summary"]["business_regression"]["approved_regression"] == 0
