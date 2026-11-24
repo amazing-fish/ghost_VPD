@@ -139,6 +139,7 @@ def build_parser() -> argparse.ArgumentParser:
     x = csub.add_parser("readiness", help="只读区分记录成熟度/重放与当前审核有效性；不证明原件完整或现场可执行",
                         description="记录成熟度与重放摘要不等于当前审核有效性；本命令不提供全部原件完整性证明，也不评估现场执行资格。")
     x.add_argument("cases", nargs="*", help="预期资产ID；不传则仅枚举当前目录，不推断缺源件")
+    x.add_argument("--role", help="按资产角色筛选，如 framework_smoke / capability_precondition / business_vpd_core / business_k89_map")
     x.add_argument("--to", choices=["candidate", "replay_verified", "regression"], help="不传则预检现有定义的下一阶段")
     x.add_argument("--reviewer")
     x.add_argument("--allow-offline", action="store_true")

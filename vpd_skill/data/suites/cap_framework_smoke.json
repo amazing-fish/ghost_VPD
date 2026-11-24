@@ -1,0 +1,10 @@
+{
+  "id": "cap_framework_smoke",
+  "track": "capability",
+  "role": "framework_smoke",
+  "desc": "底层框架回归哨兵集（motor_hm 已签核回归资产，仅验证执行器、双帧校准与状态签名，不计为 VPD 业务覆盖）。",
+  "cases": [
+    "TC-HM-S01",
+    "TC-MOTOR-HM-002"
+  ]
+}

@@ -79,12 +79,34 @@ def _current_review(info):
             "execution_eligibility": "not_evaluated", "message": message}
 
 
+def _load_case_roles(ws):
+    path = ws.root / "case_roles.json"
+    if not path.is_file():
+        return {}, {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("case_roles.json 须为对象")
+    return dict(data.get("roles") or {}), dict(data.get("cases") or {})
+
+
+def _is_approved_regression(row: dict) -> bool:
+    review = row.get("review") or {}
+    return row.get("status") == "regression" and (not review.get("required") or bool(review.get("valid")))
+
+
 def _one(ws, cid, knowledge, policy, to, reviewer, allow_offline, known_issue,
-         *, apps=None, contexts=None, engine_files=None):
+         *, apps=None, contexts=None, engine_files=None, role_defs=None, case_roles=None):
     path = ws.case_path(cid)
     row = {"case": cid, "source": "present" if path.is_file() else "missing", "status": None}
     if row["source"] == "missing":
         return row
+    role_entry = (case_roles or {}).get(cid) or {}
+    asset_role = role_entry.get("role") or "unclassified"
+    role_meta = (role_defs or {}).get(asset_role) or {}
+    row["asset_role"] = asset_role
+    row["business_coverage"] = bool(role_meta.get("business_coverage", False))
+    if role_entry.get("baseline_refs"):
+        row["baseline_refs"] = list(role_entry["baseline_refs"])
     stage = "source"
     try:
         case = ws.load_case(cid)
@@ -159,13 +181,18 @@ def _one(ws, cid, knowledge, policy, to, reviewer, allow_offline, known_issue,
     return row
 
 
-def readiness(ws, case_ids=None, *, to=None, reviewer=None, allow_offline=False, known_issue=None):
+def readiness(ws, case_ids=None, *, to=None, reviewer=None, allow_offline=False, known_issue=None, role=None):
     """Directory enumeration cannot discover unrequested missing assets or certify field evidence."""
+    if role is not None and (not isinstance(role, str) or not role.strip()):
+        raise ValueError("role 过滤参数须为非空字符串")
     directory = ws.root / "cases"
     explicit = bool(case_ids)
     ids = list(dict.fromkeys(case_ids)) if explicit else sorted(p.stem for p in directory.glob("*.json"))
     for cid in ids:
         C.validate_case_id(cid)
+    role_defs, case_roles = _load_case_roles(ws)
+    if role is not None:
+        ids = [cid for cid in ids if ((case_roles.get(cid) or {}).get("role") or "unclassified") == role]
     live_knowledge = KnowledgeStore(ws.root)
     try:
         knowledge = live_knowledge.snapshot()
@@ -175,16 +202,37 @@ def readiness(ws, case_ids=None, *, to=None, reviewer=None, allow_offline=False,
     files = review_snapshot.engine_files(Path(C.__file__).parent)
     apps, contexts = {}, {}
     rows = [_one(ws, cid, knowledge, policy, to, reviewer, allow_offline, known_issue,
-                 apps=apps, contexts=contexts, engine_files=files) for cid in ids]
+                 apps=apps, contexts=contexts, engine_files=files,
+                 role_defs=role_defs, case_roles=case_roles) for cid in ids]
     source = Counter(r["source"] for r in rows)
     errors = sum("error" in r for r in rows)
+    present_rows = [r for r in rows if r.get("source") == "present" and "asset_role" in r]
+    by_role = {}
+    for role_key in sorted({r["asset_role"] for r in present_rows}):
+        group = [r for r in present_rows if r["asset_role"] == role_key]
+        by_role[role_key] = {
+            "total": len(group),
+            "business_coverage": bool((role_defs.get(role_key) or {}).get("business_coverage", False)),
+            "maturity": dict(sorted(Counter(r["status"] for r in group if isinstance(r.get("status"), str)).items())),
+            "review": dict(sorted(Counter(r["review"]["state"] for r in group if "review" in r).items())),
+            "approved_regression": sum(1 for r in group if _is_approved_regression(r)),
+        }
+    biz_rows = [r for r in present_rows if r.get("business_coverage")]
     summary = {"requested": len(ids), "source": dict(sorted(source.items())), "analysis_errors": errors,
                "inspection_errors": sum(r.get("error", {}).get("kind") == "inspection_error" for r in rows),
                "maturity": dict(sorted(Counter(r["status"] for r in rows if isinstance(r["status"], str)).items())),
                "review": dict(sorted(Counter(r["review"]["state"] for r in rows if "review" in r).items())),
-               "promotion": dict(sorted(Counter(r["promotion"]["status"] for r in rows if "promotion" in r).items()))}
-    return {"schema": 1, "scope": {**SCOPE, "selection": "explicit_ids" if explicit else "directory",
-                                   "source_directory_exists": directory.is_dir()},
+               "promotion": dict(sorted(Counter(r["promotion"]["status"] for r in rows if "promotion" in r).items())),
+               "by_role": by_role,
+               "business_regression": {
+                   "total_business_cases": len(biz_rows),
+                   "approved_regression": sum(1 for r in biz_rows if _is_approved_regression(r)),
+               }}
+    return {"schema": 1, "scope": {**SCOPE,
+                                   "selection": "role_filter" if (role is not None and not explicit)
+                                   else ("explicit_ids" if explicit else "directory"),
+                                   "source_directory_exists": directory.is_dir(),
+                                   **({"role": role} if role is not None else {})},
             "promotion_options": {"to": to, "reviewer_supplied": bool(reviewer),
                                   "allow_offline": allow_offline, "known_issue_supplied": bool(known_issue)},
             "incomplete": bool(errors or source["missing"] or not directory.is_dir()),
