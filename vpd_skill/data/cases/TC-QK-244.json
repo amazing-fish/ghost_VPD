@@ -1,6 +1,6 @@
 {
   "id": "TC-QK-244",
-  "version": 3,
+  "version": 4,
   "status": "draft",
   "app": "qiankun_hm",
   "origin": {
@@ -17,7 +17,7 @@
   ],
   "env_requirements": {},
   "test_data": {
-    "parking_area": "由度金闽园地下停车场",
+    "parking_area": "由度金闽园",
     "other_parking_area": "华为练秋湖研发中心"
   },
   "test_data_none": false,
@@ -115,6 +115,10 @@
         "label": "select:text=支持",
         "strategies": [
           {
+            "kind": "xpath",
+            "value": "//Row[@id=\"support_btn\"]/Column[Text[@text=\"支持\"] and Text[@text=\"区域\"]]"
+          },
+          {
             "kind": "text",
             "value": "支持"
           }
@@ -153,7 +157,7 @@
       "id": "S_READY",
       "action": "wait",
       "duration_s": 0,
-      "expect_text": "^以上为附近的泊车代驾停车场$",
+      "expect_text": "当前位置|以上为附近的泊车代驾停车场",
       "timeout_s": 15,
       "critical": true,
       "retry": 0,
@@ -187,8 +191,8 @@
       "id": "A3",
       "at": "S_READY",
       "type": "text_present",
-      "text": "由度金闽园地下停车场",
-      "exact": true,
+      "text": "由度金闽园",
+      "exact": false,
       "desc": "由度金闽园地下停车场",
       "oracle_refs": [
         "K-QK-IDX-244"
@@ -567,6 +571,12 @@
         "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
         "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
       }
+    },
+    {
+      "ts": "2026-11-27T03:30:00+08:00",
+      "version": 4,
+      "why": "适配乾崑 2.0.4.100：S10 优先定位首页 support_btn 支持区域入口，S_READY 兼容“当前位置”列表终态（取消强依赖旧页脚），A3 改以包含“由度金闽园”兼容精简园区名与全称；保持 K-QK-IDX-244 applies_to.app_version=1.0.26.100 不变，待人工评审签字。",
+      "evidence": "2.0.4.100 实机树 obs-0050（support_btn 支持/区域入口）与 obs-0070（支持区域页含“当前位置”及“由度金闽园”，无旧页脚“以上为附近的泊车代驾停车场”）"
     }
   ],
   "onebox_case_ref": {
