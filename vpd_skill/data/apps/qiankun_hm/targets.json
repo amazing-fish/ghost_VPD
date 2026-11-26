@@ -1303,8 +1303,8 @@
         }
       ]
     },
-    "qk_search_same_park_result_group": {
-      "desc": "单栏搜索页内包含「当前园区」标记且同组含当前查询匹配车位 POI 的园区结果组容器（只读范围）",
+    "qk_search_same_park_result_header": {
+      "desc": "单栏搜索页内含当前查询匹配车位 POI 所属园区结果组的可见园区标题文本（只读）",
       "side_effect": "read_only",
       "forbid_tap": true,
       "status": "unverified",
@@ -1312,11 +1312,11 @@
       "strategies": [
         {
           "kind": "xpath",
-          "value": "//RelativeContainer[@id=\"SearchPoiPage\"][count(//RelativeContainer[@id=\"SearchPoiPage\"])=1]/Column[@id=\"search_list\"]/List/__Common__//Column[Column[.//Text[@text=\"当前园区\"]] and __Common__[starts-with(@id,\"searchPoiSpot_\")][.//Text[@text=ancestor::RelativeContainer[@id=\"SearchPoiPage\"][1]/Search[@id=\"search_input\"]/SearchField[@id=\"__SearchField__search_input\"]/@text]]][not(ancestor-or-self::*[translate(normalize-space(@visible),\"FALSE\",\"false\")=\"false\" or normalize-space(@visible)=\"0\"])]",
+          "value": "//RelativeContainer[@id=\"SearchPoiPage\"][count(//RelativeContainer[@id=\"SearchPoiPage\"])=1]/Column[@id=\"search_list\"]/List/__Common__//Column[Column[Row[1]/Column[1]/__Common__[1]/Text[1]] and __Common__[starts-with(@id,\"searchPoiSpot_\")][.//Text[@text=ancestor::RelativeContainer[@id=\"SearchPoiPage\"][1]/Search[@id=\"search_input\"]/SearchField[@id=\"__SearchField__search_input\"]/@text]]]/Column[1]/Row[1]/Column[1]/__Common__[1]/Text[1][not(ancestor-or-self::*[translate(normalize-space(@visible),\"FALSE\",\"false\")=\"false\" or normalize-space(@visible)=\"0\"])]",
           "when": {
             "panes": 1
           },
-          "source": "skill：2026-11-25 Mate 80 Pro Max (2.0.4.100) run-20261125-022159-5079/obs-0008 实测搜索结果同园区结果组"
+          "source": "skill：2026-11-27 Mate 80 Pro Max (2.0.4.100) run-20261127-032657-6793/obs-0016 实测搜索结果园区标题与匹配 POI 同组结构"
         }
       ]
     }

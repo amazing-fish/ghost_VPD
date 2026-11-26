@@ -124,16 +124,30 @@ def _search_row(name, floor_text, code_text, *, poi_id="searchPoiSpot_1", y0=745
 
 
 def _search_screen(*, park="合成园区A", query_bind="search_q", name="7号车位", floor="B1层", code="B17",
-                   extra_rows=(), include_route=True):
+                   extra_rows=(), include_route=True, include_current_park=True):
     row = _search_row(name, floor, code)
     if not include_route:
         row["children"][0]["children"][1]["children"][0]["children"][0]["children"][0]["children"][0]["children"].pop()
+    header_col_children = [
+        {"t": "__Common__", "b": [165, 520, 1151, 595], "children": [
+            {"t": "Text", "text": park, "b": [165, 530, 500, 590]},
+        ]},
+    ]
+    if include_current_park:
+        header_col_children.append(
+            {"t": "Row", "b": [165, 600, 339, 660], "children": [
+                {"t": "Text", "text": "当前园区", "b": [165, 600, 339, 660]},
+            ]}
+        )
+    group_y2 = max([972] + [r["b"][3] for r in extra_rows])
+    outer_y2 = max(1800, group_y2)
     group = {
-        "t": "Column", "b": [152, 509, 1266, 972 + 230 * len(extra_rows)],
+        "t": "Column", "b": [152, 509, 1266, group_y2],
         "children": [
             {"t": "Column", "b": [152, 509, 1266, 740], "children": [
-                {"t": "Text", "text": park, "b": [165, 530, 500, 590]},
-                {"t": "Text", "text": "当前园区", "b": [800, 530, 950, 590]},
+                {"t": "Row", "b": [165, 520, 1266, 740], "children": [
+                    {"t": "Column", "b": [165, 520, 1151, 740], "children": header_col_children},
+                ]},
             ]},
             row,
             *extra_rows,
@@ -149,9 +163,9 @@ def _search_screen(*, park="合成园区A", query_bind="search_q", name="7号车
                 ]},
                 {"t": "Column", "id": "search_list", "b": [0, 509, 1320, 2000], "children": [{
                     "t": "List", "b": [0, 509, 1320, 2000], "children": [{
-                        "t": "__Common__", "b": [0, 509, 1320, 1800], "children": [{
-                            "t": "Row", "b": [0, 509, 1320, 1800], "children": [{
-                                "t": "Stack", "b": [0, 509, 1320, 1800], "children": [group],
+                        "t": "__Common__", "b": [0, 509, 1320, outer_y2], "children": [{
+                            "t": "Row", "b": [0, 509, 1320, outer_y2], "children": [{
+                                "t": "Stack", "b": [0, 509, 1320, outer_y2], "children": [group],
                             }],
                         }],
                     }],
@@ -163,14 +177,14 @@ def _search_screen(*, park="合成园区A", query_bind="search_q", name="7号车
 
 def _world(tmp_path, *, park_home="合成园区A", park_search="合成园区A", spot="7号车位",
            floor="B1", code_full="B1-B17车位", result_floor="B1层", result_code="B17",
-           extra_rows=(), include_route=True):
+           extra_rows=(), include_route=True, include_current_park=True):
     fixture = load_world(WORLDS / "qiankun_hm_ready.json")
     fixture.pop("_path", None)
     fixture["screens"]["qk_vpd_home"] = _vpd_home_screen(park=park_home, spot=spot)
     fixture["screens"]["qk_fav_panel"] = _fav_panel_screen(spot=spot, floor=floor, code=code_full)
     fixture["screens"]["qk_search"] = _search_screen(
         park=park_search, name=spot, floor=result_floor, code=result_code,
-        extra_rows=extra_rows, include_route=include_route,
+        extra_rows=extra_rows, include_route=include_route, include_current_park=include_current_park,
     )
     path = tmp_path / "spot-name-v2-world.json"
     write_json(path, fixture)
@@ -211,6 +225,30 @@ def test_cross_park_mismatch_fails(ws, tmp_path):
     assert by_id["first-park"]["result"] == "fail"
     assert by_id["second-park"]["result"] == "fail"
     assert run["verdict"]["verdict"] == "failed"
+
+
+@pytest.mark.parametrize("include_current_park", [True, False])
+def test_cross_park_collision_when_spot_equals_home_park_fails(ws, tmp_path, include_current_park):
+    spec = _world(
+        tmp_path, park_home="合成园区A", park_search="合成园区B",
+        spot="合成园区A", include_current_park=include_current_park,
+    )
+    run = run_case(ws, CASE, device_spec=spec, propose=False)
+    by_id = {a["id"]: a for a in run["assertions"]}
+    assert by_id["first-park"]["result"] == "fail"
+    assert by_id["second-park"]["result"] == "fail"
+    assert run["verdict"]["verdict"] == "failed"
+
+
+def test_partially_visible_group_with_visible_header_and_row_passes(ws, tmp_path):
+    overflow = _search_row("另一车位", "B1层", "B17", poi_id="searchPoiSpot_2", y0=2750)
+    spec = _world(tmp_path, extra_rows=(overflow,))
+    run = run_case(ws, CASE, device_spec=spec, propose=False)
+    by_id = {a["id"]: a for a in run["assertions"]}
+    assert by_id["first-park"]["result"] == "pass"
+    assert by_id["second-park"]["result"] == "pass"
+    assert run["verdict"]["verdict"] == "passed"
+    assert run["verdict"]["product_verdict"] == "passed"
 
 
 def test_neighbour_row_borrowing_code_fails(ws, tmp_path):

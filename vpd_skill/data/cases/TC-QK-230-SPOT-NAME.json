@@ -135,11 +135,10 @@
     },
     {
       "id": "first-park",
-      "type": "text_present",
-      "within": "qk_search_same_park_result_group",
-      "text": "${read:R_PARK}",
-      "exact": true,
-      "desc": "核对首次取样中当前园区结果组同时包含本轮园区名称与当前查询车位 POI。",
+      "type": "target_text_equals",
+      "target": "qk_search_same_park_result_header",
+      "expected": "${read:R_PARK}",
+      "desc": "核对首次取样中匹配车位 POI 所属园区结果组的标题精确等于本轮首页读回的园区名称。",
       "at": "S4",
       "advisory": false,
       "oracle_refs": [
@@ -227,11 +226,10 @@
     },
     {
       "id": "second-park",
-      "type": "text_present",
-      "within": "qk_search_same_park_result_group",
-      "text": "${read:R_PARK}",
-      "exact": true,
-      "desc": "核对二次取样中当前园区结果组同时包含本轮园区名称与当前查询车位 POI。",
+      "type": "target_text_equals",
+      "target": "qk_search_same_park_result_header",
+      "expected": "${read:R_PARK}",
+      "desc": "核对二次取样中匹配车位 POI 所属园区结果组的标题精确等于本轮首页读回的园区名称。",
       "at": "S5",
       "advisory": false,
       "oracle_refs": [
