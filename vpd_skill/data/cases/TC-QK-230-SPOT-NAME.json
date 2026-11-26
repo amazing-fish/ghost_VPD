@@ -1,7 +1,7 @@
 {
   "id": "TC-QK-230-SPOT-NAME",
   "version": 1,
-  "status": "draft",
+  "status": "candidate",
   "app": "qiankun_hm",
   "title": "乾崑 VPD 按名称搜索一个已收藏车位",
   "purpose": "OneBox 第 59 行的车位名称子范围。执行一次查询，保存名称结果行的两次观测，并由核验人对照本轮搜索前的独立收藏面板辨认对象。路点、按编号搜索和编号必显规则另行验证。",
@@ -191,6 +191,15 @@
       "ts": "2026-11-18T11:31:06Z",
       "to": "draft",
       "why": "新建独立车位名称子范围，运行数据由现场提供，人工核验单独记录。"
+    },
+    {
+      "ts": "2026-11-24T23:40:05.414+08:00",
+      "from": "draft",
+      "to": "candidate",
+      "by": null,
+      "hash": "e9d4b66214ab",
+      "replays": [],
+      "product_status": null
     }
   ]
 }
