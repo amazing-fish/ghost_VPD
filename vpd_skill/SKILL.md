@@ -26,7 +26,7 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
    找不到独立判据时用 `knowledge add` 记一条 `source.type=test_goal` 的 unconfirmed 条目，结论会是待确认。
 3. **前置**：`doctor --device <spec>` 只读检查。解锁是执行器自动调用的原子能力：`run` 的前置检查与动作下发前
    发现熄屏/锁屏时，先观察状态，再唤醒、上滑，必要时读取该设备映射的 PIN 输入一次；已解锁直接返回。
-   查询失败、缺少 PIN 或 PIN 被拒时，按能力返回的证据与原因阻塞。离线/未安装、车辆未选好仍报告具体条件。**登录是可复用原子能力，永远不要卡在未登录态**：已委派测试任务遇到「登录/注册」「本机号码一键登录」「其他登录方式」等未登录页时，只要 `config.local.json` 的 `secrets` 或环境变量 `VPD_SECRET_*` 已配置外置凭据，必须直接调用既有登录原子能力完成账号密码登录（用例复用 `ensure_state qk_target_account_ready` / `login_password_prod`；单步会话使用 `act tap` + `act input --text '${var:QIANKUN_PHONE}'` / `'${var:QIANKUN_PASSWORD}'` 并带 `--authorize account_state`，遇密码保险箱「手动输入」或 `SelectOverlay` 按既定流程处置），严禁停在未登录页反复等待人工登录。已委派测试任务可经 `vpdtest act launch` / `act resume` 主动拉起被测 APP，无需因前台是其他 APP 再次确认；拉起后重新观察，触摸和输入仍须确认当前前台属于目标 APP。
+   查询失败、缺少 PIN 或 PIN 被拒时，按能力返回的证据与原因阻塞。离线/未安装、车辆未选好仍报告具体条件。**登录是可复用原子能力，永远不要卡在未登录态**：已委派测试任务遇到「登录/注册」「本机号码一键登录」「其他登录方式」等未登录页时，只要 `config.local.json` 的 `secrets` 或环境变量 `VPD_SECRET_*` 已配置外置凭据，必须直接调用既有登录原子能力完成账号密码登录（用例复用 `ensure_state qk_target_account_ready` / `login_password_prod`；单步会话使用 `act tap` + `act input --text '${var:QIANKUN_PHONE}'` / `'${var:QIANKUN_PASSWORD}'` 并带 `--authorize account_state`，遇密码保险箱「手动输入」或 `SelectOverlay` 按既定流程处置），严禁停在未登录页反复等待人工登录（若测试目标明确为验证未登录态或登录页本身，如显式声明 `--env account_state=logged_out`，则保持未登录现场不自动登录）。已委派测试任务可经 `vpdtest act launch` / `act resume` 主动拉起被测 APP，无需因前台是其他 APP 再次确认；拉起后重新观察，触摸和输入仍须确认当前前台属于目标 APP。
 4. **观察与探索**：每次 observe 先看关键 UI：`ui_alerts`（页面内的「加载失败」「解析失败」「请重试」等）非空就是异常，
    **先记录时间（obs 的 ts/obs_id）与截图，点右上角「反馈」填写时间、页面、异常原文、前一步操作、车辆、APP 版本并提交，
    再决定是否重试**；首次异常保留在会话和报告里，作为产品问题候选。
@@ -77,7 +77,7 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
   vehicle_selection、user_data）要 `--authorize <副作用>` 且目标声明同一副作用；
   supervised（vehicle_motion、vehicle_control）另需 `--supervisor`，vehicle_motion 还要用例 `safety`。缺任何一项 → 运行前判阻塞，一步都不执行。
 - 账号、密码只写成 `{"secret": "NAME"}` 或单步外置占位符 `'${var:NAME}'`，值来自环境变量 `VPD_SECRET_NAME` 或本地 `config.local.json` 的 `secrets`。不要把用户在对话或配置文件里的明文/脱敏手机号、账号、密码、锁屏密码写进任何代码、用例、命令行或汇报回执；
-  **登录原子能力交接边界**：仅在缺失外置凭据、命中新设备短信验证码挑战（`qk_sms_verify`）、安全码（`qk_safe_code`）或未知风控拦截时才暂停交接；此时必须原地保留页面（严禁冷启动或 `stop_app` 清除验证码现场）。
+  **登录原子能力交接边界**：仅在缺失外置凭据、命中新设备短信验证码挑战（`qk_sms_verify`）、安全码（`qk_safe_code`）、未知风控拦截或执行器安全停止（如 `state_indeterminate`，返回 `action_required`）时才暂停交接；此时必须原地保留页面（严禁冷启动或 `stop_app` 清除验证码现场）。
   解锁能力自动用于回归和动作恢复，也可通过 `vpdtest unlock` 单独调用。`config.local.json` 的
   `unlock_secrets` 按设备描述映射 secret 名（例如 `"hdc:<serial>": "LOCK_PIN_TEST"`），值从 `secrets` 或
   `VPD_SECRET_<名称>` 读取；不默认选择 LOCK_PIN。CLI 的 `--lock-secret` 仅用于显式指定键名。
