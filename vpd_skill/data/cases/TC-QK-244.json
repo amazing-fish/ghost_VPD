@@ -196,7 +196,7 @@
         "strategies": [
           {
             "kind": "xpath",
-            "value": "//Text[@text=\"由度金闽园\" or @text=\"由度金闽园地下停车场\"][not(ancestor-or-self::*[translate(normalize-space(@visible),\"FALSE\",\"false\")=\"false\" or normalize-space(@visible)=\"0\"])]"
+            "value": "(//Text[@text=\"由度金闽园\" or @text=\"由度金闽园地下停车场\"][not(ancestor-or-self::*[translate(normalize-space(@visible),\"FALSE\",\"false\")=\"false\" or normalize-space(@visible)=\"0\"])])[1]"
           }
         ],
         "side_effect": "read_only"
