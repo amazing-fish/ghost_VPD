@@ -190,10 +190,18 @@
     {
       "id": "A3",
       "at": "S_READY",
-      "type": "text_present",
-      "text": "由度金闽园",
-      "exact": false,
-      "desc": "由度金闽园地下停车场",
+      "type": "target_present",
+      "target": {
+        "label": "support_area:youdu",
+        "strategies": [
+          {
+            "kind": "xpath",
+            "value": "//Text[@text=\"由度金闽园\" or @text=\"由度金闽园地下停车场\"][not(ancestor-or-self::*[translate(normalize-space(@visible),\"FALSE\",\"false\")=\"false\" or normalize-space(@visible)=\"0\"])]"
+          }
+        ],
+        "side_effect": "read_only"
+      },
+      "desc": "支持区域列表精确出现「由度金闽园」或「由度金闽园地下停车场」",
       "oracle_refs": [
         "K-QK-IDX-244"
       ]
@@ -575,7 +583,7 @@
     {
       "ts": "2026-11-27T03:30:00+08:00",
       "version": 4,
-      "why": "适配乾崑 2.0.4.100：S10 优先定位首页 support_btn 支持区域入口，S_READY 兼容“当前位置”列表终态（取消强依赖旧页脚），A3 改以包含“由度金闽园”兼容精简园区名与全称；保持 K-QK-IDX-244 applies_to.app_version=1.0.26.100 不变，待人工评审签字。",
+      "why": "适配乾崑 2.0.4.100：S10 优先定位首页 support_btn 支持区域入口，S_READY 兼容“当前位置”列表终态（取消强依赖旧页脚），A3 改用精确二选一目标（由度金闽园 或 由度金闽园地下停车场）避免子串误判；保持 K-QK-IDX-244 applies_to.app_version=1.0.26.100 不变，待人工评审签字。",
       "evidence": "2.0.4.100 实机树 obs-0050（support_btn 支持/区域入口）与 obs-0070（支持区域页含“当前位置”及“由度金闽园”，无旧页脚“以上为附近的泊车代驾停车场”）"
     }
   ],
