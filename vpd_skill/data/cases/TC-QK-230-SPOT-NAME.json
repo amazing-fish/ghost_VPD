@@ -1,20 +1,16 @@
 {
   "id": "TC-QK-230-SPOT-NAME",
-  "version": 1,
+  "version": 2,
   "status": "candidate",
   "app": "qiankun_hm",
   "title": "乾崑 VPD 按名称搜索一个已收藏车位",
-  "purpose": "OneBox 第 59 行的车位名称子范围。执行一次查询，保存名称结果行的两次观测，并由核验人对照本轮搜索前的独立收藏面板辨认对象。路点、按编号搜索和编号必显规则另行验证。",
+  "purpose": "OneBox 第 59 行的车位名称子范围（Issue #111 数据驱动自动化身份绑定）。在同轮搜索前从 VPD 首页当前园区行与首页首个收藏车位冒号信息面板独立读回园区、名称、楼层及编号，再输入名称搜索并确定性校验结果同园区组、同行标题、楼层、编号与「路线」入口。路点、按编号搜索与跨形态宽屏布局另行验证。",
   "preconditions": [
-    "已登录乾崑，车辆与园区可进入 VPD 首页，无正在执行的 VPD 任务。",
-    "在同轮、同账号、同车和同园区的独立收藏面板先记录卡片归属、车位类型、完整名称、楼层及可区分标识，再回到 VPD 首页。仅有搜索前名称线索时也可采集结果，身份保持待判。"
+    "已登录乾崑，车辆与园区可进入 VPD 首页，无正在执行的 VPD 任务，且当前园区首页收藏区至少存在一条已收藏车位（含楼层与编号字段）。"
   ],
   "env_requirements": {},
-  "test_data": {
-    "fav_spot": {
-      "runtime": true
-    }
-  },
+  "test_data": {},
+  "test_data_none": true,
   "authorizations": [
     "vpd_entry"
   ],
@@ -23,7 +19,61 @@
       "id": "S1",
       "action": "ensure_state",
       "state": "qk_vpd_home",
-      "desc": "使用既有 VPD 首页准备流程；从收藏面板返回首页后可直接接续。"
+      "desc": "进入或确认处于当前园区 VPD 首页。"
+    },
+    {
+      "id": "R_PARK",
+      "action": "read",
+      "target": "qk_home_park_name",
+      "read_scope": "self",
+      "measure": "fav_park",
+      "critical": true,
+      "desc": "从 VPD 首页当前园区信息行独立读回当前园区名称。"
+    },
+    {
+      "id": "S_OPEN_PANEL",
+      "action": "tap",
+      "target": "qk_home_fav_first_spot_panel_btn",
+      "expect_text": "添加标签",
+      "critical": true,
+      "timeout_s": 10,
+      "desc": "打开首页收藏区首个车位卡片同 GridItem 内的冒号信息面板。"
+    },
+    {
+      "id": "R_NAME",
+      "action": "read",
+      "target": "qk_spot_panel_name",
+      "read_scope": "self",
+      "measure": "fav_spot_name",
+      "critical": true,
+      "desc": "从独立信息面板读回完整车位名称。"
+    },
+    {
+      "id": "R_FLOOR",
+      "action": "read",
+      "target": "qk_spot_panel_floor",
+      "read_scope": "self",
+      "measure": "fav_spot_floor",
+      "critical": true,
+      "desc": "从独立信息面板读回所属楼层（如 B1）。"
+    },
+    {
+      "id": "R_CODE",
+      "action": "read",
+      "target": "qk_spot_panel_code",
+      "read_scope": "self",
+      "pattern": "^[A-Za-z0-9]+-([A-Za-z0-9]+)车位$",
+      "measure": "fav_spot_code",
+      "critical": true,
+      "desc": "从独立信息面板读回并提取车位编号后缀（如 B1-B17车位 -> B17）。"
+    },
+    {
+      "id": "S_CLOSE_PANEL",
+      "action": "back",
+      "expect_state": "qk_vpd_home",
+      "critical": true,
+      "timeout_s": 10,
+      "desc": "关闭信息面板返回 VPD 首页。"
     },
     {
       "id": "S2",
@@ -38,13 +88,13 @@
       "id": "S3",
       "action": "input",
       "target": "qk_search_input",
-      "text": "${var:fav_spot}",
+      "text": "${read:R_NAME}",
       "clear": true,
       "require_empty_after_clear": true,
       "critical": true,
       "retry": 0,
       "timeout_s": 10,
-      "desc": "在当前 SearchField 清理并观察到显式空串后，仅输入本轮车位名称。"
+      "desc": "在当前 SearchField 清理并观察到显式空串后，仅输入本轮独立读回的车位名称。"
     },
     {
       "id": "S4",
@@ -56,7 +106,7 @@
       "id": "S5",
       "action": "wait",
       "duration_s": 1,
-      "desc": "保存第二次搜索结果观测。两次取样可核对刷新，经过固定时长本身不能证明结果稳定。"
+      "desc": "保存第二次搜索结果观测。"
     }
   ],
   "assertions": [
@@ -64,9 +114,9 @@
       "id": "first-page",
       "type": "state_is",
       "state": "qk_spot_search",
-      "desc": "核对取样时的搜索页。",
+      "desc": "核对首次取样处于搜索页。",
       "at": "S4",
-      "advisory": true,
+      "advisory": false,
       "oracle_refs": [
         "K-QK-TC-059"
       ]
@@ -75,23 +125,78 @@
       "id": "first-query",
       "type": "target_text_equals",
       "target": "qk_search_input",
-      "expected": "${var:fav_spot}",
-      "desc": "核对实际 SearchField 的 text 与本轮名称。",
+      "expected": "${read:R_NAME}",
+      "desc": "核对首次取样 SearchField 实际输入与本轮读回名称一致。",
       "at": "S4",
-      "advisory": true,
+      "advisory": false,
       "oracle_refs": [
         "K-QK-TC-059"
       ]
     },
     {
-      "id": "first-row",
+      "id": "first-park",
+      "type": "text_present",
+      "within": "qk_search_same_park_result_group",
+      "text": "${read:R_PARK}",
+      "exact": true,
+      "desc": "核对首次取样中当前园区结果组同时包含本轮园区名称与当前查询车位 POI。",
+      "at": "S4",
+      "advisory": false,
+      "oracle_refs": [
+        "K-QK-TC-059"
+      ]
+    },
+    {
+      "id": "first-row-name",
       "type": "text_present",
       "within": "qk_search_name_result_row",
-      "text": "${var:fav_spot}",
+      "text": "${read:R_NAME}",
       "exact": true,
-      "desc": "检查本帧已挂载且符合定位结构的同名行恰有一条，并核对可见标题。裁剪可使这条线索待判；需另核同行身份字段。",
+      "desc": "核对首次取样唯一结果行标题精确等于本轮读回名称。",
       "at": "S4",
-      "advisory": true,
+      "advisory": false,
+      "oracle_refs": [
+        "K-QK-TC-059"
+      ],
+      "strict_visible_text": true
+    },
+    {
+      "id": "first-row-floor",
+      "type": "text_present",
+      "within": "qk_search_name_result_row",
+      "text": "${read:R_FLOOR}层",
+      "exact": true,
+      "desc": "核对首次取样同行楼层精确等于独立面板楼层 + 层。",
+      "at": "S4",
+      "advisory": false,
+      "oracle_refs": [
+        "K-QK-TC-059"
+      ],
+      "strict_visible_text": true
+    },
+    {
+      "id": "first-row-code",
+      "type": "text_present",
+      "within": "qk_search_name_result_row",
+      "text": "${read:R_CODE}",
+      "exact": true,
+      "desc": "核对首次取样同行车位编号精确等于独立面板提取的编号。",
+      "at": "S4",
+      "advisory": false,
+      "oracle_refs": [
+        "K-QK-TC-059"
+      ],
+      "strict_visible_text": true
+    },
+    {
+      "id": "first-row-route",
+      "type": "text_present",
+      "within": "qk_search_name_result_row",
+      "text": "路线",
+      "exact": true,
+      "desc": "核对首次取样同行存在「路线」入口。",
+      "at": "S4",
+      "advisory": false,
       "oracle_refs": [
         "K-QK-TC-059"
       ],
@@ -101,9 +206,9 @@
       "id": "second-page",
       "type": "state_is",
       "state": "qk_spot_search",
-      "desc": "核对取样时的搜索页。",
+      "desc": "核对二次取样处于搜索页。",
       "at": "S5",
-      "advisory": true,
+      "advisory": false,
       "oracle_refs": [
         "K-QK-TC-059"
       ]
@@ -112,38 +217,82 @@
       "id": "second-query",
       "type": "target_text_equals",
       "target": "qk_search_input",
-      "expected": "${var:fav_spot}",
-      "desc": "核对实际 SearchField 的 text 与本轮名称。",
+      "expected": "${read:R_NAME}",
+      "desc": "核对二次取样 SearchField 实际输入与本轮读回名称一致。",
       "at": "S5",
-      "advisory": true,
+      "advisory": false,
       "oracle_refs": [
         "K-QK-TC-059"
       ]
     },
     {
-      "id": "second-row",
+      "id": "second-park",
+      "type": "text_present",
+      "within": "qk_search_same_park_result_group",
+      "text": "${read:R_PARK}",
+      "exact": true,
+      "desc": "核对二次取样中当前园区结果组同时包含本轮园区名称与当前查询车位 POI。",
+      "at": "S5",
+      "advisory": false,
+      "oracle_refs": [
+        "K-QK-TC-059"
+      ]
+    },
+    {
+      "id": "second-row-name",
       "type": "text_present",
       "within": "qk_search_name_result_row",
-      "text": "${var:fav_spot}",
+      "text": "${read:R_NAME}",
       "exact": true,
-      "desc": "检查本帧已挂载且符合定位结构的同名行恰有一条，并核对可见标题。裁剪可使这条线索待判；需另核同行身份字段。",
+      "desc": "核对二次取样唯一结果行标题精确等于本轮读回名称。",
       "at": "S5",
-      "advisory": true,
+      "advisory": false,
       "oracle_refs": [
         "K-QK-TC-059"
       ],
       "strict_visible_text": true
     },
     {
-      "id": "favorite-identity",
+      "id": "second-row-floor",
+      "type": "text_present",
+      "within": "qk_search_name_result_row",
+      "text": "${read:R_FLOOR}层",
+      "exact": true,
+      "desc": "核对二次取样同行楼层精确等于独立面板楼层 + 层。",
       "at": "S5",
-      "type": "visual_review",
       "advisory": false,
       "oracle_refs": [
         "K-QK-TC-059"
       ],
-      "desc": "人工核对本轮独立来源与两份搜索结果的同一收藏车位身份。",
-      "prompt": "请把“指定收藏是否命中”和“检查过的列表范围”分开记录。核对搜索前收藏卡片/面板和 S4、S5 原件：实际查询与完整标题吻合，两帧各自的同行身份字段都能绑定到同一个独立来源吗？每帧各见一条同名行只说明该帧的局部观察。只有名称、楼层或计数，实体标识冲突、同名候选未排除、键盘遮挡候选、邻行存疑、刷新中或上下文变化时，身份待判。文字回执列出源会话/帧、run/两帧、核验人及身份依据；另列键盘状态、可见范围和滚动边界是否已核实。"
+      "strict_visible_text": true
+    },
+    {
+      "id": "second-row-code",
+      "type": "text_present",
+      "within": "qk_search_name_result_row",
+      "text": "${read:R_CODE}",
+      "exact": true,
+      "desc": "核对二次取样同行车位编号精确等于独立面板提取的编号。",
+      "at": "S5",
+      "advisory": false,
+      "oracle_refs": [
+        "K-QK-TC-059"
+      ],
+      "strict_visible_text": true
+    },
+    {
+      "id": "second-row-route",
+      "type": "text_present",
+      "within": "qk_search_name_result_row",
+      "text": "路线",
+      "exact": true,
+      "desc": "核对二次取样同行存在「路线」入口。",
+      "at": "S5",
+      "advisory": false,
+      "oracle_refs": [
+        "K-QK-TC-059"
+      ],
+      "strict_visible_text": true
     }
   ],
   "cleanup": [
@@ -156,10 +305,15 @@
   "knowledge_used": [
     {
       "id": "K-QK-TC-059",
-      "use": "引用原表的搜索结果预期，限已收藏车位的名称侧。",
+      "use": "引用已确认的搜索收藏车位名称结果与路线入口预期，限同轮独立读回的已收藏车位。",
       "applicability": "applies",
-      "rationale": "原表要求搜索成功并显示结果。知识条目尚未确认，其中列举的结果字段来自历史观察。车位号仅在独立源和同行中均可辨认时作为本轮身份对照。",
+      "rationale": "K-QK-TC-059 已由 2026-11-23 Mode A 签字确认（GATE-A05 / C06）；本版通过首页园区行与独立冒号面板读回园区/名称/楼层/编号，在 S4/S5 同园区结果组与唯一结果行上完成确定性同行绑定。",
       "steps": [
+        "R_PARK",
+        "S_OPEN_PANEL",
+        "R_NAME",
+        "R_FLOOR",
+        "R_CODE",
         "S2",
         "S3",
         "S4",
@@ -178,13 +332,13 @@
     },
     {
       "type": "device_observation",
-      "ref": "折叠屏上的收藏面板与结果行取证 https://github.com/amazing-fish/ghost_VPD/issues/118#issuecomment-6976988165 ；作为设计来源，未登记本用例重放。"
+      "ref": "2026-11-25 Mate 80 Pro Max (2.0.4.100) session-session-home-204-20261125 (obs-0050/0054) 与 run-20261125-022159-5079 (obs-0008/0010) 实测同园区面板与搜索行结构。"
     }
   ],
   "origin": {
     "type": "text_case",
     "ref": "OneBox 第 59 行 · 已收藏车位的名称搜索",
-    "review_reason": "本轮独立面板与搜索行的身份比对需要核验人查看两侧原件。 现场记录模板见 references/qk-spot-name-run.md。"
+    "review_reason": "本版已用同轮独立读取与确定性同园区/同行断言替换阻塞式 visual_review；需经新 PR 审查及真机 2 次重放。"
   },
   "history": [
     {
@@ -200,6 +354,11 @@
       "hash": "e9d4b66214ab",
       "replays": [],
       "product_status": null
+    },
+    {
+      "ts": "2026-11-27T03:18:00+08:00",
+      "version": 2,
+      "why": "按 Issue #111 与 DEC-P0-QK230-IDENTITY 升级为全自动数据驱动与同园区同行绑定：新增首页园区与冒号详情面板独立只读步骤（R_PARK/R_NAME/R_FLOOR/R_CODE），并将 S4/S5 断言收敛为确定性同园区组与同行全字段校验（替换阻塞式 visual_review）。"
     }
   ]
 }

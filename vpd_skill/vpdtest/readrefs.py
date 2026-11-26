@@ -31,8 +31,12 @@ def references(text):
 def used_sources(case):
     values = [s.get("text") for s in case.get("steps", []) if s.get("action") == "input"]
     for assertion in case.get("assertions", []):
-        values.extend((assertion.get("any") or []) if assertion.get("type") == "text_present_any"
-                      and isinstance(assertion.get("any"), list) else [assertion.get("text")])
+        if assertion.get("type") == "text_present_any" and isinstance(assertion.get("any"), list):
+            values.extend(assertion.get("any") or [])
+        elif assertion.get("type") == "target_text_equals":
+            values.append(assertion.get("expected"))
+        else:
+            values.append(assertion.get("text"))
     return {ref for value in values if isinstance(value, str) for ref in references(value)[0]}
 
 
@@ -79,7 +83,7 @@ def structure_issues(case, app, *, sources=True):
             for i, child in enumerate(value):
                 scan(child, f"{field}.{i}")
         elif has_read_ref(value) and field not in allowed:
-            issues.append({"field": field, "problem": "read 引用仅支持顶层 input.text 与终态文本断言的 text/any"})
+            issues.append({"field": field, "problem": "read 引用仅支持顶层 input.text、target_text_equals.expected 与终态文本断言的 text/any"})
 
     for i, step in enumerate(main):
         if step.get("action") == "input" and has_read_ref(step.get("text")):
@@ -87,6 +91,8 @@ def structure_issues(case, app, *, sources=True):
     for i, assertion in enumerate(case.get("assertions", [])):
         if assertion.get("type") in ("text_present", "text_absent") and has_read_ref(assertion.get("text")):
             consume(assertion["text"], f"assertions.{i}.text", (positions.get(assertion["at"], -1) if isinstance(assertion.get("at"), str) else -1))
+        elif assertion.get("type") == "target_text_equals" and has_read_ref(assertion.get("expected")):
+            consume(assertion["expected"], f"assertions.{i}.expected", (positions.get(assertion["at"], -1) if isinstance(assertion.get("at"), str) else -1))
         elif assertion.get("type") == "text_present_any" and isinstance(assertion.get("any"), list):
             if has_read_ref(assertion["any"]) and any(not isinstance(v, str) or not v for v in assertion["any"]):
                 issues.append({"field": f"assertions.{i}.any", "problem": "read 引用的 any 须为非空文本列表"})
