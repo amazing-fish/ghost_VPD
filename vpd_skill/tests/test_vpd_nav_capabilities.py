@@ -431,11 +431,13 @@ def test_enter_vpd_chains_auto_login_switch_vehicle_and_shares_budget(ws, tmp_pa
     assert any(s["step"] == "login" and s["status"] == "logged_in" for s in out["steps"])
     assert any(s["step"] == "switch_vehicle" and s["current_vehicle"] == "问界K89" for s in out["steps"])
 
-    # Shared budget check: count real sends across parent + children and assert rejection on exhaustion
+    # Shared budget check: login finishes completely, then switch_vehicle exhausts the shared cap
+    login_step = next(s for s in out["steps"] if s["step"] == "login")
+    budget = 2 + int(login_step["actions"]) + 1  # launch(1) + pre_dismiss(1) + login + 1st switch action
     p_data = ws.root / "policy.json"
     from vpdtest.util import read_json
     pol = read_json(p_data)
-    pol["max_actions_per_run"] = 5
+    pol["max_actions_per_run"] = budget
     write_json(p_data, pol)
 
     orig_send = Dispatcher.send
@@ -450,10 +452,15 @@ def test_enter_vpd_chains_auto_login_switch_vehicle_and_shares_budget(ws, tmp_pa
         return res
 
     monkeypatch.setattr(Dispatcher, "send", spy_send)
-    rc2 = cli.main(["--workspace", str(ws.root), "enter-vpd", "--app", "qiankun_hm", "--device", spec,
-                    "--vin-tail", "000228", "--authorize", "account_state", "vehicle_selection"])
+    cli.main(["--workspace", str(ws.root), "enter-vpd", "--app", "qiankun_hm", "--device", spec,
+              "--vin-tail", "000228", "--authorize", "account_state", "vehicle_selection"])
     out2 = json.loads(capsys.readouterr().out)
-    assert counts["sent"] <= 5
+    assert any(s["step"] == "login" and s["status"] == "logged_in" for s in out2["steps"]), out2
+    sw_step = next(s for s in out2["steps"] if s["step"] == "switch_vehicle")
+    assert sw_step["status"] == "blocked", out2
+    assert any(s.get("status") == "budget_exhausted" for s in out2.get("switch_vehicle", {}).get("steps", [])), out2
+    assert "budget_exhausted" in out2.get("reason", ""), out2
+    assert counts["sent"] <= budget
     assert counts["rejected"] >= 1
     assert out2["actions"] == counts["sent"]
     assert out2["status"] != "ready"
@@ -515,7 +522,7 @@ def test_enter_vpd_terminal_states_pre_and_post_tap(ws, tmp_path, monkeypatch):
     assert res_bud["status"] == "blocked" and res_bud["action_required"] is True
 
 
-def test_switch_vehicle_navigates_to_car_tab_even_when_ads_tab_visible_and_handles_car_tab_timeout(ws, tmp_path):
+def test_switch_vehicle_navigates_to_car_tab_even_when_ads_tab_visible_and_handles_car_tab_timeout(ws, tmp_path, monkeypatch):
     from vpdtest.vpd_nav import switch_vehicle_app
     spec = _nav_world(tmp_path, start="other_tab_with_ads", post_vin_screen="car_tab_k89")
     res = switch_vehicle_app(ws, ws.app("qiankun_hm"), ws.device(spec), vin_tail="000228",
@@ -535,10 +542,20 @@ def test_switch_vehicle_navigates_to_car_tab_even_when_ads_tab_visible_and_handl
     assert res_to["status"] == "timeout" and res_to["action_required"] is True
 
     # If 爱车 tab tap opens sms_verify even as timeout expires -> sms_required (not timeout)
+    import vpdtest.vpd_nav as vpd_nav_mod
     w["screens"]["other_tab_with_ads"]["root"]["children"][1]["children"][1]["go"] = "sms_verify"
     write_json(p, w)
-    res_sms = switch_vehicle_app(ws, ws.app("qiankun_hm"), ws.device(spec), vin_tail="000228",
-                                 authorize=["vehicle_selection"], timeout_s=0.1)
+    now = [0.0]
+    monkeypatch.setattr(vpd_nav_mod.time, "monotonic", lambda: now[0])
+    app = ws.app("qiankun_hm")
+    dev_sms = ws.device(spec)
+    dev_sms.launch(app.bundle, app.ability)
+    res_sms = switch_vehicle_app(
+        ws, app, dev_sms, vin_tail="000228",
+        authorize=["vehicle_selection"], timeout_s=1.0,
+        sleep=lambda _: now.__setitem__(0, now[0] + 10.0),
+    )
+    assert now[0] >= 10.0
     assert res_sms["status"] == "sms_required" and res_sms["action_required"] is True
 
 
@@ -595,7 +612,6 @@ def test_switch_vehicle_bottom_start_normalizes_to_top_and_verifies_rollback_car
             d.state["stack"][-1] = "veh_list_changed"
         return orig_swipe(d, x1, y1, x2, y2, speed=speed)
 
-    spec_rb = _nav_world(tmp_path, start="veh_list", post_vin_screen="car_tab_k89")
     # Reuse edited file path
     monkeypatch.setattr(ReplayDevice, "swipe", swipe_changed_on_back)
     dev2 = ws.device("replay:" + p)
@@ -604,4 +620,36 @@ def test_switch_vehicle_bottom_start_normalizes_to_top_and_verifies_rollback_car
     dev2.state["alive"] = True
     res_rb = switch_vehicle_app(ws, app, dev2, vin_tail="000228", authorize=["vehicle_selection"])
     assert res_rb["status"] == "ambiguous", res_rb
+    assert not any(s.get("step") == "select_vin" for s in res_rb["steps"])
+
+
+def test_switch_vehicle_swipe_revealing_challenge_stops_immediately(ws, tmp_path, monkeypatch):
+    from vpdtest.vpd_nav import switch_vehicle_app
+
+    spec = _nav_world(tmp_path, start="veh_list", post_vin_screen="car_tab_k89")
+    app = ws.app("qiankun_hm")
+    dev = ws.device(spec)
+    dev.launch(app.bundle, app.ability)
+
+    orig_swipe = ReplayDevice.swipe
+    swipe_calls = {"n": 0}
+
+    def swipe_to_sms(d, x1, y1, x2, y2, speed=2000):
+        swipe_calls["n"] += 1
+        d.state["stack"][-1] = "sms_verify"
+        return orig_swipe(d, x1, y1, x2, y2, speed=speed)
+
+    monkeypatch.setattr(ReplayDevice, "swipe", swipe_to_sms)
+    res = switch_vehicle_app(ws, app, dev, vin_tail="000228", authorize=["vehicle_selection"])
+    assert res["status"] == "sms_required" and res["action_required"] is True, res
+    assert swipe_calls["n"] == 1
+
+
+def test_switch_vehicle_empty_selected_names_returns_unconfirmed(ws, tmp_path):
+    from vpdtest.vpd_nav import switch_vehicle_app
+
+    spec = _nav_world(tmp_path, start="car_tab", post_vin_screen="car_tab")
+    res = switch_vehicle_app(ws, ws.app("qiankun_hm"), ws.device(spec), vin_tail="8", authorize=["vehicle_selection"])
+    assert res["status"] == "unconfirmed" and res["action_required"] is True, res
+    assert res.get("current_vehicle") == "问界M9"
 

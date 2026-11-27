@@ -289,6 +289,18 @@ def _vpd_blocker(app, obs, tree, *, allow_charging_only: bool) -> Optional[tuple
     return None
 
 
+def _check_challenge(app, obs, tree, finish, stage: str) -> Optional[dict]:
+    """若滑屏或导航动作后落入安全码/短信验证码拦截页，立即保现场返回对应人工接管状态。"""
+    kind, _ = _classify_screen(app, obs, tree)
+    if kind == "safe_code":
+        return finish("safe_code_required", reason=f"{stage}后命中安全码输入页,已原地保留现场",
+                      action_required=True, final_shot=True)
+    if kind == "sms_verify":
+        return finish("sms_required", reason=f"{stage}后命中短信验证码页,已原地保留现场",
+                      action_required=True, final_shot=True)
+    return None
+
+
 def switch_vehicle_app(ws, app, device, *, vin_tail: str, authorize=None,
                        timeout_s: float = 15.0, store: Optional[RunStore] = None,
                        sleep=None, _ctx: Optional[RunContext] = None) -> dict:
@@ -381,6 +393,9 @@ def switch_vehicle_app(ws, app, device, *, vin_tail: str, authorize=None,
                               action_required=_needs_human(rec_t), final_shot=True)
             sleep(0.35)
             obs, tree = observer.observe(f"sv_scroll_top_{top_i + 1}", screenshot=False)
+            halted = _check_challenge(app, obs, tree, finish, "回滚车辆列表顶部")
+            if halted is not None:
+                return halted
             nxt_sig = _vin_sig(tree)
             if nxt_sig == top_sig:
                 top_unchanged += 1
@@ -463,6 +478,9 @@ def switch_vehicle_app(ws, app, device, *, vin_tail: str, authorize=None,
             swipes_past_match += 1
         sleep(0.35)
         obs, tree = observer.observe(f"sv_after_scroll_{scroll_i + 1}", screenshot=False)
+        halted = _check_challenge(app, obs, tree, finish, "滚动扫描车辆列表")
+        if halted is not None:
+            return halted
         new_sig = _vin_sig(tree)
         if new_sig == seen_sig:
             unchanged_scrolls += 1
@@ -501,6 +519,9 @@ def switch_vehicle_app(ws, app, device, *, vin_tail: str, authorize=None,
                               action_required=_needs_human(rec), final_shot=True)
             sleep(0.35)
             obs, tree = observer.observe(f"sv_scroll_back_{back_i + 1}", screenshot=False)
+            halted = _check_challenge(app, obs, tree, finish, "回滚定位车辆")
+            if halted is not None:
+                return halted
             _, _, loc = _resolve_target(app, vin_target, tree, obs)
             if loc.get("status") == "ambiguous":
                 return finish("ambiguous", reason=f"车架号尾号 {vin} 命中多个候选项",
@@ -544,7 +565,7 @@ def switch_vehicle_app(ws, app, device, *, vin_tail: str, authorize=None,
         elif app.states.is_state(obs.get("page"), "qk_car_tab"):
             cur = _read_target_text(app, "qk_car_select", tree, obs)
             last_cur = cur
-            identity_ok = bool(cur) and (not selected_names or cur.strip() in selected_names)
+            identity_ok = bool(cur) and bool(selected_names) and cur.strip() in selected_names
             if identity_ok:
                 return finish("switched", current_vehicle=cur, final_shot=True)
         if time.monotonic() >= deadline or (device.kind == "replay" and poll_n >= 3):
@@ -707,6 +728,9 @@ def enter_vpd_app(ws, app, device, *, authorize=None, vin_tail: Optional[str] = 
                           action_required=_needs_human(rec), final_shot=True)
         sleep(0.35)
         obs, tree = observer.observe(f"ev_scroll_ads_{scroll_i + 1}", screenshot=False)
+        halted = _check_challenge(app, obs, tree, finish, "上滑查找 ADS 入口")
+        if halted is not None:
+            return halted
 
     if not ads_loc or ads_loc.get("status") != "found":
         return finish("blocked", reason="爱车页未找到 ADS 入口（qk_ads）", action_required=False, final_shot=True)
