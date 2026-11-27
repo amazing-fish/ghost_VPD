@@ -251,6 +251,49 @@ def test_partially_visible_group_with_visible_header_and_row_passes(ws, tmp_path
     assert run["verdict"]["product_verdict"] == "passed"
 
 
+def test_fav_first_spot_panel_btn_resolves_uniquely_across_widescreen_dual_grids(ws):
+    """Issue #316: foldable wide-screen renders two anonymous Grids; target must pick first spot uniquely."""
+    app = ws.app("qiankun_hm")
+    tid, target = app.target("qk_home_fav_first_spot_panel_btn")
+    from vpdtest.devices.replay import expand
+    raw = {
+        "t": "Column", "b": [0, 0, 2584, 1828],
+        "children": [{
+            "t": "Stack", "id": "VPD_HOME_VIEW", "b": [0, 0, 2584, 1828],
+            "children": [
+                {
+                    "t": "Grid", "b": [55, 818, 935, 946],
+                    "children": [{
+                        "t": "GridItem", "b": [55, 818, 495, 916],
+                        "children": [
+                            {"t": "Row", "click": True, "b": [70, 834, 420, 900],
+                             "children": [{"t": "Text", "text": "4号车位", "b": [90, 840, 260, 895]}]},
+                            {"t": "Column", "click": True, "b": [429, 834, 495, 900],
+                             "children": [{"t": "Text", "text": ":", "b": [455, 840, 470, 895]}]},
+                        ],
+                    }],
+                },
+                {
+                    "t": "Grid", "b": [55, 946, 935, 1044],
+                    "children": [{
+                        "t": "GridItem", "b": [55, 946, 495, 1044],
+                        "children": [
+                            {"t": "Row", "click": True, "b": [70, 962, 420, 1028],
+                             "children": [{"t": "Text", "text": "1号停车点", "b": [90, 968, 280, 1023]}]},
+                            {"t": "Column", "click": True, "b": [429, 962, 495, 1028],
+                             "children": [{"t": "Text", "text": ":", "b": [455, 968, 470, 1023]}]},
+                        ],
+                    }],
+                },
+            ],
+        }],
+    }
+    tree = UiTree(expand(raw, app.bundle))
+    loc = resolve(tid, target, tree, None, app.dir, layout={"pane_count": 1})
+    assert loc["status"] == "found", loc
+    assert loc["bounds"] == [429, 834, 495, 900]
+
+
 def test_neighbour_row_borrowing_code_fails(ws, tmp_path):
     other = _search_row("另一车位", "B1层", "B17", poi_id="searchPoiSpot_2", y0=980)
     spec = _world(tmp_path, result_code="B99", extra_rows=(other,))

@@ -1,6 +1,6 @@
 {
   "id": "TC-QK-240",
-  "version": 4,
+  "version": 5,
   "status": "draft",
   "app": "qiankun_hm",
   "origin": {
@@ -12,15 +12,12 @@
   "preconditions": [
     "设备已登录乾崑 APP，保持已有账号（历史取证版本 1.0.26.100，按 #257 裁定不限制后续版本执行）；本例不执行登录、登出、车辆运动或车控",
     "本轮指定问界K89、车架号末六位000228；前置每次重新打开当前车辆列表并唯一选择，不按车型别名猜选",
-    "当前园区测试数据为由度金闽园地下停车场；只核显示子范围，不以首页锚点证明车辆图内、健康或地图完整性",
+    "不同地图分区的车辆园区名可能不同，不写死具体园区名；只核首页园区信息行非空名称显示子范围，不以首页锚点证明车辆图内、健康或地图完整性",
     "以受控stop_app/launch重建起点；只在无进行中VPD任务的本轮只读现场执行，其他场景需重新取证"
   ],
   "env_requirements": {},
-  "test_data": {
-    "parking_area": "由度金闽园",
-    "other_parking_area": "华为练秋湖研发中心"
-  },
-  "test_data_none": false,
+  "test_data": {},
+  "test_data_none": true,
   "authorizations": [
     "vpd_entry",
     "vehicle_selection"
@@ -96,24 +93,13 @@
     {
       "id": "S_NAME",
       "action": "read",
-      "target": {
-        "label": "当前园区首页信息行",
-        "side_effect": "read_only",
-        "forbid_tap": true,
-        "strategies": [
-          {
-            "kind": "xpath",
-            "value": "//Row[Text[@text=\"${var:parking_area}\" or @text=\"${var:parking_area}地下停车场\"]]"
-          }
-        ],
-        "source": "本轮K89实机树的结构性读数；仅读当前唯一可见容器，不读取整页凑字段"
-      },
+      "target": "qk_home_park_name",
       "read_scope": "self",
-      "pattern": "^(由度金闽园(?:地下停车场)?)(?: |$)",
+      "pattern": "^(.+)$",
       "measure": "s_name",
       "critical": true,
       "retry": 0,
-      "desc": "只读取当前园区信息行中的名称"
+      "desc": "通过结构目标 qk_home_park_name 读取当前园区信息行中的名称（跨园区适用）"
     }
   ],
   "assertions": [
@@ -121,8 +107,8 @@
       "id": "A1",
       "at": "S_NAME",
       "type": "value_present",
-      "pattern": "^由度金闽园(?:地下停车场)?$",
-      "desc": "同一园区信息行显示完整名称",
+      "pattern": "^\\S.{1,}$",
+      "desc": "当前园区信息行显示非空完整园区名称（不写死特定园区名）",
       "oracle_refs": [
         "K-QK-IDX-240"
       ]
@@ -281,6 +267,12 @@
       "version": 4,
       "why": "适配乾崑 2.0.4.100 首页园区名称由“由度金闽园地下停车场”精简为“由度金闽园”并兼容 1.0.26.100；保持 K-QK-IDX-240 applies_to.app_version=1.0.26.100 不变，待人工评审签字。",
       "evidence": "2.0.4.100 实机树 obs-0050 / VPD首页显示当前园区文本为“由度金闽园”"
+    },
+    {
+      "ts": "2026-11-27T15:45:00+08:00",
+      "version": 5,
+      "why": "修复 Issue #316（跨园区写死「由度金闽园」导致金桥出口加工区等其他地图分区 0 命中）：S_NAME 改用与园区名无关的结构目标 qk_home_park_name，A1 改为校验非空园区名称（遵循 2026-11-27 维护者跨园区领域规则）。",
+      "evidence": "Issue #316 HOP-AL00 宽屏实测（金桥出口加工区 qk_home_park_name matches=1）与 Mate 80 Pro Max 直板实测（由度金闽园 matches=1）"
     }
   ],
   "onebox_case_ref": {

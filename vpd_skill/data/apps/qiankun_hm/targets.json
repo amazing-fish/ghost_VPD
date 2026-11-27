@@ -1253,14 +1253,14 @@
       ]
     },
     "qk_home_fav_first_spot_panel_btn": {
-      "desc": "VPD 首页收藏区首个车位卡片同 GridItem 内的冒号信息面板入口（排除上车点/下车点）",
+      "desc": "VPD 首页收藏区首个车位卡片同 GridItem 内的冒号信息面板入口（排除上车点/下车点，兼容宽屏双 Grid）",
       "side_effect": "navigation",
       "status": "unverified",
       "strategies": [
         {
           "kind": "xpath",
-          "value": "//Stack[@id=\"VPD_HOME_VIEW\"]//Grid/GridItem[not(.//Text[@text=\"上车点\" or @text=\"下车点\"]) and .//Column[@clickable=\"true\"][Text[@text=\":\"]]][1]//Column[@clickable=\"true\"][Text[@text=\":\"]]",
-          "source": "skill：2026-11-25 Mate 80 Pro Max (2.0.4.100) session-session-home-204-20261125/obs-0050 实测首页收藏 GridItem 冒号详情入口"
+          "value": "(//Stack[@id=\"VPD_HOME_VIEW\"]//GridItem[not(.//Text[@text=\"上车点\" or @text=\"下车点\"]) and .//Column[@clickable=\"true\"][Text[@text=\":\"]]])[1]//Column[@clickable=\"true\"][Text[@text=\":\"]]",
+          "source": "skill：2026-11-25 Mate 80 Pro Max (2.0.4.100) obs-0050 与 2026-11-27 HOP-AL00 折叠展开宽屏双 Grid 实测（Issue #316）"
         }
       ]
     },
