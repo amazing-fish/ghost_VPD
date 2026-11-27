@@ -1238,6 +1238,87 @@
       ],
       "source": "skill：1f70cc5f82af892050ee5c0ba1a2934a1e43363b 的 6HQ/session-s120/obs-0009 原树；SearchPoiPage→my_location_and_filter_view→Scroll→Row→__Common__→Row，电梯口 Row49/Text51，充电桩 Row53/Text55；仅维护侧离线父链核验，非新目标真机执行。",
       "note": "仅已知单栏、唯一搜索页/实际空值SearchField及明确可点击/非可点击的纯双标签结构；重复页/字段/组、显式隐藏、混合/嵌套接收者和部分可见目标不兜底。动作须 revalidate:true；Dispatcher 遮挡刷新会重新定位。XPath 不替代输入框几何、标签选中与结果同组的终态断言，不确认业务结果或列表完整性，不启用 TC-QK-235。"
+    },
+    "qk_home_park_name": {
+      "desc": "VPD 首页当前园区信息行中的停车场名称（只读）",
+      "side_effect": "read_only",
+      "forbid_tap": true,
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//Stack[@id=\"VPD_HOME_VIEW\"]//Row[Text[@text=\"泊车代驾\"]]/Text[1][not(ancestor-or-self::*[@visible=\"false\"])]",
+          "source": "skill：2026-11-25 Mate 80 Pro Max (2.0.4.100) session-session-home-204-20261125/obs-0050 实测首页园区信息行"
+        }
+      ]
+    },
+    "qk_home_fav_first_spot_panel_btn": {
+      "desc": "VPD 首页收藏区首个车位卡片同 GridItem 内的冒号信息面板入口（排除上车点/下车点）",
+      "side_effect": "navigation",
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//Stack[@id=\"VPD_HOME_VIEW\"]//Grid/GridItem[not(.//Text[@text=\"上车点\" or @text=\"下车点\"]) and .//Column[@clickable=\"true\"][Text[@text=\":\"]]][1]//Column[@clickable=\"true\"][Text[@text=\":\"]]",
+          "source": "skill：2026-11-25 Mate 80 Pro Max (2.0.4.100) session-session-home-204-20261125/obs-0050 实测首页收藏 GridItem 冒号详情入口"
+        }
+      ]
+    },
+    "qk_spot_panel_name": {
+      "desc": "收藏车位信息面板中的完整车位名称（只读）",
+      "side_effect": "read_only",
+      "forbid_tap": true,
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//Row[Column[Row[Text[contains(@text,\"车位\") and contains(@text,\"-\")]]] and Column[Text[@text=\"编辑\"]]]/Column[1]/Text[1][not(ancestor-or-self::*[@visible=\"false\"])]",
+          "source": "skill：2026-11-25 Mate 80 Pro Max (2.0.4.100) session-session-home-204-20261125/obs-0054 实测车位信息面板"
+        }
+      ]
+    },
+    "qk_spot_panel_floor": {
+      "desc": "收藏车位信息面板中的所属楼层（只读）",
+      "side_effect": "read_only",
+      "forbid_tap": true,
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//Row[Column[Row[Text[contains(@text,\"车位\") and contains(@text,\"-\")]]] and Column[Text[@text=\"编辑\"]]]/Column[1]/Row[1]/Text[following-sibling::Text[1][contains(@text,\"车位\") and contains(@text,\"-\")]][not(ancestor-or-self::*[@visible=\"false\"])]",
+          "source": "skill：2026-11-25 Mate 80 Pro Max (2.0.4.100) session-session-home-204-20261125/obs-0054 实测车位信息面板"
+        }
+      ]
+    },
+    "qk_spot_panel_code": {
+      "desc": "收藏车位信息面板中的车位编号标识文本（如 B1-B17车位，只读）",
+      "side_effect": "read_only",
+      "forbid_tap": true,
+      "status": "unverified",
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//Row[Column[Row[Text[contains(@text,\"车位\") and contains(@text,\"-\")]]] and Column[Text[@text=\"编辑\"]]]/Column[1]/Row[1]/Text[contains(@text,\"车位\") and contains(@text,\"-\")][not(ancestor-or-self::*[@visible=\"false\"])]",
+          "source": "skill：2026-11-25 Mate 80 Pro Max (2.0.4.100) session-session-home-204-20261125/obs-0054 实测车位信息面板"
+        }
+      ]
+    },
+    "qk_search_same_park_result_header": {
+      "desc": "单栏搜索页内含当前查询匹配车位 POI 所属园区结果组的可见园区标题文本（只读）",
+      "side_effect": "read_only",
+      "forbid_tap": true,
+      "status": "unverified",
+      "min_visible_fraction": 1.0,
+      "strategies": [
+        {
+          "kind": "xpath",
+          "value": "//RelativeContainer[@id=\"SearchPoiPage\"][count(//RelativeContainer[@id=\"SearchPoiPage\"])=1]/Column[@id=\"search_list\"]/List/__Common__//Column[Column[Row[1]/Column[1]/__Common__[1]/Text[1]] and __Common__[starts-with(@id,\"searchPoiSpot_\")][.//Text[@text=ancestor::RelativeContainer[@id=\"SearchPoiPage\"][1]/Search[@id=\"search_input\"]/SearchField[@id=\"__SearchField__search_input\"]/@text]]]/Column[1]/Row[1]/Column[1]/__Common__[1]/Text[1][not(ancestor-or-self::*[translate(normalize-space(@visible),\"FALSE\",\"false\")=\"false\" or normalize-space(@visible)=\"0\"])]",
+          "when": {
+            "panes": 1
+          },
+          "source": "skill：2026-11-27 Mate 80 Pro Max (2.0.4.100) run-20261127-032657-6793/obs-0016 实测搜索结果园区标题与匹配 POI 同组结构"
+        }
+      ]
     }
   }
 }

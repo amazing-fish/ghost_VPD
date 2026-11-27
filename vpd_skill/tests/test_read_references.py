@@ -407,3 +407,38 @@ def test_duplicate_with_missing_bounds_cannot_be_ignored():
     step = {'id': 'R1', 'read_scope': 'self'}
     assert loc['status'] == 'found'
     assert qualify(tree, loc, step, {'obs_id': 'o'}, _measure(tree, loc, step))['status'] == 'unavailable'
+
+
+@pytest.mark.parametrize("actual,expected_result", [("合成收藏42", "pass"), ("错误词", "fail")])
+def test_target_text_equals_consumes_read_reference(condition_rig, actual, expected_result):
+    ws, case, spec = _rig(condition_rig, "合成收藏42", result=actual)
+    case["assertions"] = [{
+        "id": "A_EQ", "at": "I1", "type": "target_text_equals", "target": "query",
+        "expected": "${read:R1}", "oracle_refs": [COMMON_RULE],
+    }]
+    path = Path(spec.split(":", 1)[1])
+    data = read_json(path)
+    # Force query node text after input to verify mismatch case cleanly.
+    if actual != "合成收藏42":
+        for child in data["screens"]["dashboard"]["root"]["children"]:
+            if child.get("id") == "query":
+                child.pop("bind", None)
+                child.pop("text_bound", None)
+                child["text"] = actual
+        case["steps"][2] = {"id": "I1", "action": "wait", "duration_s": 0}
+        write_json(path, data)
+    run = run_case(ws, case=case, device_spec=spec, propose=False)
+    assert run["assertions"][0]["result"] == expected_result, run["assertions"]
+    assert run["assertions"][0]["evidence"]["read_sources"][0]["step"] == "R1"
+
+
+def test_target_text_equals_rejects_forward_read_reference(condition_rig, monkeypatch):
+    ws, case, spec = _rig(condition_rig)
+    case["assertions"] = [{
+        "id": "A_EQ", "at": "R1", "type": "target_text_equals", "target": "query",
+        "expected": "${read:R1}", "oracle_refs": [COMMON_RULE],
+    }]
+    monkeypatch.setattr(ws, "device", lambda *a, **k: (_ for _ in ()).throw(AssertionError("must preflight first")))
+    with pytest.raises(ValueError, match="read"):
+        run_case(ws, case=case, device_spec=spec, propose=False)
+

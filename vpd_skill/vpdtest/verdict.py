@@ -451,7 +451,7 @@ def _evaluate_applicable(a: dict, steps: dict, load: Callable, knowledge, app) -
     from .readrefs import has_read_ref, references, resolve_text
     if not has_read_ref(a):
         return _evaluate_bound(a, steps, load, knowledge, app)
-    fields = {"text_present": "text", "text_absent": "text", "text_present_any": "any"}
+    fields = {"text_present": "text", "text_absent": "text", "text_present_any": "any", "target_text_equals": "expected"}
     field = fields.get(a.get("type"))
     out = {k: a.get(k) for k in ("id", "type", "at", "oracle_refs")}
     if field is None or has_read_ref({k: v for k, v in a.items() if k != field}):
