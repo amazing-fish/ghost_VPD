@@ -1,6 +1,6 @@
 {
   "id": "TC-QK-240",
-  "version": 3,
+  "version": 4,
   "status": "draft",
   "app": "qiankun_hm",
   "origin": {
@@ -17,7 +17,7 @@
   ],
   "env_requirements": {},
   "test_data": {
-    "parking_area": "由度金闽园地下停车场",
+    "parking_area": "由度金闽园",
     "other_parking_area": "华为练秋湖研发中心"
   },
   "test_data_none": false,
@@ -103,13 +103,13 @@
         "strategies": [
           {
             "kind": "xpath",
-            "value": "//Row[Text[@text=\"${var:parking_area}\"]]"
+            "value": "//Row[Text[@text=\"${var:parking_area}\" or @text=\"${var:parking_area}地下停车场\"]]"
           }
         ],
         "source": "本轮K89实机树的结构性读数；仅读当前唯一可见容器，不读取整页凑字段"
       },
       "read_scope": "self",
-      "pattern": "^(由度金闽园地下停车场)(?: |$)",
+      "pattern": "^(由度金闽园(?:地下停车场)?)(?: |$)",
       "measure": "s_name",
       "critical": true,
       "retry": 0,
@@ -121,7 +121,7 @@
       "id": "A1",
       "at": "S_NAME",
       "type": "value_present",
-      "pattern": "由度金闽园地下停车场",
+      "pattern": "^由度金闽园(?:地下停车场)?$",
       "desc": "同一园区信息行显示完整名称",
       "oracle_refs": [
         "K-QK-IDX-240"
@@ -275,6 +275,12 @@
         "engine_hash": "c9f263f2a0cdcc7008e142adfd8d58ff34c70492e58065c63722afa9c1268d74",
         "context_hash": "7f98f76afe7280f1205a4052dd861991010f0de98e1a0b1e1c81e74438558425"
       }
+    },
+    {
+      "ts": "2026-11-27T03:30:00+08:00",
+      "version": 4,
+      "why": "适配乾崑 2.0.4.100 首页园区名称由“由度金闽园地下停车场”精简为“由度金闽园”并兼容 1.0.26.100；保持 K-QK-IDX-240 applies_to.app_version=1.0.26.100 不变，待人工评审签字。",
+      "evidence": "2.0.4.100 实机树 obs-0050 / VPD首页显示当前园区文本为“由度金闽园”"
     }
   ],
   "onebox_case_ref": {
