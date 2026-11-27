@@ -85,3 +85,24 @@ def test_shared_picker_does_not_use_unrelated_or_inactive_text(ws, variant):
         nodes = nodes[1:]
     tree = UiTree(_node("Stack", nodes))
     assert resolve("qk_car_select", app.targets["qk_car_select"], tree, None, app.dir)["status"] == "not_found"
+
+
+def test_picker_matches_204_stack_column_row_row_layout_without_bg_img(ws):
+    app = ws.app("qiankun_hm")
+    tree_root = _node("Stack", [
+        _node("Column", [
+            _node("Row", [
+                _node("Row", [
+                    _node("Text", text="问界M9EV F2A", clickable="true", bounds="[54,186][508,265]"),
+                    _node("Image", clickable="true"),
+                ]),
+            ]),
+        ]),
+    ])
+    for kind in reversed(["root", "Navigation", "NavigationContent", "NavDestination",
+                          "NavDestinationContent", "Navigation", "NavBar", "NavBarContent",
+                          "Tabs", "Swiper", "TabContent"]):
+        tree_root = _node(kind, [tree_root])
+    found = resolve("qk_car_select", app.targets["qk_car_select"], UiTree(tree_root), None, app.dir)
+    assert found["status"] == "found"
+    assert found["bounds"] == [54, 186, 508, 265]

@@ -437,3 +437,20 @@ def test_login_post_submit_benign_dialog_stops_on_budget_exhausted(ws, tmp_path,
     assert res["action_required"] is True
     assert "budget_exhausted" in res["reason"]
 
+
+def test_login_handles_real_dict_interrupts_without_type_error(ws, tmp_path, monkeypatch):
+    monkeypatch.setenv("VPD_SECRET_QIANKUN_PHONE", "13900007778")
+    monkeypatch.setenv("VPD_SECRET_QIANKUN_PASSWORD", "SyntheticPwd778")
+    spec = _build_login_world(tmp_path, start="logged_out", post_login="car", unchecked_protocol=False)
+    app = ws.app("qiankun_hm")
+    from vpdtest import login as login_mod
+    from vpdtest.util import read_json
+    p = Path(spec.split("replay:", 1)[1])
+    w = read_json(p)
+    w["screens"]["dlg"] = _screen([_node("请下载车辆资源包", 100), _node("下次再说", 200, go="car")])
+    w["launch_screen"] = "dlg"
+    write_json(p, w)
+    res = login_app(ws, app, ws.device(spec), authorize=["account_state"])
+    assert res["status"] == "logged_in", res
+    assert any(s["step"] == "dismiss_qk_vehicle_resource_dialog" for s in res["steps"])
+

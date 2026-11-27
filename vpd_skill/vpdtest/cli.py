@@ -59,6 +59,24 @@ def build_parser() -> argparse.ArgumentParser:
                     help="密码对应的 secrets 键名（默认 QIANKUN_PASSWORD；不接受明文）")
     lg.add_argument("--timeout", type=float, default=15.0, help="提交登录后的轮询上限秒数（默认 15s）")
 
+    sv = sub.add_parser("switch-vehicle", help="单命令原子按 VIN 尾号切车（需 --authorize vehicle_selection）")
+    sv.add_argument("--app", default="qiankun_hm")
+    sv.add_argument("--device")
+    sv.add_argument("--vin-tail", required=True, help="车架号尾号（1-17 位字母数字，如 000228）")
+    sv.add_argument("--authorize", nargs="*", default=[], help="须包含 vehicle_selection 才会下发切车动作")
+    sv.add_argument("--timeout", type=float, default=15.0, help="切车轮询上限秒数（默认 15s）")
+
+    ev = sub.add_parser("enter-vpd", help="单命令原子进入 VPD 首页（可选 --vin-tail 顺带切车；未登录且带 account_state 时自动登录）")
+    ev.add_argument("--app", default="qiankun_hm")
+    ev.add_argument("--device")
+    ev.add_argument("--vin-tail", help="可选：先切换至该车架号尾号车辆（需同时 --authorize vehicle_selection）")
+    ev.add_argument("--authorize", nargs="*", default=[], help="可选副作用授权（传 --vin-tail 时须包含 vehicle_selection；需要自动登录时包含 account_state）")
+    ev.add_argument("--account-secret", default="QIANKUN_PHONE",
+                    help="自动登录时使用的账号 secrets 键名（默认 QIANKUN_PHONE）")
+    ev.add_argument("--password-secret", default="QIANKUN_PASSWORD",
+                    help="自动登录时使用的密码 secrets 键名（默认 QIANKUN_PASSWORD）")
+    ev.add_argument("--timeout", type=float, default=25.0, help="进 VPD 等待上限秒数（默认 25s）")
+
     g = sub.add_parser("sysdiag", help="只读整屏诊断：窗口表 + 整屏树 + APP 白名单截图 + 系统弹窗登记比对")
     g.add_argument("--app", default="motor_hm")
     g.add_argument("--device")
@@ -268,7 +286,8 @@ def build_parser() -> argparse.ArgumentParser:
 HANDLERS = {"handoff": cmd_handoff, "doctor": c.cmd_doctor, "observe": c.cmd_observe, "act": c.cmd_act, "run": c.cmd_run,
             "suite": c.cmd_suite, "explore": c.cmd_explore, "case": c.cmd_case, "knowledge": c.cmd_knowledge,
             "experience": c.cmd_experience, "template-crop": c.cmd_template_crop, "session": c.cmd_session,
-            "unlock": c.cmd_unlock, "login": c.cmd_login, "sysdiag": c.cmd_sysdiag, "console": c.cmd_console}
+            "unlock": c.cmd_unlock, "login": c.cmd_login, "switch-vehicle": c.cmd_switch_vehicle,
+            "enter-vpd": c.cmd_enter_vpd, "sysdiag": c.cmd_sysdiag, "console": c.cmd_console}
 
 
 def main(argv=None) -> int:
@@ -300,7 +319,8 @@ def main(argv=None) -> int:
     res = out.get("results")
     rows = [out] + ([r for r in res if isinstance(r, dict)] if isinstance(res, list) else [])
     # Other commands can echo arbitrary user-authored data (e.g. knowledge show).
-    if args.cmd in ("run", "suite", "explore", "act", "observe", "unlock", "login", "sysdiag") or (
+    if args.cmd in ("run", "suite", "explore", "act", "observe", "unlock", "login",
+                    "switch-vehicle", "enter-vpd", "sysdiag") or (
             args.cmd == "experience" and args.x_cmd == "validate"):
         handoffs = register_handoffs(ws.runs_dir, args.cmd, out, rows)
         if handoffs:
