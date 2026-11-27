@@ -15,7 +15,12 @@ from pathlib import Path
 from typing import Optional
 
 from . import review_snapshot
-from .capability_runtime import capability_required_authorizations, normalize_capability_spec, validate_capability_spec
+from .capability_runtime import (
+    capability_required_authorizations,
+    capability_target_refs,
+    normalize_capability_spec,
+    validate_capability_spec,
+)
 from .knowledge import ACTIVE, item_status
 from .safety import TREE_KINDS, untreed_strategies
 from .session import relative_scope_target, session_lock, swipe_options_error, swipe_scope_definition_error
@@ -177,12 +182,25 @@ def dependency_hash(case: dict, app, knowledge) -> str:
                     path = (app.dir / file).resolve()
                     templates[file] = sha256_file(path) if path.is_file() else None
 
+    has_cap = False
+    for entry in case.get("requires_capabilities") or []:
+        has_cap = True
+        spec = normalize_capability_spec(entry)
+        if spec:
+            for tid in capability_target_refs(spec):
+                want(tid)
     for s, parent, where in iter_case_steps(case, app):
         steps.append([where, {k: v for k, v in s.items() if k != "_lint_cycle"}])
         local = (params.subst(parent.get("params", {})) if parent and parent.get("action") == "flow"
                  else s.get("_flow_params"))
         want(s.get("target"), local, substitute=True)
         want(relative_scope_target(s), local, substitute=True)
+        if s.get("action") == "capability":
+            has_cap = True
+            spec = normalize_capability_spec(s)
+            if spec:
+                for tid in capability_target_refs(spec):
+                    want(tid)
     for a in case.get("assertions", []):
         want(a.get("target"))
         want(a.get("within"))
@@ -203,8 +221,6 @@ def dependency_hash(case: dict, app, knowledge) -> str:
     for interrupt in app.states.interrupts.values():
         want(interrupt.get("dismiss_target"))
         want(interrupt.get("dismiss_target"), substitute=True)  # recovery uses _attempt → _target
-    has_cap = bool(case.get("requires_capabilities")) or any(
-        s.get("action") == "capability" for s, _, _ in iter_case_steps(case, app))
     return sha256_obj({**runtime_contract, "steps": steps, "targets": targets, "states": app.states.states,
                        "interrupts": app.states.interrupts, "oracles": facts, "conditions": conditions,
                        **({"templates": templates} if templates else {}), "result_contract": RESULT_CONTRACT,

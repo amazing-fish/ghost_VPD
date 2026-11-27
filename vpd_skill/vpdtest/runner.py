@@ -18,7 +18,7 @@ from .cases import (
     review_status,
 )
 from .conditions import definitions
-from .execute import Executor, halts_sequence, unresolved_takeover
+from .execute import Executor, capability_handoff, halts_sequence, unresolved_takeover
 from .experience import ExperienceStore
 from .knowledge import KnowledgeStore
 from .observe import RunStore
@@ -210,6 +210,17 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                     break
 
             if cap_halted is not None:
+                if ctx.motion.armed or ctx.motion.locked():
+                    diagnostic.phase, diagnostic.step = "safety_stop", cap_halted["step_id"]
+                    safety_stops.append(safety_mod.safe_stop(
+                        ex,
+                        "motion_timeout" if ctx.motion.locked() else "capability_precondition_failed",
+                        {
+                            "step": cap_halted["step_id"],
+                            "capability": cap_halted.get("capability"),
+                            "status": cap_halted.get("final_status"),
+                        },
+                    ))
                 steps = [{
                     "step_id": s["id"], "action": s["action"], "outcome": "not_run",
                     "critical": s.get("critical", True), "attempts": [], "recoveries": [], "adapted": False,
@@ -248,7 +259,7 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                         if unresolved_takeover(halted):
                             blocked.update(blocked_by=halted["step_id"],
                                            reason="前置动作效果未知且需要人工接管，后继业务步骤停止")
-                        elif halted.get("action") == "capability" and halted.get("action_required"):
+                        elif capability_handoff(halted):
                             blocked.update(blocked_by=halted["step_id"],
                                            reason=f"前置原子能力 {halted.get('capability')} 需要人工接管（{halted.get('capability_status')}），后继业务步骤停止")
                         steps.append(blocked)
@@ -260,21 +271,27 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                     steps.append(res)
                     diagnostic.phase = "step_done"
                     store.event("step_done", step=st["id"], outcome=res["outcome"])
-                    cap_handoff = res.get("action") == "capability" and bool(res.get("action_required"))
-                    if halts_sequence(res) or cap_handoff:
+                    if halts_sequence(res):
                         halted = res
                         diagnostic.phase = "safety_stop"
                         if ctx.motion.armed or ctx.motion.locked():
-                            # 运动中出现关键失败或未知效果接管：先安全停止，再清理，保留首次失败。
-                            safety_stops.append(safety_mod.safe_stop(ex, "critical_step_failed" if res["critical"] else "action_effect_unknown",
-                                                                     {"step": st["id"], "status": res.get("final_status")}))
+                            # 运动中出现关键失败或未知效果/能力接管：先安全停止，再清理，保留首次失败。
+                            safety_stops.append(safety_mod.safe_stop(
+                                ex,
+                                "critical_step_failed" if res["critical"] else (
+                                    "capability_handoff" if capability_handoff(res) else "action_effect_unknown"
+                                ),
+                                {"step": st["id"], "status": res.get("final_status")},
+                            ))
                 diagnostic.phase, diagnostic.step = "safety_stop", None
                 # 超时锁住后不管 stop_at_end 都要走安全停止：它确认已停、解锁之后，清理才能继续下发
                 if ctx.motion.locked() or (ctx.motion.armed and (case.get("safety") or {}).get("stop_at_end", True)):
                     safety_stops.append(safety_mod.safe_stop(ex, "motion_timeout" if ctx.motion.locked()
                                                              else "case_end_still_moving"))
-                cap_challenge_halt = (halted is not None and halted.get("action") == "capability"
-                                      and halted.get("capability_status") in ("sms_required", "safe_code_required"))
+                cap_challenge_halt = (
+                    halted is not None
+                    and halted.get("capability_status") in ("sms_required", "safe_code_required")
+                )
                 if not cap_challenge_halt:
                     for i, c in enumerate(case.get("cleanup", [])):
                         owner = c.get("after_dispatch")

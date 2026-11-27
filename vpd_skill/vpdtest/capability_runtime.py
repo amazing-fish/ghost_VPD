@@ -39,6 +39,17 @@ CAPABILITY_SPECS: dict[str, dict] = {
         "allowed_params": ("account_secret", "password_secret", "timeout_s"),
         "max_timeout_s": 60.0,
         "success_statuses": frozenset({"logged_in"}),
+        "targets": (
+            "qk_pwd_input",
+            "qk_login_system_selection_here",
+            "qk_login_register",
+            "qk_login_other_method",
+            "qk_pwd_login",
+            "qk_number_input",
+            "qk_manual_btn",
+            "qk_protocol_unchecked",
+            "qk_login_btn",
+        ),
     },
     "vehicle_vin": {
         "apps": ("qiankun_hm",),
@@ -46,6 +57,7 @@ CAPABILITY_SPECS: dict[str, dict] = {
         "allowed_params": ("vin_tail", "timeout_s"),
         "max_timeout_s": 60.0,
         "success_statuses": frozenset({"switched"}),
+        "targets": ("qk_pwd_input", "qk_car_select", "qk_tab_car", "qk_car_by_vin"),
     },
     "vpd_ready": {
         "apps": ("qiankun_hm",),
@@ -53,6 +65,7 @@ CAPABILITY_SPECS: dict[str, dict] = {
         "allowed_params": ("vin_tail", "auto_login", "account_secret", "password_secret", "timeout_s"),
         "max_timeout_s": 120.0,
         "success_statuses": frozenset({"ready"}),
+        "targets": ("qk_pwd_input", "qk_car_select", "qk_tab_car", "qk_ads", "qk_home_park_name"),
     },
 }
 
@@ -271,6 +284,21 @@ def capability_required_authorizations(spec: dict) -> tuple[str, ...]:
             effects.append("account_state")
         return tuple(effects)
     return ()
+
+
+def capability_target_refs(spec: dict) -> tuple[str, ...]:
+    """Return all app.targets IDs resolved by a normalized capability spec."""
+    cap = spec.get("capability")
+    meta = CAPABILITY_SPECS.get(cap)
+    if not meta:
+        return ()
+    refs: list[str] = list(meta.get("targets", ()))
+    if cap == "vpd_ready":
+        if spec.get("vin_tail") not in (None, ""):
+            refs.extend(CAPABILITY_SPECS["vehicle_vin"].get("targets", ()))
+        if spec.get("auto_login") is True:
+            refs.extend(CAPABILITY_SPECS["logged_in"].get("targets", ()))
+    return tuple(dict.fromkeys(refs))
 
 
 class CapabilityRuntime:

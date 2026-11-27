@@ -99,6 +99,13 @@ def unresolved_takeover(result):
     return bool(result.get("effect_unknown") and result.get("action_required"))
 
 
+def capability_handoff(result) -> bool:
+    """Whether a step or enclosing composite flow/recipe returned a capability handoff."""
+    return bool(result.get("action_required") and (
+        result.get("action") == "capability" or result.get("capability_handoff")
+    ))
+
+
 def halts_sequence(result, *, safety=False):
     """顶层步骤与 flow/recipe 子步骤共用的停止规则：未通过且为关键步骤，或效果未知待接管。
 
@@ -106,7 +113,10 @@ def halts_sequence(result, *, safety=False):
     """
     if result["outcome"] in PASSED:
         return False
-    return bool(result.get("critical", True) or (unresolved_takeover(result) and not safety))
+    return bool(
+        result.get("critical", True)
+        or ((unresolved_takeover(result) or capability_handoff(result)) and not safety)
+    )
 
 
 class Executor:
@@ -1290,7 +1300,7 @@ class Executor:
             # handoff (or capability challenge handoff) must stop before the next child
             # even when no effect is unknown.
             explore_handoff = self.ctx.mode == "explore" and not step.get("_safety") and s.get("action_required")
-            cap_handoff = s.get("action") == "capability" and bool(s.get("action_required")) and not step.get("_safety")
+            cap_handoff = capability_handoff(s) and not step.get("_safety")
             if s["outcome"] == "skipped" and s.get("critical", True) and not explore_handoff:
                 return self._required_skip(base, s, subs)
             takeover = unresolved_takeover(s) and not step.get("_safety")
@@ -1305,6 +1315,10 @@ class Executor:
                         "final_status": s.get("final_status"),
                         **({k: s[k] for k in ("action_required", "effect_unknown") if k in s}
                            if explore_handoff or takeover or cap_handoff else {}),
+                        **({
+                            "capability_handoff": True,
+                            **{k: s[k] for k in ("capability", "capability_status") if k in s},
+                        } if cap_handoff else {}),
                         **({"measurement": s.get("measurement")} if flow else {})}
         order = ["passed", "passed_after_adaptation", "passed_after_recovery"]
         outcome = ("skipped" if subs and all(s["outcome"] == "skipped" for s in subs) else
@@ -1916,6 +1930,7 @@ class Executor:
                 "outcome": "blocked",
                 "attribution": "environment",
                 "final_status": "safety_hold",
+                "capability_handoff": True,
                 "action_required": "安全停止未确认，执行暂停，需人工接管",
                 "reason": "安全停止未确认，执行暂停，需人工接管",
             }
@@ -1925,6 +1940,7 @@ class Executor:
                 "outcome": "blocked",
                 "attribution": "environment",
                 "final_status": "motion_timeout",
+                "capability_handoff": True,
                 "action_required": "车辆运动超时已锁定，需人工接管",
                 "reason": "车辆运动超时已锁定，未执行原子能力",
             }
@@ -2051,6 +2067,7 @@ class Executor:
             return {**record, "outcome": "passed", "final_status": cap_status}
 
         if cap_res.get("action_required"):
+            record["capability_handoff"] = True
             record["action_required"] = (
                 f"原子能力 {cap_name} 需要人工接管（{cap_status}）："
                 f"{cap_res.get('reason') or '请核对设备现场后重跑'}"

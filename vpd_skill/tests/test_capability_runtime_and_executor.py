@@ -444,3 +444,124 @@ def test_coderabbit_p0_security_and_edge_fixes(ws, tmp_path, monkeypatch):
     run_comp = run_case(ws, case=case_comp, device_spec=spec_sms, propose=False)
     assert len(run_comp["steps"][0]["sub_steps"]) == 1
     assert run_comp["steps"][0]["action_required"]
+
+
+def test_round2_nested_flow_handoff_cap_motion_stop_and_dep_hash(ws, tmp_path, monkeypatch):
+    app_qk = ws.app("qiankun_hm")
+    kn = KnowledgeStore(ws.root)
+    sms_dir = tmp_path / "sms"
+    ord_dir = tmp_path / "ord"
+    sms_dir.mkdir()
+    ord_dir.mkdir()
+    spec_sms = _nav_world(sms_dir, start="car_tab", ads_target="sms_verify")
+    spec_ord = _nav_world(ord_dir, start="car_tab")
+
+    # 1. Nested optional flows containing optional capability sms_required halt outer flow,
+    #    halt remaining top-level business steps, and defer ordinary cleanup.
+    app_qk.flows["inner_opt_cap"] = {
+        "params": {},
+        "steps": [
+            {"action": "capability", "capability": "vpd_ready", "critical": False},
+            {"action": "wait", "duration_s": 0, "desc": "inner must not run"},
+        ],
+    }
+    app_qk.flows["outer_opt_flow"] = {
+        "params": {},
+        "steps": [
+            {"action": "flow", "flow": "inner_opt_cap", "params": {}, "critical": False},
+            {"action": "wait", "duration_s": 0, "desc": "outer must not run"},
+        ],
+    }
+    app_qk.flows["ordinary_opt_block"] = {
+        "params": {},
+        "steps": [
+            {"action": "flow", "flow": "missing_flow_xyz", "params": {}, "critical": False},
+        ],
+    }
+    orig_app = ws.app
+    monkeypatch.setattr(ws, "app", lambda name: app_qk if name == "qiankun_hm" else orig_app(name))
+
+    case_nested = _base_case(
+        case_id="TC-NESTED-CAP-HANDOFF",
+        authorizations=["vpd_entry"],
+        steps=[
+            {"id": "F_OUTER", "action": "flow", "flow": "outer_opt_flow", "params": {}, "critical": False},
+            {"id": "S_AFTER", "action": "wait", "duration_s": 0, "desc": "top-level must not run"},
+        ],
+        cleanup=[{"id": "C1", "action": "stop_app", "desc": "must be deferred on sms_required"}],
+    )
+    case_nested["assertions"] = []
+    run_nested = run_case(ws, case=case_nested, device_spec=spec_sms, propose=False)
+    f_outer = run_nested["steps"][0]
+    assert f_outer["capability_handoff"] is True
+    assert f_outer["capability_status"] == "sms_required"
+    assert f_outer["action_required"]
+    assert len(f_outer["sub_steps"]) == 1
+    assert len(f_outer["sub_steps"][0]["sub_steps"]) == 1
+    assert run_nested["steps"][1]["outcome"] == "not_run"
+    assert run_nested["cleanup"] == []
+    assert run_nested["verdict"]["action_required"]
+
+    # Ordinary noncritical blocked flow still allows later business steps to continue
+    case_ord = _base_case(
+        case_id="TC-ORDINARY-OPT-FLOW",
+        authorizations=[],
+        steps=[
+            {"id": "F_ORD", "action": "flow", "flow": "ordinary_opt_block", "params": {}, "critical": False},
+            {"id": "S_CONT", "action": "wait", "duration_s": 0, "desc": "should continue"},
+        ],
+        cleanup=[],
+    )
+    case_ord["assertions"] = []
+    run_ord = run_case(ws, case=case_ord, device_spec=spec_ord, propose=False)
+    assert run_ord["steps"][1]["outcome"] == "passed"
+
+    # 2. Root cap_halted with armed ctx.motion triggers safety_mod.safe_stop and records safety_stops
+    case_motion = _base_case(
+        case_id="TC-CAP-MOTION-STOP",
+        requires_capabilities=[{"capability": "vpd_ready"}],
+        authorizations=["vpd_entry", "vehicle_motion"],
+        steps=[{"id": "S1", "action": "wait", "duration_s": 0, "desc": "must stay not_run"}],
+        cleanup=[{"id": "C1", "action": "stop_app"}],
+    )
+    case_motion["assertions"] = []
+    case_motion["safety"] = {
+        "max_motion_s": 60,
+        "safe_stop": [{"action": "back", "desc": "安全停止回退"}],
+        "stopped_states": ["qk_vpd_home"],
+        "moving_states": ["qk_car_tab"],
+    }
+    run_motion = run_case(
+        ws, case=case_motion, device_spec=spec_sms,
+        authorize=["vpd_entry", "vehicle_motion"], supervisor="现场安全员", propose=False,
+    )
+    assert run_motion["steps"][0]["outcome"] == "not_run"
+    assert run_motion["cleanup"] == []
+    assert run_motion["safety_stops"], "armed motion during halted capability precondition must trigger safe_stop"
+    assert run_motion["safety_stops"][0]["trigger"] == "capability_precondition_failed"
+
+    # 3. dependency_hash changes when capability-resolved targets change in app.targets
+    import copy
+    case_vin_pre = _base_case(
+        case_id="TC-DEP-HASH-VIN",
+        requires_capabilities=[{"capability": "vehicle_vin", "vin_tail": "000228"}],
+        authorizations=["vehicle_selection"],
+    )
+    h_vin_before = cases_mod.dependency_hash(case_vin_pre, app_qk, kn)
+    app_vin_mod = copy.deepcopy(app_qk)
+    app_vin_mod.targets["qk_car_by_vin"]["strategies"].append({"kind": "text", "value": "extra_marker"})
+    h_vin_after = cases_mod.dependency_hash(case_vin_pre, app_vin_mod, kn)
+    assert h_vin_after != h_vin_before
+
+    case_vpd_step = _base_case(
+        case_id="TC-DEP-HASH-VPD",
+        authorizations=["vpd_entry", "account_state"],
+        steps=[{"id": "S1", "action": "capability", "capability": "vpd_ready", "auto_login": True}],
+    )
+    h_vpd_before = cases_mod.dependency_hash(case_vpd_step, app_qk, kn)
+    app_ads_mod = copy.deepcopy(app_qk)
+    app_ads_mod.targets["qk_ads"]["strategies"].append({"kind": "text", "value": "ads_changed"})
+    assert cases_mod.dependency_hash(case_vpd_step, app_ads_mod, kn) != h_vpd_before
+    app_login_mod = copy.deepcopy(app_qk)
+    app_login_mod.targets["qk_login_btn"]["strategies"].append({"kind": "text", "value": "login_changed"})
+    assert cases_mod.dependency_hash(case_vpd_step, app_login_mod, kn) != h_vpd_before
