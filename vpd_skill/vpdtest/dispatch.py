@@ -43,12 +43,18 @@ class Dispatcher:
 
     def _state(self, conditions, att):
         dev, checks = self.device, {}
+        use_batch = ("screen_locked" in conditions and "foreground" in conditions
+                     and hasattr(dev, "screen_and_foreground"))
+        locked_init, batched_fg = dev.screen_and_foreground() if use_batch else (None, None)
+        fg_from_batch = use_batch
         if "screen_locked" in conditions:
-            expected, locked = conditions["screen_locked"], dev.screen_locked()
+            expected = conditions["screen_locked"]
+            locked = locked_init if use_batch else dev.screen_locked()
             if locked is True and expected is False and conditions.get("recover_unlock"):
                 from .unlock import unlock_device
                 result = unlock_device(self.ctx.ws, dev, self.store, dispatcher=self, att=att)
                 att["unlock"] = checks["unlock"] = result
+                fg_from_batch = False
                 if result["status"] != "unlocked":
                     if result.get("execution_error"):
                         att["execution_error"] = result["execution_error"]
@@ -70,7 +76,7 @@ class Dispatcher:
                            state_check={"query": "screen_locked", "result": locked, "expected": expected})
                 return False, checks
         if "foreground" in conditions:
-            fg = dev.foreground()
+            fg = batched_fg if fg_from_batch else dev.foreground()
             error = getattr(dev, "last_query_error", None)
             expected = conditions["foreground"]
             allowed = expected if isinstance(expected, list) else [expected]

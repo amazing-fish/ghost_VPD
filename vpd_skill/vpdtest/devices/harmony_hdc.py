@@ -799,6 +799,73 @@ class HdcDevice:
         self.screen_query_error = None if lock.ok else {"error_class": lock.error_class, "error": lock.error, "raw": lock.raw}
         return {"true": True, "false": False}.get(parse_kv(lock.raw, "screenLocked") if lock.ok else None)
 
+    def screen_and_foreground(self) -> tuple[Optional[bool], Optional[str]]:
+        """合并锁屏状态与前台应用查询为单次 shell 调用；被测试桩替换时回退原双调路径。"""
+        if not (_uses_native_shell(self)
+                and type(self).screen_locked is HdcDevice.screen_locked and "screen_locked" not in self.__dict__
+                and type(self).foreground is HdcDevice.foreground and "foreground" not in self.__dict__):
+            return self.screen_locked(), self.foreground()
+        sep = f"__VPD_SF_{uuid.uuid4().hex[:10]}__"
+        script = (f"echo {sep}:BEGIN:POWER; hidumper -s 3301 -a -a 2>&1; _rc=$?; echo ''; echo {sep}:END:POWER:$_rc; "
+                  f"echo {sep}:BEGIN:LOCK; hidumper -s ScreenlockService -a -all 2>&1; _rc=$?; echo ''; echo {sep}:END:LOCK:$_rc; "
+                  f"echo {sep}:BEGIN:AA; aa dump -l 2>&1; _rc=$?; echo ''; echo {sep}:END:AA:$_rc; true")
+        r = self._run(["shell", script], "screen_and_foreground", raw_payload_marker=f"{sep}:BEGIN:")
+        if not r.ok:
+            err = r.error_class or "command_failed"
+            self.screen_query_error = {"error_class": err, "error": r.error, "raw": r.raw}
+            self.last_query_error = err
+            self.last_query_error_detail = {"error": r.error, "raw": r.raw}
+            return None, None
+        parsed = _parse_batch_sections(r.raw, sep, ("POWER", "LOCK", "AA"))
+        if parsed is None:
+            err = classify_output(r.raw) or "command_failed"
+            msg = r.raw.strip()[:300]
+            self.screen_query_error = {"error_class": err, "error": msg, "raw": r.raw}
+            self.last_query_error = err
+            self.last_query_error_detail = {"error": msg, "raw": r.raw}
+            return None, None
+        power_raw, power_rc = parsed["POWER"]
+        power_err = classify_output(power_raw) or ("command_failed" if power_rc != 0 else None)
+        locked: Optional[bool]
+        if power_err:
+            self.screen_query_error = {"error_class": power_err, "error": power_raw.strip()[:300], "raw": power_raw}
+            locked = None
+        else:
+            state = parse_kv(power_raw, "Current State")
+            if state is None:
+                self.screen_query_error = None
+                locked = None
+            elif state != "AWAKE":
+                self.screen_query_error = None
+                locked = True
+            else:
+                lock_raw, lock_rc = parsed["LOCK"]
+                lock_err = classify_output(lock_raw) or ("command_failed" if lock_rc != 0 else None)
+                if lock_err:
+                    self.screen_query_error = {"error_class": lock_err, "error": lock_raw.strip()[:300], "raw": lock_raw}
+                    locked = None
+                else:
+                    self.screen_query_error = None
+                    locked = {"true": True, "false": False}.get(parse_kv(lock_raw, "screenLocked"))
+        if locked is None and (self.screen_query_error or {}).get("error_class") not in _OFFLINE_CLASSES:
+            locked = self.screen_locked(tries=2)
+        aa_raw, aa_rc = parsed["AA"]
+        aa_err = classify_output(aa_raw) or ("command_failed" if aa_rc != 0 else None)
+        self.last_query_error = aa_err
+        self.last_query_error_detail = ({"error": aa_raw.strip()[:300], "raw": aa_raw} if aa_err else None)
+        if aa_err:
+            fg = None
+        else:
+            fg = parse_foreground(aa_raw)
+            if fg is None:
+                windows = self.shown_windows()
+                error = getattr(self, "window_query_error", None)
+                if windows is None and error:
+                    self.last_query_error = error["error_class"]
+                    self.last_query_error_detail = error
+                fg = foreground_from_evidence(aa_raw, windows)
+        return locked, fg
+
     def wake(self) -> DeviceResult:
         return self._shell("power-shell", "wakeup", op="wakeup")
 

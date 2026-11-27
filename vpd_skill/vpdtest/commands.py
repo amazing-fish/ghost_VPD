@@ -52,6 +52,21 @@ def cmd_unlock(ws: Workspace, a) -> dict:
     return {"run": store.run_id, **unlock_device(ws, dev, store, getattr(a, "lock_secret", None))}
 
 
+def cmd_login(ws: Workspace, a) -> dict:
+    from .login import login_app
+    app = ws.app(a.app)
+    store = RunStore(ws.runs_dir, kind="login")
+    dev = ws.device(a.device)
+    return login_app(
+        ws, app, dev,
+        authorize=getattr(a, "authorize", None),
+        account_secret=getattr(a, "account_secret", None),
+        password_secret=getattr(a, "password_secret", None),
+        timeout_s=getattr(a, "timeout", 15.0),
+        store=store,
+    )
+
+
 def cmd_sysdiag(ws: Workspace, a) -> dict:
     """只读整屏诊断：窗口表 + 整屏布局树 + 截图（APP 白名单） + 已登记系统弹窗比对。
     用途：登记新系统弹窗时取证；排查"preflight 全绿但屏幕被盖住"的现场。
