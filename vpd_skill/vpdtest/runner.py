@@ -7,6 +7,7 @@ from . import __version__
 from . import layout as layout_mod
 from . import safety as safety_mod
 from .cases import (
+    case_capability_authorizations,
     condition_issues,
     content_hash,
     dependency_hash,
@@ -17,11 +18,11 @@ from .cases import (
     review_status,
 )
 from .conditions import definitions
-from .execute import Executor, halts_sequence, unresolved_takeover
+from .execute import Executor, capability_handoff, halts_sequence, unresolved_takeover
 from .experience import ExperienceStore
 from .knowledge import KnowledgeStore
 from .observe import RunStore
-from .outcomes import load_observation
+from .outcomes import PASSED, load_observation
 from .params import Params
 from . import runtime_data
 from .report import render_run
@@ -170,7 +171,10 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                  for n in params.preflight_missing(case, app)]
         # task 类来自任务策略；其他 gated/supervised 类必须显式授予，硬禁止类无法授予。
         # supervised 类（车辆运动/车控）还要有在场监护人，vehicle_motion 还要有安全停止声明
-        requested = [a["effect"] if isinstance(a, dict) else a for a in case.get("authorizations", [])]
+        requested = []
+        for eff in [a["effect"] if isinstance(a, dict) else a for a in case.get("authorizations", [])] + case_capability_authorizations(case, app):
+            if eff not in requested:
+                requested.append(eff)
         auth = ctx.policy.check_authorizations(requested, set(authorize or []), supervisor, case.get("safety"))
         unmet += [{"key": f"authorize.{a}", "required": "本次运行 --authorize " + a, "actual": "未授权"} for a in auth["missing"]]
         unmet += [{"key": f"authorize.{a}", "required": "不可授权（policy 硬禁止）", "actual": "用例申请"} for a in auth["not_grantable"]]
@@ -188,78 +192,126 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
         grant_sources = ctx.policy.grant_sources(ctx.authorized)
         store.event("authorization", requested=requested, granted=sorted(ctx.authorized), grant_sources=grant_sources,
                     supervisor=bool(supervisor))
-        steps, cleanup, safety_stops = [], [], []
+        steps, cleanup, safety_stops, cap_results = [], [], [], []
         if pre["ok"] and envc["ok"]:
             ex = Executor(ctx)
-            halted = None
-            for st in case["steps"]:
-                if halted:
-                    blocked = {"step_id": st["id"], "action": st["action"], "outcome": "not_run",
-                                  "critical": st.get("critical", True), "attempts": [], "recoveries": [], "adapted": False,
-                                  "oracle_refs": st.get("oracle_refs", [])}
-                    if halted["outcome"] == "skipped":
-                        blocked.update(final_status="required_step_skipped", blocked_by=halted["step_id"],
-                                       reason="必需前置步骤因操作条件未满足而未执行，后继步骤停止")
-                    # A cancelled operation is still not_run. Only gather a separate,
-                    # read-only applicability observation before cleanup; never invent
-                    # final_obs or reuse the old observation as a current timestamp.
-                    cause = halted.get("condition") or {}
-                    matched = any(a.get("at") == st["id"] and a.get("guard") == {
-                        "condition": cause.get("condition"), "equals": cause.get("equals")}
-                        for a in case.get("assertions", []))
-                    if (halted.get("final_status") == "condition_false" and cause.get("status") == "false"
-                            and halted.get("outcome") == "skipped" and halted.get("attempts") == []
-                            and halted.get("recoveries") == [] and not cause.get("at")
-                            and matched and st.get("when") == {"condition": cause.get("condition"), "equals": cause.get("equals")}
-                            and not ctx.safety_hold and not ctx.motion.locked()):
-                        diagnostic.phase, diagnostic.step = "cancelled_applicability", st["id"]
-                        applicability_obs, _ = ctx.observe(f"{st['id']}:cancelled-applicability")
-                        blocked["applicability_evidence"] = {
-                            "source_step": halted["step_id"], "source_obs": halted.get("final_obs"),
-                            "cancelled_obs": applicability_obs["obs_id"], "operation_guard": st["when"]}
-                    if unresolved_takeover(halted):
-                        blocked.update(blocked_by=halted["step_id"],
-                                       reason="前置动作效果未知且需要人工接管，后继业务步骤停止")
-                    steps.append(blocked)
-                    continue
-                diagnostic.phase, diagnostic.step = "step_start", st["id"]
-                store.event("step_start", step=st["id"], action=st["action"])
-                diagnostic.phase = "step"
-                res = ex.run_step(st, case["id"])
-                steps.append(res)
-                diagnostic.phase = "step_done"
-                store.event("step_done", step=st["id"], outcome=res["outcome"])
-                if halts_sequence(res):
-                    halted = res
-                    diagnostic.phase = "safety_stop"
-                    if ctx.motion.armed or ctx.motion.locked():
-                        # 运动中出现关键失败或未知效果接管：先安全停止，再清理，保留首次失败。
-                        safety_stops.append(safety_mod.safe_stop(ex, "critical_step_failed" if res["critical"] else "action_effect_unknown",
-                                                                 {"step": st["id"], "status": res.get("final_status")}))
-            diagnostic.phase, diagnostic.step = "safety_stop", None
-            # 超时锁住后不管 stop_at_end 都要走安全停止：它确认已停、解锁之后，清理才能继续下发
-            if ctx.motion.locked() or (ctx.motion.armed and (case.get("safety") or {}).get("stop_at_end", True)):
-                safety_stops.append(safety_mod.safe_stop(ex, "motion_timeout" if ctx.motion.locked()
-                                                         else "case_end_still_moving"))
-            for i, c in enumerate(case.get("cleanup", [])):
-                owner = c.get("after_dispatch")
-                operation = {"critical": False, "retry": 0, **c, "id": c.get("id", f"C{i + 1}")}
-                diagnostic.phase, diagnostic.step = "cleanup", operation["id"]
-                operation.pop("after_dispatch", None)
-                owned = owner is None or cleanup_dispatch_owned(steps, owner)
-                if owned:
-                    res = ex.run_step(operation, case["id"])
-                else:
-                    res = {"step_id": operation["id"], "action": operation["action"], "critical": False,
-                           "outcome": "skipped", "attempts": [], "recoveries": [], "adapted": False,
-                           "final_status": "cleanup_not_owned", "reason": "本次未下发所引用的用户数据动作，不清理既有数据"}
-                if owner is not None:
-                    res["cleanup_guard"] = {"after_dispatch": owner, "may_have_changed_user_data": owned}
-                if res.get("final_status") == "safety_hold":
-                    res.update(outcome="not_run", reason="安全停止未确认，清理暂停，需人工接管")
-                res["required"] = c.get("required", True) if owned else False
-                cleanup.append(res)
-                store.event("cleanup_done", step=res["step_id"], outcome=res["outcome"], required=res["required"])
+            cap_halted = None
+            for i, cap_req in enumerate(case.get("requires_capabilities") or []):
+                cap_id = f"CAP{i + 1}"
+                diagnostic.phase, diagnostic.step = "capability_precondition", cap_id
+                store.event("capability_precondition_start", step=cap_id,
+                            capability=cap_req.get("capability") if isinstance(cap_req, dict) else cap_req)
+                cap_res = ex.run_capability(cap_req, step_id=cap_id)
+                cap_results.append(cap_res)
+                store.event("capability_precondition_done", step=cap_id, capability=cap_res.get("capability"),
+                            outcome=cap_res["outcome"], capability_status=cap_res.get("capability_status"))
+                if cap_res["outcome"] not in PASSED:
+                    cap_halted = cap_res
+                    break
+
+            if cap_halted is not None:
+                if ctx.motion.armed or ctx.motion.locked():
+                    diagnostic.phase, diagnostic.step = "safety_stop", cap_halted["step_id"]
+                    safety_stops.append(safety_mod.safe_stop(
+                        ex,
+                        "motion_timeout" if ctx.motion.locked() else "capability_precondition_failed",
+                        {
+                            "step": cap_halted["step_id"],
+                            "capability": cap_halted.get("capability"),
+                            "status": cap_halted.get("final_status"),
+                        },
+                    ))
+                steps = [{
+                    "step_id": s["id"], "action": s["action"], "outcome": "not_run",
+                    "critical": s.get("critical", True), "attempts": [], "recoveries": [], "adapted": False,
+                    "oracle_refs": s.get("oracle_refs", []),
+                    "final_status": "capability_precondition_failed",
+                    "blocked_by": cap_halted["step_id"],
+                    "reason": f"前置原子能力 {cap_halted.get('capability')} 未就绪（{cap_halted.get('capability_status')}），未执行业务步骤",
+                } for s in case["steps"]]
+            else:
+                halted = None
+                for st in case["steps"]:
+                    if halted:
+                        blocked = {"step_id": st["id"], "action": st["action"], "outcome": "not_run",
+                                      "critical": st.get("critical", True), "attempts": [], "recoveries": [], "adapted": False,
+                                      "oracle_refs": st.get("oracle_refs", [])}
+                        if halted["outcome"] == "skipped":
+                            blocked.update(final_status="required_step_skipped", blocked_by=halted["step_id"],
+                                           reason="必需前置步骤因操作条件未满足而未执行，后继步骤停止")
+                        # A cancelled operation is still not_run. Only gather a separate,
+                        # read-only applicability observation before cleanup; never invent
+                        # final_obs or reuse the old observation as a current timestamp.
+                        cause = halted.get("condition") or {}
+                        matched = any(a.get("at") == st["id"] and a.get("guard") == {
+                            "condition": cause.get("condition"), "equals": cause.get("equals")}
+                            for a in case.get("assertions", []))
+                        if (halted.get("final_status") == "condition_false" and cause.get("status") == "false"
+                                and halted.get("outcome") == "skipped" and halted.get("attempts") == []
+                                and halted.get("recoveries") == [] and not cause.get("at")
+                                and matched and st.get("when") == {"condition": cause.get("condition"), "equals": cause.get("equals")}
+                                and not ctx.safety_hold and not ctx.motion.locked()):
+                            diagnostic.phase, diagnostic.step = "cancelled_applicability", st["id"]
+                            applicability_obs, _ = ctx.observe(f"{st['id']}:cancelled-applicability")
+                            blocked["applicability_evidence"] = {
+                                "source_step": halted["step_id"], "source_obs": halted.get("final_obs"),
+                                "cancelled_obs": applicability_obs["obs_id"], "operation_guard": st["when"]}
+                        if unresolved_takeover(halted):
+                            blocked.update(blocked_by=halted["step_id"],
+                                           reason="前置动作效果未知且需要人工接管，后继业务步骤停止")
+                        elif capability_handoff(halted):
+                            blocked.update(blocked_by=halted["step_id"],
+                                           reason=f"前置原子能力 {halted.get('capability')} 需要人工接管（{halted.get('capability_status')}），后继业务步骤停止")
+                        steps.append(blocked)
+                        continue
+                    diagnostic.phase, diagnostic.step = "step_start", st["id"]
+                    store.event("step_start", step=st["id"], action=st["action"])
+                    diagnostic.phase = "step"
+                    res = ex.run_step(st, case["id"])
+                    steps.append(res)
+                    diagnostic.phase = "step_done"
+                    store.event("step_done", step=st["id"], outcome=res["outcome"])
+                    if halts_sequence(res):
+                        halted = res
+                        diagnostic.phase = "safety_stop"
+                        if ctx.motion.armed or ctx.motion.locked():
+                            # 运动中出现关键失败或未知效果/能力接管：先安全停止，再清理，保留首次失败。
+                            safety_stops.append(safety_mod.safe_stop(
+                                ex,
+                                "critical_step_failed" if res["critical"] else (
+                                    "capability_handoff" if capability_handoff(res) else "action_effect_unknown"
+                                ),
+                                {"step": st["id"], "status": res.get("final_status")},
+                            ))
+                diagnostic.phase, diagnostic.step = "safety_stop", None
+                # 超时锁住后不管 stop_at_end 都要走安全停止：它确认已停、解锁之后，清理才能继续下发
+                if ctx.motion.locked() or (ctx.motion.armed and (case.get("safety") or {}).get("stop_at_end", True)):
+                    safety_stops.append(safety_mod.safe_stop(ex, "motion_timeout" if ctx.motion.locked()
+                                                             else "case_end_still_moving"))
+                cap_challenge_halt = (
+                    halted is not None
+                    and halted.get("capability_status") in ("sms_required", "safe_code_required")
+                )
+                if not cap_challenge_halt:
+                    for i, c in enumerate(case.get("cleanup", [])):
+                        owner = c.get("after_dispatch")
+                        operation = {"critical": False, "retry": 0, **c, "id": c.get("id", f"C{i + 1}")}
+                        diagnostic.phase, diagnostic.step = "cleanup", operation["id"]
+                        operation.pop("after_dispatch", None)
+                        owned = owner is None or cleanup_dispatch_owned(steps, owner)
+                        if owned:
+                            res = ex.run_step(operation, case["id"])
+                        else:
+                            res = {"step_id": operation["id"], "action": operation["action"], "critical": False,
+                                   "outcome": "skipped", "attempts": [], "recoveries": [], "adapted": False,
+                                   "final_status": "cleanup_not_owned", "reason": "本次未下发所引用的用户数据动作，不清理既有数据"}
+                        if owner is not None:
+                            res["cleanup_guard"] = {"after_dispatch": owner, "may_have_changed_user_data": owned}
+                        if res.get("final_status") == "safety_hold":
+                            res.update(outcome="not_run", reason="安全停止未确认，清理暂停，需人工接管")
+                        res["required"] = c.get("required", True) if owned else False
+                        cleanup.append(res)
+                        store.event("cleanup_done", step=res["step_id"], outcome=res["outcome"], required=res["required"])
         else:
             diagnostic.phase = "blocked_observation"
             ctx.observe("preflight-blocked")
@@ -289,7 +341,8 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                 store.event("assertion_selected", assertion=assertion["id"], guard=assertion["guard"],
                             result=assertion["result"], verified=assertion["verified"])
         verdict = case_verdict(pre, envc, steps, assertions, knowledge, safety_stops, cleanup,
-                               step_ids={s["id"] for s in case["steps"]})
+                               step_ids={s["id"] for s in case["steps"]},
+                               capability_preconditions=cap_results)
         known = case.get("product_status") or {}
         if known.get("status") == "known_failure" and known.get("since_hash") != content_hash(case):
             verdict["product_status_stale"] = {"since_hash": known.get("since_hash"), "content_hash": content_hash(case),
@@ -316,7 +369,9 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                "policy": {"version": ctx.policy.version, "hash": ctx.policy.hash}, "overlay": overlay.describe(),
                "layout": {"display": pre.get("display"), "profile": pre_layout,
                           "seen": ctx.observer.layouts_seen},
-               "env": envc, "preflight": pre, "steps": steps, "cleanup": cleanup, "assertions": assertions,
+               "env": envc, "preflight": pre,
+               **({"capability_preconditions": cap_results} if cap_results else {}),
+               "steps": steps, "cleanup": cleanup, "assertions": assertions,
                "knowledge_snapshot": knowledge.oracle_status(refs)["items"] if refs else [],
                "facts": facts, "oracle_facts": knowledge.facts,
                "declarations": {"source": "cli_env", "values": env or {}, "measured": False},

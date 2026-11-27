@@ -553,7 +553,7 @@ def _evaluate_bound(a: dict, steps: dict, load: Callable, knowledge, app) -> dic
 
 def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list, knowledge,
                  safety_stops: Optional[list] = None, cleanup: Optional[list] = None,
-                 step_ids: Optional[set] = None) -> dict:
+                 step_ids: Optional[set] = None, capability_preconditions: Optional[list] = None) -> dict:
     """step_ids：用例声明的全部步骤 ID，用来区分"断言引用了不存在的步骤"（用例缺陷）和"步骤未执行"。"""
     findings, suggestions, alerts = [], [], []
     def recovery_alerts(results):
@@ -604,6 +604,44 @@ def case_verdict(preflight: dict, env_check: dict, steps: list, assertions: list
                                                   "reason": "环境要求未满足：" + "、".join(
                                                       f"{u['key']}={u['actual']}（需 {u['required']}）" for u in env_check["unmet"]),
                                                   "detail": env_check["unmet"]}], [], steps, assertions=assertions)
+    failed_caps = [c for c in (capability_preconditions or []) if c.get("outcome") not in PASSED]
+    if failed_caps:
+        cap_findings = []
+        for cap in failed_caps:
+            res_kind = "error" if cap.get("outcome") == "error" else "blocked"
+            attr = cap.get("attribution") or ("environment" if res_kind == "blocked" else "tool")
+            item = {
+                "kind": "capability_precondition",
+                "step": cap["step_id"],
+                "capability": cap.get("capability"),
+                "result": res_kind,
+                "attribution": attr,
+                "mode": cap.get("final_status"),
+                "reason": cap.get("reason") or f"前置原子能力 {cap.get('capability')} 未通过（{cap.get('capability_status')}）",
+                "evidence": {
+                    "step": cap["step_id"],
+                    "capability": cap.get("capability"),
+                    "capability_status": cap.get("capability_status"),
+                    "obs_after": cap.get("final_obs"),
+                },
+            }
+            if cap.get("execution_error"):
+                err = cap["execution_error"]
+                item.update({k: err.get(k) for k in ("stage", "error_class", "error") if err.get(k) is not None})
+            cap_findings.append(item)
+            if cap.get("action_required"):
+                alerts.append({
+                    "kind": "capability_precondition",
+                    "trigger": cap["step_id"],
+                    "capability": cap.get("capability"),
+                    "status": cap.get("capability_status"),
+                    "action_required": cap["action_required"],
+                    "reason": cap.get("reason"),
+                })
+        has_err = any(f["result"] == "error" for f in cap_findings)
+        lead = next(f for f in cap_findings if f["result"] == "error") if has_err else cap_findings[0]
+        return _final("error" if has_err else "blocked", lead["attribution"], cap_findings, [], steps,
+                      alerts=alerts, assertions=assertions)
     findings.extend(_execution_findings(steps, "step"))
     findings.extend(_execution_findings(cleanup or [], "cleanup"))
     inapplicable_cancelled = set()

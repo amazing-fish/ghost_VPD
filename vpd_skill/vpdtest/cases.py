@@ -15,6 +15,12 @@ from pathlib import Path
 from typing import Optional
 
 from . import review_snapshot
+from .capability_runtime import (
+    capability_required_authorizations,
+    capability_target_refs,
+    normalize_capability_spec,
+    validate_capability_spec,
+)
 from .knowledge import ACTIVE, item_status
 from .safety import TREE_KINDS, untreed_strategies
 from .session import relative_scope_target, session_lock, swipe_options_error, swipe_scope_definition_error
@@ -23,7 +29,7 @@ from .util import now_iso, read_json, sha256_file, sha256_obj, validate_stable_i
 REQUIRED = ("purpose", "preconditions", "test_data", "steps", "assertions", "cleanup", "sources")
 CONTENT_KEYS = ("app", "preconditions", "env_requirements", "test_data", "steps", "assertions", "cleanup")
 # 只在声明时计入，避免改变既有用例的内容哈希。授权与安全停止决定实际会产生哪些物理副作用，改了就要重新重放
-OPTIONAL_CONTENT_KEYS = ("layout_requirements", "authorizations", "safety", "conditions")
+OPTIONAL_CONTENT_KEYS = ("layout_requirements", "authorizations", "safety", "conditions", "requires_capabilities")
 # Issue #14：obs 编号属于单次运行（重放后编号会变）。裸引用会让判定证据链指向不存在的观测
 # （真机上出现过：rationale 引 obs-0010/0012，而本 run 实际是 obs-0007/0008）。
 # 但「run 目录名/会话名 + obs 编号」是可解析引用：锚点目录确实留存了该观测时证据链可追溯，允许。
@@ -176,12 +182,25 @@ def dependency_hash(case: dict, app, knowledge) -> str:
                     path = (app.dir / file).resolve()
                     templates[file] = sha256_file(path) if path.is_file() else None
 
+    has_cap = False
+    for entry in case.get("requires_capabilities") or []:
+        has_cap = True
+        spec = normalize_capability_spec(entry)
+        if spec:
+            for tid in capability_target_refs(spec):
+                want(tid)
     for s, parent, where in iter_case_steps(case, app):
         steps.append([where, {k: v for k, v in s.items() if k != "_lint_cycle"}])
         local = (params.subst(parent.get("params", {})) if parent and parent.get("action") == "flow"
                  else s.get("_flow_params"))
         want(s.get("target"), local, substitute=True)
         want(relative_scope_target(s), local, substitute=True)
+        if s.get("action") == "capability":
+            has_cap = True
+            spec = normalize_capability_spec(s)
+            if spec:
+                for tid in capability_target_refs(spec):
+                    want(tid)
     for a in case.get("assertions", []):
         want(a.get("target"))
         want(a.get("within"))
@@ -206,7 +225,8 @@ def dependency_hash(case: dict, app, knowledge) -> str:
                        "interrupts": app.states.interrupts, "oracles": facts, "conditions": conditions,
                        **({"templates": templates} if templates else {}), "result_contract": RESULT_CONTRACT,
                        **({"condition_evidence_contract": 1} if used_conditions else {}),
-                       **({"read_references_contract": 2} if has_read_ref(case) else {})})[:12]
+                       **({"read_references_contract": 2} if has_read_ref(case) else {}),
+                       **({"capability_contract": 1} if has_cap else {})})[:12]
 
 
 # 审核覆盖审阅语义；成熟度/运行记录不使正常晋级或新重放自失效。
@@ -529,11 +549,55 @@ def iter_case_steps(case: dict, app, *, strict=False):
             yield from walk(step, None, f"{source}.{step.get('id', f'{prefix}{i + 1}')}")
 
 
+def capability_issues(case: dict, app) -> list:
+    """Validate declarative requires_capabilities and action=capability steps."""
+    issues = []
+    if "requires_capabilities" in case:
+        reqs = case.get("requires_capabilities")
+        if not isinstance(reqs, list):
+            issues.append({"field": "requires_capabilities", "problem": "requires_capabilities 须为列表"})
+        else:
+            for i, entry in enumerate(reqs):
+                issues += validate_capability_spec(entry, app.id, f"requires_capabilities[{i}]")
+    for step, _, where in iter_case_steps(case, app):
+        if step.get("action") != "capability":
+            continue
+        if where.startswith("safe_stop."):
+            issues.append({"field": where, "problem": "safe_stop 不允许调用复合原子能力"})
+            continue
+        issues += validate_capability_spec(step, app.id, where)
+    return issues
+
+
+def case_capability_authorizations(case: dict, app=None) -> list[str]:
+    """Return unique side-effect authorizations required by capability preconditions/steps."""
+    entries = list(case.get("requires_capabilities") or [])
+    if app is not None:
+        entries += [step for step, _, _ in iter_case_steps(case, app) if step.get("action") == "capability"]
+    else:
+        entries += [step for step in (*case.get("steps", []), *case.get("cleanup", []))
+                    if isinstance(step, dict) and step.get("action") == "capability"]
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for entry in entries:
+        spec = normalize_capability_spec(entry)
+        if not spec:
+            continue
+        for eff in capability_required_authorizations(spec):
+            if eff not in seen:
+                seen.add(eff)
+                ordered.append(eff)
+    return ordered
+
+
 def execution_structure_issues(case: dict, app, *, read_sources=True) -> list:
     """lint、Runner 与选中的复合步骤共用；只核执行结构，不代替资产审核。"""
     from .readrefs import structure_issues as read_reference_issues
     from .runtime_data import structure_issues as runtime_data_issues
-    issues = assertion_scope_issues(case, app) + read_reference_issues(case, app, sources=read_sources) + runtime_data_issues(case, app)
+    issues = (assertion_scope_issues(case, app)
+              + read_reference_issues(case, app, sources=read_sources)
+              + runtime_data_issues(case, app)
+              + capability_issues(case, app))
     seen, runtime_ids, child_counts, root_counts = {}, {}, {}, {}
     main = {s.get("id"): s for s in case.get("steps", []) if isinstance(s.get("id"), str)}
     for i, cleanup in enumerate(case.get("cleanup", [])):
@@ -724,6 +788,10 @@ def _lint_effects(case: dict, app, policy) -> list:
     if "vehicle_motion" in requested and policy:
         from .safety import problems
         issues += problems(case.get("safety"), app, policy)
+    for eff in case_capability_authorizations(case, app):
+        if eff in authorizable and eff not in requested:
+            issues.append({"field": "authorizations",
+                           "problem": f"原子能力前置/步骤需要副作用 {eff}，但用例 authorizations 未申请 {eff}"})
     if "user_data" in requested and not case.get("cleanup"):
         issues.append({"field": "cleanup", "problem": "申请了 user_data（收藏/重命名/标签）的用例必须有清理步骤，恢复账号数据"})
     if policy:

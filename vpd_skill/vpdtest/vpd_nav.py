@@ -10,38 +10,24 @@
 from __future__ import annotations
 
 import copy
-import math
-import re
 import time
 from typing import Optional
 
-from .experience import ExperienceStore
-from .login import _classify_screen, _hit_node, _resolve_target, _visible_texts, login_app
+from .capability_runtime import (
+    LOGGED_OUT_KINDS,
+    CapabilityRuntime,
+    hit_node,
+    needs_human,
+    read_target_text,
+    resolve_target,
+    row_card_texts,
+    validate_timeout,
+    validate_vin_tail,
+    visible_texts,
+)
+from .login import _classify_screen, login_app
 from .observe import RunStore
-from .outcomes import error_attribution
-from .unlock import unlock_device
 from .workspace import RunContext
-
-_VIN_TAIL_RE = re.compile(r"^[A-Za-z0-9]{1,17}$")
-_LOGGED_OUT_KINDS = frozenset({"logged_out_my", "one_click", "method_select", "password_form"})
-
-
-def _validate_vin_tail(vin_tail: Optional[str]) -> str:
-    val = "" if vin_tail is None else str(vin_tail).strip()
-    if not _VIN_TAIL_RE.fullmatch(val):
-        raise ValueError("--vin-tail 须为 1-17 位字母数字车架号尾号（例如 000228）")
-    return val
-
-
-def _validate_timeout(timeout_s: float, *, max_s: float) -> float:
-    if (not isinstance(timeout_s, (int, float)) or isinstance(timeout_s, bool)
-            or not math.isfinite(timeout_s) or timeout_s <= 0 or timeout_s > max_s):
-        raise ValueError(f"timeout_s 须为 (0, {int(max_s)}] 秒内的有限数字")
-    return float(timeout_s)
-
-
-def _needs_human(rec: dict) -> bool:
-    return bool(rec.get("action_required")) or rec.get("status") == "state_indeterminate"
 
 
 def _build_vin_target(app, vin_tail: str) -> tuple[str, dict]:
@@ -52,225 +38,56 @@ def _build_vin_target(app, vin_tail: str) -> tuple[str, dict]:
     return "qk_car_by_vin", raw
 
 
-def _read_target_text(app, target_ref: str, tree, obs) -> Optional[str]:
-    if tree is None or tree.status != "ok" or target_ref not in app.targets:
-        return None
-    _, _, loc = _resolve_target(app, target_ref, tree, obs)
-    if loc.get("status") != "found":
-        return None
-    node = _hit_node(tree, loc)
-    if node is None:
-        return None
-    if (node.text or "").strip():
-        return node.text.strip()
-    texts = [t.strip() for t in tree.subtree_texts(node) if (t or "").strip()]
-    return texts[0] if texts else None
-
-
-def _row_card_texts(tree, hit_node) -> tuple[str, ...]:
-    if tree is None or hit_node is None:
-        return ()
-    holder = tree.clickable_container(hit_node)
-    if holder is None or holder.parent is None:
-        holder = hit_node
-    texts = tuple(t.strip() for t in tree.subtree_texts(holder) if (t or "").strip())
-    return texts or ((hit_node.text or "").strip(),)
-
-
-def _swipe_points(tree, observer, direction: str = "up") -> Optional[tuple[int, int, int, int]]:
-    rect = None
-    if tree is not None and tree.status == "ok":
-        sc = tree.scroll_container(None)
-        rect = tree.visible_rect(sc) if sc is not None else tree.window_rect()
-    if not rect:
-        rect = getattr(observer, "last_window", None)
-    if not rect or rect[2] <= rect[0] or rect[3] <= rect[1]:
-        return None
-    x = (rect[0] + rect[2]) // 2
-    top = rect[1] + int((rect[3] - rect[1]) * 0.25)
-    bottom = rect[1] + int((rect[3] - rect[1]) * 0.75)
-    y1, y2 = (bottom, top) if direction == "up" else (top, bottom)
-    return x, y1, x, y2
-
-
-def _make_runtime(ws, app, device, *, kind: str, capability: str, granted: set[str],
-                  store: Optional[RunStore], sleep, _ctx: Optional[RunContext] = None,
-                  extra_start: Optional[dict] = None):
-    if sleep is None:
-        sleep = time.sleep if device.kind != "replay" else (lambda _: None)
-    if _ctx is None:
-        store = store or RunStore(ws.runs_dir, kind=kind)
-        store.event("capability_start", capability=capability, app=app.id, device=device.spec, **(extra_start or {}))
-        ctx = RunContext(ws, app, device, store, ExperienceStore(ws.root, app.id).overlay(), mode="agent")
-        ctx.policy.check_grants(granted)
-        ctx.authorized = ctx.policy.effective_grants(granted)
-    else:
-        ctx = _ctx
-        store = ctx.store
-        store.event("capability_start", capability=capability, app=app.id, device=device.spec,
-                    shared_budget=True, **(extra_start or {}))
-    return store, ctx, ctx.dispatcher, ctx.observer, sleep
-
-
-def _send_tap(app, dispatcher, steps: list[dict], prefix: str, step_name: str, target_ref, tree, obs) -> tuple[bool, dict]:
-    tid, target, loc = _resolve_target(app, target_ref, tree, obs)
-    if loc.get("status") != "found":
-        rec = {"step": step_name, "target": tid, "status": loc.get("status"), "action_required": False}
-        steps.append(rec)
-        return False, rec
-    att = {"action": "tap", "step_id": f"{prefix}_{step_name}",
-           "dispatch_coordinates": {"system": "px", "point": loc["point"]}}
-    tap = {"tree": tree, "loc": loc, "target": target, "target_ref": target_ref if isinstance(target_ref, str) else None,
-           "page": obs.get("page"), "layout": obs.get("layout")}
-    res = dispatcher.send("tap", *loc["point"], preconditions=dispatcher.app_conditions("tap"), att=att, tap=tap)
-    rec = {"step": step_name, "target": tid,
-           "status": "ok" if res.ok else (att.get("status") or res.error_class or "failed"),
-           "sent": res.sent, "action_required": bool(att.get("action_required"))}
-    if att.get("execution_error"):
-        rec["execution_error"] = att["execution_error"]
-    steps.append(rec)
-    return bool(res.ok), rec
-
-
-def _send_back(dispatcher, steps: list[dict], prefix: str, step_name: str) -> tuple[bool, dict]:
-    att = {"action": "back", "step_id": f"{prefix}_{step_name}"}
-    res = dispatcher.send("key", "back", preconditions=dispatcher.app_conditions("back"), att=att)
-    rec = {"step": step_name, "action": "back",
-           "status": "ok" if res.ok else (att.get("status") or res.error_class or "failed"),
-           "sent": res.sent, "action_required": bool(att.get("action_required"))}
-    if att.get("execution_error"):
-        rec["execution_error"] = att["execution_error"]
-    steps.append(rec)
-    return bool(res.ok), rec
-
-
-def _send_swipe(dispatcher, observer, steps: list[dict], prefix: str, step_name: str,
-                tree, direction: str = "up") -> tuple[bool, dict]:
-    pts = _swipe_points(tree, observer, direction=direction)
-    if not pts:
-        rec = {"step": step_name, "action": "swipe", "status": "screen_size_unknown", "action_required": False}
-        steps.append(rec)
-        return False, rec
-    att = {"action": "swipe", "step_id": f"{prefix}_{step_name}"}
-    res = dispatcher.send("swipe", *pts, preconditions=dispatcher.app_conditions("swipe"), att=att)
-    rec = {"step": step_name, "action": "swipe",
-           "status": "ok" if res.ok else (att.get("status") or res.error_class or "failed"),
-           "sent": res.sent, "action_required": bool(att.get("action_required"))}
-    if att.get("execution_error"):
-        rec["execution_error"] = att["execution_error"]
-    steps.append(rec)
-    return bool(res.ok), rec
-
-
-def _dismiss_benign_dialog(app, dispatcher, steps: list[dict], prefix: str, step_name: str,
-                           detail: dict, tree, obs) -> tuple[bool, dict]:
-    fb = {"label": f"dismiss:{detail['name']}", "side_effect": "dismiss_dialog",
-          "strategies": [{"kind": "text", "value": detail["dismiss_text"]}]}
-    return _send_tap(app, dispatcher, steps, prefix, step_name, fb, tree, obs)
-
-
-def _unlock_and_bring_to_foreground(ws, app, device, store, dispatcher, observer, steps: list[dict],
-                                    prefix: str, timeout_s: float, sleep, finish):
-    locked = device.screen_locked()
-    if locked is None:
-        err = getattr(device, "screen_query_error", None)
-        extra = ({"execution_error": {**err, "stage": f"{prefix}_unlock_query",
-                                      "attribution": error_attribution(err.get("error_class"))}}
-                 if err else None)
-        return None, None, finish("indeterminate", reason="查询不到锁屏状态，未下发导航动作",
-                                  action_required=True, extra=extra)
-    if locked is True:
-        ul = unlock_device(ws, device, store, dispatcher=dispatcher)
-        steps.append({"step": "unlock", "status": ul["status"]})
-        if ul["status"] != "unlocked":
-            return None, None, finish("indeterminate" if ul["status"] != "pin_rejected" else "screen_locked",
-                                      reason=ul.get("reason", "自动解锁未完成"), action_required=True)
-
-    obs, tree = observer.observe(f"{prefix}_initial", screenshot=False)
-    kind, _ = _classify_screen(app, obs, tree)
-    if kind == "out_of_app":
-        att = {"action": "launch", "step_id": f"{prefix}_launch"}
-        lres = dispatcher.send("launch", app.bundle, app.ability,
-                               preconditions=dispatcher.app_conditions("launch"), att=att)
-        steps.append({"step": "launch", "status": "ok" if lres.ok else (att.get("status") or lres.error_class)})
-        if not lres.ok:
-            return None, None, finish("indeterminate", reason="拉起被测 APP 失败", action_required=True)
-        deadline = time.monotonic() + min(8.0, timeout_s)
-        poll_n = 0
-        while True:
-            sleep(0.4)
-            poll_n += 1
-            obs, tree = observer.observe(f"{prefix}_after_launch", screenshot=False)
-            kind, _ = _classify_screen(app, obs, tree)
-            if kind not in ("out_of_app", "unobservable", "unknown") or time.monotonic() >= deadline or (
-                    device.kind == "replay" and poll_n >= 4):
-                break
-    return obs, tree, None
-
-
-def _ensure_car_tab(app, dispatcher, observer, steps: list[dict], prefix: str, obs, tree,
-                    timeout_s: float, sleep, finish) -> tuple[dict, object, Optional[dict]]:
+def _ensure_car_tab(rt: CapabilityRuntime, obs, tree, timeout_s: float) -> tuple[dict, object, Optional[dict]]:
     """从任意已登录页快速收敛至爱车页或车辆入口；超时必回传最新观测并终止。"""
+    app = rt.app
     deadline = time.monotonic() + min(timeout_s, 10.0)
     for hop in range(5):
-        kind, detail = _classify_screen(app, obs, tree)
-        if kind == "safe_code":
-            return obs, tree, finish("safe_code_required", reason="命中安全码输入页，已原地保留现场等待人工处理",
-                                     action_required=True, final_shot=True)
-        if kind == "sms_verify":
-            return obs, tree, finish("sms_required", reason="命中短信验证码页，已原地保留现场等待人工处理",
-                                     action_required=True, final_shot=True)
-        if kind in _LOGGED_OUT_KINDS:
-            return obs, tree, finish("login_required", reason="当前处于未登录状态，需要登录后再继续",
-                                     action_required=True, final_shot=True)
+        halted = rt.check_challenge(obs, tree, check_logged_out=True, logged_out_reason="当前处于未登录状态，需要登录后再继续")
+        if halted is not None:
+            return obs, tree, halted
+        kind, detail = rt.classify(app, obs, tree)
         if kind == "benign_dialog" and detail:
-            ok, rec = _dismiss_benign_dialog(app, dispatcher, steps, prefix, f"dismiss_{detail['name']}", detail, tree, obs)
+            ok, rec = rt.dismiss_benign_dialog(f"dismiss_{detail['name']}", detail, tree, obs)
             if not ok:
-                return obs, tree, finish("blocked", reason=f"良性弹窗 {detail['name']} 关闭失败：{rec['status']}",
-                                         action_required=_needs_human(rec), final_shot=True)
+                return obs, tree, rt.finish("blocked", reason=f"良性弹窗 {detail['name']} 关闭失败：{rec['status']}",
+                                            action_required=needs_human(rec), final_shot=True)
         else:
             page = obs.get("page") or {}
             if app.states.is_state(page, "qk_car_tab"):
                 return obs, tree, None
-            _, _, car_sel_loc = _resolve_target(app, "qk_car_select", tree, obs)
+            _, _, car_sel_loc = resolve_target(app, "qk_car_select", tree, obs)
             if car_sel_loc.get("status") == "found":
                 return obs, tree, None
-            _, _, tab_loc = _resolve_target(app, "qk_tab_car", tree, obs)
+            _, _, tab_loc = resolve_target(app, "qk_tab_car", tree, obs)
             if tab_loc.get("status") == "found":
-                ok, rec = _send_tap(app, dispatcher, steps, prefix, f"tap_car_tab_{hop + 1}", "qk_tab_car", tree, obs)
+                ok, rec = rt.send_tap(f"tap_car_tab_{hop + 1}", "qk_tab_car", tree, obs)
                 if not ok:
-                    return obs, tree, finish("blocked", reason=f"切换爱车页失败：{rec['status']}",
-                                             action_required=_needs_human(rec), final_shot=True)
+                    return obs, tree, rt.finish("blocked", reason=f"切换爱车页失败：{rec['status']}",
+                                                action_required=needs_human(rec), final_shot=True)
             else:
-                ok, rec = _send_back(dispatcher, steps, prefix, f"back_to_car_{hop + 1}")
+                ok, rec = rt.send_back(f"back_to_car_{hop + 1}")
                 if not ok:
-                    return obs, tree, finish("blocked", reason=f"返回上一页失败：{rec['status']}",
-                                             action_required=_needs_human(rec), final_shot=True)
-        sleep(0.35)
-        obs, tree = observer.observe(f"{prefix}_car_nav_{hop + 1}", screenshot=False)
-        kind_after, _ = _classify_screen(app, obs, tree)
-        if kind_after == "safe_code":
-            return obs, tree, finish("safe_code_required", reason="命中安全码输入页,已原地保留现场等待人工处理",
-                                     action_required=True, final_shot=True)
-        if kind_after == "sms_verify":
-            return obs, tree, finish("sms_required", reason="命中短信验证码页,已原地保留现场等待人工处理",
-                                     action_required=True, final_shot=True)
-        if kind_after in _LOGGED_OUT_KINDS:
-            return obs, tree, finish("login_required", reason="当前处于未登录状态,需要登录后再继续",
-                                     action_required=True, final_shot=True)
+                    return obs, tree, rt.finish("blocked", reason=f"返回上一页失败：{rec['status']}",
+                                                action_required=needs_human(rec), final_shot=True)
+        rt.sleep(0.35)
+        obs, tree = rt.observe_fast(f"{rt.prefix}_car_nav_{hop + 1}")
+        halted = rt.check_challenge(obs, tree, check_logged_out=True, logged_out_reason="当前处于未登录状态,需要登录后再继续")
+        if halted is not None:
+            return obs, tree, halted
         page = obs.get("page") or {}
         if app.states.is_state(page, "qk_car_tab"):
             return obs, tree, None
-        _, _, car_sel_loc = _resolve_target(app, "qk_car_select", tree, obs)
+        _, _, car_sel_loc = resolve_target(app, "qk_car_select", tree, obs)
         if car_sel_loc.get("status") == "found":
             return obs, tree, None
         if time.monotonic() >= deadline:
-            return obs, tree, finish("timeout", reason="切换至爱车页超时", action_required=True, final_shot=True)
-    return obs, tree, finish("timeout", reason="未能切换至爱车页", action_required=True, final_shot=True)
+            return obs, tree, rt.finish("timeout", reason="切换至爱车页超时", action_required=True, final_shot=True)
+    return obs, tree, rt.finish("timeout", reason="未能切换至爱车页", action_required=True, final_shot=True)
 
 
 def _vpd_blocker(app, obs, tree, *, allow_charging_only: bool) -> Optional[tuple[str, str, bool]]:
-    texts = _visible_texts(tree)
+    texts = visible_texts(tree)
     kind, _ = _classify_screen(app, obs, tree)
     if kind == "safe_code":
         return "safe_code_required", "命中安全码输入页，已原地保留现场等待人工接管", True
@@ -289,18 +106,6 @@ def _vpd_blocker(app, obs, tree, *, allow_charging_only: bool) -> Optional[tuple
     return None
 
 
-def _check_challenge(app, obs, tree, finish, stage: str) -> Optional[dict]:
-    """若滑屏或导航动作后落入安全码/短信验证码拦截页，立即保现场返回对应人工接管状态。"""
-    kind, _ = _classify_screen(app, obs, tree)
-    if kind == "safe_code":
-        return finish("safe_code_required", reason=f"{stage}后命中安全码输入页,已原地保留现场",
-                      action_required=True, final_shot=True)
-    if kind == "sms_verify":
-        return finish("sms_required", reason=f"{stage}后命中短信验证码页,已原地保留现场",
-                      action_required=True, final_shot=True)
-    return None
-
-
 def switch_vehicle_app(ws, app, device, *, vin_tail: str, authorize=None,
                        timeout_s: float = 15.0, store: Optional[RunStore] = None,
                        sleep=None, _ctx: Optional[RunContext] = None) -> dict:
@@ -308,8 +113,8 @@ def switch_vehicle_app(ws, app, device, *, vin_tail: str, authorize=None,
     t0 = time.monotonic()
     if app.id != "qiankun_hm":
         raise ValueError(f"当前原子选车能力仅支持 qiankun_hm，收到 {app.id}")
-    vin = _validate_vin_tail(vin_tail)
-    timeout = _validate_timeout(timeout_s, max_s=60.0)
+    vin = validate_vin_tail(vin_tail)
+    timeout = validate_timeout(timeout_s, max_s=60.0)
 
     granted = set(authorize or [])
     if "vehicle_selection" not in granted:
@@ -325,209 +130,139 @@ def switch_vehicle_app(ws, app, device, *, vin_tail: str, authorize=None,
             "steps": [],
         }
 
-    store, ctx, dispatcher, observer, sleep = _make_runtime(
-        ws, app, device, kind="switch_vehicle", capability="switch_vehicle",
-        granted=granted, store=store, sleep=sleep, _ctx=_ctx, extra_start={"vin_tail": vin},
+    rt = CapabilityRuntime.open(
+        ws, app, device,
+        kind="switch_vehicle", capability="switch_vehicle", prefix="sv", granted=granted,
+        store=store, sleep=sleep, _ctx=_ctx, extra_start={"vin_tail": vin},
+        classify=lambda a, o, t: _classify_screen(a, o, t), t0=t0,
     )
-    actions_start = ctx.actions
-    steps: list[dict] = []
+
+    base_finish = rt.finish
 
     def finish(status: str, *, reason: Optional[str] = None, current_vehicle: Optional[str] = None,
                action_required: bool = False, final_shot: bool = False, extra: Optional[dict] = None) -> dict:
-        final_obs = None
-        if final_shot:
-            obs_f, _ = observer.observe(f"switch_vehicle_{status}", screenshot=True)
-            final_obs = obs_f["obs_id"]
-        elapsed = round(time.monotonic() - t0, 2)
-        used = ctx.actions - actions_start
-        out = {
-            "run": store.run_id,
-            "app": app.id,
-            "device": device.spec,
-            "status": status,
-            "vin_tail": vin,
-            **({"current_vehicle": current_vehicle} if current_vehicle else {}),
-            **({"reason": reason} if reason else {}),
-            "action_required": action_required,
-            "actions": used,
-            "elapsed_s": elapsed,
-            **({"final_obs": final_obs} if final_obs else {}),
-            "steps": steps,
-            **(extra or {}),
-        }
-        store.event("capability_end", capability="switch_vehicle", status=status, vin_tail=vin,
-                    current_vehicle=current_vehicle, actions=used,
-                    elapsed_s=elapsed, action_required=action_required)
-        return out
+        fields = {"vin_tail": vin, **({"current_vehicle": current_vehicle} if current_vehicle else {})}
+        return base_finish(
+            status, reason=reason, action_required=action_required, final_shot=final_shot,
+            fields=fields, event_fields={"vin_tail": vin, "current_vehicle": current_vehicle}, extra=extra,
+        )
 
-    obs, tree, halted = _unlock_and_bring_to_foreground(
-        ws, app, device, store, dispatcher, observer, steps, "sv", timeout, sleep, finish
+    # Override rt.finish so shared runtime helpers produce switch_vehicle schema (vin_tail + current_vehicle)
+    rt.finish = finish  # type: ignore[method-assign]
+
+    obs, tree, halted = rt.unlock_and_bring_to_foreground(
+        timeout, query_error_reason="查询不到锁屏状态，未下发导航动作", replay_launch_polls=4,
     )
     if halted is not None:
         return halted
 
-    kind, detail = _classify_screen(app, obs, tree)
-    if kind == "safe_code":
-        return finish("safe_code_required", reason="命中安全码输入页，已原地保留现场等待人工处理",
-                      action_required=True, final_shot=True)
-    if kind == "sms_verify":
-        return finish("sms_required", reason="命中短信验证码页，已原地保留现场等待人工处理",
-                      action_required=True, final_shot=True)
-    if kind in _LOGGED_OUT_KINDS:
-        return finish("login_required", reason="当前处于未登录状态，无法切换车辆",
-                      action_required=True, final_shot=True)
+    halted = rt.check_challenge(obs, tree, check_logged_out=True, logged_out_reason="当前处于未登录状态，无法切换车辆")
+    if halted is not None:
+        return halted
 
-    # 若尚未在车辆列表页，先收敛到爱车页再点开车辆列表；若已在列表页，先回滚至顶部防中途偏移漏扫
     def _vin_sig(t) -> set[str]:
-        all_t = _visible_texts(t)
+        all_t = visible_texts(t)
         vins = {x for x in all_t if "车架号" in x}
         return vins if vins else all_t
 
     if app.states.is_state(obs.get("page"), "qk_vehicle_list"):
-        top_sig = _vin_sig(tree)
-        top_unchanged = 0
-        for top_i in range(6):
-            ok_t, rec_t = _send_swipe(dispatcher, observer, steps, "sv", f"scroll_top_{top_i + 1}", tree, direction="down")
-            if not ok_t:
-                return finish("blocked", reason=f"回滚车辆列表顶部失败: {rec_t['status']}",
-                              action_required=_needs_human(rec_t), final_shot=True)
-            sleep(0.35)
-            obs, tree = observer.observe(f"sv_scroll_top_{top_i + 1}", screenshot=False)
-            halted = _check_challenge(app, obs, tree, finish, "回滚车辆列表顶部")
-            if halted is not None:
-                return halted
-            nxt_sig = _vin_sig(tree)
-            if nxt_sig == top_sig:
-                top_unchanged += 1
-                if top_unchanged >= 2:
-                    break
-            else:
-                top_unchanged = 0
-                top_sig = nxt_sig
-        else:
-            return finish("blocked", reason="车辆列表未能回到顶部,无法保证全列表扫描",
-                          action_required=True, final_shot=True)
-    else:
-        obs, tree, halted = _ensure_car_tab(
-            app, dispatcher, observer, steps, "sv", obs, tree, timeout, sleep, finish
+        hit_top, obs, tree, halted = rt.scroll_to_edge(
+            "down", step_prefix="scroll_top", obs_prefix="sv_scroll_top",
+            max_swipes=6, settle_unchanged=2, interval_s=0.35, sig_fn=_vin_sig,
+            stage="回滚车辆列表顶部", obs=obs, tree=tree,
         )
         if halted is not None:
             return halted
+        if not hit_top:
+            return finish("blocked", reason="车辆列表未能回到顶部,无法保证全列表扫描",
+                          action_required=True, final_shot=True)
+    else:
+        obs, tree, halted = _ensure_car_tab(rt, obs, tree, timeout)
+        if halted is not None:
+            return halted
         if not app.states.is_state(obs.get("page"), "qk_vehicle_list"):
-            ok, rec = _send_tap(app, dispatcher, steps, "sv", "open_vehicle_list", "qk_car_select", tree, obs)
+            ok, rec = rt.send_tap("open_vehicle_list", "qk_car_select", tree, obs)
             if not ok:
                 return finish("blocked", reason=f"打开车辆列表失败: {rec['status']}",
-                              action_required=_needs_human(rec), final_shot=True)
-            list_deadline = time.monotonic() + min(8.0, timeout)
-            poll_n = 0
-            while True:
-                sleep(0.35)
-                poll_n += 1
-                obs, tree = observer.observe(f"sv_wait_list_{poll_n}", screenshot=False)
-                kind, detail = _classify_screen(app, obs, tree)
-                if kind == "safe_code":
-                    return finish("safe_code_required", reason="打开车辆列表后命中安全码输入页,已原地保留现场",
-                                  action_required=True, final_shot=True)
-                if kind == "sms_verify":
-                    return finish("sms_required", reason="打开车辆列表后命中短信验证码页,已原地保留现场",
-                                  action_required=True, final_shot=True)
-                if kind == "benign_dialog" and detail:
-                    ok_d, rec_d = _dismiss_benign_dialog(app, dispatcher, steps, "sv",
-                                                         f"list_dismiss_{detail['name']}", detail, tree, obs)
-                    if not ok_d and (_needs_human(rec_d) or rec_d.get("status") in ("budget_exhausted", "motion_timeout", "safety_hold")):
-                        return finish("blocked", reason=f"关闭弹窗 {detail['name']} 失败: {rec_d['status']}",
-                                      action_required=True, final_shot=True)
-                elif app.states.is_state(obs.get("page"), "qk_vehicle_list"):
-                    break
-                if time.monotonic() >= list_deadline or (device.kind == "replay" and poll_n >= 3):
-                    return finish("blocked", reason="未能打开车辆列表页面", action_required=False, final_shot=True)
+                              action_required=needs_human(rec), final_shot=True)
+            opened = [None, None, None]
+
+            def _wait_list(o, t, k, d, pn):
+                if app.states.is_state(o.get("page"), "qk_vehicle_list"):
+                    opened[0], opened[1] = o, t
+                    return {"_opened": True}
+                return None
+
+            res_open = rt.poll_until(
+                "sv_wait_list", min(8.0, timeout), 0.35, _wait_list,
+                replay_max_polls=3, handle_benign_dialogs=True, dismiss_prefix="list_dismiss",
+                challenge_stage="打开车辆列表",
+                on_timeout=lambda o, t, k, d: finish("blocked", reason="未能打开车辆列表页面",
+                                                     action_required=False, final_shot=True),
+            )
+            if not res_open.get("_opened"):
+                return res_open
+            obs, tree = opened[0], opened[1]
 
     # 全列表扫描确认 VIN 尾号唯一性（需连续两次未变化才确认触底；先判 inconclusive 再判 not_found）
     _, vin_target = _build_vin_target(app, vin)
-    seen_sig = _vin_sig(tree)
-    matched_card: Optional[tuple[str, ...]] = None
-    match_missing_between = False
-    swipes_past_match = 0
-    hit_bottom = False
-    unchanged_scrolls = 0
-    max_scrolls = 6
+    scan_state = {"matched_card": None, "match_missing_between": False, "swipes_past_match": 0, "prev_swipe": -1}
 
-    for scroll_i in range(max_scrolls + 1):
-        _, _, loc = _resolve_target(app, vin_target, tree, obs)
+    def _scan_page(o, t, swipe_i):
+        _, _, loc = resolve_target(app, vin_target, t, o)
         st = loc.get("status")
         if st == "ambiguous":
             return finish("ambiguous", reason=f"车架号尾号 {vin} 在车辆列表中命中多个候选项",
                           action_required=False, final_shot=True)
         if st == "found":
-            card = _row_card_texts(tree, _hit_node(tree, loc))
-            if matched_card is not None and (card != matched_card or match_missing_between):
+            card = row_card_texts(t, hit_node(t, loc))
+            if scan_state["matched_card"] is not None and (
+                    card != scan_state["matched_card"] or scan_state["match_missing_between"]):
                 return finish("ambiguous", reason=f"车辆列表不同页均命中尾号 {vin},无法唯一确定车辆",
                               action_required=False, final_shot=True)
-            matched_card = card
-            swipes_past_match = 0
-        elif matched_card is not None:
-            match_missing_between = True
+            scan_state["matched_card"] = card
+            scan_state["swipes_past_match"] = 0
+        elif scan_state["matched_card"] is not None:
+            scan_state["match_missing_between"] = True
+        if scan_state["matched_card"] is not None and swipe_i > scan_state["prev_swipe"] and st != "found":
+            scan_state["swipes_past_match"] += 1
+        scan_state["prev_swipe"] = swipe_i
+        return None
 
-        if scroll_i == max_scrolls:
-            break
-        ok, rec = _send_swipe(dispatcher, observer, steps, "sv", f"scroll_vin_{scroll_i + 1}", tree, direction="up")
-        if not ok:
-            return finish("blocked", reason=f"滚动查找车辆失败: {rec['status']}",
-                          action_required=_needs_human(rec), final_shot=True)
-        if matched_card is not None:
-            swipes_past_match += 1
-        sleep(0.35)
-        obs, tree = observer.observe(f"sv_after_scroll_{scroll_i + 1}", screenshot=False)
-        halted = _check_challenge(app, obs, tree, finish, "滚动扫描车辆列表")
-        if halted is not None:
-            return halted
-        new_sig = _vin_sig(tree)
-        if new_sig == seen_sig:
-            unchanged_scrolls += 1
-            if unchanged_scrolls >= 2:
-                hit_bottom = True
-                _, _, end_loc = _resolve_target(app, vin_target, tree, obs)
-                if end_loc.get("status") == "ambiguous":
-                    return finish("ambiguous", reason=f"车架号尾号 {vin} 在车辆列表中命中多个候选项",
-                                  action_required=False, final_shot=True)
-                if end_loc.get("status") == "found":
-                    end_card = _row_card_texts(tree, _hit_node(tree, end_loc))
-                    if matched_card is not None and (end_card != matched_card or match_missing_between):
-                        return finish("ambiguous", reason=f"车辆列表不同页均命中尾号 {vin},无法唯一确定车辆",
-                                      action_required=False, final_shot=True)
-                    matched_card = end_card
-                    swipes_past_match = 0
-                break
-        else:
-            unchanged_scrolls = 0
-            seen_sig = new_sig
-
+    hit_bottom, obs, tree, scan_halted = rt.bounded_scroll_scan(
+        "up", step_prefix="scroll_vin", obs_prefix="sv_after_scroll",
+        on_page=_scan_page, obs=obs, tree=tree, max_swipes=6, settle_unchanged=2,
+        interval_s=0.35, sig_fn=_vin_sig, stage="滚动扫描车辆列表",
+    )
+    if scan_halted is not None:
+        return scan_halted
     if not hit_bottom:
-        return finish("inconclusive", reason=f"车辆列表扫描 {max_scrolls} 页仍未确认触底,无法确认尾号 {vin} 唯一性",
+        return finish("inconclusive", reason=f"车辆列表扫描 6 页仍未确认触底,无法确认尾号 {vin} 唯一性",
                       action_required=True, final_shot=True)
+    matched_card = scan_state["matched_card"]
     if matched_card is None:
         return finish("not_found", reason=f"车辆列表中未唯一找到尾号 {vin} [not_found]",
                       action_required=False, final_shot=True)
 
     # 若唯一定位的行不在当前视口，向下回滚直至再次可见且卡片一致
-    _, _, loc = _resolve_target(app, vin_target, tree, obs)
+    _, _, loc = resolve_target(app, vin_target, tree, obs)
     if loc.get("status") != "found":
-        for back_i in range(max(swipes_past_match, 1) + 2):
-            ok, rec = _send_swipe(dispatcher, observer, steps, "sv", f"scroll_back_{back_i + 1}", tree, direction="down")
+        for back_i in range(max(scan_state["swipes_past_match"], 1) + 2):
+            ok, rec = rt.send_swipe(f"scroll_back_{back_i + 1}", tree, direction="down")
             if not ok:
                 return finish("blocked", reason=f"回滚定位车辆失败: {rec['status']}",
-                              action_required=_needs_human(rec), final_shot=True)
-            sleep(0.35)
-            obs, tree = observer.observe(f"sv_scroll_back_{back_i + 1}", screenshot=False)
-            halted = _check_challenge(app, obs, tree, finish, "回滚定位车辆")
+                              action_required=needs_human(rec), final_shot=True)
+            rt.sleep(0.35)
+            obs, tree = rt.observe_fast(f"sv_scroll_back_{back_i + 1}")
+            halted = rt.check_challenge(obs, tree, stage="回滚定位车辆")
             if halted is not None:
                 return halted
-            _, _, loc = _resolve_target(app, vin_target, tree, obs)
+            _, _, loc = resolve_target(app, vin_target, tree, obs)
             if loc.get("status") == "ambiguous":
                 return finish("ambiguous", reason=f"车架号尾号 {vin} 命中多个候选项",
                               action_required=False, final_shot=True)
             if loc.get("status") == "found":
-                card = _row_card_texts(tree, _hit_node(tree, loc))
+                card = row_card_texts(tree, hit_node(tree, loc))
                 if card != matched_card:
                     return finish("ambiguous", reason=f"回滚后车架号尾号 {vin} 对应的车辆行已变化,无法唯一确定车辆",
                                   action_required=False, final_shot=True)
@@ -537,55 +272,46 @@ def switch_vehicle_app(ws, app, device, *, vin_tail: str, authorize=None,
         return finish("not_found", reason=f"回滚后未能重新定位尾号 {vin}", action_required=False, final_shot=True)
 
     selected_names = [t.strip() for t in matched_card if "车架号" not in t and vin not in t and t.strip()]
-    ok, rec = _send_tap(app, dispatcher, steps, "sv", "select_vin", vin_target, tree, obs)
+    ok, rec = rt.send_tap("select_vin", vin_target, tree, obs)
     if not ok:
         return finish("blocked", reason=f"点选车辆 {vin} 失败: {rec['status']}",
-                      action_required=_needs_human(rec), final_shot=True)
+                      action_required=needs_human(rec), final_shot=True)
 
-    deadline = time.monotonic() + timeout
-    poll_n = 0
-    last_cur: Optional[str] = None
-    while True:
-        sleep(0.35)
-        poll_n += 1
-        obs, tree = observer.observe(f"sv_confirm_{poll_n}", screenshot=False)
-        kind, detail = _classify_screen(app, obs, tree)
-        if kind == "safe_code":
-            return finish("safe_code_required", reason="切换车辆后命中安全码输入页,已原地保留现场",
-                          action_required=True, final_shot=True)
-        if kind == "sms_verify":
-            return finish("sms_required", reason="切换车辆后命中短信验证码页,已原地保留现场",
-                          action_required=True, final_shot=True)
-        if kind == "benign_dialog" and detail:
-            ok_d, rec_d = _dismiss_benign_dialog(app, dispatcher, steps, "sv",
-                                                 f"post_dismiss_{detail['name']}", detail, tree, obs)
-            if not ok_d and (_needs_human(rec_d) or rec_d.get("status") in ("budget_exhausted", "motion_timeout", "safety_hold")):
-                return finish("blocked", reason=f"关闭弹窗 {detail['name']} 失败: {rec_d['status']}",
-                              action_required=True, final_shot=True)
-        elif app.states.is_state(obs.get("page"), "qk_car_tab"):
-            cur = _read_target_text(app, "qk_car_select", tree, obs)
-            last_cur = cur
-            identity_ok = bool(cur) and bool(selected_names) and cur.strip() in selected_names
-            if identity_ok:
+    def _confirm_car(o, t, k, d, pn):
+        if app.states.is_state(o.get("page"), "qk_car_tab"):
+            cur = read_target_text(app, "qk_car_select", t, o)
+            if bool(cur) and bool(selected_names) and cur.strip() in selected_names:
                 return finish("switched", current_vehicle=cur, final_shot=True)
-        if time.monotonic() >= deadline or (device.kind == "replay" and poll_n >= 3):
-            if app.states.is_state(obs.get("page"), "qk_car_tab"):
-                return finish("unconfirmed", current_vehicle=last_cur,
-                              reason=f"已回到爱车页但当前车辆回读 [{last_cur or '空'}] 与所选车辆 {selected_names or vin} 不一致",
-                              action_required=True, final_shot=True)
-            return finish("timeout", reason=f"点选车辆 {vin} 后 {timeout}s 内未回到爱车页",
-                          action_required=True, final_shot=True)
+        return None
+
+    def _confirm_timeout(o, t, k, d):
+        if app.states.is_state(o.get("page"), "qk_car_tab"):
+            cur = read_target_text(app, "qk_car_select", t, o)
+            return finish(
+                "unconfirmed", current_vehicle=cur,
+                reason=f"已回到爱车页但当前车辆回读 [{cur or '空'}] 与所选车辆 {selected_names or vin} 不一致",
+                action_required=True, final_shot=True,
+            )
+        return finish("timeout", reason=f"点选车辆 {vin} 后 {timeout}s 内未回到爱车页",
+                      action_required=True, final_shot=True)
+
+    return rt.poll_until(
+        "sv_confirm", timeout, 0.35, _confirm_car,
+        replay_max_polls=3, handle_benign_dialogs=True, dismiss_prefix="post_dismiss",
+        challenge_stage="切换车辆", on_timeout=_confirm_timeout,
+    )
 
 
 def enter_vpd_app(ws, app, device, *, authorize=None, vin_tail: Optional[str] = None,
                   account_secret: Optional[str] = None, password_secret: Optional[str] = None,
-                  timeout_s: float = 25.0, store: Optional[RunStore] = None, sleep=None) -> dict:
+                  timeout_s: float = 25.0, store: Optional[RunStore] = None, sleep=None,
+                  _ctx: Optional[RunContext] = None) -> dict:
     """原子进入 VPD 首页能力（当前支持 qiankun_hm；可选顺带按 --vin-tail 切车与按 account_state 自动登录）。"""
     t0 = time.monotonic()
     if app.id != "qiankun_hm":
         raise ValueError(f"当前原子进 VPD 能力仅支持 qiankun_hm，收到 {app.id}")
-    timeout = _validate_timeout(timeout_s, max_s=120.0)
-    vin = _validate_vin_tail(vin_tail) if vin_tail is not None else None
+    timeout = validate_timeout(timeout_s, max_s=120.0)
+    vin = validate_vin_tail(vin_tail) if vin_tail is not None else None
 
     granted = set(authorize or [])
     if vin is not None and "vehicle_selection" not in granted:
@@ -601,78 +327,62 @@ def enter_vpd_app(ws, app, device, *, authorize=None, vin_tail: Optional[str] = 
             "steps": [],
         }
 
-    store, ctx, dispatcher, observer, sleep = _make_runtime(
-        ws, app, device, kind="enter_vpd", capability="enter_vpd",
-        granted=granted, store=store, sleep=sleep,
+    rt = CapabilityRuntime.open(
+        ws, app, device,
+        kind="enter_vpd", capability="enter_vpd", prefix="ev", granted=granted,
+        store=store, sleep=sleep, _ctx=_ctx,
         extra_start=({"vin_tail": vin} if vin is not None else None),
+        classify=lambda a, o, t: _classify_screen(a, o, t), t0=t0,
     )
-    steps: list[dict] = []
+
+    base_finish = rt.finish
 
     def finish(status: str, *, method: Optional[str] = None, reason: Optional[str] = None,
                park_name: Optional[str] = None, action_required: bool = False,
                final_shot: bool = False, extra: Optional[dict] = None) -> dict:
-        final_obs = None
-        if final_shot:
-            obs_f, _ = observer.observe(f"enter_vpd_{status}", screenshot=True)
-            final_obs = obs_f["obs_id"]
-        elapsed = round(time.monotonic() - t0, 2)
-        total_actions = ctx.actions
-        out = {
-            "run": store.run_id,
-            "app": app.id,
-            "device": device.spec,
-            "status": status,
+        fields = {
             **({"method": method} if method else {}),
             **({"park_name": park_name} if park_name else {}),
             **({"vin_tail": vin} if vin else {}),
-            **({"reason": reason} if reason else {}),
-            "action_required": action_required,
-            "actions": total_actions,
-            "elapsed_s": elapsed,
-            **({"final_obs": final_obs} if final_obs else {}),
-            "steps": steps,
-            **(extra or {}),
         }
-        store.event("capability_end", capability="enter_vpd", status=status, method=method,
-                    park_name=park_name, actions=total_actions,
-                    elapsed_s=elapsed, action_required=action_required)
-        return out
+        return base_finish(
+            status, reason=reason, action_required=action_required, final_shot=final_shot,
+            fields=fields, event_fields={"method": method, "park_name": park_name}, extra=extra,
+        )
 
-    obs, tree, halted = _unlock_and_bring_to_foreground(
-        ws, app, device, store, dispatcher, observer, steps, "ev", timeout, sleep, finish
+    rt.finish = finish  # type: ignore[method-assign]
+
+    obs, tree, halted = rt.unlock_and_bring_to_foreground(
+        timeout, query_error_reason="查询不到锁屏状态，未下发导航动作", replay_launch_polls=4,
     )
     if halted is not None:
         return halted
 
     # 先清理良性弹窗与未登录态（含弹窗关闭后才暴露登录页的场景，共享同一 ctx 预算）
     for _ in range(3):
+        halted = rt.check_challenge(obs, tree)
+        if halted is not None:
+            return halted
         kind, detail = _classify_screen(app, obs, tree)
-        if kind == "safe_code":
-            return finish("safe_code_required", reason="命中安全码输入页，已原地保留现场等待人工处理",
-                          action_required=True, final_shot=True)
-        if kind == "sms_verify":
-            return finish("sms_required", reason="命中短信验证码页，已原地保留现场等待人工处理",
-                          action_required=True, final_shot=True)
         if kind == "benign_dialog" and detail:
-            ok_d, rec_d = _dismiss_benign_dialog(app, dispatcher, steps, "ev",
-                                                 f"pre_dismiss_{detail['name']}", detail, tree, obs)
+            ok_d, rec_d = rt.dismiss_benign_dialog(f"pre_dismiss_{detail['name']}", detail, tree, obs)
             if not ok_d:
                 return finish("blocked", reason=f"关闭弹窗 {detail['name']} 失败：{rec_d['status']}",
-                              action_required=_needs_human(rec_d), final_shot=True)
-            sleep(0.35)
-            obs, tree = observer.observe("ev_after_pre_dismiss", screenshot=False)
+                              action_required=needs_human(rec_d), final_shot=True)
+            rt.sleep(0.35)
+            obs, tree = rt.observe_fast("ev_after_pre_dismiss")
             continue
-        if kind in _LOGGED_OUT_KINDS:
+        if kind in LOGGED_OUT_KINDS:
             if "account_state" not in granted:
                 return finish("login_required", reason="当前处于未登录状态，需先登录（或传入 --authorize account_state）",
                               action_required=True, final_shot=True)
             login_res = login_app(
                 ws, app, device, authorize=granted,
                 account_secret=account_secret, password_secret=password_secret,
-                timeout_s=min(15.0, timeout), store=store, sleep=sleep, _ctx=ctx,
+                timeout_s=min(15.0, timeout), store=rt.store, sleep=rt.sleep, _ctx=rt.ctx,
             )
-            steps.append({"step": "login", "status": login_res["status"], "method": login_res.get("method"),
-                          "actions": login_res.get("actions", 0)})
+            rt.steps.append({"step": "login", "status": login_res["status"], "method": login_res.get("method"),
+                             "actions": login_res.get("actions", 0)})
             if login_res["status"] != "logged_in":
                 return finish(
                     login_res["status"],
@@ -681,7 +391,7 @@ def enter_vpd_app(ws, app, device, *, authorize=None, vin_tail: Optional[str] = 
                     final_shot=False,
                     extra={"login": login_res},
                 )
-            obs, tree = observer.observe("ev_after_login", screenshot=False)
+            obs, tree = rt.observe_fast("ev_after_login")
             continue
         break
 
@@ -691,78 +401,69 @@ def enter_vpd_app(ws, app, device, *, authorize=None, vin_tail: Optional[str] = 
         if pre_blk is not None:
             st, rsn, req = pre_blk
             return finish(st, reason=rsn, action_required=req, final_shot=True)
-        texts = _visible_texts(tree)
+        texts = visible_texts(tree)
         if app.states.is_state(obs.get("page"), "qk_vpd_home") and "停车场信息加载失败" not in texts:
-            return finish("ready", method="already", park_name=_read_target_text(app, "qk_home_park_name", tree, obs),
+            return finish("ready", method="already", park_name=read_target_text(app, "qk_home_park_name", tree, obs),
                           final_shot=False)
 
     # 如需按 --vin-tail 切车，先执行切车原子能力（共享同一 ctx 预算）
     if vin is not None:
         sw = switch_vehicle_app(ws, app, device, vin_tail=vin, authorize=granted,
-                                timeout_s=min(15.0, timeout), store=store, sleep=sleep, _ctx=ctx)
-        steps.append({"step": "switch_vehicle", "status": sw["status"], "vin_tail": vin,
-                      "current_vehicle": sw.get("current_vehicle")})
+                                timeout_s=min(15.0, timeout), store=rt.store, sleep=rt.sleep, _ctx=rt.ctx)
+        rt.steps.append({"step": "switch_vehicle", "status": sw["status"], "vin_tail": vin,
+                         "current_vehicle": sw.get("current_vehicle")})
         if sw["status"] != "switched":
             return finish(sw["status"], reason=sw.get("reason", "切换目标车辆未完成"),
                           action_required=bool(sw.get("action_required")), final_shot=False,
                           extra={"switch_vehicle": sw})
-        obs, tree = observer.observe("ev_after_switch", screenshot=False)
+        obs, tree = rt.observe_fast("ev_after_switch")
 
     # 导航至爱车页并定位 ADS 入口（找不到时受控上滑最多 3 次）
-    obs, tree, halted = _ensure_car_tab(
-        app, dispatcher, observer, steps, "ev", obs, tree, timeout, sleep, finish
-    )
+    obs, tree, halted = _ensure_car_tab(rt, obs, tree, timeout)
     if halted is not None:
         return halted
 
     ads_loc = None
     for scroll_i in range(4):
-        _, _, ads_loc = _resolve_target(app, "qk_ads", tree, obs)
+        _, _, ads_loc = resolve_target(app, "qk_ads", tree, obs)
         if ads_loc.get("status") == "found":
             break
         if scroll_i == 3:
             break
-        ok, rec = _send_swipe(dispatcher, observer, steps, "ev", f"scroll_ads_{scroll_i + 1}", tree, direction="up")
+        ok, rec = rt.send_swipe(f"scroll_ads_{scroll_i + 1}", tree, direction="up")
         if not ok:
             return finish("blocked", reason=f"上滑查找 ADS 入口失败：{rec['status']}",
-                          action_required=_needs_human(rec), final_shot=True)
-        sleep(0.35)
-        obs, tree = observer.observe(f"ev_scroll_ads_{scroll_i + 1}", screenshot=False)
-        halted = _check_challenge(app, obs, tree, finish, "上滑查找 ADS 入口")
+                          action_required=needs_human(rec), final_shot=True)
+        rt.sleep(0.35)
+        obs, tree = rt.observe_fast(f"ev_scroll_ads_{scroll_i + 1}")
+        halted = rt.check_challenge(obs, tree, stage="上滑查找 ADS 入口")
         if halted is not None:
             return halted
 
     if not ads_loc or ads_loc.get("status") != "found":
         return finish("blocked", reason="爱车页未找到 ADS 入口（qk_ads）", action_required=False, final_shot=True)
 
-    ok, rec = _send_tap(app, dispatcher, steps, "ev", "tap_ads", "qk_ads", tree, obs)
+    ok, rec = rt.send_tap("tap_ads", "qk_ads", tree, obs)
     if not ok:
         return finish("blocked", reason=f"点击 ADS 失败：{rec['status']}",
-                      action_required=_needs_human(rec), final_shot=True)
+                      action_required=needs_human(rec), final_shot=True)
 
     # 快速轮询进入 VPD 首页或明确阻塞状态（安全码 / 停车场信息加载失败 / 良性弹窗 / 定位权限未开启 / 仅充电服务）
-    deadline = time.monotonic() + timeout
-    poll_n = 0
-    while True:
-        sleep(0.45)
-        poll_n += 1
-        obs, tree = observer.observe(f"ev_poll_{poll_n}", screenshot=False)
-        kind, detail = _classify_screen(app, obs, tree)
-        if kind == "benign_dialog" and detail:
-            ok_d, rec_d = _dismiss_benign_dialog(app, dispatcher, steps, "ev",
-                                                 f"post_dismiss_{detail['name']}", detail, tree, obs)
-            if not ok_d and (_needs_human(rec_d) or rec_d.get("status") in ("budget_exhausted", "motion_timeout", "safety_hold")):
-                return finish("blocked", reason=f"进入 VPD 后关闭弹窗 {detail['name']} 失败：{rec_d['status']}",
-                              action_required=True, final_shot=True)
-        else:
-            blk = _vpd_blocker(app, obs, tree, allow_charging_only=(poll_n >= 3))
-            if blk is not None:
-                st, rsn, req = blk
-                return finish(st, reason=rsn, action_required=req, final_shot=True)
-            if app.states.is_state(obs.get("page"), "qk_vpd_home"):
-                return finish("ready", method="entered",
-                              park_name=_read_target_text(app, "qk_home_park_name", tree, obs),
-                              final_shot=True)
-        if time.monotonic() >= deadline or (device.kind == "replay" and poll_n >= 4):
-            return finish("timeout", reason=f"点击 ADS 后 {timeout}s 内未进入 VPD 首页",
-                          action_required=True, final_shot=True)
+    def _check_vpd(o, t, k, d, pn):
+        blk = _vpd_blocker(app, o, t, allow_charging_only=(pn >= 3))
+        if blk is not None:
+            st, rsn, req = blk
+            return finish(st, reason=rsn, action_required=req, final_shot=True)
+        if app.states.is_state(o.get("page"), "qk_vpd_home"):
+            return finish("ready", method="entered",
+                          park_name=read_target_text(app, "qk_home_park_name", t, o),
+                          final_shot=True)
+        return None
+
+    return rt.poll_until(
+        "ev_poll", timeout, 0.45, _check_vpd,
+        replay_max_polls=4, handle_benign_dialogs=True, dismiss_prefix="post_dismiss",
+        check_challenges=True, challenge_stage="点击 ADS",
+        on_timeout=lambda o, t, k, d: finish("timeout", reason=f"点击 ADS 后 {timeout}s 内未进入 VPD 首页",
+                                             action_required=True, final_shot=True),
+    )

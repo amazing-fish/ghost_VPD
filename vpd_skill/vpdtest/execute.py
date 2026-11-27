@@ -10,6 +10,12 @@ import re
 import time
 from typing import Optional
 
+from .capability_runtime import (
+    CAPABILITY_SPECS,
+    VIN_TAIL_RE,
+    normalize_capability_spec,
+    validate_capability_spec,
+)
 from .cases import execution_structure_issues, iter_case_steps
 from .devices import LAUNCHER, DeviceResult
 from .dispatch import auxiliary_dispatches, dispatch_effect_unknown
@@ -93,6 +99,13 @@ def unresolved_takeover(result):
     return bool(result.get("effect_unknown") and result.get("action_required"))
 
 
+def capability_handoff(result) -> bool:
+    """Whether a step or enclosing composite flow/recipe returned a capability handoff."""
+    return bool(result.get("action_required") and (
+        result.get("action") == "capability" or result.get("capability_handoff")
+    ))
+
+
 def halts_sequence(result, *, safety=False):
     """顶层步骤与 flow/recipe 子步骤共用的停止规则：未通过且为关键步骤，或效果未知待接管。
 
@@ -100,7 +113,10 @@ def halts_sequence(result, *, safety=False):
     """
     if result["outcome"] in PASSED:
         return False
-    return bool(result.get("critical", True) or (unresolved_takeover(result) and not safety))
+    return bool(
+        result.get("critical", True)
+        or ((unresolved_takeover(result) or capability_handoff(result)) and not safety)
+    )
 
 
 class Executor:
@@ -261,6 +277,8 @@ class Executor:
             return self._ensure_state(step, case_id)
         if step["action"] == "flow":
             return self._flow(step, case_id)
+        if step["action"] == "capability":
+            return self._capability(step)
         # 监视是一段连续观测，整体重跑会重复计时，不重试
         max_retry = 0 if step["action"] == "monitor" or "capture_transient" in step else min(int(step.get("retry", 1)), 2)
         attempts, recoveries, n, obstruction_used = [], [], 0, False
@@ -1279,12 +1297,15 @@ class Executor:
                                "_safety": bool(step.get("_safety")), **self._child_condition_context(step)}, case_id)
             subs.append(s)
             # An explore reset can contain optional recipe/flow steps. An explicit
-            # handoff must stop before the next child even when no effect is unknown.
+            # handoff (or capability challenge handoff) must stop before the next child
+            # even when no effect is unknown.
             explore_handoff = self.ctx.mode == "explore" and not step.get("_safety") and s.get("action_required")
+            cap_handoff = capability_handoff(s) and not step.get("_safety")
             if s["outcome"] == "skipped" and s.get("critical", True) and not explore_handoff:
                 return self._required_skip(base, s, subs)
             takeover = unresolved_takeover(s) and not step.get("_safety")
-            if explore_handoff or (s["outcome"] != "skipped" and halts_sequence(s, safety=bool(step.get("_safety")))):
+            if explore_handoff or cap_handoff or (
+                    s["outcome"] != "skipped" and halts_sequence(s, safety=bool(step.get("_safety")))):
                 return {**base, "outcome": s["outcome"], "attribution": s.get("attribution"),
                         "reason": (f"流程 {step['flow']} 第 {i + 1} 步（{sub.get('desc', sub['action'])}）未通过：{s.get('reason')}" if flow
                                    else f"前置状态 {step['state']} 未到达：{s.get('reason')}"),
@@ -1293,7 +1314,11 @@ class Executor:
                         "first_failure": s.get("first_failure"), "final_obs": s.get("final_obs"),
                         "final_status": s.get("final_status"),
                         **({k: s[k] for k in ("action_required", "effect_unknown") if k in s}
-                           if explore_handoff or takeover else {}),
+                           if explore_handoff or takeover or cap_handoff else {}),
+                        **({
+                            "capability_handoff": True,
+                            **{k: s[k] for k in ("capability", "capability_status") if k in s},
+                        } if cap_handoff else {}),
                         **({"measurement": s.get("measurement")} if flow else {})}
         order = ["passed", "passed_after_adaptation", "passed_after_recovery"]
         outcome = ("skipped" if subs and all(s["outcome"] == "skipped" for s in subs) else
@@ -1837,6 +1862,253 @@ class Executor:
         terminal = {"action": "wait", "duration_s": 0, "expect_state": target,
                     "timeout_s": 0, "retry": 0, "critical": True}
         return self._run_children(step, case_id, [*recipe, terminal], base)
+
+    @staticmethod
+    def _vin_references_secret(raw_value, params, raw_params_local: Optional[dict] = None,
+                               seen_params: Optional[set] = None) -> bool:
+        if raw_value is None:
+            return False
+        seen_params = seen_params or set()
+        for kind, name in re.findall(r"\$\{(var|param|secret):([A-Za-z0-9_.-]+)\}", str(raw_value)):
+            if kind == "secret":
+                return True
+            if kind == "var" and params is not None and name in getattr(params, "secret_vars", ()):
+                return True
+            if kind == "param" and raw_params_local and name not in seen_params and name in raw_params_local:
+                if Executor._vin_references_secret(raw_params_local[name], params, raw_params_local,
+                                                   seen_params | {name}):
+                    return True
+        return False
+
+    @staticmethod
+    def _terminal_capability_error(cap_res: dict) -> Optional[dict]:
+        if isinstance(cap_res.get("execution_error"), dict):
+            return cap_res["execution_error"]
+        for nested_key in ("login", "switch_vehicle"):
+            nested = cap_res.get(nested_key)
+            if isinstance(nested, dict):
+                err = Executor._terminal_capability_error(nested)
+                if err:
+                    return err
+        steps = cap_res.get("steps") or []
+        if steps and isinstance(steps[-1], dict) and steps[-1].get("status") != "ok":
+            err = steps[-1].get("execution_error")
+            if isinstance(err, dict):
+                return err
+        return None
+
+    def _capability(self, step: dict) -> dict:
+        # Once selected by run_step's `when` guard, composite capability execution
+        # proceeds as a unit (consistent with `_flow`).
+        return self.run_capability(
+            step,
+            step_id=step["id"],
+            critical=bool(step.get("critical", True)),
+            oracle_refs=step.get("oracle_refs", []),
+            params_local=step.get("_flow_params"),
+            raw_params_local=step.get("_flow_raw"),
+        )
+
+    def run_capability(self, entry, *, step_id: str, critical: bool = True,
+                       oracle_refs: Optional[list] = None, params_local: Optional[dict] = None,
+                       raw_params_local: Optional[dict] = None) -> dict:
+        """Execute an L2/L3 atomic capability within the shared RunContext budget."""
+        ctx = self.ctx
+        base = {
+            "step_id": step_id,
+            "action": "capability",
+            "critical": critical,
+            "oracle_refs": list(oracle_refs or []),
+            "attempts": [],
+            "recoveries": [],
+            "adapted": False,
+        }
+        held = ctx.dispatcher.held_step({"n": 1, "action": "capability", "step_id": step_id, "_safety": False})
+        if held is not None:
+            return {
+                **base,
+                "outcome": "blocked",
+                "attribution": "environment",
+                "final_status": "safety_hold",
+                "capability_handoff": True,
+                "action_required": "安全停止未确认，执行暂停，需人工接管",
+                "reason": "安全停止未确认，执行暂停，需人工接管",
+            }
+        if ctx.motion.locked():
+            return {
+                **base,
+                "outcome": "blocked",
+                "attribution": "environment",
+                "final_status": "motion_timeout",
+                "capability_handoff": True,
+                "action_required": "车辆运动超时已锁定，需人工接管",
+                "reason": "车辆运动超时已锁定，未执行原子能力",
+            }
+
+        issues = validate_capability_spec(entry, ctx.app.id, step_id)
+        spec = normalize_capability_spec(entry)
+        if issues or not spec:
+            return {
+                **base,
+                "outcome": "blocked",
+                "attribution": "tool",
+                "final_status": "invalid_step",
+                "reason": f"原子能力声明无效：{issues}",
+            }
+
+        cap_name = spec["capability"]
+        meta = CAPABILITY_SPECS[cap_name]
+        vin_tail = spec.get("vin_tail")
+        if vin_tail is not None:
+            if self._vin_references_secret(vin_tail, ctx.params, raw_params_local):
+                return {
+                    **base,
+                    "capability": cap_name,
+                    "outcome": "blocked",
+                    "attribution": "tool",
+                    "final_status": "capability_invalid_param",
+                    "reason": f"原子能力 {cap_name} 的 vin_tail 不允许引用 secret 类型的敏感 test_data",
+                }
+            try:
+                resolved_vin = ctx.params.subst(vin_tail, params_local) if ctx.params else vin_tail
+            except ValueError as exc:
+                return {
+                    **base,
+                    "capability": cap_name,
+                    "outcome": "blocked",
+                    "attribution": "environment",
+                    "final_status": "capability_invalid_param",
+                    "reason": str(exc),
+                }
+            resolved_vin = str(resolved_vin).strip()
+            if "${" in resolved_vin or not VIN_TAIL_RE.fullmatch(resolved_vin):
+                unresolved = "${" in resolved_vin
+                return {
+                    **base,
+                    "capability": cap_name,
+                    "outcome": "blocked",
+                    "attribution": "environment" if unresolved else "tool",
+                    "final_status": "capability_invalid_param",
+                    "reason": f"原子能力 {cap_name} 的 vin_tail 参数无效或未解析：{resolved_vin}",
+                }
+            vin_tail = resolved_vin
+
+        try:
+            if cap_name == "logged_in":
+                from .login import login_app
+                timeout_val = float(spec["timeout_s"]) if spec.get("timeout_s") is not None else 15.0
+                cap_res = login_app(
+                    ctx.ws, ctx.app, ctx.device,
+                    authorize=ctx.authorized,
+                    account_secret=spec.get("account_secret"),
+                    password_secret=spec.get("password_secret"),
+                    timeout_s=timeout_val,
+                    store=ctx.store,
+                    sleep=ctx.sleep,
+                    _ctx=ctx,
+                )
+            elif cap_name == "vehicle_vin":
+                from .vpd_nav import switch_vehicle_app
+                timeout_val = float(spec["timeout_s"]) if spec.get("timeout_s") is not None else 15.0
+                cap_res = switch_vehicle_app(
+                    ctx.ws, ctx.app, ctx.device,
+                    vin_tail=vin_tail,
+                    authorize=ctx.authorized,
+                    timeout_s=timeout_val,
+                    store=ctx.store,
+                    sleep=ctx.sleep,
+                    _ctx=ctx,
+                )
+            elif cap_name == "vpd_ready":
+                from .vpd_nav import enter_vpd_app
+                auto_login = bool(spec.get("auto_login", False))
+                vpd_auth = ctx.authorized if auto_login else (ctx.authorized - {"account_state"})
+                timeout_val = float(spec["timeout_s"]) if spec.get("timeout_s") is not None else 25.0
+                cap_res = enter_vpd_app(
+                    ctx.ws, ctx.app, ctx.device,
+                    authorize=vpd_auth,
+                    vin_tail=vin_tail,
+                    account_secret=spec.get("account_secret"),
+                    password_secret=spec.get("password_secret"),
+                    timeout_s=timeout_val,
+                    store=ctx.store,
+                    sleep=ctx.sleep,
+                    _ctx=ctx,
+                )
+            else:
+                return {
+                    **base,
+                    "capability": cap_name,
+                    "outcome": "blocked",
+                    "attribution": "tool",
+                    "final_status": "invalid_step",
+                    "reason": f"未知原子能力 {cap_name}",
+                }
+        except ValueError as exc:
+            return {
+                **base,
+                "capability": cap_name,
+                "outcome": "blocked",
+                "attribution": "tool",
+                "final_status": "capability_invalid_param",
+                "reason": str(exc),
+            }
+
+        cap_status = cap_res.get("status")
+        record = {
+            **base,
+            "capability": cap_name,
+            "capability_status": cap_status,
+            "capability_result": cap_res,
+            "actions": cap_res.get("actions", 0),
+            "final_obs": cap_res.get("final_obs"),
+        }
+        if cap_status in meta["success_statuses"]:
+            return {**record, "outcome": "passed", "final_status": cap_status}
+
+        if cap_res.get("action_required"):
+            record["capability_handoff"] = True
+            record["action_required"] = (
+                f"原子能力 {cap_name} 需要人工接管（{cap_status}）："
+                f"{cap_res.get('reason') or '请核对设备现场后重跑'}"
+            )
+        if cap_res.get("reason"):
+            record["reason"] = cap_res["reason"]
+
+        terminal_err = self._terminal_capability_error(cap_res)
+        if cap_status == "indeterminate" or terminal_err is not None:
+            err = terminal_err or {
+                "stage": f"capability_{cap_name}",
+                "error_class": cap_status or "indeterminate",
+                "error": cap_res.get("reason"),
+            }
+            attr = err.get("attribution") or error_attribution(err.get("error_class"))
+            return {
+                **record,
+                "outcome": "error",
+                "attribution": attr,
+                "final_status": "capability_error",
+                "execution_error": err,
+            }
+
+        tool_step_statuses = {
+            "budget_exhausted", "policy_denied", "motion_timeout", "safety_hold",
+            "target_unresolved", "target_ambiguous", "target_partially_visible",
+            "target_obscured", "target_stale", "screen_size_unknown",
+        }
+        nested_steps = list(cap_res.get("steps") or [])
+        for nested_key in ("login", "switch_vehicle"):
+            if isinstance(cap_res.get(nested_key), dict):
+                nested_steps += list(cap_res[nested_key].get("steps") or [])
+        tool_caused = cap_status in {"invalid_secret", "inconclusive", "unconfirmed"} or any(
+            st.get("status") in tool_step_statuses for st in nested_steps if isinstance(st, dict)
+        )
+        return {
+            **record,
+            "outcome": "blocked",
+            "attribution": "tool" if tool_caused else "environment",
+            "final_status": f"capability_{cap_status}",
+        }
 
 
 def _measure(tree, loc: dict, step: dict) -> dict:

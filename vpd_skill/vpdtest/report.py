@@ -222,6 +222,13 @@ def render_run(run: dict) -> str:
     else:
         out.append("- 无")
 
+    if run.get("capability_preconditions"):
+        out += ["", "## 前置原子能力", "", "| 步骤 | 能力 | 结果 | 能力状态 | 动作数 | 说明 |", "|---|---|---|---|---|---|"]
+        for cap in run["capability_preconditions"]:
+            out.append(f"| {_esc(cap['step_id'])} | {_esc(cap.get('capability'))} | "
+                       f"{OUTCOME.get(cap['outcome'], _esc(cap['outcome']))} | {_esc(cap.get('capability_status'))} | "
+                       f"{cap.get('actions', 0)} | {_esc(cap.get('reason') or '')} |")
+
     out += ["", "## 步骤", "",
             "按原始记录展开执行与清理步骤；父步骤的尝试为子步骤汇总，不能与子步骤相加。结果与观测原样保留，不重新判定。", "",
             "| 步骤 | 阶段 / 父步骤 | 动作 | 结果 | 尝试 | 恢复 | 定位 | 最终观测 |", "|---|---|---|---|---|---|---|---|"]

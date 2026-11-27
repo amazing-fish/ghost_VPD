@@ -27,6 +27,9 @@ description: VPD 手机 APP 智能自动化测试（v0.1，HarmonyOS：鸿蒙智
 3. **前置**：`doctor --device <spec>` 只读检查。解锁是执行器自动调用的原子能力：`run` 的前置检查与动作下发前
    发现熄屏/锁屏时，先观察状态，再唤醒、上滑，必要时读取该设备映射的 PIN 输入一次；已解锁直接返回。
    查询失败、缺少 PIN 或 PIN 被拒时，按能力返回的证据与原因阻塞。离线/未安装、车辆未选好仍报告具体条件。**登录、选车、进 VPD 均已收敛为能力层原子命令，永远不要卡在未登录态或拆成 10+ 步手动 `act`**：已委派测试任务遇到「登录/注册」「本机号码一键登录」「其他登录方式」等未登录页时，只要 `config.local.json` 的 `secrets` 或环境变量 `VPD_SECRET_*` 已配置外置凭据，优先调用单命令原子登录 `.\vpdtest.ps1 login --app qiankun_hm --device <spec> --authorize account_state` 一键完成账号密码登录（内部自动处理「手动输入」防清空、`SelectOverlay` 遮挡回退、勾选协议与快速轮询；用例内继续复用 `ensure_state qk_target_account_ready` / `login_password_prod`），严禁停在未登录页反复等待人工登录（若测试目标明确为验证未登录态或登录页本身，如显式声明 `--env account_state=logged_out`，则保持未登录现场不自动登录）。同样地，按车架号切车使用 `.\vpdtest.ps1 switch-vehicle --app qiankun_hm --device <spec> --vin-tail <尾号> --authorize vehicle_selection`，进 VPD 首页使用 `.\vpdtest.ps1 enter-vpd --app qiankun_hm --device <spec> [--vin-tail <尾号> --authorize vehicle_selection]`（`vpd_entry` 随任务策略许可，无需逐次询问）。已委派测试任务可经 `vpdtest act launch` / `act resume` 主动拉起被测 APP，无需因前台是其他 APP 再次确认；拉起后重新观察，触摸和输入仍须确认当前前台属于目标 APP。
+   **执行引擎能力前置与内联调用**：
+   - 根字段 `requires_capabilities`（支持 `logged_in`、`vehicle_vin`、`vpd_ready`）：在所有业务步骤之前按序调用共享预算的原子能力；任一前置未就绪（如短信挑战、安全码、定位权限未开启、缺少外置凭据）时一律中止业务步骤并跳过 `cleanup`（保留现场），结论归因为 `blocked`/`error`、`product_verdict=pending`、`product_failed=false`。
+   - 步骤内 `action: "capability"`：按步骤声明顺序执行；若遇 `action_required`（如短信/安全码挑战）同样立即阻断后续业务步骤并延后普通 `cleanup` 以保留接管现场，其余普通清理仍受 `after_dispatch` 归属与常规步骤中止规则约束。
 4. **观察与探索**：每次 observe 先看关键 UI：`ui_alerts`（页面内的「加载失败」「解析失败」「请重试」等）非空就是异常，
    **先记录时间（obs 的 ts/obs_id）与截图，点右上角「反馈」填写时间、页面、异常原文、前一步操作、车辆、APP 版本并提交，
    再决定是否重试**；首次异常保留在会话和报告里，作为产品问题候选。
