@@ -248,6 +248,9 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                         if unresolved_takeover(halted):
                             blocked.update(blocked_by=halted["step_id"],
                                            reason="前置动作效果未知且需要人工接管，后继业务步骤停止")
+                        elif halted.get("action") == "capability" and halted.get("action_required"):
+                            blocked.update(blocked_by=halted["step_id"],
+                                           reason=f"前置原子能力 {halted.get('capability')} 需要人工接管（{halted.get('capability_status')}），后继业务步骤停止")
                         steps.append(blocked)
                         continue
                     diagnostic.phase, diagnostic.step = "step_start", st["id"]
@@ -257,7 +260,8 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                     steps.append(res)
                     diagnostic.phase = "step_done"
                     store.event("step_done", step=st["id"], outcome=res["outcome"])
-                    if halts_sequence(res):
+                    cap_handoff = res.get("action") == "capability" and bool(res.get("action_required"))
+                    if halts_sequence(res) or cap_handoff:
                         halted = res
                         diagnostic.phase = "safety_stop"
                         if ctx.motion.armed or ctx.motion.locked():
@@ -269,25 +273,28 @@ def run_case(ws: Workspace, case_id: Optional[str] = None, case: Optional[dict] 
                 if ctx.motion.locked() or (ctx.motion.armed and (case.get("safety") or {}).get("stop_at_end", True)):
                     safety_stops.append(safety_mod.safe_stop(ex, "motion_timeout" if ctx.motion.locked()
                                                              else "case_end_still_moving"))
-                for i, c in enumerate(case.get("cleanup", [])):
-                    owner = c.get("after_dispatch")
-                    operation = {"critical": False, "retry": 0, **c, "id": c.get("id", f"C{i + 1}")}
-                    diagnostic.phase, diagnostic.step = "cleanup", operation["id"]
-                    operation.pop("after_dispatch", None)
-                    owned = owner is None or cleanup_dispatch_owned(steps, owner)
-                    if owned:
-                        res = ex.run_step(operation, case["id"])
-                    else:
-                        res = {"step_id": operation["id"], "action": operation["action"], "critical": False,
-                               "outcome": "skipped", "attempts": [], "recoveries": [], "adapted": False,
-                               "final_status": "cleanup_not_owned", "reason": "本次未下发所引用的用户数据动作，不清理既有数据"}
-                    if owner is not None:
-                        res["cleanup_guard"] = {"after_dispatch": owner, "may_have_changed_user_data": owned}
-                    if res.get("final_status") == "safety_hold":
-                        res.update(outcome="not_run", reason="安全停止未确认，清理暂停，需人工接管")
-                    res["required"] = c.get("required", True) if owned else False
-                    cleanup.append(res)
-                    store.event("cleanup_done", step=res["step_id"], outcome=res["outcome"], required=res["required"])
+                cap_challenge_halt = (halted is not None and halted.get("action") == "capability"
+                                      and halted.get("capability_status") in ("sms_required", "safe_code_required"))
+                if not cap_challenge_halt:
+                    for i, c in enumerate(case.get("cleanup", [])):
+                        owner = c.get("after_dispatch")
+                        operation = {"critical": False, "retry": 0, **c, "id": c.get("id", f"C{i + 1}")}
+                        diagnostic.phase, diagnostic.step = "cleanup", operation["id"]
+                        operation.pop("after_dispatch", None)
+                        owned = owner is None or cleanup_dispatch_owned(steps, owner)
+                        if owned:
+                            res = ex.run_step(operation, case["id"])
+                        else:
+                            res = {"step_id": operation["id"], "action": operation["action"], "critical": False,
+                                   "outcome": "skipped", "attempts": [], "recoveries": [], "adapted": False,
+                                   "final_status": "cleanup_not_owned", "reason": "本次未下发所引用的用户数据动作，不清理既有数据"}
+                        if owner is not None:
+                            res["cleanup_guard"] = {"after_dispatch": owner, "may_have_changed_user_data": owned}
+                        if res.get("final_status") == "safety_hold":
+                            res.update(outcome="not_run", reason="安全停止未确认，清理暂停，需人工接管")
+                        res["required"] = c.get("required", True) if owned else False
+                        cleanup.append(res)
+                        store.event("cleanup_done", step=res["step_id"], outcome=res["outcome"], required=res["required"])
         else:
             diagnostic.phase = "blocked_observation"
             ctx.observe("preflight-blocked")

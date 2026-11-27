@@ -77,9 +77,16 @@ def validate_vin_tail(vin_tail: Optional[str]) -> str:
     return val
 
 
+def _is_valid_bounded_number(val, *, max_s: float) -> bool:
+    if not isinstance(val, (int, float)) or isinstance(val, bool):
+        return False
+    if isinstance(val, float) and not math.isfinite(val):
+        return False
+    return 0 < val <= max_s
+
+
 def validate_timeout(timeout_s: float, *, max_s: float) -> float:
-    if (not isinstance(timeout_s, (int, float)) or isinstance(timeout_s, bool)
-            or not math.isfinite(timeout_s) or timeout_s <= 0 or timeout_s > max_s):
+    if not _is_valid_bounded_number(timeout_s, max_s=max_s):
         raise ValueError(f"timeout_s 须为 (0, {int(max_s)}] 秒内的有限数字")
     return float(timeout_s)
 
@@ -241,10 +248,9 @@ def validate_capability_spec(entry, app_id: str, field: str) -> list[dict]:
                                "problem": f"{key_field} 只接受大写字母/数字/下划线键名，不接受明文凭据"})
     if "auto_login" in spec and type(spec["auto_login"]) is not bool:
         issues.append({"field": f"{field}.auto_login", "problem": "auto_login 须为布尔值"})
-    if "timeout_s" in spec and spec["timeout_s"] is not None:
+    if "timeout_s" in spec:
         ts = spec["timeout_s"]
-        if (not isinstance(ts, (int, float)) or isinstance(ts, bool)
-                or not math.isfinite(ts) or ts <= 0 or ts > meta["max_timeout_s"]):
+        if not _is_valid_bounded_number(ts, max_s=meta["max_timeout_s"]):
             issues.append({"field": f"{field}.timeout_s",
                            "problem": f"timeout_s 须为 (0, {int(meta['max_timeout_s'])}] 秒内的有限数字"})
     return issues
@@ -286,6 +292,7 @@ class CapabilityRuntime:
         self.t0 = t0
         self.actions_start = ctx.actions
         self.last_obs_epoch = ctx.actions
+        self.last_obs_id: Optional[str] = None
         self.steps: list[dict] = []
 
     @classmethod
@@ -316,17 +323,22 @@ class CapabilityRuntime:
         )
 
     def observe_fast(self, label: str) -> tuple[dict, object]:
-        obs_out, tree_out = self.observer.observe(label, screenshot=False)
+        obs_out, tree_out = self.ctx.observe(label, screenshot=False)
         self.last_obs_epoch = self.ctx.actions
+        self.last_obs_id = obs_out.get("obs_id")
         return obs_out, tree_out
 
     def finish(self, status: str, *, reason: Optional[str] = None, action_required: bool = False,
-               final_shot: bool = False, fields: Optional[dict] = None,
-               event_fields: Optional[dict] = None, extra: Optional[dict] = None) -> dict:
-        final_obs = None
+               final_shot: bool = False, obs_id: Optional[str] = None,
+               fields: Optional[dict] = None, event_fields: Optional[dict] = None,
+               extra: Optional[dict] = None) -> dict:
+        final_obs = obs_id if obs_id is not None else self.last_obs_id
+        shot_obs = None
         if final_shot:
-            obs_f, _ = self.observer.observe(f"{self.capability}_{status}", screenshot=True)
-            final_obs = obs_f["obs_id"]
+            obs_f, _ = self.ctx.observe(f"{self.capability}_{status}", screenshot=True)
+            shot_obs = obs_f["obs_id"]
+            self.last_obs_id = shot_obs
+            final_obs = shot_obs
         elapsed = round(time.monotonic() - self.t0, 2)
         used = self.ctx.actions - self.actions_start
         out = {
@@ -340,6 +352,7 @@ class CapabilityRuntime:
             "actions": used,
             "elapsed_s": elapsed,
             **({"final_obs": final_obs} if final_obs else {}),
+            **({"final_shot_obs": shot_obs} if shot_obs else {}),
             "steps": self.steps,
             **(extra or {}),
         }
@@ -514,20 +527,32 @@ class CapabilityRuntime:
                 halted = self.check_challenge(obs, tree, stage=challenge_stage)
                 if halted is not None:
                     return halted
+            deadline_reached = time.monotonic() >= deadline or (
+                self.device.kind == "replay" and poll_n >= replay_max_polls
+            )
             if handle_benign_dialogs and kind == "benign_dialog" and detail:
-                ok_d, rec_d = self.dismiss_benign_dialog(f"{dismiss_prefix}_{detail['name']}", detail, tree, obs)
-                if not ok_d and (needs_human(rec_d) or rec_d.get("status") in FATAL_DISPATCH_STATUSES):
-                    return self.finish("blocked", reason=f"关闭弹窗 {detail['name']} 失败：{rec_d['status']}",
-                                       action_required=True, final_shot=True)
+                if not deadline_reached:
+                    ok_d, rec_d = self.dismiss_benign_dialog(f"{dismiss_prefix}_{detail['name']}", detail, tree, obs)
+                    if not ok_d and (needs_human(rec_d) or rec_d.get("status") in FATAL_DISPATCH_STATUSES):
+                        return self.finish("blocked", reason=f"关闭弹窗 {detail['name']} 失败：{rec_d['status']}",
+                                           action_required=True, final_shot=True)
             else:
                 res = evaluator(obs, tree, kind, detail, poll_n)
                 if res is not None:
                     return res
-            if time.monotonic() >= deadline or (self.device.kind == "replay" and poll_n >= replay_max_polls):
+            if deadline_reached:
                 if on_timeout is not None:
                     return on_timeout(obs, tree, kind, detail)
                 return self.finish("timeout", reason=f"{timeout_s}s 内未达到预期终态（当前：{kind}）",
                                    action_required=True, final_shot=True)
+
+    @staticmethod
+    def _usable_tree(obs: Optional[dict], tree) -> bool:
+        return bool(
+            obs and obs.get("fresh") is not False
+            and not (obs.get("page") or {}).get("observation_error")
+            and tree is not None and getattr(tree, "status", None) == "ok"
+        )
 
     def scroll_to_edge(self, direction: str, *, step_prefix: str, obs_prefix: str,
                        max_swipes: int = 6, settle_unchanged: int = 2, interval_s: float = 0.35,
@@ -537,7 +562,10 @@ class CapabilityRuntime:
         sig_fn = sig_fn or visible_texts
         if obs is None or tree is None:
             obs, tree = self.observe_fast(f"{obs_prefix}_0")
-        sig = sig_fn(tree)
+        halted = self.check_challenge(obs, tree)
+        if halted is not None:
+            return False, obs, tree, halted
+        sig = sig_fn(tree) if self._usable_tree(obs, tree) else None
         unchanged = 0
         for swipe_i in range(max_swipes):
             ok, rec = self.send_swipe(f"{step_prefix}_{swipe_i + 1}", tree, direction=direction)
@@ -549,8 +577,12 @@ class CapabilityRuntime:
             halted = self.check_challenge(obs, tree, stage=stage)
             if halted is not None:
                 return False, obs, tree, halted
+            if not self._usable_tree(obs, tree):
+                unchanged = 0
+                sig = None
+                continue
             nxt = sig_fn(tree)
-            if nxt == sig:
+            if sig is not None and nxt == sig:
                 unchanged += 1
                 if unchanged >= settle_unchanged:
                     return True, obs, tree, None
@@ -566,7 +598,10 @@ class CapabilityRuntime:
                             stage: str = "滚动扫描") -> tuple[bool, dict, object, Optional[dict]]:
         """Scan pages across bounded swipes, checking `on_page` before swipes and at edge settle."""
         sig_fn = sig_fn or visible_texts
-        seen_sig = sig_fn(tree)
+        halted = self.check_challenge(obs, tree)
+        if halted is not None:
+            return False, obs, tree, halted
+        seen_sig = sig_fn(tree) if self._usable_tree(obs, tree) else None
         unchanged = 0
         for swipe_i in range(max_swipes + 1):
             early = on_page(obs, tree, swipe_i)
@@ -583,8 +618,12 @@ class CapabilityRuntime:
             halted = self.check_challenge(obs, tree, stage=stage)
             if halted is not None:
                 return False, obs, tree, halted
+            if not self._usable_tree(obs, tree):
+                unchanged = 0
+                seen_sig = None
+                continue
             new_sig = sig_fn(tree)
-            if new_sig == seen_sig:
+            if seen_sig is not None and new_sig == seen_sig:
                 unchanged += 1
                 if unchanged >= settle_unchanged:
                     end_res = on_page(obs, tree, swipe_i + 1)

@@ -277,21 +277,19 @@ def switch_vehicle_app(ws, app, device, *, vin_tail: str, authorize=None,
         return finish("blocked", reason=f"点选车辆 {vin} 失败: {rec['status']}",
                       action_required=needs_human(rec), final_shot=True)
 
-    last_cur: list[Optional[str]] = [None]
-
     def _confirm_car(o, t, k, d, pn):
         if app.states.is_state(o.get("page"), "qk_car_tab"):
             cur = read_target_text(app, "qk_car_select", t, o)
-            last_cur[0] = cur
             if bool(cur) and bool(selected_names) and cur.strip() in selected_names:
                 return finish("switched", current_vehicle=cur, final_shot=True)
         return None
 
     def _confirm_timeout(o, t, k, d):
         if app.states.is_state(o.get("page"), "qk_car_tab"):
+            cur = read_target_text(app, "qk_car_select", t, o)
             return finish(
-                "unconfirmed", current_vehicle=last_cur[0],
-                reason=f"已回到爱车页但当前车辆回读 [{last_cur[0] or '空'}] 与所选车辆 {selected_names or vin} 不一致",
+                "unconfirmed", current_vehicle=cur,
+                reason=f"已回到爱车页但当前车辆回读 [{cur or '空'}] 与所选车辆 {selected_names or vin} 不一致",
                 action_required=True, final_shot=True,
             )
         return finish("timeout", reason=f"点选车辆 {vin} 后 {timeout}s 内未回到爱车页",

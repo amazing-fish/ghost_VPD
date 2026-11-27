@@ -1287,12 +1287,15 @@ class Executor:
                                "_safety": bool(step.get("_safety")), **self._child_condition_context(step)}, case_id)
             subs.append(s)
             # An explore reset can contain optional recipe/flow steps. An explicit
-            # handoff must stop before the next child even when no effect is unknown.
+            # handoff (or capability challenge handoff) must stop before the next child
+            # even when no effect is unknown.
             explore_handoff = self.ctx.mode == "explore" and not step.get("_safety") and s.get("action_required")
+            cap_handoff = s.get("action") == "capability" and bool(s.get("action_required")) and not step.get("_safety")
             if s["outcome"] == "skipped" and s.get("critical", True) and not explore_handoff:
                 return self._required_skip(base, s, subs)
             takeover = unresolved_takeover(s) and not step.get("_safety")
-            if explore_handoff or (s["outcome"] != "skipped" and halts_sequence(s, safety=bool(step.get("_safety")))):
+            if explore_handoff or cap_handoff or (
+                    s["outcome"] != "skipped" and halts_sequence(s, safety=bool(step.get("_safety")))):
                 return {**base, "outcome": s["outcome"], "attribution": s.get("attribution"),
                         "reason": (f"流程 {step['flow']} 第 {i + 1} 步（{sub.get('desc', sub['action'])}）未通过：{s.get('reason')}" if flow
                                    else f"前置状态 {step['state']} 未到达：{s.get('reason')}"),
@@ -1301,7 +1304,7 @@ class Executor:
                         "first_failure": s.get("first_failure"), "final_obs": s.get("final_obs"),
                         "final_status": s.get("final_status"),
                         **({k: s[k] for k in ("action_required", "effect_unknown") if k in s}
-                           if explore_handoff or takeover else {}),
+                           if explore_handoff or takeover or cap_handoff else {}),
                         **({"measurement": s.get("measurement")} if flow else {})}
         order = ["passed", "passed_after_adaptation", "passed_after_recovery"]
         outcome = ("skipped" if subs and all(s["outcome"] == "skipped" for s in subs) else
@@ -1846,17 +1849,55 @@ class Executor:
                     "timeout_s": 0, "retry": 0, "critical": True}
         return self._run_children(step, case_id, [*recipe, terminal], base)
 
+    @staticmethod
+    def _vin_references_secret(raw_value, params, raw_params_local: Optional[dict] = None,
+                               seen_params: Optional[set] = None) -> bool:
+        if raw_value is None:
+            return False
+        seen_params = seen_params or set()
+        for kind, name in re.findall(r"\$\{(var|param|secret):([A-Za-z0-9_.-]+)\}", str(raw_value)):
+            if kind == "secret":
+                return True
+            if kind == "var" and params is not None and name in getattr(params, "secret_vars", ()):
+                return True
+            if kind == "param" and raw_params_local and name not in seen_params and name in raw_params_local:
+                if Executor._vin_references_secret(raw_params_local[name], params, raw_params_local,
+                                                   seen_params | {name}):
+                    return True
+        return False
+
+    @staticmethod
+    def _terminal_capability_error(cap_res: dict) -> Optional[dict]:
+        if isinstance(cap_res.get("execution_error"), dict):
+            return cap_res["execution_error"]
+        for nested_key in ("login", "switch_vehicle"):
+            nested = cap_res.get(nested_key)
+            if isinstance(nested, dict):
+                err = Executor._terminal_capability_error(nested)
+                if err:
+                    return err
+        steps = cap_res.get("steps") or []
+        if steps and isinstance(steps[-1], dict) and steps[-1].get("status") != "ok":
+            err = steps[-1].get("execution_error")
+            if isinstance(err, dict):
+                return err
+        return None
+
     def _capability(self, step: dict) -> dict:
+        # Once selected by run_step's `when` guard, composite capability execution
+        # proceeds as a unit (consistent with `_flow`).
         return self.run_capability(
             step,
             step_id=step["id"],
             critical=bool(step.get("critical", True)),
             oracle_refs=step.get("oracle_refs", []),
             params_local=step.get("_flow_params"),
+            raw_params_local=step.get("_flow_raw"),
         )
 
     def run_capability(self, entry, *, step_id: str, critical: bool = True,
-                       oracle_refs: Optional[list] = None, params_local: Optional[dict] = None) -> dict:
+                       oracle_refs: Optional[list] = None, params_local: Optional[dict] = None,
+                       raw_params_local: Optional[dict] = None) -> dict:
         """Execute an L2/L3 atomic capability within the shared RunContext budget."""
         ctx = self.ctx
         base = {
@@ -1903,6 +1944,15 @@ class Executor:
         meta = CAPABILITY_SPECS[cap_name]
         vin_tail = spec.get("vin_tail")
         if vin_tail is not None:
+            if self._vin_references_secret(vin_tail, ctx.params, raw_params_local):
+                return {
+                    **base,
+                    "capability": cap_name,
+                    "outcome": "blocked",
+                    "attribution": "tool",
+                    "final_status": "capability_invalid_param",
+                    "reason": f"原子能力 {cap_name} 的 vin_tail 不允许引用 secret 类型的敏感 test_data",
+                }
             try:
                 resolved_vin = ctx.params.subst(vin_tail, params_local) if ctx.params else vin_tail
             except ValueError as exc:
@@ -1930,23 +1980,25 @@ class Executor:
         try:
             if cap_name == "logged_in":
                 from .login import login_app
+                timeout_val = float(spec["timeout_s"]) if spec.get("timeout_s") is not None else 15.0
                 cap_res = login_app(
                     ctx.ws, ctx.app, ctx.device,
                     authorize=ctx.authorized,
                     account_secret=spec.get("account_secret"),
                     password_secret=spec.get("password_secret"),
-                    timeout_s=float(spec.get("timeout_s", 15.0)),
+                    timeout_s=timeout_val,
                     store=ctx.store,
                     sleep=ctx.sleep,
                     _ctx=ctx,
                 )
             elif cap_name == "vehicle_vin":
                 from .vpd_nav import switch_vehicle_app
+                timeout_val = float(spec["timeout_s"]) if spec.get("timeout_s") is not None else 15.0
                 cap_res = switch_vehicle_app(
                     ctx.ws, ctx.app, ctx.device,
                     vin_tail=vin_tail,
                     authorize=ctx.authorized,
-                    timeout_s=float(spec.get("timeout_s", 15.0)),
+                    timeout_s=timeout_val,
                     store=ctx.store,
                     sleep=ctx.sleep,
                     _ctx=ctx,
@@ -1955,13 +2007,14 @@ class Executor:
                 from .vpd_nav import enter_vpd_app
                 auto_login = bool(spec.get("auto_login", False))
                 vpd_auth = ctx.authorized if auto_login else (ctx.authorized - {"account_state"})
+                timeout_val = float(spec["timeout_s"]) if spec.get("timeout_s") is not None else 25.0
                 cap_res = enter_vpd_app(
                     ctx.ws, ctx.app, ctx.device,
                     authorize=vpd_auth,
                     vin_tail=vin_tail,
                     account_secret=spec.get("account_secret"),
                     password_secret=spec.get("password_secret"),
-                    timeout_s=float(spec.get("timeout_s", 25.0)),
+                    timeout_s=timeout_val,
                     store=ctx.store,
                     sleep=ctx.sleep,
                     _ctx=ctx,
@@ -2005,8 +2058,9 @@ class Executor:
         if cap_res.get("reason"):
             record["reason"] = cap_res["reason"]
 
-        if cap_status == "indeterminate" or cap_res.get("execution_error"):
-            err = cap_res.get("execution_error") or {
+        terminal_err = self._terminal_capability_error(cap_res)
+        if cap_status == "indeterminate" or terminal_err is not None:
+            err = terminal_err or {
                 "stage": f"capability_{cap_name}",
                 "error_class": cap_status or "indeterminate",
                 "error": cap_res.get("reason"),

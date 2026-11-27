@@ -160,6 +160,9 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
                                  action_required=needs_human(rec), final_shot=True), obs, tree
         rt.sleep(0.25)
         obs, tree = rt.observe_fast(f"login_after_focus_{prefix}")
+        halted = rt.check_challenge(obs, tree)
+        if halted is not None:
+            return False, halted, obs, tree
         if "手动输入" in _visible_texts(tree):
             ok, rec = rt.send_tap(f"{prefix}_manual_btn", "qk_manual_btn", tree, obs)
             if not ok:
@@ -167,10 +170,16 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
                                      action_required=needs_human(rec), final_shot=True), obs, tree
             rt.sleep(0.25)
             obs, tree = rt.observe_fast(f"login_after_{prefix}_manual")
+            halted = rt.check_challenge(obs, tree)
+            if halted is not None:
+                return False, halted, obs, tree
         if _has_select_overlay(app, tree, obs):
             rt.send_back(f"{prefix}_dismiss_select_overlay")
             rt.sleep(0.25)
             obs, tree = rt.observe_fast(f"login_after_{prefix}_overlay")
+            halted = rt.check_challenge(obs, tree)
+            if halted is not None:
+                return False, halted, obs, tree
         ok, rec, obs, tree = send_secret_input(f"input_{prefix}", target_ref, secret_val, tree, obs)
         if not ok:
             return False, finish("blocked", reason=f"{input_err}：{rec['status']}",
@@ -232,6 +241,9 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
                           action_required=False, final_shot=True)
         rt.sleep(0.35)
         obs, tree = rt.observe_fast(f"login_nav_{nav_i + 1}")
+        halted = rt.check_challenge(obs, tree)
+        if halted is not None:
+            return halted
         kind, detail = _classify_screen(app, obs, tree)
 
     if kind != "password_form":
