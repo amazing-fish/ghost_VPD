@@ -248,6 +248,16 @@ def _ensure_car_tab(app, dispatcher, observer, steps: list[dict], prefix: str, o
                                              action_required=_needs_human(rec), final_shot=True)
         sleep(0.35)
         obs, tree = observer.observe(f"{prefix}_car_nav_{hop + 1}", screenshot=False)
+        kind_after, _ = _classify_screen(app, obs, tree)
+        if kind_after == "safe_code":
+            return obs, tree, finish("safe_code_required", reason="命中安全码输入页,已原地保留现场等待人工处理",
+                                     action_required=True, final_shot=True)
+        if kind_after == "sms_verify":
+            return obs, tree, finish("sms_required", reason="命中短信验证码页,已原地保留现场等待人工处理",
+                                     action_required=True, final_shot=True)
+        if kind_after in _LOGGED_OUT_KINDS:
+            return obs, tree, finish("login_required", reason="当前处于未登录状态,需要登录后再继续",
+                                     action_required=True, final_shot=True)
         page = obs.get("page") or {}
         if app.states.is_state(page, "qk_car_tab"):
             return obs, tree, None
@@ -355,8 +365,34 @@ def switch_vehicle_app(ws, app, device, *, vin_tail: str, authorize=None,
         return finish("login_required", reason="当前处于未登录状态，无法切换车辆",
                       action_required=True, final_shot=True)
 
-    # 若尚未在车辆列表页，先收敛到爱车页再点开车辆列表
-    if not app.states.is_state(obs.get("page"), "qk_vehicle_list"):
+    # 若尚未在车辆列表页，先收敛到爱车页再点开车辆列表；若已在列表页，先回滚至顶部防中途偏移漏扫
+    def _vin_sig(t) -> set[str]:
+        all_t = _visible_texts(t)
+        vins = {x for x in all_t if "车架号" in x}
+        return vins if vins else all_t
+
+    if app.states.is_state(obs.get("page"), "qk_vehicle_list"):
+        top_sig = _vin_sig(tree)
+        top_unchanged = 0
+        for top_i in range(6):
+            ok_t, rec_t = _send_swipe(dispatcher, observer, steps, "sv", f"scroll_top_{top_i + 1}", tree, direction="down")
+            if not ok_t:
+                return finish("blocked", reason=f"回滚车辆列表顶部失败: {rec_t['status']}",
+                              action_required=_needs_human(rec_t), final_shot=True)
+            sleep(0.35)
+            obs, tree = observer.observe(f"sv_scroll_top_{top_i + 1}", screenshot=False)
+            nxt_sig = _vin_sig(tree)
+            if nxt_sig == top_sig:
+                top_unchanged += 1
+                if top_unchanged >= 2:
+                    break
+            else:
+                top_unchanged = 0
+                top_sig = nxt_sig
+        else:
+            return finish("blocked", reason="车辆列表未能回到顶部,无法保证全列表扫描",
+                          action_required=True, final_shot=True)
+    else:
         obs, tree, halted = _ensure_car_tab(
             app, dispatcher, observer, steps, "sv", obs, tree, timeout, sleep, finish
         )
@@ -365,7 +401,7 @@ def switch_vehicle_app(ws, app, device, *, vin_tail: str, authorize=None,
         if not app.states.is_state(obs.get("page"), "qk_vehicle_list"):
             ok, rec = _send_tap(app, dispatcher, steps, "sv", "open_vehicle_list", "qk_car_select", tree, obs)
             if not ok:
-                return finish("blocked", reason=f"打开车辆列表失败：{rec['status']}",
+                return finish("blocked", reason=f"打开车辆列表失败: {rec['status']}",
                               action_required=_needs_human(rec), final_shot=True)
             list_deadline = time.monotonic() + min(8.0, timeout)
             poll_n = 0
@@ -375,34 +411,30 @@ def switch_vehicle_app(ws, app, device, *, vin_tail: str, authorize=None,
                 obs, tree = observer.observe(f"sv_wait_list_{poll_n}", screenshot=False)
                 kind, detail = _classify_screen(app, obs, tree)
                 if kind == "safe_code":
-                    return finish("safe_code_required", reason="打开车辆列表后命中安全码输入页，已原地保留现场",
+                    return finish("safe_code_required", reason="打开车辆列表后命中安全码输入页,已原地保留现场",
                                   action_required=True, final_shot=True)
                 if kind == "sms_verify":
-                    return finish("sms_required", reason="打开车辆列表后命中短信验证码页，已原地保留现场",
+                    return finish("sms_required", reason="打开车辆列表后命中短信验证码页,已原地保留现场",
                                   action_required=True, final_shot=True)
                 if kind == "benign_dialog" and detail:
                     ok_d, rec_d = _dismiss_benign_dialog(app, dispatcher, steps, "sv",
                                                          f"list_dismiss_{detail['name']}", detail, tree, obs)
                     if not ok_d and (_needs_human(rec_d) or rec_d.get("status") in ("budget_exhausted", "motion_timeout", "safety_hold")):
-                        return finish("blocked", reason=f"关闭弹窗 {detail['name']} 失败：{rec_d['status']}",
+                        return finish("blocked", reason=f"关闭弹窗 {detail['name']} 失败: {rec_d['status']}",
                                       action_required=True, final_shot=True)
                 elif app.states.is_state(obs.get("page"), "qk_vehicle_list"):
                     break
                 if time.monotonic() >= list_deadline or (device.kind == "replay" and poll_n >= 3):
                     return finish("blocked", reason="未能打开车辆列表页面", action_required=False, final_shot=True)
 
-    # 全列表扫描确认 VIN 尾号唯一性（触底前发现另一行同尾号即判 ambiguous；未触底即判 inconclusive）
-    def _vin_sig(t) -> set[str]:
-        all_t = _visible_texts(t)
-        vins = {x for x in all_t if "车架号" in x}
-        return vins if vins else all_t
-
+    # 全列表扫描确认 VIN 尾号唯一性（需连续两次未变化才确认触底；先判 inconclusive 再判 not_found）
     _, vin_target = _build_vin_target(app, vin)
     seen_sig = _vin_sig(tree)
     matched_card: Optional[tuple[str, ...]] = None
     match_missing_between = False
     swipes_past_match = 0
     hit_bottom = False
+    unchanged_scrolls = 0
     max_scrolls = 6
 
     for scroll_i in range(max_scrolls + 1):
@@ -414,7 +446,7 @@ def switch_vehicle_app(ws, app, device, *, vin_tail: str, authorize=None,
         if st == "found":
             card = _row_card_texts(tree, _hit_node(tree, loc))
             if matched_card is not None and (card != matched_card or match_missing_between):
-                return finish("ambiguous", reason=f"车辆列表不同页均命中尾号 {vin}，无法唯一确定车辆",
+                return finish("ambiguous", reason=f"车辆列表不同页均命中尾号 {vin},无法唯一确定车辆",
                               action_required=False, final_shot=True)
             matched_card = card
             swipes_past_match = 0
@@ -425,45 +457,47 @@ def switch_vehicle_app(ws, app, device, *, vin_tail: str, authorize=None,
             break
         ok, rec = _send_swipe(dispatcher, observer, steps, "sv", f"scroll_vin_{scroll_i + 1}", tree, direction="up")
         if not ok:
-            return finish("blocked", reason=f"滚动查找车辆失败：{rec['status']}",
+            return finish("blocked", reason=f"滚动查找车辆失败: {rec['status']}",
                           action_required=_needs_human(rec), final_shot=True)
-        if matched_card is not None and st != "found":
-            swipes_past_match += 1
-        elif matched_card is not None and st == "found":
+        if matched_card is not None:
             swipes_past_match += 1
         sleep(0.35)
         obs, tree = observer.observe(f"sv_after_scroll_{scroll_i + 1}", screenshot=False)
         new_sig = _vin_sig(tree)
         if new_sig == seen_sig:
-            hit_bottom = True
-            _, _, end_loc = _resolve_target(app, vin_target, tree, obs)
-            if end_loc.get("status") == "ambiguous":
-                return finish("ambiguous", reason=f"车架号尾号 {vin} 在车辆列表中命中多个候选项",
-                              action_required=False, final_shot=True)
-            if end_loc.get("status") == "found":
-                end_card = _row_card_texts(tree, _hit_node(tree, end_loc))
-                if matched_card is not None and (end_card != matched_card or match_missing_between):
-                    return finish("ambiguous", reason=f"车辆列表不同页均命中尾号 {vin}，无法唯一确定车辆",
+            unchanged_scrolls += 1
+            if unchanged_scrolls >= 2:
+                hit_bottom = True
+                _, _, end_loc = _resolve_target(app, vin_target, tree, obs)
+                if end_loc.get("status") == "ambiguous":
+                    return finish("ambiguous", reason=f"车架号尾号 {vin} 在车辆列表中命中多个候选项",
                                   action_required=False, final_shot=True)
-                matched_card = end_card
-                swipes_past_match = 0
-            break
-        seen_sig = new_sig
+                if end_loc.get("status") == "found":
+                    end_card = _row_card_texts(tree, _hit_node(tree, end_loc))
+                    if matched_card is not None and (end_card != matched_card or match_missing_between):
+                        return finish("ambiguous", reason=f"车辆列表不同页均命中尾号 {vin},无法唯一确定车辆",
+                                      action_required=False, final_shot=True)
+                    matched_card = end_card
+                    swipes_past_match = 0
+                break
+        else:
+            unchanged_scrolls = 0
+            seen_sig = new_sig
 
-    if matched_card is None:
-        return finish("not_found", reason=f"车辆列表中未唯一找到尾号 {vin}（not_found）",
-                      action_required=False, final_shot=True)
     if not hit_bottom:
-        return finish("inconclusive", reason=f"车辆列表扫描 {max_scrolls} 页仍未触底，无法确认尾号 {vin} 唯一性",
+        return finish("inconclusive", reason=f"车辆列表扫描 {max_scrolls} 页仍未确认触底,无法确认尾号 {vin} 唯一性",
                       action_required=True, final_shot=True)
+    if matched_card is None:
+        return finish("not_found", reason=f"车辆列表中未唯一找到尾号 {vin} [not_found]",
+                      action_required=False, final_shot=True)
 
-    # 若唯一定位的行不在当前视口，向下回滚直至再次可见
+    # 若唯一定位的行不在当前视口，向下回滚直至再次可见且卡片一致
     _, _, loc = _resolve_target(app, vin_target, tree, obs)
     if loc.get("status") != "found":
         for back_i in range(max(swipes_past_match, 1) + 2):
             ok, rec = _send_swipe(dispatcher, observer, steps, "sv", f"scroll_back_{back_i + 1}", tree, direction="down")
             if not ok:
-                return finish("blocked", reason=f"回滚定位车辆失败：{rec['status']}",
+                return finish("blocked", reason=f"回滚定位车辆失败: {rec['status']}",
                               action_required=_needs_human(rec), final_shot=True)
             sleep(0.35)
             obs, tree = observer.observe(f"sv_scroll_back_{back_i + 1}", screenshot=False)
@@ -472,15 +506,19 @@ def switch_vehicle_app(ws, app, device, *, vin_tail: str, authorize=None,
                 return finish("ambiguous", reason=f"车架号尾号 {vin} 命中多个候选项",
                               action_required=False, final_shot=True)
             if loc.get("status") == "found":
+                card = _row_card_texts(tree, _hit_node(tree, loc))
+                if card != matched_card:
+                    return finish("ambiguous", reason=f"回滚后车架号尾号 {vin} 对应的车辆行已变化,无法唯一确定车辆",
+                                  action_required=False, final_shot=True)
                 break
 
     if loc.get("status") != "found":
         return finish("not_found", reason=f"回滚后未能重新定位尾号 {vin}", action_required=False, final_shot=True)
 
-    selected_names = [t for t in matched_card if "车架号" not in t and vin not in t]
+    selected_names = [t.strip() for t in matched_card if "车架号" not in t and vin not in t and t.strip()]
     ok, rec = _send_tap(app, dispatcher, steps, "sv", "select_vin", vin_target, tree, obs)
     if not ok:
-        return finish("blocked", reason=f"点选车辆 {vin} 失败：{rec['status']}",
+        return finish("blocked", reason=f"点选车辆 {vin} 失败: {rec['status']}",
                       action_required=_needs_human(rec), final_shot=True)
 
     deadline = time.monotonic() + timeout
@@ -492,29 +530,27 @@ def switch_vehicle_app(ws, app, device, *, vin_tail: str, authorize=None,
         obs, tree = observer.observe(f"sv_confirm_{poll_n}", screenshot=False)
         kind, detail = _classify_screen(app, obs, tree)
         if kind == "safe_code":
-            return finish("safe_code_required", reason="切换车辆后命中安全码输入页，已原地保留现场",
+            return finish("safe_code_required", reason="切换车辆后命中安全码输入页,已原地保留现场",
                           action_required=True, final_shot=True)
         if kind == "sms_verify":
-            return finish("sms_required", reason="切换车辆后命中短信验证码页，已原地保留现场",
+            return finish("sms_required", reason="切换车辆后命中短信验证码页,已原地保留现场",
                           action_required=True, final_shot=True)
         if kind == "benign_dialog" and detail:
             ok_d, rec_d = _dismiss_benign_dialog(app, dispatcher, steps, "sv",
                                                  f"post_dismiss_{detail['name']}", detail, tree, obs)
             if not ok_d and (_needs_human(rec_d) or rec_d.get("status") in ("budget_exhausted", "motion_timeout", "safety_hold")):
-                return finish("blocked", reason=f"关闭弹窗 {detail['name']} 失败：{rec_d['status']}",
+                return finish("blocked", reason=f"关闭弹窗 {detail['name']} 失败: {rec_d['status']}",
                               action_required=True, final_shot=True)
         elif app.states.is_state(obs.get("page"), "qk_car_tab"):
             cur = _read_target_text(app, "qk_car_select", tree, obs)
             last_cur = cur
-            identity_ok = bool(cur) and (
-                not selected_names or any(n in cur or cur in n for n in selected_names)
-            )
+            identity_ok = bool(cur) and (not selected_names or cur.strip() in selected_names)
             if identity_ok:
                 return finish("switched", current_vehicle=cur, final_shot=True)
         if time.monotonic() >= deadline or (device.kind == "replay" and poll_n >= 3):
             if app.states.is_state(obs.get("page"), "qk_car_tab"):
                 return finish("unconfirmed", current_vehicle=last_cur,
-                              reason=f"已回到爱车页但当前车辆回读（{last_cur or '空'}）与所选车辆（{selected_names or vin}）不一致",
+                              reason=f"已回到爱车页但当前车辆回读 [{last_cur or '空'}] 与所选车辆 {selected_names or vin} 不一致",
                               action_required=True, final_shot=True)
             return finish("timeout", reason=f"点选车辆 {vin} 后 {timeout}s 内未回到爱车页",
                           action_required=True, final_shot=True)
@@ -628,16 +664,16 @@ def enter_vpd_app(ws, app, device, *, authorize=None, vin_tail: Optional[str] = 
             continue
         break
 
-    # 若已在 ADS/VPD 视图上：直接检查可用 / 已可见阻塞态，不先切走丢失现场
-    pre_blk = _vpd_blocker(app, obs, tree, allow_charging_only=(vin is None))
-    if pre_blk is not None:
-        st, rsn, req = pre_blk
-        return finish(st, reason=rsn, action_required=req, final_shot=True)
-
-    texts = _visible_texts(tree)
-    if vin is None and app.states.is_state(obs.get("page"), "qk_vpd_home") and "停车场信息加载失败" not in texts:
-        return finish("ready", method="already", park_name=_read_target_text(app, "qk_home_park_name", tree, obs),
-                      final_shot=False)
+    # 若未指定切车且已在 ADS/VPD 视图上：直接检查可用 / 已可见阻塞态；若指定 --vin-tail 则先切车再核对目标车辆可用性
+    if vin is None:
+        pre_blk = _vpd_blocker(app, obs, tree, allow_charging_only=True)
+        if pre_blk is not None:
+            st, rsn, req = pre_blk
+            return finish(st, reason=rsn, action_required=req, final_shot=True)
+        texts = _visible_texts(tree)
+        if app.states.is_state(obs.get("page"), "qk_vpd_home") and "停车场信息加载失败" not in texts:
+            return finish("ready", method="already", park_name=_read_target_text(app, "qk_home_park_name", tree, obs),
+                          final_shot=False)
 
     # 如需按 --vin-tail 切车，先执行切车原子能力（共享同一 ctx 预算）
     if vin is not None:

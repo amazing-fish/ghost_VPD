@@ -112,6 +112,7 @@ def _nav_world(
 
     screens = {
         "car_tab": _car_screen("问界M9", ads_target=ads_target, ads_scrolled=ads_scrolled),
+        "car_tab_m9_pro": _car_screen("问界M9 Pro", ads_target=ads_target, ads_scrolled=False),
         "car_tab_k89": _car_screen("问界K89", ads_target=ads_target, ads_scrolled=False),
         "other_tab_with_ads": {"root": {"t": "Column", "b": [0, 0, 1320, 2848], "children": [
             {"t": "Text", "text": "充电服务", "b": [54, 1645, 270, 1716]},
@@ -130,6 +131,7 @@ def _nav_world(
         "vpd_load_failed": {"root": {"t": "Column", "b": [0, 0, 1320, 2848], "children": [
             {"t": "Text", "text": "停车场信息加载失败", "b": [100, 500, 600, 560]},
             {"t": "Text", "text": "搜索车位号设为目的地", "b": [100, 600, 600, 660]},
+            {"t": "Text", "text": "爱车", "click": True, "go": "car_tab", "b": [550, 2620, 720, 2720]},
         ]}},
         "vpd_location_off": {"root": {"t": "Column", "b": [0, 0, 1320, 2848], "children": [
             {"t": "Stack", "id": "VPD_HOME_VIEW", "b": [0, 132, 1320, 2570], "children": [
@@ -227,14 +229,26 @@ def test_switch_vehicle_changes_from_m9_to_k89_and_scrolls_when_needed(ws, tmp_p
     assert any(s.get("step", "").startswith("scroll_vin_") for s in res["steps"])
 
 
-def test_switch_vehicle_rejects_unchanged_vehicle_readback_as_unconfirmed(ws, tmp_path):
+def test_switch_vehicle_rejects_unchanged_vehicle_readback_and_substring_match(ws, tmp_path):
     from vpdtest.vpd_nav import switch_vehicle_app
+    from vpdtest.util import read_json
+
+    # 1) Exact same car returned instead of 问界K89 -> unconfirmed
     spec = _nav_world(tmp_path, start="car_tab", post_vin_screen="car_tab")
     res = switch_vehicle_app(ws, ws.app("qiankun_hm"), ws.device(spec), vin_tail="000228",
                              authorize=["vehicle_selection"])
-    assert res["status"] == "unconfirmed", res
-    assert res["action_required"] is True
+    assert res["status"] == "unconfirmed" and res["action_required"] is True
     assert res["current_vehicle"] == "问界M9"
+
+    # 2) Substring containment pair: selected row says "问界M9 Pro", readback still shows "问界M9" -> unconfirmed
+    p = spec.split("replay:", 1)[1]
+    w = read_json(p)
+    w["screens"]["veh_list"]["root"]["children"][2]["children"][0]["text"] = "问界M9 Pro"
+    write_json(p, w)
+    res_sub = switch_vehicle_app(ws, ws.app("qiankun_hm"), ws.device(spec), vin_tail="000228",
+                                 authorize=["vehicle_selection"])
+    assert res_sub["status"] == "unconfirmed" and res_sub["action_required"] is True
+    assert res_sub["current_vehicle"] == "问界M9"
 
 
 def test_switch_vehicle_stops_on_ambiguous_vin_match(ws, tmp_path):
@@ -287,6 +301,8 @@ def test_switch_vehicle_scans_full_list_detects_cross_page_duplicate_and_inconcl
     write_json(p, w)
 
     def swipe_infinite(d, x1, y1, x2, y2, speed=2000):
+        if y1 < y2:
+            return d._res("swipe", raw="at top")
         counter["n"] += 1
         sid = f"dyn_{counter['n']}"
         d.world["screens"][sid] = {"root": {"t": "Column", "b": [0, 0, 1320, 2848], "children": [
@@ -415,16 +431,31 @@ def test_enter_vpd_chains_auto_login_switch_vehicle_and_shares_budget(ws, tmp_pa
     assert any(s["step"] == "login" and s["status"] == "logged_in" for s in out["steps"])
     assert any(s["step"] == "switch_vehicle" and s["current_vehicle"] == "问界K89" for s in out["steps"])
 
-    # Shared budget check: tight max_actions_per_run=5 stops inside child login/switch rather than resetting budget
+    # Shared budget check: count real sends across parent + children and assert rejection on exhaustion
     p_data = ws.root / "policy.json"
     from vpdtest.util import read_json
     pol = read_json(p_data)
     pol["max_actions_per_run"] = 5
     write_json(p_data, pol)
+
+    orig_send = Dispatcher.send
+    counts = {"sent": 0, "rejected": 0}
+
+    def spy_send(self, op, *args, preconditions=None, att=None, tap=None, transient=None):
+        res = orig_send(self, op, *args, preconditions=preconditions, att=att, tap=tap, transient=transient)
+        if op != "clear_text" and res.sent is not False:
+            counts["sent"] += 1
+        if att and att.get("status") == "budget_exhausted":
+            counts["rejected"] += 1
+        return res
+
+    monkeypatch.setattr(Dispatcher, "send", spy_send)
     rc2 = cli.main(["--workspace", str(ws.root), "enter-vpd", "--app", "qiankun_hm", "--device", spec,
                     "--vin-tail", "000228", "--authorize", "account_state", "vehicle_selection"])
     out2 = json.loads(capsys.readouterr().out)
-    assert out2["actions"] <= 5
+    assert counts["sent"] <= 5
+    assert counts["rejected"] >= 1
+    assert out2["actions"] == counts["sent"]
     assert out2["status"] != "ready"
 
 
@@ -448,7 +479,14 @@ def test_enter_vpd_terminal_states_pre_and_post_tap(ws, tmp_path, monkeypatch):
     assert res_pre["status"] == "location_permission_required" and res_pre["action_required"] is True
     assert res_pre["actions"] == 0
 
-    # 2) Post-tap safe_code / load_failed / benign_dialog / location_off / charging_only
+    # 2) When starting on previous vehicle's vpd_load_failed WITH --vin-tail 000228, defer availability checks until after switch
+    spec_switch_from_lf = _nav_world(tmp_path, start="vpd_load_failed", post_vin_screen="car_tab_k89")
+    res_sw_lf = enter_vpd_app(ws, app, ws.device(spec_switch_from_lf), vin_tail="000228",
+                              authorize=["vehicle_selection"])
+    assert res_sw_lf["status"] == "ready"
+    assert any(s.get("step") == "switch_vehicle" and s.get("current_vehicle") == "问界K89" for s in res_sw_lf["steps"])
+
+    # 3) Post-tap safe_code / load_failed / benign_dialog / location_off / charging_only
     for target_scr, expected_st, expected_req in [
         ("safe_code", "safe_code_required", True),
         ("vpd_load_failed", "load_failed", False),
@@ -464,7 +502,7 @@ def test_enter_vpd_terminal_states_pre_and_post_tap(ws, tmp_path, monkeypatch):
     assert res_dlg["status"] == "ready"
     assert any(s["step"].startswith("post_dismiss_") for s in res_dlg["steps"])
 
-    # 3) Budget exhausted while dismissing post-ADS dialog
+    # 4) Budget exhausted while dismissing post-ADS dialog
     orig_send = Dispatcher.send
     def fail_dismiss(self, op, *args, preconditions=None, att=None, tap=None, transient=None):
         if att and str(att.get("step_id", "")).startswith("ev_post_dismiss_"):
@@ -495,3 +533,75 @@ def test_switch_vehicle_navigates_to_car_tab_even_when_ads_tab_visible_and_handl
     res_to = switch_vehicle_app(ws, ws.app("qiankun_hm"), ws.device(spec), vin_tail="000228",
                                 authorize=["vehicle_selection"], timeout_s=0.1)
     assert res_to["status"] == "timeout" and res_to["action_required"] is True
+
+    # If 爱车 tab tap opens sms_verify even as timeout expires -> sms_required (not timeout)
+    w["screens"]["other_tab_with_ads"]["root"]["children"][1]["children"][1]["go"] = "sms_verify"
+    write_json(p, w)
+    res_sms = switch_vehicle_app(ws, ws.app("qiankun_hm"), ws.device(spec), vin_tail="000228",
+                                 authorize=["vehicle_selection"], timeout_s=0.1)
+    assert res_sms["status"] == "sms_required" and res_sms["action_required"] is True
+
+
+def test_switch_vehicle_bottom_start_normalizes_to_top_and_verifies_rollback_card(ws, tmp_path, monkeypatch):
+    from vpdtest.vpd_nav import switch_vehicle_app
+    from vpdtest.util import read_json
+
+    # 1) Already open on bottom page with 000228, duplicate 000228 on top page -> must normalize to top and return ambiguous
+    spec = _nav_world(tmp_path, start="veh_list_p2", post_vin_screen="car_tab_k89")
+    app = ws.app("qiankun_hm")
+    p = spec.split("replay:", 1)[1]
+    w = read_json(p)
+    w["screens"]["veh_list_p2"] = {"root": {"t": "Column", "b": [0, 0, 1320, 2848], "children": [
+        {"t": "Text", "text": "我的车辆", "b": [40, 120, 320, 180]},
+        {"t": "Row", "click": True, "go": "car_tab_k89", "b": [40, 420, 1200, 520], "children": [
+            {"t": "Text", "text": "赛力斯M9", "b": [60, 425, 400, 460]},
+            {"t": "Text", "text": "车架号 000228(后六位)", "b": [60, 465, 700, 510]},
+        ]},
+    ]}}
+    write_json(p, w)
+
+    orig_swipe = ReplayDevice.swipe
+    def swipe_two_pages(d, x1, y1, x2, y2, speed=2000):
+        if y1 < y2 and d.current_screen() == "veh_list_p2":
+            d.state["stack"][-1] = "veh_list"
+        elif y1 > y2 and d.current_screen() == "veh_list":
+            d.state["stack"][-1] = "veh_list_p2"
+        return orig_swipe(d, x1, y1, x2, y2, speed=speed)
+
+    monkeypatch.setattr(ReplayDevice, "swipe", swipe_two_pages)
+    dev = ws.device(spec)
+    dev.launch(app.bundle, app.ability)
+    res_dup = switch_vehicle_app(ws, app, dev, vin_tail="000228", authorize=["vehicle_selection"])
+    assert res_dup["status"] == "ambiguous", res_dup
+
+    # 2) Rollback sees a different card with same VIN -> return ambiguous without tapping
+    w["screens"]["veh_list_p2"] = {"root": {"t": "Column", "b": [0, 0, 1320, 2848], "children": [
+        {"t": "Text", "text": "我的车辆", "b": [40, 120, 320, 180]},
+        {"t": "Text", "text": "车架号 777888(后六位)", "b": [60, 320, 700, 380]},
+    ]}}
+    w["screens"]["veh_list_changed"] = {"root": {"t": "Column", "b": [0, 0, 1320, 2848], "children": [
+        {"t": "Text", "text": "我的车辆", "b": [40, 120, 320, 180]},
+        {"t": "Row", "click": True, "go": "car_tab_m9_pro", "b": [40, 420, 1200, 520], "children": [
+            {"t": "Text", "text": "问界M9 Pro", "b": [60, 425, 400, 460]},
+            {"t": "Text", "text": "车架号 000228(后6位)", "b": [60, 465, 700, 510]},
+        ]},
+    ]}}
+    write_json(p, w)
+
+    def swipe_changed_on_back(d, x1, y1, x2, y2, speed=2000):
+        if y1 > y2 and d.current_screen() == "veh_list":
+            d.state["stack"][-1] = "veh_list_p2"
+        elif y1 < y2 and d.current_screen() == "veh_list_p2":
+            d.state["stack"][-1] = "veh_list_changed"
+        return orig_swipe(d, x1, y1, x2, y2, speed=speed)
+
+    spec_rb = _nav_world(tmp_path, start="veh_list", post_vin_screen="car_tab_k89")
+    # Reuse edited file path
+    monkeypatch.setattr(ReplayDevice, "swipe", swipe_changed_on_back)
+    dev2 = ws.device("replay:" + p)
+    dev2.state["stack"] = ["veh_list"]
+    dev2.state["foreground"] = app.bundle
+    dev2.state["alive"] = True
+    res_rb = switch_vehicle_app(ws, app, dev2, vin_tail="000228", authorize=["vehicle_selection"])
+    assert res_rb["status"] == "ambiguous", res_rb
+
