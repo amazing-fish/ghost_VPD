@@ -93,9 +93,12 @@ def _classify_screen(app, obs, tree) -> tuple[str, Optional[dict]]:
     if "身份验证" in texts or "输入验证码" in texts or any(t.startswith("验证码已发至") for t in texts):
         return "sms_verify", None
     for intr in (obs.get("page") or {}).get("interrupts") or []:
-        spec = app.states.interrupts.get(intr) or {}
+        iid = intr.get("id") if isinstance(intr, dict) else intr
+        if not isinstance(iid, str):
+            continue
+        spec = app.states.interrupts.get(iid) or {}
         if spec.get("class") == "benign" and spec.get("review") == "reviewed" and spec.get("dismiss_text"):
-            return "benign_dialog", {"name": intr, "dismiss_text": spec["dismiss_text"]}
+            return "benign_dialog", {"name": iid, "dismiss_text": spec["dismiss_text"]}
     _, _, pwd_loc = _resolve_target(app, "qk_pwd_input", tree, obs)
     if pwd_loc.get("status") == "found":
         return "password_form", None

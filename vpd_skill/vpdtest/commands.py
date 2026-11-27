@@ -67,6 +67,36 @@ def cmd_login(ws: Workspace, a) -> dict:
     )
 
 
+def cmd_switch_vehicle(ws: Workspace, a) -> dict:
+    from .vpd_nav import switch_vehicle_app
+    app = ws.app(a.app)
+    store = RunStore(ws.runs_dir, kind="switch_vehicle")
+    dev = ws.device(a.device)
+    return switch_vehicle_app(
+        ws, app, dev,
+        vin_tail=a.vin_tail,
+        authorize=getattr(a, "authorize", None),
+        timeout_s=getattr(a, "timeout", 15.0),
+        store=store,
+    )
+
+
+def cmd_enter_vpd(ws: Workspace, a) -> dict:
+    from .vpd_nav import enter_vpd_app
+    app = ws.app(a.app)
+    store = RunStore(ws.runs_dir, kind="enter_vpd")
+    dev = ws.device(a.device)
+    return enter_vpd_app(
+        ws, app, dev,
+        authorize=getattr(a, "authorize", None),
+        vin_tail=getattr(a, "vin_tail", None),
+        account_secret=getattr(a, "account_secret", None),
+        password_secret=getattr(a, "password_secret", None),
+        timeout_s=getattr(a, "timeout", 25.0),
+        store=store,
+    )
+
+
 def cmd_sysdiag(ws: Workspace, a) -> dict:
     """只读整屏诊断：窗口表 + 整屏布局树 + 截图（APP 白名单） + 已登记系统弹窗比对。
     用途：登记新系统弹窗时取证；排查"preflight 全绿但屏幕被盖住"的现场。
