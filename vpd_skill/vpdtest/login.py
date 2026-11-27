@@ -118,7 +118,7 @@ def _classify_screen(app, obs, tree) -> tuple[str, Optional[dict]]:
 
 def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] = None,
               password_secret: Optional[str] = None, timeout_s: float = 15.0,
-              store: Optional[RunStore] = None, sleep=None) -> dict:
+              store: Optional[RunStore] = None, sleep=None, _ctx: Optional[RunContext] = None) -> dict:
     """原子密码登录能力（默认 qiankun_hm）。返回结构化结果，不含明文凭据。"""
     t0 = time.monotonic()
     acc_key = _validate_secret_key(account_secret, _DEFAULT_ACCOUNT_SECRET, "--account-secret")
@@ -145,13 +145,19 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
     if sleep is None:
         sleep = time.sleep if device.kind != "replay" else (lambda _: None)
 
-    store = store or RunStore(ws.runs_dir, kind="login")
-    store.event("capability_start", capability="login", app=app.id, device=device.spec,
-                account_secret_key=acc_key, password_secret_key=pwd_key)
-
-    ctx = RunContext(ws, app, device, store, ExperienceStore(ws.root, app.id).overlay(), mode="agent")
-    ctx.policy.check_grants(granted)
-    ctx.authorized = ctx.policy.effective_grants(granted)
+    if _ctx is None:
+        store = store or RunStore(ws.runs_dir, kind="login")
+        store.event("capability_start", capability="login", app=app.id, device=device.spec,
+                    account_secret_key=acc_key, password_secret_key=pwd_key)
+        ctx = RunContext(ws, app, device, store, ExperienceStore(ws.root, app.id).overlay(), mode="agent")
+        ctx.policy.check_grants(granted)
+        ctx.authorized = ctx.policy.effective_grants(granted)
+    else:
+        ctx = _ctx
+        store = ctx.store
+        store.event("capability_start", capability="login", app=app.id, device=device.spec,
+                    account_secret_key=acc_key, password_secret_key=pwd_key, shared_budget=True)
+    actions_start = ctx.actions
     dispatcher = ctx.dispatcher
     observer = ctx.observer
     steps: list[dict] = []
@@ -167,6 +173,7 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
             obs_f, _ = observer.observe(f"login_{status}", screenshot=True)
             final_obs = obs_f["obs_id"]
         elapsed = round(time.monotonic() - t0, 2)
+        used = ctx.actions - actions_start
         out = {
             "run": store.run_id,
             "app": app.id,
@@ -175,14 +182,14 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
             **({"method": method} if method else {}),
             **({"reason": reason} if reason else {}),
             "action_required": action_required,
-            "actions": ctx.actions,
+            "actions": used,
             "elapsed_s": elapsed,
             **({"final_obs": final_obs} if final_obs else {}),
             "steps": steps,
             **(extra or {}),
         }
         store.event("capability_end", capability="login", status=status, method=method,
-                    actions=ctx.actions, elapsed_s=elapsed, action_required=action_required)
+                    actions=used, elapsed_s=elapsed, action_required=action_required)
         return out
 
     def observe_fast(label: str):
