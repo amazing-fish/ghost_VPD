@@ -49,6 +49,16 @@ def build_parser() -> argparse.ArgumentParser:
     u.add_argument("--lock-secret",
                    help="用哪个 secrets 键的 PIN（只传键名，如 LOCK_PIN_TEST；不接受 PIN 本身）")
 
+    lg = sub.add_parser("login", help="单命令原子账号密码登录（仅接受 secrets 键名，不接受明文；遇短信/安全码原地停下交接）")
+    lg.add_argument("--app", default="qiankun_hm")
+    lg.add_argument("--device")
+    lg.add_argument("--authorize", nargs="*", default=[], help="须包含 account_state 才会下发登录动作")
+    lg.add_argument("--account-secret", default="QIANKUN_PHONE",
+                    help="账号对应的 secrets 键名（默认 QIANKUN_PHONE；不接受明文）")
+    lg.add_argument("--password-secret", default="QIANKUN_PASSWORD",
+                    help="密码对应的 secrets 键名（默认 QIANKUN_PASSWORD；不接受明文）")
+    lg.add_argument("--timeout", type=float, default=15.0, help="提交登录后的轮询上限秒数（默认 15s）")
+
     g = sub.add_parser("sysdiag", help="只读整屏诊断：窗口表 + 整屏树 + APP 白名单截图 + 系统弹窗登记比对")
     g.add_argument("--app", default="motor_hm")
     g.add_argument("--device")
@@ -258,7 +268,7 @@ def build_parser() -> argparse.ArgumentParser:
 HANDLERS = {"handoff": cmd_handoff, "doctor": c.cmd_doctor, "observe": c.cmd_observe, "act": c.cmd_act, "run": c.cmd_run,
             "suite": c.cmd_suite, "explore": c.cmd_explore, "case": c.cmd_case, "knowledge": c.cmd_knowledge,
             "experience": c.cmd_experience, "template-crop": c.cmd_template_crop, "session": c.cmd_session,
-            "unlock": c.cmd_unlock, "sysdiag": c.cmd_sysdiag, "console": c.cmd_console}
+            "unlock": c.cmd_unlock, "login": c.cmd_login, "sysdiag": c.cmd_sysdiag, "console": c.cmd_console}
 
 
 def main(argv=None) -> int:
@@ -290,7 +300,7 @@ def main(argv=None) -> int:
     res = out.get("results")
     rows = [out] + ([r for r in res if isinstance(r, dict)] if isinstance(res, list) else [])
     # Other commands can echo arbitrary user-authored data (e.g. knowledge show).
-    if args.cmd in ("run", "suite", "explore", "act", "observe", "unlock", "sysdiag") or (
+    if args.cmd in ("run", "suite", "explore", "act", "observe", "unlock", "login", "sysdiag") or (
             args.cmd == "experience" and args.x_cmd == "validate"):
         handoffs = register_handoffs(ws.runs_dir, args.cmd, out, rows)
         if handoffs:
