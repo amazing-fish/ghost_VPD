@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import math
 import os
 import re
 import time
@@ -121,7 +122,8 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
     pwd_key = _validate_secret_key(password_secret, _DEFAULT_PASSWORD_SECRET, "--password-secret")
     if app.id != "qiankun_hm":
         raise ValueError(f"当前原子登录能力仅支持 qiankun_hm，收到 {app.id}")
-    if timeout_s <= 0 or timeout_s > 60:
+    if (not isinstance(timeout_s, (int, float)) or isinstance(timeout_s, bool)
+            or not math.isfinite(timeout_s) or timeout_s <= 0 or timeout_s > 60):
         raise ValueError("timeout_s 须在 (0, 60] 秒内")
 
     granted = set(authorize or [])
@@ -150,6 +152,10 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
     dispatcher = ctx.dispatcher
     observer = ctx.observer
     steps: list[dict] = []
+    last_obs_epoch = ctx.actions
+
+    def _needs_human(rec: dict) -> bool:
+        return bool(rec.get("action_required")) or rec.get("status") == "state_indeterminate"
 
     def finish(status: str, *, method: Optional[str] = None, reason: Optional[str] = None,
                action_required: bool = False, final_shot: bool = False, extra: Optional[dict] = None) -> dict:
@@ -177,7 +183,10 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
         return out
 
     def observe_fast(label: str):
-        return observer.observe(label, screenshot=False)
+        nonlocal last_obs_epoch
+        obs_out, tree_out = observer.observe(label, screenshot=False)
+        last_obs_epoch = ctx.actions
+        return obs_out, tree_out
 
     def send_tap(step_name: str, target_ref, tree, obs, *, allow_fallback_text: Optional[str] = None) -> tuple[bool, dict]:
         tid, target, loc = _resolve_target(app, target_ref, tree, obs)
@@ -186,7 +195,7 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
                   "strategies": [{"kind": "text", "value": allow_fallback_text}]}
             tid, target, loc = _resolve_target(app, fb, tree, obs)
         if loc.get("status") != "found":
-            rec = {"step": step_name, "target": tid, "status": loc.get("status")}
+            rec = {"step": step_name, "target": tid, "status": loc.get("status"), "action_required": False}
             steps.append(rec)
             return False, rec
         att = {"action": "tap", "step_id": f"login_{step_name}",
@@ -195,7 +204,7 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
                "page": obs.get("page"), "layout": obs.get("layout")}
         res = dispatcher.send("tap", *loc["point"], preconditions=dispatcher.app_conditions("tap"), att=att, tap=tap)
         rec = {"step": step_name, "target": tid, "status": "ok" if res.ok else (att.get("status") or res.error_class or "failed"),
-               "sent": res.sent}
+               "sent": res.sent, "action_required": bool(att.get("action_required"))}
         if att.get("execution_error"):
             rec["execution_error"] = att["execution_error"]
         steps.append(rec)
@@ -205,7 +214,8 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
         att = {"action": "back", "step_id": f"login_{step_name}"}
         res = dispatcher.send("key", "back", preconditions=dispatcher.app_conditions("back"), att=att)
         rec = {"step": step_name, "action": "back",
-               "status": "ok" if res.ok else (att.get("status") or res.error_class or "failed"), "sent": res.sent}
+               "status": "ok" if res.ok else (att.get("status") or res.error_class or "failed"),
+               "sent": res.sent, "action_required": bool(att.get("action_required"))}
         if att.get("execution_error"):
             rec["execution_error"] = att["execution_error"]
         steps.append(rec)
@@ -216,7 +226,8 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
         for attempt in range(2):
             tid, target, loc = _resolve_target(app, target_ref, tree, obs)
             if loc.get("status") != "found":
-                rec = {"step": step_name, "target": tid, "status": loc.get("status"), "attempt": attempt + 1}
+                rec = {"step": step_name, "target": tid, "status": loc.get("status"),
+                       "attempt": attempt + 1, "action_required": False}
                 steps.append(rec)
                 return False, rec, obs, tree
             node = _hit_node(tree, loc)
@@ -225,7 +236,8 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
             if existing and existing != hint:
                 c_att = {"action": "input", "step_id": f"login_{step_name}_clear"}
                 c_tap = {"tree": tree, "loc": loc, "target": target, "target_ref": target_ref,
-                         "page": obs.get("page"), "layout": obs.get("layout")}
+                         "page": obs.get("page"), "layout": obs.get("layout"),
+                         "observed_action_epoch": last_obs_epoch}
                 c_res = dispatcher.send("clear_text", *loc["point"], len(existing) + 4,
                                         preconditions=dispatcher.app_conditions("input"), att=c_att, tap=c_tap)
                 if not c_res.ok:
@@ -235,14 +247,18 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
                         sleep(0.25)
                         obs, tree = observe_fast(f"login_{step_name}_after_back")
                         continue
-                    rec = {"step": step_name, "target": tid, "status": status, "stage": "clear", "attempt": attempt + 1}
+                    rec = {"step": step_name, "target": tid, "status": status, "stage": "clear",
+                           "attempt": attempt + 1, "action_required": bool(c_att.get("action_required"))}
+                    if c_att.get("execution_error"):
+                        rec["execution_error"] = c_att["execution_error"]
                     steps.append(rec)
                     return False, rec, obs, tree
                 sleep(0.15)
                 obs, tree = observe_fast(f"login_{step_name}_after_clear")
                 tid, target, loc = _resolve_target(app, target_ref, tree, obs)
                 if loc.get("status") != "found":
-                    rec = {"step": step_name, "target": tid, "status": loc.get("status"), "attempt": attempt + 1}
+                    rec = {"step": step_name, "target": tid, "status": loc.get("status"),
+                           "attempt": attempt + 1, "action_required": False}
                     steps.append(rec)
                     return False, rec, obs, tree
 
@@ -253,7 +269,8 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
             res = dispatcher.send("input_text", *loc["point"], secret_val,
                                   preconditions=dispatcher.app_conditions("input"), att=att, tap=tap)
             if res.ok:
-                rec = {"step": step_name, "target": tid, "status": "ok", "redacted": True, "attempt": attempt + 1}
+                rec = {"step": step_name, "target": tid, "status": "ok", "redacted": True,
+                       "attempt": attempt + 1, "action_required": False}
                 steps.append(rec)
                 return True, rec, obs, tree
             status = att.get("status") or res.error_class or "failed"
@@ -262,12 +279,13 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
                 sleep(0.25)
                 obs, tree = observe_fast(f"login_{step_name}_retry")
                 continue
-            rec = {"step": step_name, "target": tid, "status": status, "attempt": attempt + 1}
+            rec = {"step": step_name, "target": tid, "status": status, "attempt": attempt + 1,
+                   "action_required": bool(att.get("action_required"))}
             if att.get("execution_error"):
                 rec["execution_error"] = att["execution_error"]
             steps.append(rec)
             return False, rec, obs, tree
-        return False, {"step": step_name, "status": "failed"}, obs, tree
+        return False, {"step": step_name, "status": "failed", "action_required": False}, obs, tree
 
     # 1. 自动解锁（已解锁时零开销跳过）
     locked = device.screen_locked()
@@ -336,21 +354,22 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
         if kind == "benign_dialog" and detail:
             fb = {"label": f"dismiss:{detail['name']}", "side_effect": "dismiss_dialog",
                   "strategies": [{"kind": "text", "value": detail["dismiss_text"]}]}
-            ok, _ = send_tap(f"dismiss_{detail['name']}", fb, tree, obs)
+            ok, rec = send_tap(f"dismiss_{detail['name']}", fb, tree, obs)
             if not ok:
-                return finish("blocked", reason=f"良性弹窗 {detail['name']} 关闭失败", action_required=False)
+                return finish("blocked", reason=f"良性弹窗 {detail['name']} 关闭失败：{rec['status']}",
+                              action_required=_needs_human(rec), final_shot=True)
         elif kind == "logged_out_my":
             ok, rec = send_tap("tap_login_register", "qk_login_register", tree, obs)
             if not ok:
-                return finish("blocked", reason=f"点击登录/注册失败：{rec['status']}", action_required=rec["status"] == "state_indeterminate")
+                return finish("blocked", reason=f"点击登录/注册失败：{rec['status']}", action_required=_needs_human(rec))
         elif kind == "one_click":
             ok, rec = send_tap("tap_other_method", "qk_login_other_method", tree, obs, allow_fallback_text="其他登录方式")
             if not ok:
-                return finish("blocked", reason=f"点击其他登录方式失败：{rec['status']}", action_required=rec["status"] == "state_indeterminate")
+                return finish("blocked", reason=f"点击其他登录方式失败：{rec['status']}", action_required=_needs_human(rec))
         elif kind == "method_select":
             ok, rec = send_tap("tap_pwd_login", "qk_pwd_login", tree, obs, allow_fallback_text="密码登录")
             if not ok:
-                return finish("blocked", reason=f"点击密码登录失败：{rec['status']}", action_required=rec["status"] == "state_indeterminate")
+                return finish("blocked", reason=f"点击密码登录失败：{rec['status']}", action_required=_needs_human(rec))
         else:
             return finish("blocked", reason=f"当前页面无法识别为登录入口或密码表单（{kind}）",
                           action_required=False, final_shot=True)
@@ -367,14 +386,14 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
     ok, rec = send_tap("focus_phone", "qk_number_input", tree, obs)
     if not ok:
         return finish("blocked", reason=f"聚焦手机号输入框失败：{rec['status']}",
-                      action_required=rec["status"] == "state_indeterminate", final_shot=True)
+                      action_required=_needs_human(rec), final_shot=True)
     sleep(0.25)
     obs, tree = observe_fast("login_after_focus_phone")
     if "手动输入" in _visible_texts(tree):
         ok, rec = send_tap("phone_manual_btn", "qk_manual_btn", tree, obs)
         if not ok:
             return finish("blocked", reason=f"关闭密码保险箱「手动输入」失败：{rec['status']}",
-                          action_required=rec["status"] == "state_indeterminate", final_shot=True)
+                          action_required=_needs_human(rec), final_shot=True)
         sleep(0.25)
         obs, tree = observe_fast("login_after_phone_manual")
     if _has_select_overlay(app, tree, obs):
@@ -384,7 +403,7 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
     ok, rec, obs, tree = send_secret_input("input_phone", "qk_number_input", acc_val, tree, obs)
     if not ok:
         return finish("blocked", reason=f"输入手机号失败：{rec['status']}",
-                      action_required=rec["status"] == "state_indeterminate", final_shot=True)
+                      action_required=_needs_human(rec), final_shot=True)
 
     # 6. 密码输入：聚焦 -> 处理密码保险箱/SelectOverlay -> 输入密码
     sleep(0.15)
@@ -392,14 +411,14 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
     ok, rec = send_tap("focus_pwd", "qk_pwd_input", tree, obs)
     if not ok:
         return finish("blocked", reason=f"聚焦密码输入框失败：{rec['status']}",
-                      action_required=rec["status"] == "state_indeterminate", final_shot=True)
+                      action_required=_needs_human(rec), final_shot=True)
     sleep(0.25)
     obs, tree = observe_fast("login_after_focus_pwd")
     if "手动输入" in _visible_texts(tree):
         ok, rec = send_tap("pwd_manual_btn", "qk_manual_btn", tree, obs)
         if not ok:
             return finish("blocked", reason=f"关闭密码区「手动输入」失败：{rec['status']}",
-                          action_required=rec["status"] == "state_indeterminate", final_shot=True)
+                          action_required=_needs_human(rec), final_shot=True)
         sleep(0.25)
         obs, tree = observe_fast("login_after_pwd_manual")
     if _has_select_overlay(app, tree, obs):
@@ -409,7 +428,7 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
     ok, rec, obs, tree = send_secret_input("input_pwd", "qk_pwd_input", pwd_val, tree, obs)
     if not ok:
         return finish("blocked", reason=f"输入密码失败：{rec['status']}",
-                      action_required=rec["status"] == "state_indeterminate", final_shot=True)
+                      action_required=_needs_human(rec), final_shot=True)
 
     # 7. 收起键盘 -> 勾选未勾选的用户协议 -> 点击登录
     send_back("dismiss_ime")
@@ -420,13 +439,13 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
         ok, rec = send_tap("check_protocol", "qk_protocol_unchecked", tree, obs)
         if not ok:
             return finish("blocked", reason=f"勾选用户协议失败：{rec['status']}",
-                          action_required=rec["status"] == "state_indeterminate", final_shot=True)
+                          action_required=_needs_human(rec), final_shot=True)
         sleep(0.15)
         obs, tree = observe_fast("login_after_protocol")
     ok, rec = send_tap("submit_login", "qk_login_btn", tree, obs)
     if not ok:
         return finish("blocked", reason=f"点击登录按钮失败：{rec['status']}",
-                      action_required=rec["status"] == "state_indeterminate", final_shot=True)
+                      action_required=_needs_human(rec), final_shot=True)
 
     # 8. 快速轮询登录结果（不固定长 sleep，命中即返回）
     deadline = time.monotonic() + timeout_s
@@ -447,8 +466,10 @@ def login_app(ws, app, device, *, authorize=None, account_secret: Optional[str] 
         if kind == "benign_dialog" and detail:
             fb = {"label": f"dismiss:{detail['name']}", "side_effect": "dismiss_dialog",
                   "strategies": [{"kind": "text", "value": detail["dismiss_text"]}]}
-            send_tap(f"post_dismiss_{detail['name']}", fb, tree, obs)
-            continue
+            ok, rec = send_tap(f"post_dismiss_{detail['name']}", fb, tree, obs)
+            if not ok and (_needs_human(rec) or rec.get("status") in ("budget_exhausted", "motion_timeout", "safety_hold")):
+                return finish("blocked", reason=f"提交登录后关闭良性弹窗 {detail['name']} 失败：{rec['status']}",
+                              action_required=True, final_shot=True)
         if time.monotonic() >= deadline or (device.kind == "replay" and poll_n >= 3):
             return finish("timeout", reason=f"提交登录后 {timeout_s}s 内未确认进入已登录页（当前：{kind}）",
                           action_required=True, final_shot=True)

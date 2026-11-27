@@ -849,6 +849,8 @@ class HdcDevice:
                     locked = {"true": True, "false": False}.get(parse_kv(lock_raw, "screenLocked"))
         if locked is None and (self.screen_query_error or {}).get("error_class") not in _OFFLINE_CLASSES:
             locked = self.screen_locked(tries=2)
+            # 锁屏查询重试期间前台可能已切换，重查一次前台并保留其错误状态。
+            return locked, self.foreground()
         aa_raw, aa_rc = parsed["AA"]
         aa_err = classify_output(aa_raw) or ("command_failed" if aa_rc != 0 else None)
         self.last_query_error = aa_err
